@@ -1,0 +1,183 @@
+---
+# FEATURE_NAME: build_and_dispatch_docker_images
+# FEATURE_VERSION: build_and_dispatch_docker_images-v5
+# FEATURE_URL: https://github.com/prefapp/features/tree/build_and_dispatch_docker_images-v5/packages/build_and_dispatch_docker_images
+# FEATURE_GIT_SHA: "2c3081793137d8cde377436057466e38cb4190bc"
+# FEATURE_GIT_TAGS: ["build_and_dispatch_docker_images-v5.6.1","build_and_dispatch_docker_images-v5"]
+
+name: Make dispatches
+
+permissions:
+  id-token: write
+  contents: read
+  actions: read
+  checks: read
+
+on:
+  workflow_dispatch:
+    inputs:
+      image_type:
+        description: "[IMAGE TYPE] Filter dispatch by image type (releases, snapshots, *)"
+        required: true
+        type: choice
+        options: ['releases', 'snapshots', '*']
+        default: snapshots
+      flavors:
+        description: "[FLAVORS] Filter dispatches by image flavors, separated by comma (use '*' to target all flavors of the same image type)"
+        required: false
+        default: default
+      overwrite_version:
+        description: |
+          [VERSION (overwrite)] Dispatch using this version instead of the one defined
+          in the dispatches file (can be a short-sha, a release tag or any of the valid configuration keywords: $lastest_release, $latest_prerelease, $branch_<branch_name>...)
+        required: false
+        default: ''
+      overwrite_tenant:
+        description: |
+          [TENANT (overwrite)] Dispatch using this tenant instead of using the one defined
+          in the dispatches file, related to the flavor to deploy.
+        required: false
+        default: ''
+      overwrite_env:
+        description: |
+          [ENV (overwrite)] Dispatch using this env instead of using the one defined in the
+          dispatches file, related to the flavor to deploy.
+        required: false
+        default: ''
+      filter_by_tenant:
+        description: |
+          [FILTER BY TENANT] Dispatch only to state repos whose tenant is included in this filter, if specified. Can be a comma separated list of tenants or * (all)
+        required: true
+        default: '*'
+      filter_by_env:
+        description: |
+          [FILTER BY ENV] Dispatch only to state repos whose environment is included in this filter, if specified. Can be a comma separated list of environments or * (all)
+        required: true
+        default: '*'
+      filter_by_platform:
+        description: |
+          [FILTER BY PLATFORM] Dispatch only to state repos whose platform is included in this filter, if specified. Can be a comma separated list of environments or * (all)
+        required: true
+        default: '*'
+      workflow_run_id:
+        description: Workflow run id from where we download de artifact
+
+jobs:
+  make-dispatches:
+    runs-on: ubuntu-24.04
+    steps:
+      - name: Show user input
+        run: |
+          echo "Image type: ${{ inputs.image_type }}"
+          echo "Flavors: ${{ inputs.flavors }}"
+          echo "Version overwrite: ${{ inputs.overwrite_version }}"
+          echo "Tenant overwrite: ${{ inputs.overwrite_tenant }}"
+          echo "Tenant filter: ${{ inputs.filter_by_tenant }}"
+          echo "Env overwrite: ${{ inputs.overwrite_env }}"
+          echo "Env filter: ${{ inputs.filter_by_env }}"
+          echo "Platform filter: ${{ inputs.filter_by_platform }}"
+          echo "Workflow run ID: ${{ inputs.workflow_run_id }}"
+
+      - name: Get Token from Github App
+        id: get-gh-app-token
+        uses: actions/create-github-app-token@v3
+        with:
+          app-id: ${{ vars.FS_STATE_APP_ID }}
+          private-key: ${{ secrets.FS_STATE_PEM_FILE }}
+          owner: ${{ github.repository_owner }}
+
+      - name: 'Checkout .firestartr repository'
+        uses: actions/checkout@v6
+        with:
+          repository: '${{ github.repository_owner }}/.firestartr'
+          token: ${{ steps.get-gh-app-token.outputs.token }}
+          path: .firestartr
+
+      - name: 'Get original actor from workflow run id'
+        uses: actions/github-script@v9
+        if: ${{ inputs.workflow_run_id }}
+        id: get-original-actor
+        with:
+          result-encoding: string
+          script: |
+            core.info('\u001b[43mGetting original actor');
+
+            const resp = await github.rest.actions.getWorkflowRun({
+               owner: context.repo.owner,
+               repo: context.repo.repo,
+               run_id: ${{ inputs.workflow_run_id }},
+            });
+
+            const actor = resp.data.actor.login
+            const triggering_actor = resp.data.triggering_actor.login
+
+            if(triggering_actor != actor) return `${actor},${triggering_actor}`
+            return actor
+
+      - name: 'Install Yaml Parser'
+        run: npm install js-yaml
+
+      - name: 'Download build images result from workflow run id'
+        uses: actions/github-script@v9
+        if: ${{ inputs.workflow_run_id }}
+        id: download-build-summary
+        with:
+          script: |
+            const jsYaml = require("js-yaml")
+            const { execSync } = require('child_process');
+            const fs = require('fs');
+
+            core.info('\u001b[43mGetting workflow run artifacts');
+            let allArtifacts = await github.rest.actions.listWorkflowRunArtifacts({
+               owner: context.repo.owner,
+               repo: context.repo.repo,
+               run_id: ${{ inputs.workflow_run_id }},
+            });
+            let matchArtifact = allArtifacts.data.artifacts.filter((artifact) => {
+              return artifact.name == "build-images-results"
+            })[0];
+
+            if (!matchArtifact) {
+              core.warning('No "build-images-results" artifact found — the build was likely skipped (e.g. all commits matched skip types or paths-ignore). Nothing to dispatch.');
+              core.setOutput('skipped', 'true');
+              return;
+            }
+
+            core.info('\u001b[38;5;6mDownloading artifact')
+            let download = await github.rest.actions.downloadArtifact({
+               owner: context.repo.owner,
+               repo: context.repo.repo,
+               artifact_id: matchArtifact.id,
+               archive_format: 'zip',
+            });
+
+            core.info('\u001b[43mUnziping artifact build-images-results.zip...');
+            fs.writeFileSync(`${process.env.GITHUB_WORKSPACE}/build-images-results.zip`, Buffer.from(download.data));
+            execSync('unzip build-images-results.zip')
+            core.info('\u001b[43mUnziped artifact build-images-results.zip');
+            return jsYaml.load(fs.readFileSync('build_images_results.yaml'))
+
+      - name: 'Dispatch changes'
+        if: ${{ steps.download-build-summary.outputs.skipped != 'true' }}
+        uses: prefapp/action-make-state-repos-dispatches@v4
+        env:
+          LOG_LEVEL: 'debug'
+        with:
+          check_run_name: 'Firestartr Docker Images Summary'
+          build_summary: ${{ steps.download-build-summary.outputs.result || '' }}
+          dispatches_file: '.github/make_dispatches.yaml'
+          apps_folder: '.firestartr/apps'
+          platform_folder: '.firestartr/platforms'
+          registries_folder: '.firestartr/docker_registries'
+          token: ${{ steps.get-gh-app-token.outputs.token }}
+          image_type: ${{ inputs.image_type }}
+          flavors: ${{ inputs.flavors }}
+          default_releases_registry: ${{ vars.DOCKER_REGISTRY_RELEASES }}
+          default_snapshots_registry: ${{ vars.DOCKER_REGISTRY_SNAPSHOTS }}
+          reviewers: ${{ steps.get-original-actor.outputs.result || github.actor }}
+          overwrite_version: ${{ inputs.overwrite_version }}
+          overwrite_tenant: ${{ inputs.overwrite_tenant }}
+          overwrite_env: ${{ inputs.overwrite_env }}
+          filter_by_tenant: ${{ inputs.filter_by_tenant }}
+          filter_by_env: ${{ inputs.filter_by_env }}
+          filter_by_platform: ${{ inputs.filter_by_platform }}
