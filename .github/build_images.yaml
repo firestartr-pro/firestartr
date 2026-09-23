@@ -1,0 +1,9 @@
+snapshots:
+  default:
+    auto: true
+    dockerfile: Dockerfile
+
+releases:
+  default:
+    auto: true
+    dockerfile: Dockerfile
