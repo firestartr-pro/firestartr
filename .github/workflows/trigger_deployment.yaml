@@ -1,0 +1,134 @@
+---
+# FEATURE_NAME: build_and_dispatch_docker_images
+# FEATURE_VERSION: build_and_dispatch_docker_images-v5
+# FEATURE_URL: https://github.com/prefapp/features/tree/build_and_dispatch_docker_images-v5/packages/build_and_dispatch_docker_images
+# FEATURE_GIT_SHA: "2c3081793137d8cde377436057466e38cb4190bc"
+# FEATURE_GIT_TAGS: ["build_and_dispatch_docker_images-v5.6.1","build_and_dispatch_docker_images-v5"]
+
+name: Trigger deployment
+
+permissions:
+  id-token: write
+  contents: read
+  actions: read
+  checks: read
+
+on:
+  workflow_dispatch:
+    inputs:
+      flavor:
+        description: "Flavor"
+        required: true
+        default: default
+      version:
+        description: "Version (if left empty: $latest_release)"
+        required: false
+        default: ''
+      platform:
+        description: 'Platform (check https://github.com/firestartr-pro/.firestartr for valid platforms)'
+        required: true
+        type: string
+      tenant:
+        description: 'Tenant (check https://github.com/firestartr-pro/.firestartr for valid tenants)'
+        required: true
+        type: string
+      env:
+        description: 'Environment (check https://github.com/firestartr-pro/.firestartr for valid environments)'
+        required: true
+        type: string
+
+jobs:
+  make-dispatches:
+    runs-on: ubuntu-24.04
+    steps:
+      - name: Show user input
+        run: |
+          echo "Flavor: ${{ inputs.flavor }}"
+          echo "Version: ${{ inputs.version }}"
+          echo "Tenant: ${{ inputs.tenant }}"
+          echo "Platform: ${{ inputs.platform }}"
+          echo "Env: ${{ inputs.env }}"
+
+      - name: Get Token from Github App
+        id: get-gh-app-token
+        uses: actions/create-github-app-token@v3
+        with:
+          app-id: ${{ vars.FS_STATE_APP_ID }}
+          private-key: ${{ secrets.FS_STATE_PEM_FILE }}
+          owner: ${{ github.repository_owner }}
+
+      - name: 'Checkout .firestartr repository'
+        uses: actions/checkout@v6
+        with:
+          repository: '${{ github.repository_owner }}/.firestartr'
+          token: ${{ steps.get-gh-app-token.outputs.token }}
+          path: .firestartr
+
+      - name: 'Checkout this repository'
+        uses: actions/checkout@v6
+        with:
+          path: current_repo
+
+      - name: 'Install Yaml Parser'
+        run: npm install js-yaml
+
+      - name: Calculate image type
+        id: calculate-image-type
+        uses: actions/github-script@v9
+        env:
+          FLAVOR: ${{ inputs.flavor }}
+        with:
+          result-encoding: string
+          script: |
+            const jsYaml = require("js-yaml")
+            const fs = require('fs');
+            const flavor = process.env["FLAVOR"];
+
+            const buildImagesData = jsYaml.load(
+              fs.readFileSync("./current_repo/.github/build_images.yaml", "utf8")
+            );
+            let finalImageType = "";
+            const fullImageTypeList = Object.keys(buildImagesData);
+            const validImageTypeList = [];
+
+            for (const type of fullImageTypeList) {
+              if (Object.keys(buildImagesData[type]).includes(flavor)) {
+                validImageTypeList.push(type);
+              }
+            }
+
+            if (validImageTypeList.length === 1) {
+              finalImageType = validImageTypeList[0];
+            } else if (validImageTypeList.length > 1) {
+              finalImageType = "*";
+            }
+
+            if (finalImageType === "") {
+              throw new Error(`Flavor ${flavor} not found in build images configuration.`);
+            }
+
+            return finalImageType;
+
+      - name: 'Dispatch changes'
+        uses: prefapp/action-make-state-repos-dispatches@v4
+        env:
+          LOG_LEVEL: 'debug'
+        with:
+          check_run_name: 'Firestartr Docker Images Summary'
+          build_summary: ''
+          dispatches_file: '.github/make_dispatches.yaml'
+          apps_folder: '.firestartr/apps'
+          platform_folder: '.firestartr/platforms'
+          registries_folder: '.firestartr/docker_registries'
+          token: ${{ steps.get-gh-app-token.outputs.token }}
+          image_type: ${{ steps.calculate-image-type.outputs.result }}
+          flavors: ${{ inputs.flavor }}
+          default_releases_registry: ${{ vars.DOCKER_REGISTRY_RELEASES }}
+          default_snapshots_registry: ${{ vars.DOCKER_REGISTRY_SNAPSHOTS }}
+          reviewers: ${{ github.actor }}
+          overwrite_version: ${{ inputs.version || '$latest_release' }}
+          overwrite_tenant: ''
+          overwrite_env: ''
+          filter_by_tenant: ${{ inputs.tenant }}
+          filter_by_env: ${{ inputs.env }}
+          filter_by_platform: ${{ inputs.platform }}
