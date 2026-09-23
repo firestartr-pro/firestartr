@@ -1,0 +1,36 @@
+---
+# FEATURE_NAME: build_and_dispatch_docker_images
+# FEATURE_VERSION: build_and_dispatch_docker_images-v5
+# FEATURE_URL: https://github.com/prefapp/features/tree/build_and_dispatch_docker_images-v5/packages/build_and_dispatch_docker_images
+# FEATURE_GIT_SHA: "2c3081793137d8cde377436057466e38cb4190bc"
+# FEATURE_GIT_TAGS: ["build_and_dispatch_docker_images-v5.6.1","build_and_dispatch_docker_images-v5"]
+
+name: Verify build_and_dispatch_docker_images config files
+
+on:
+  pull_request:
+    branches: [ main ]
+
+permissions:
+  contents: read
+  pull-requests: read
+
+
+jobs:
+  validate-yaml:
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@v6
+
+      - uses: dorny/paths-filter@fbd0ab8f3e69293af611ebaee6363fc25e6d187d
+        id: check_file_changed
+        with:
+          list-files: shell
+          filters: |
+            configs:
+              - added|modified: '.github/*.yaml'
+              - added|modified: '.github/*.yml'
+
+      - name: Verify configs
+        if: steps.check_file_changed.outputs.configs == 'true'
+        run: yamllint -c .github/.yamllint.conf ${{ steps.check_file_changed.outputs.configs_files }}
