@@ -1,0 +1,156 @@
+---
+# FEATURE_NAME: build_and_dispatch_docker_images
+# FEATURE_VERSION: build_and_dispatch_docker_images-v5
+# FEATURE_URL: https://github.com/prefapp/features/tree/build_and_dispatch_docker_images-v5/packages/build_and_dispatch_docker_images
+# FEATURE_GIT_SHA: "2c3081793137d8cde377436057466e38cb4190bc"
+# FEATURE_GIT_TAGS: ["build_and_dispatch_docker_images-v5.6.1","build_and_dispatch_docker_images-v5"]
+
+name: Build images (Reusable)
+run-name: Building images for "${{ inputs.type }}" type, flavors "${{ inputs.flavors || 'auto-build' }}" at "${{ inputs.from }}"
+
+on:
+  workflow_call:
+    inputs:
+      type:
+        type: string
+        description: Type of image to build (snapshots, releases)
+        required: true
+      auth_strategy:
+        type: string
+        description: Type of strategy to authenticate against the registries (aws_oidc, azure_oidc, ghcr, dockerhub, generic)
+        required: true
+      from:
+        type: string
+        description: Source short-sha, tag, branch-ref that will be used in the checkout and image tagging
+        required: true
+      flavors:
+        type: string
+        description: Flavor name/s | one (alone), several (separated by commas)
+        default: "*"
+      dereference_enabled:
+        type: boolean
+        description: Enable dereference of tags
+        default: false
+      platforms:
+        type: string
+        description: Platforms to build for, formatted as os/arch (e.g. linux/amd64). Can be a single platform, a comma-separated list, or * for all
+        default: "*"
+      check_run_name:
+        type: string
+        description: Check run name identifier
+        required: true
+      workflows_repo:
+        type: string
+        description: Repository with the needed python dagger workflows, default to prefapp/firestarter-workflows
+        default: prefapp/firestarter-workflows
+      workflows_repo_ref:
+        type: string
+        description: Git reference from where to pull the workflows_repo
+        default: v2
+      runs_on:
+        type: string
+        description: Runner labels to run the job on, formatted as a JSON array (e.g. '["ubuntu-24.04"]' or '["self-hosted", "linux"]')
+        default: ''
+    secrets:
+      FS_CHECKS_PEM_FILE:
+        required: false
+      FIRESTARTR_GITHUB_APP_PEM_FILE:
+        required: false
+      DOCKER_REGISTRY_SNAPSHOTS_CREDS:
+        required: false
+      DOCKER_REGISTRY_RELEASES_CREDS:
+        required: false
+      GITHUB_DOCKER_REGISTRY_CREDS:
+        required: false
+
+permissions:
+  id-token: write
+  contents: read
+  packages: write
+
+jobs:
+  build-images:
+    environment: ${{ inputs.type }}
+    env:
+      GH_TOKEN: ${{ secrets.GITHUB_DOCKER_REGISTRY_CREDS || github.token }}
+    runs-on: ${{ fromJSON(inputs.runs_on || '["ubuntu-24.04"]') }}
+    steps:
+      - name: Configure AWS Credentials
+        uses: aws-actions/configure-aws-credentials@acca2b1b2070338fb9fd1ca27ecee81d687e58e5
+        if: ${{ vars.AWS_OIDC_ECR_ROLE }}
+        with:
+          aws-region: ${{ vars.AWS_REGION }}
+          role-to-assume: ${{ vars.AWS_OIDC_ECR_ROLE }}
+          role-session-name: OIDCSession
+
+      - name: Configure Azure Credentials
+        uses: azure/login@532459ea530d8321f2fb9bb10d1e0bcf23869a43
+        if: ${{ vars.AZURE_CLIENT_ID }}
+        with:
+          client-id: ${{ vars.AZURE_CLIENT_ID }}
+          tenant-id: ${{ vars.AZURE_TENANT_ID }}
+          subscription-id: ${{ vars.AZURE_SUBSCRIPTION_ID }}
+
+      - name: Get Token from GitHub App
+        id: get-gh-app-token
+        uses: actions/create-github-app-token@v3
+        with:
+          app-id: ${{ vars.FS_CHECKS_APP_ID }}
+          private-key: ${{ secrets.FS_CHECKS_PEM_FILE }}
+          owner: ${{ github.repository_owner }}
+
+      - name: Init Check Run Summary
+        id: init-check-run-summary
+        uses: prefapp/action-build-images-summary@v1
+        with:
+          token: ${{ steps.get-gh-app-token.outputs.token }}
+          check_run_name: ${{ inputs.check_run_name }}
+          ref: ${{ inputs.from }}
+          op: 'init-check-run'
+
+      - name: Checkout repository
+        uses: actions/checkout@v6
+        with:
+          path: build
+          fetch-depth: 0
+          fetch-tags: true
+
+      - name: Checkout config file
+        uses: actions/checkout@v6
+        with:
+          path: config
+
+      - name: Build images
+        uses: prefapp/run-dagger-py@main
+        id: build-images
+        with:
+          working_directory: build
+          workflow: build_images
+          config_file: ../config/.github/build_images.yaml
+          workflows_repository: ${{ inputs.workflows_repo }}
+          workflows_repository_ref: ${{ inputs.workflows_repo_ref }}
+          vars: |
+            repo_name="${{ github.repository }}"
+            flavors="${{ inputs.flavors }}"
+            platforms="${{ inputs.platforms }}"
+            auth_strategy="${{ inputs.auth_strategy }}"
+            snapshots_registry="${{ vars.DOCKER_REGISTRY_SNAPSHOTS }}"
+            releases_registry="${{ vars.DOCKER_REGISTRY_RELEASES }}"
+            output_results="build_images_results.yaml"
+            type="${{ inputs.type }}"
+            from="${{ inputs.from }}"
+            dereference_enabled="${{ inputs.dereference_enabled }}"
+            workflow_run_id=${{ github.run_id}}
+            workflow_run_url="https://github.com/${{github.repository}}/actions/runs/${{github.run_id}}"
+            login_required="true"
+            service_path="${{ fromJSON(vars.DOCKER_REGISTRIES_BASE_PATHS).services[inputs.type] }}"
+            snapshots_registry_creds="${{ secrets.DOCKER_REGISTRY_SNAPSHOTS_CREDS }}"
+            releases_registry_creds="${{ secrets.DOCKER_REGISTRY_RELEASES_CREDS }}"
+          additional_build_args: |
+          secrets: |
+
+      - name: Upload build results
+        uses: actions/upload-artifact@v7
+        with:
+          name: build-images-results-${{ job.check_run_id }}
+          path: /tmp/build_images_results.yaml
