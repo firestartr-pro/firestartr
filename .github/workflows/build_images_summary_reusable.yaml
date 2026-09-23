@@ -1,0 +1,149 @@
+---
+# FEATURE_NAME: build_and_dispatch_docker_images
+# FEATURE_VERSION: build_and_dispatch_docker_images-v5
+# FEATURE_URL: https://github.com/prefapp/features/tree/build_and_dispatch_docker_images-v5/packages/build_and_dispatch_docker_images
+# FEATURE_GIT_SHA: "2c3081793137d8cde377436057466e38cb4190bc"
+# FEATURE_GIT_TAGS: ["build_and_dispatch_docker_images-v5.6.1","build_and_dispatch_docker_images-v5"]
+
+name: Build images summary (Reusable)
+
+on:
+  workflow_call:
+    inputs:
+      from:
+        required: true
+        type: string
+      conclusion:
+        required: true
+        type: string
+      check_run_name:
+        required: true
+        type: string
+    secrets:
+      FS_CHECKS_PEM_FILE:
+        required: false
+jobs:
+  merge-summary:
+    runs-on: ubuntu-24.04
+    env:
+      SUMMARY_FILE: /tmp/build_images_results.yaml
+      DOWNLOAD_ARTIFACTS_PATH: /tmp/build_results_artifacts
+    steps:
+      - name: Get GitHub App token
+        id: get-gh-app-token
+        uses: actions/create-github-app-token@v3
+        with:
+          app-id: ${{ vars.FS_CHECKS_APP_ID }}
+          private-key: ${{ secrets.FS_CHECKS_PEM_FILE }}
+          owner: ${{ github.repository_owner }}
+
+      - name: Download build results artifacts
+        uses: actions/download-artifact@v7
+        with:
+          pattern: build-images-results-*
+          path: ${{ env.DOWNLOAD_ARTIFACTS_PATH }}
+
+      - run: npm install yaml glob
+
+      - name: 'Merge summaries'
+        uses: actions/github-script@v9
+        id: merge-summaries
+        with:
+          script: |
+            const YAML = require("yaml");
+            const fs = require('fs');
+            const { globSync } = require('glob');
+
+            const resultingSummaryPath = process.env.SUMMARY_FILE;
+            const buildSummaryDirList = globSync(
+              `${process.env.DOWNLOAD_ARTIFACTS_PATH}/build-images-results-*`,
+            );
+
+            const keysToCompare = [
+              "build_args", "flavor", "image_repo",
+              "image_tag", "image_type", "registry",
+              "repository", "version",
+              "workflow_run_id", "workflow_run_url",
+            ];
+            const keyToMerge = "platforms";
+            const buildSummaries = [];
+
+            for (const buildSummaryDir of buildSummaryDirList) {
+              buildSummaries.push(
+                YAML.parse(
+                  fs.readFileSync(
+                    `${buildSummaryDir}/build_images_results.yaml`, 'utf8',
+                  )
+                )
+              );
+            }
+
+            // workaround for https://github.com/actions/download-artifact/issues/426
+            try {
+              const stats = fs.statSync(`${process.env.DOWNLOAD_ARTIFACTS_PATH}/build_images_results.yaml`);
+              if (stats.isFile()) {
+                buildSummaries.push(
+                  YAML.parse(
+                    fs.readFileSync(`${process.env.DOWNLOAD_ARTIFACTS_PATH}/build_images_results.yaml`, 'utf8')
+                  )
+                );
+              }
+            } catch (error) {
+              // Ignore the error if the file doesn't exist
+              core.info(`No \`build_images_results.yaml\` file found in the root of the artifact (${process.env.DOWNLOAD_ARTIFACTS_PATH}), skipping workaround.`);
+            }
+
+            const resultingSummary = new Map();
+            const processBuildInfo = (buildInfo) => {
+              // Create a unique key based on keysToCompare
+              // We use JSON.stringify for a quick composite key
+              const signature = JSON.stringify(keysToCompare.map(k => buildInfo[k]));
+
+              if (resultingSummary.has(signature)) {
+                // If the signature exists, there's a match. We'll merge keyToMerge
+                const existing = resultingSummary.get(signature);
+
+                // Combine and deduplicate the list just in case
+                existing[keyToMerge] = [...new Set([...existing[keyToMerge], ...buildInfo[keyToMerge]])];
+              } else {
+                // If the signature doesn't exist, there's no match.
+                // We use a shallow copy to prevent mutating the original lists
+                resultingSummary.set(signature, { ...buildInfo });
+              }
+            };
+
+            // Process each build summary and merge them based on their values
+            for (const buildSummary of buildSummaries) {
+              buildSummary.forEach(processBuildInfo);
+            }
+
+            const resultingSummaryAsString = YAML.stringify(Array.from(resultingSummary.values()));
+
+            // Write a summary of the merge process to the GitHub Actions summary
+            core.summary.addRaw(
+              `## Build and dispatch summary\n\n` +
+              `Merged ${buildSummaries.length} build summaries into ${resultingSummary.size} unique entries.\n\n`
+            );
+            core.summary.addRaw(`### Resulting summary:\n\n\`\`\`yaml\n${resultingSummaryAsString}\n\`\`\``, true);
+            await core.summary.write();
+
+            // Save the resulting summary to a file for later steps
+            fs.writeFileSync(resultingSummaryPath, resultingSummaryAsString);
+            return resultingSummaryAsString;
+
+      - uses: actions/upload-artifact@v7
+        with:
+          name: build-images-results
+          path: ${{ env.SUMMARY_FILE }}
+
+      - name: Update summary
+        id: update-check-run-summary
+        if: always()
+        uses: prefapp/action-build-images-summary@v1
+        with:
+          conclusion: ${{ inputs.conclusion }}
+          token: ${{ steps.get-gh-app-token.outputs.token }}
+          summary_path: ${{ env.SUMMARY_FILE }}
+          check_run_name: ${{ inputs.check_run_name }}
+          ref: ${{ inputs.from }}
+          op: 'complete-check-run'
