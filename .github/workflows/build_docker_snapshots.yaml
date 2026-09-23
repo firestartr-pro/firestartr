@@ -1,0 +1,180 @@
+---
+# FEATURE_NAME: build_and_dispatch_docker_images
+# FEATURE_VERSION: build_and_dispatch_docker_images-v5
+# FEATURE_URL: https://github.com/prefapp/features/tree/build_and_dispatch_docker_images-v5/packages/build_and_dispatch_docker_images
+# FEATURE_GIT_SHA: "2c3081793137d8cde377436057466e38cb4190bc"
+# FEATURE_GIT_TAGS: ["build_and_dispatch_docker_images-v5.6.1","build_and_dispatch_docker_images-v5"]
+
+name: Build Docker snapshots
+run-name: Generating snapshots images for flavors "${{ inputs.flavors || 'auto-build' }}" at ${{ inputs.from || github.event.pull_request.head.sha || github.sha }}
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.event_name }}-${{ inputs.from || github.event.pull_request.number }}
+  cancel-in-progress: true
+
+on:
+  workflow_dispatch:
+    inputs:
+      from:
+        type: string
+        description: Commit SHA or branch name to build
+        required: true
+        default: 'main'
+      flavors:
+        type: string
+        description: Flavor name/s | one (alone), several (separated by commas)
+        required: true
+        default: "*"
+      autodeploy:
+        type: boolean
+        description: Trigger dispatches to state repos after build
+        required: false
+        default: false
+      dereference_enabled:
+        type: boolean
+        description: Enable dereference of tags
+        required: false
+        default: true
+
+  push:
+    branches:
+      - main
+    paths-ignore:
+      - .github/**
+      - docs/**
+
+  pull_request:
+    types: [opened, labeled, reopened, synchronize]
+    branches:
+      - main
+
+permissions:
+  id-token: write
+  contents: write
+  packages: write
+
+jobs:
+  check-commits:
+    runs-on: ubuntu-24.04
+    outputs:
+      should_build: ${{ steps.check.outputs.should_build }}
+    steps:
+      - name: Log workflow dispatch inputs
+        if: ${{ github.event_name == 'workflow_dispatch' }}
+        run: |
+          echo "Workflow dispatch inputs:"
+          echo "  from: ${{ inputs.from }}"
+          echo "  flavors: ${{ inputs.flavors }}"
+          echo "  autodeploy: ${{ inputs.autodeploy }}"
+          echo "  dereference_enabled: ${{ inputs.dereference_enabled }}"
+
+      - name: Check commit types
+        id: check
+        uses: actions/github-script@v9
+        env:
+          SKIP_TYPES: 'ci,docs,build,chore,test'
+          EVENT_NAME: ${{ github.event_name }}
+        with:
+          script: |
+            try {
+              if (process.env.EVENT_NAME !== 'push') {
+                core.setOutput('should_build', 'true');
+                return;
+              }
+
+              const skipTypes = (process.env.SKIP_TYPES || '')
+                .split(',')
+                .map(t => t.trim())
+                .filter(Boolean);
+
+              if (skipTypes.length === 0) {
+                core.info('No skip types configured — proceeding with build');
+                core.setOutput('should_build', 'true');
+                return;
+              }
+
+              const pattern = new RegExp(`^(${skipTypes.join('|')})(\\(.+\\))?(!)?:`);
+              const commits = context.payload.commits || [];
+
+              if (commits.length === 0) {
+                core.setOutput('should_build', 'true');
+                return;
+              }
+
+              const allSkippable = commits.every(c => pattern.test(c.message));
+
+              if (allSkippable) {
+                core.info(`All ${commits.length} commit(s) match skip types [${skipTypes.join(', ')}] — skipping build`);
+              } else {
+                core.info(`${commits.length} commit(s) checked — at least one does not match skip types, proceeding with build`);
+              }
+
+              core.setOutput('should_build', allSkippable ? 'false' : 'true');
+            } catch (error) {
+              core.warning(`Commit type check failed: ${error.message} — defaulting to build`);
+              core.setOutput('should_build', 'true');
+            }
+
+  build-amd64:
+    needs: [check-commits]
+    if: ${{
+        needs.check-commits.outputs.should_build == 'true' && (
+          github.event_name == 'push' ||
+          github.event_name == 'workflow_dispatch' ||
+          (github.event_name == 'pull_request' && contains(github.event.pull_request.labels.*.name, 'autodeploy'))
+        )
+      }}
+    uses: ./.github/workflows/build_images_reusable.yaml
+    with:
+      type: snapshots
+      from: ${{ inputs.from || github.event.pull_request.head.sha || github.sha }}
+      flavors: ${{ inputs.flavors || '' }}
+      dereference_enabled: ${{ inputs.dereference_enabled || github.event_name != 'workflow_dispatch' }}
+      auth_strategy: azure_oidc
+      check_run_name: 'Firestartr Docker Images Summary'
+      workflows_repo: prefapp/firestarter-workflows
+      workflows_repo_ref: v3
+      platforms: "linux/amd64"
+      runs_on: ${{ vars.BUILD_DOCKER_IMAGES_AMD64_RUNS_ON || '["ubuntu-24.04"]' }}
+    secrets: inherit
+
+  build-arm64:
+    if: ${{
+      needs.check-commits.outputs.should_build == 'true' &&
+      vars.BUILD_DOCKER_IMAGES_ARM64_RUNS_ON &&
+        (
+          github.event_name == 'push' ||
+          github.event_name == 'workflow_dispatch' ||
+          (github.event_name == 'pull_request' && contains(github.event.pull_request.labels.*.name, 'autodeploy'))
+        )
+      }}
+    needs: [ check-commits, build-amd64 ] # Ensure the arm64 build starts after the amd64 build
+    uses: ./.github/workflows/build_images_reusable.yaml
+    with:
+      type: snapshots
+      from: ${{ inputs.from || github.event.pull_request.head.sha || github.sha }}
+      flavors: ${{ inputs.flavors || '' }}
+      dereference_enabled: ${{ inputs.dereference_enabled || github.event_name != 'workflow_dispatch' }}
+      auth_strategy: azure_oidc
+      check_run_name: 'Firestartr Docker Images Summary'
+      workflows_repo: prefapp/firestarter-workflows
+      workflows_repo_ref: v3
+      platforms: "linux/arm64"
+      runs_on: ${{ vars.BUILD_DOCKER_IMAGES_ARM64_RUNS_ON }}
+    secrets: inherit
+
+  summary:
+    needs: [check-commits, build-amd64, build-arm64]
+    uses: ./.github/workflows/build_images_summary_reusable.yaml
+    if: ${{
+        always() && (
+          needs.build-amd64.result != 'skipped' ||
+          needs.build-arm64.result != 'skipped'
+        )
+      }}
+    with:
+      from: ${{ inputs.from || github.event.pull_request.head.sha || github.sha }}
+      conclusion: ${{ (needs.build-amd64.result == 'success' || needs.build-arm64.result == 'success') && 'success' || 'failure' }}
+      check_run_name: 'Firestartr Docker Images Summary'
+    secrets:
+      FS_CHECKS_PEM_FILE: "${{ secrets.FS_CHECKS_PEM_FILE }}"
