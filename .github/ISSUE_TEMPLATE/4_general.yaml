@@ -1,0 +1,31 @@
+name: General request
+description: Open an issue that does not fit the other templates.
+title: ""
+labels: ["triage"]
+type: task
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Thanks for taking the time to open an issue! Please provide as much detail as possible.
+  - type: textarea
+    id: subject
+    attributes:
+      label: What would you like to discuss?
+      description: Summarize the question, request, concern, or topic.
+    validations:
+      required: true
+  - type: textarea
+    id: details
+    attributes:
+      label: Details
+      description: Describe the situation, desired outcome, or information that would help us understand the issue.
+    validations:
+      required: true
+  - type: textarea
+    id: context
+    attributes:
+      label: Additional context
+      description: Add relevant links, examples, screenshots, or other useful context.
+    validations:
+      required: false
