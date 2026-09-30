@@ -1,0 +1,35 @@
+name: Documentation change
+description: Suggest an improvement or addition to the project documentation.
+title: "[docs]: "
+labels: ["documentation", "triage"]
+type: task
+body:
+  - type: textarea
+    id: target
+    attributes:
+      label: What documentation needs to change?
+      description: Identify the page, guide, README, API reference, or other documentation.
+      placeholder: Link to the relevant documentation or describe where it should live.
+    validations:
+      required: true
+  - type: textarea
+    id: gap
+    attributes:
+      label: What is missing or unclear?
+      description: Explain the documentation gap or the problem readers currently encounter.
+    validations:
+      required: true
+  - type: textarea
+    id: proposal
+    attributes:
+      label: Describe the documentation change
+      description: Outline the content, examples, corrections, or restructuring you are proposing.
+    validations:
+      required: true
+  - type: textarea
+    id: context
+    attributes:
+      label: Additional context
+      description: Add related links, screenshots, examples, or any other useful context.
+    validations:
+      required: false
