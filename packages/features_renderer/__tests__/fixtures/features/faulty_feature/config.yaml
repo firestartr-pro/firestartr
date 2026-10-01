@@ -1,0 +1,21 @@
+feature_name: "feature_a"
+args:
+  NAME:
+    $ref: [name]
+  LITERAL:
+    $lit: foo
+  TECH:
+    $ref: [providers, github, technology, stack]
+
+iles:
+  - src: test.txt
+    dest: test.txt
+    upgradable: false
+  - src: .github/workflows/{{| TECH |}}/pr-verify.yaml
+    dest: .github/workflows/pr-verify.yaml
+    upgradable: false
+claimPatches:
+  - name: "add_annotation"
+    op: "add"
+    path: "/annotations/backstage.io~1techdocs-ref"
+    value: "url:https://github.com/prefapp/feature_a/tree/main"

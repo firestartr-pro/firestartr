@@ -1,0 +1,4 @@
+name: argocd
+apiVersion: firestartr.dev/v1
+kind: ArgoDeployClaim
+defaultValues: {}

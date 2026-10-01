@@ -1,0 +1,34 @@
+apiVersion: firestartr.dev/v1
+kind: FirestartrTerraformWorkspace
+metadata:
+  annotations:
+    firestartr.dev/claim-ref: TFWorkspaceClaim/test
+    firestartr.dev/external-name: test
+    firestartr.dev/policy: apply
+    firestartr.dev/last-state-pr: |
+      firestartr/state-infra#2253
+    firestartr.dev/last-claim-pr: |
+      firestartr/state-infra#2253
+    firestartr.dev/revision: "1"
+  labels:
+    claim-ref: test
+  name: test-94661e24-7783-43da-825a-82f8ece0e314
+spec:
+  context:
+    backend:
+      ref:
+        kind: FirestartrProviderConfig
+        name: azure-backend-terraform
+    providers:
+      - ref:
+          kind: FirestartrProviderConfig
+          name: azuread-provider
+      - ref:
+          kind: FirestartrProviderConfig
+          name: azure-provider-test
+  firestartr:
+    tfStateKey: 94661e24-7783-43da-825a-82f8ece0e314
+  module: git::fake.git.com/terraform/terraform-azure.git//modules/aks
+  source: Remote
+  values: '{}'
+  references: []

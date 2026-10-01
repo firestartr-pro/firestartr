@@ -1,0 +1,10 @@
+globalValues:
+  org: "test"
+  useDefault: false
+defaultValues:
+  firestartr:
+    technology:
+      stack: python
+  repo:
+    allowAutoMerge: true
+    codeowners: "blah"

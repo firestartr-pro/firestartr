@@ -1,0 +1,24 @@
+kind: ArgoDeployClaim
+lifecycle: production
+name: redis-deploy
+system: system:system_a
+project: "default"
+version: '1.0'
+providers:
+  argocd:
+    name: redis-deploy
+    chart:
+      name: redis
+      source: registry-1.docker.io/bitnamicharts
+      version: 18.12.1
+      oci: true
+    values: # se le pueden expresar varias fuentes
+      - source: https://github.com/firestartr-test/test-argoapp-state
+        paths:
+          -  "/redis/values.yaml"
+        revision: "main"
+    destination:
+      namespace: "default"
+      server: "https://kubernetes.default.svc"
+
+

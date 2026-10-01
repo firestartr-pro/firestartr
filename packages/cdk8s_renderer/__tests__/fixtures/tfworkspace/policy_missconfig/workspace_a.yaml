@@ -1,0 +1,31 @@
+kind: TFWorkspaceClaim
+lifecycle: production
+name: test-module-a
+type: database
+owner: 'group:firestartr-test-all'
+system: 'system:my-system'
+version: '1.0'
+providers:
+  terraform:
+    name: test-module-a
+    policy: observe
+    sync:
+      enabled: true
+      policy: apply
+    tfStateKey: ff5a88c7-f876-4f3a-8aa8-5b78f4aeaa54
+    source: Inline
+    module: |
+      terraform {
+        required_providers {
+          aws = {
+            source  = "hashicorp/aws"
+            version = "3.56.0"
+          }
+        }
+      }
+    values: {}
+    context:
+      providers:
+        - name: foo
+      backend:
+        name: foo

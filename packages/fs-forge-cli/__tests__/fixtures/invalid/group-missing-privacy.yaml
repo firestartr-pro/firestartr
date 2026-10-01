@@ -1,0 +1,6 @@
+kind: GroupClaim
+name: my-group
+providers:
+  github:
+    name: my-group
+    org: my-org

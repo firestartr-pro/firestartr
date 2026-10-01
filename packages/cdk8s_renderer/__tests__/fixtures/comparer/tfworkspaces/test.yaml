@@ -1,0 +1,29 @@
+kind: TFWorkspaceClaim
+lifecycle: production
+name: bucket-s3
+type: bucket
+owner: 'group:firestartr-test-all'
+system: 'system:my-system'
+version: '1.0'
+providers:
+  terraform:
+    name: bucket-s3
+    source: Remote
+    module: git::https://github.com/firestartr-test/infra.git
+    values:
+      name: "a"
+      string_value: "My example"
+      bool_value: false
+      string_list_value:
+        - "My example"
+        - "My example 2"
+      number_value: 123
+      object_list_value:
+        - internal: 3
+          external: 27
+          protocol: tcp
+    context:
+      providers:
+        - name: provider-aws-workspaces
+      backend:
+        name: backend-tf-workspaces

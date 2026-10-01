@@ -1,0 +1,30 @@
+feature_name: "feature_files_templates"
+args:
+  LIT_A:
+    $lit: 'A'
+  LIT_B:
+    $lit: 'B'
+  ARG_C:
+    $default: 'C'
+    $arg: arg_c
+  INCLUDE_B:
+    $default: false
+    $arg: include_b
+  ADDITIONAL_FILES:
+    $default: []
+    $arg: additional_files
+  ARG_TEMPLATE_TEST:
+    $template: '{{| LIT_A |}}-{{| LIT_B |}}-{{| ARG_C |}}'
+
+files:
+  - src: a.txt
+    dest: a.txt
+    upgradable: false
+
+filesTemplates:
+  - ./files.tpl
+  - ./files_loop.tpl
+
+claimPatches: []
+
+# patchesTemplates: {}

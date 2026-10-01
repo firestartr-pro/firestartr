@@ -1,0 +1,410 @@
+FirestartrProviderConfig-kubernetes-provider:
+  cr:
+    apiVersion: firestartr.dev/v1
+    kind: FirestartrProviderConfig
+    metadata:
+      annotations:
+        meta.helm.sh/release-name: firestartr-init
+        meta.helm.sh/release-namespace: default
+      creationTimestamp: 2026-02-06T23:45:49Z
+      generation: 1
+      labels:
+        app.kubernetes.io/managed-by: Helm
+      managedFields:
+        - apiVersion: firestartr.dev/v1
+          fieldsType: FieldsV1
+          fieldsV1:
+            f:metadata:
+              f:annotations:
+                .: {}
+                f:meta.helm.sh/release-name: {}
+                f:meta.helm.sh/release-namespace: {}
+              f:labels:
+                .: {}
+                f:app.kubernetes.io/managed-by: {}
+            f:spec:
+              .: {}
+              f:config: {}
+              f:source: {}
+              f:type: {}
+              f:version: {}
+          manager: helm
+          operation: Update
+          time: 2026-02-06T23:45:49Z
+      name: kubernetes-provider
+      namespace: default
+      resourceVersion: "1490"
+      uid: a4227d3e-c421-4062-8fb2-ecd53e3ae375
+    spec:
+      config: |
+        {"namespace": "default"}
+      source: hashicorp/kubernetes
+      type: kubernetes
+      version: 3.0.1
+FirestartrProviderConfig-github:
+  cr:
+    apiVersion: firestartr.dev/v1
+    kind: FirestartrProviderConfig
+    metadata:
+      annotations:
+        meta.helm.sh/release-name: firestartr-init
+        meta.helm.sh/release-namespace: default
+      creationTimestamp: 2026-02-06T23:45:49Z
+      generation: 1
+      labels:
+        app.kubernetes.io/managed-by: Helm
+      managedFields:
+        - apiVersion: firestartr.dev/v1
+          fieldsType: FieldsV1
+          fieldsV1:
+            f:metadata:
+              f:annotations:
+                .: {}
+                f:meta.helm.sh/release-name: {}
+                f:meta.helm.sh/release-namespace: {}
+              f:labels:
+                .: {}
+                f:app.kubernetes.io/managed-by: {}
+            f:spec:
+              .: {}
+              f:config: {}
+              f:secrets:
+                .: {}
+                f:GITHUB_APP_ID:
+                  .: {}
+                  f:secretRef:
+                    .: {}
+                    f:key: {}
+                    f:name: {}
+                    f:namespace: {}
+                f:GITHUB_APP_INSTALLATION_ID:
+                  .: {}
+                  f:secretRef:
+                    .: {}
+                    f:key: {}
+                    f:name: {}
+                    f:namespace: {}
+                f:GITHUB_APP_PEM_FILE:
+                  .: {}
+                  f:secretRef:
+                    .: {}
+                    f:key: {}
+                    f:name: {}
+                    f:namespace: {}
+              f:source: {}
+              f:type: {}
+              f:version: {}
+          manager: helm
+          operation: Update
+          time: 2026-02-06T23:45:49Z
+      name: github
+      namespace: default
+      resourceVersion: "1489"
+      uid: 6f7f057d-d057-446f-afa1-8c1cc8187f2f
+    spec:
+      config: |
+        {
+            "owner": "example-org",
+
+            "app_auth": {
+                "id": "${{ secrets.GITHUB_APP_ID }}",
+                "installation_id": "${{ secrets.GITHUB_APP_INSTALLATION_ID }}",
+                "pem_file": "${{ secrets.GITHUB_APP_PEM_FILE }}"
+            }
+
+        }
+      secrets:
+        GITHUB_APP_ID:
+          secretRef:
+            key: github-app-id
+            name: providerconfig-github
+            namespace: default
+        GITHUB_APP_INSTALLATION_ID:
+          secretRef:
+            key: github-app-installation-id
+            name: providerconfig-github
+            namespace: default
+        GITHUB_APP_PEM_FILE:
+          secretRef:
+            key: github-app-pem-file
+            name: providerconfig-github
+            namespace: default
+      source: integrations/github
+      type: github
+      version: ~> 6.0
+FirestartrGithubMembership-user-b-user:
+  cr:
+    apiVersion: firestartr.dev/v1
+    kind: FirestartrGithubMembership
+    metadata:
+      annotations:
+        firestartr.dev/claim-ref: UserClaim/user-b
+        firestartr.dev/external-name: user-b
+        firestartr.dev/revision: "1"
+        kubectl.kubernetes.io/last-applied-configuration: |
+          {"apiVersion":"firestartr.dev/v1","kind":"FirestartrGithubMembership","metadata":{"annotations":{"firestartr.dev/claim-ref":"UserClaim/user-b","firestartr.dev/external-name":"user-b","firestartr.dev/revision":"1"},"generation":1,"labels":{"claim-ref":"user-b"},"name":"user-b-5be60205-618d-4f9f-ab55-1e91d25fd1b3","namespace":"default"},"spec":{"context":{"backend":{"ref":{"kind":"FirestartrProviderConfig","name":"kubernetes-provider"}},"provider":{"ref":{"kind":"FirestartrProviderConfig","name":"github"}}},"firestartr":{"tfStateKey":"5be60205-618d-4f9f-ab55-1e91d25fd1b3"},"org":"example-org","role":"admin","writeConnectionSecretToRef":{"name":"firestartrgithubmembership-user-b-user-outputs","outputs":[]}}}
+      creationTimestamp: 2026-02-10T23:35:28Z
+      finalizers:
+        - firestartr.dev/finalizer
+      generation: 1
+      labels:
+        claim-ref: user-b
+      managedFields:
+        - apiVersion: firestartr.dev/v1
+          fieldsType: FieldsV1
+          fieldsV1:
+            f:metadata:
+              f:annotations:
+                .: {}
+                f:firestartr.dev/claim-ref: {}
+                f:firestartr.dev/external-name: {}
+                f:firestartr.dev/revision: {}
+                f:kubectl.kubernetes.io/last-applied-configuration: {}
+              f:labels:
+                .: {}
+                f:claim-ref: {}
+            f:spec:
+              .: {}
+              f:context:
+                .: {}
+                f:backend:
+                  .: {}
+                  f:ref:
+                    .: {}
+                    f:kind: {}
+                    f:name: {}
+                f:provider:
+                  .: {}
+                  f:ref:
+                    .: {}
+                    f:kind: {}
+                    f:name: {}
+              f:firestartr:
+                .: {}
+                f:tfStateKey: {}
+              f:org: {}
+              f:role: {}
+              f:writeConnectionSecretToRef:
+                .: {}
+                f:name: {}
+                f:outputs: {}
+          manager: kubectl-client-side-apply
+          operation: Update
+          time: 2026-02-10T23:35:28Z
+        - apiVersion: firestartr.dev/v1
+          fieldsType: FieldsV1
+          fieldsV1:
+            f:metadata:
+              f:finalizers:
+                .: {}
+                v:"firestartr.dev/finalizer": {}
+          manager: node
+          operation: Update
+          time: 2026-02-10T23:35:28Z
+        - apiVersion: firestartr.dev/v1
+          fieldsType: FieldsV1
+          fieldsV1:
+            f:status:
+              .: {}
+              f:conditions:
+                .: {}
+                k:{"type":"ERROR"}:
+                  .: {}
+                  f:lastTransitionTime: {}
+                  f:lastUpdateTime: {}
+                  f:message: {}
+                  f:observedGeneration: {}
+                  f:reason: {}
+                  f:status: {}
+                  f:type: {}
+                k:{"type":"PROVISIONED"}:
+                  .: {}
+                  f:lastTransitionTime: {}
+                  f:lastUpdateTime: {}
+                  f:message: {}
+                  f:observedGeneration: {}
+                  f:reason: {}
+                  f:status: {}
+                  f:type: {}
+                k:{"type":"PROVISIONING"}:
+                  .: {}
+                  f:lastTransitionTime: {}
+                  f:lastUpdateTime: {}
+                  f:message: {}
+                  f:observedGeneration: {}
+                  f:reason: {}
+                  f:status: {}
+                  f:type: {}
+                k:{"type":"SYNCHRONIZED"}:
+                  .: {}
+                  f:lastSyncTime: {}
+                  f:lastTransitionTime: {}
+                  f:lastUpdateTime: {}
+                  f:message: {}
+                  f:nextSyncTime: {}
+                  f:observedGeneration: {}
+                  f:reason: {}
+                  f:status: {}
+                  f:type: {}
+          manager: node
+          operation: Update
+          subresource: status
+          time: 2026-02-10T23:35:49Z
+      name: user-b-user
+      namespace: default
+      resourceVersion: "92241"
+      uid: c7a08727-e0e2-4420-b585-e7651c7cf697
+    spec:
+      context:
+        backend:
+          ref:
+            kind: FirestartrProviderConfig
+            name: kubernetes-provider
+        provider:
+          ref:
+            kind: FirestartrProviderConfig
+            name: github
+      firestartr:
+        tfStateKey: 5be60205-618d-4f9f-ab55-1e91d25fd1b3
+      org: example-org
+      role: admin
+      writeConnectionSecretToRef:
+        name: firestartrgithubmembership-user-b-user-outputs
+        outputs: []
+      conditions:
+        - lastSyncTime: 2026-02-10T23:35:49.076Z
+          lastTransitionTime: 2026-02-10T23:35:28.553Z
+          lastUpdateTime: 2026-02-10T23:35:49.080Z
+          message: Sync process finished
+          nextSyncTime: 2026-02-10T23:35:49.076Z
+          observedGeneration: 1
+          reason: CREATED
+          status: "False"
+          type: SYNCHRONIZED
+        - lastTransitionTime: 2026-02-10T23:35:28.577Z
+          lastUpdateTime: 2026-02-10T23:35:49.055Z
+          message: doApply
+          observedGeneration: 1
+          reason: CREATED
+          status: "False"
+          type: ERROR
+        - lastTransitionTime: 2026-02-10T23:35:28.592Z
+          lastUpdateTime: 2026-02-10T23:35:49.040Z
+          message: terraform apply finished
+          observedGeneration: 1
+          reason: CREATED
+          status: "True"
+          type: PROVISIONED
+        - lastTransitionTime: 2026-02-10T23:35:28.611Z
+          lastUpdateTime: 2026-02-10T23:35:49.023Z
+          message: Terraform apply finished
+          observedGeneration: 1
+          reason: CREATED
+          status: "False"
+          type: PROVISIONING
+  secret:
+    apiVersion: v1
+    kind: Secret
+    metadata:
+      creationTimestamp: 2026-02-10T23:35:49.000Z
+      managedFields:
+        - apiVersion: v1
+          fieldsType: FieldsV1
+          fieldsV1:
+            f:metadata:
+              f:ownerReferences:
+                .: {}
+                k:{"uid":"c7a08727-e0e2-4420-b585-e7651c7cf697"}: {}
+            f:type: {}
+          manager: unknown
+          operation: Update
+          time: 2026-02-10T23:35:49.000Z
+      name: firestartrgithubmembership-user-b-user-outputs
+      namespace: default
+      ownerReferences:
+        - apiVersion: firestartr.dev/v1
+          blockOwnerDeletion: true
+          controller: true
+          kind: FirestartrGithubMembership
+          name: user-b-user
+          uid: c7a08727-e0e2-4420-b585-e7651c7cf697
+      resourceVersion: "92236"
+      uid: 0a5f237e-c559-4d46-b7dc-a30c8dcd09df
+    type: Opaque
+Secret-providerconfig-github:
+  cr:
+    kind: Secret
+    apiVersion: v1
+    metadata:
+      name: providerconfig-github
+      namespace: default
+      uid: 7d0bcbb2-f378-487b-94ce-8f61a217e824
+      resourceVersion: "1484"
+      creationTimestamp: 2026-02-06T23:45:49Z
+      labels:
+        app.kubernetes.io/managed-by: Helm
+      annotations:
+        meta.helm.sh/release-name: firestartr-init
+        meta.helm.sh/release-namespace: default
+      managedFields:
+        - manager: helm
+          operation: Update
+          apiVersion: v1
+          time: 2026-02-06T23:45:49Z
+          fieldsType: FieldsV1
+          fieldsV1:
+            f:data:
+              .: {}
+              f:github-app-id: {}
+              f:github-app-installation-id: {}
+              f:github-app-pem-file: {}
+            f:metadata:
+              f:annotations:
+                .: {}
+                f:meta.helm.sh/release-name: {}
+                f:meta.helm.sh/release-namespace: {}
+              f:labels:
+                .: {}
+                f:app.kubernetes.io/managed-by: {}
+            f:type: {}
+    data:
+      github-app-id: bXktYXBwLWtleQo=
+      github-app-installation-id: Z2l0aHViLWFwcC1pbnN0YWxsYXRpb24taWQK
+      github-app-pem-file: Z2l0aHViLWFwcC1wZW0tZmlsZQo=
+    type: Opaque
+self-outputs:
+  cr:
+    apiVersion: v1
+    data: eyJvdXRwdXRzIjp7Im5vZGVJZCI6MTExLCJzbHVnIjoidGVhbSIsImlkIjoxNjIxMDc2N319Cg==
+    kind: Secret
+    metadata:
+      creationTimestamp: 2026-02-11T01:05:57.000Z
+      managedFields:
+        - apiVersion: v1
+          fieldsType: FieldsV1
+          fieldsV1:
+            f:data:
+              .: {}
+              f:id: {}
+              f:nodeId: {}
+              f:slug: {}
+            f:metadata:
+              f:ownerReferences:
+                .: {}
+                k:{"uid":"aa63ed53-8a77-4832-a023-90340b200b05"}: {}
+            f:type: {}
+          manager: unknown
+          operation: Update
+          time: 2026-02-11T01:05:57.000Z
+      name: firestartrgithubgroup-group-jp-group-outputs
+      namespace: default
+      ownerReferences:
+        - apiVersion: firestartr.dev/v1
+          blockOwnerDeletion: true
+          controller: true
+          kind: FirestartrGithubGroup
+          name: group-jp-dcb1c970-4e8f-43e8-jp11-c333f84b3ab6
+          uid: aa63ed53-8a77-4832-a023-90340b200b05
+      resourceVersion: "99684"
+      uid: f5c305cf-3bc0-4715-b86d-73f99ab53273
+    type: Opaque

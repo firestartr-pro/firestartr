@@ -1,0 +1,40 @@
+apiVersion: firestartr.dev/v1
+kind: FirestartrTerraformWorkspace
+metadata:
+  name: s3-test-07816efd-4f61-4f23-9856-1549f490be10
+  annotations:
+    firestartr.dev/claim-ref: none
+    firestartr.dev/external-name: test_remote_a
+    firestartr.dev/policy: observe
+spec:
+  firestartr:
+    tfStateKey: 07816efd-4f61-4f23-9856-1549f490be10
+  context:
+    backend:
+      ref:
+        kind: FirestartrProviderConfig
+        name: backend-tf-workspaces
+    providers:
+      - ref:
+          kind: FirestartrProviderConfig
+          name: provider-aws-workspaces
+  source: Inline
+  module: |
+    resource "random_pet" "server" {
+      keepers = {
+        keeper-name = var.name
+      }
+    }
+
+    variable "name" {
+      type = string
+    }
+
+    output "testOutput" {
+      value = var.name
+    }
+  values: |
+    {
+      "name": "example-2"
+    }
+  references: []

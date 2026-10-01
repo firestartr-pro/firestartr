@@ -1,0 +1,24 @@
+{
+  "name": "@firestartr/firestartr-gh_provisioner",
+  "version": "0.0.0",
+  "license": "MPL-2.0",
+  "type": "module",
+  "main": "dist/index.js",
+  "types": "dist/index.d.ts",
+  "private": true,
+  "scripts": {
+    "test": "jest",
+    "lint": "gts lint",
+    "lint-fix": "gts fix"
+  },
+  "engines": {
+    "node": ">=22"
+  },
+  "dependencies": {
+    "fast-json-patch": "^3.1.1",
+    "catalog_common": "file:../catalog_common",
+    "terraform_provisioner": "file:../terraform_provisioner",
+    "github": "file:../github",
+    "octokit": "4.1.3"
+  }
+}

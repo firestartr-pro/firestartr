@@ -1,0 +1,6 @@
+kind: SystemClaim
+name: my-system
+description: "My system"
+domain: "domain:my-domain"
+providers:
+  catalog: {}

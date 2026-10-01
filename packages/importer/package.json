@@ -1,0 +1,38 @@
+{
+  "name": "@firestartr/firestartr-importer",
+  "version": "0.0.0",
+  "private": true,
+  "description": "An importer for an org in firestartr",
+  "main": "dist/index.js",
+  "types": "dist/index.d.ts",
+  "type": "module",
+  "repository": "git://github.com/prefapp/firestartr-bootstrap",
+  "scripts": {
+    "build": "ncc build index.ts -o dist --minify",
+    "test": "jest",
+    "tsc": "tsc",
+    "lint": "gts lint",
+    "lint-fix": "gts fix"
+  },
+  "author": "",
+  "license": "ISC",
+  "bugs": {
+    "url": "https://github.com/prefapp/firestartr-bootstrap/issues"
+  },
+  "files": [
+    "main.ts",
+    "src/",
+    "templates_terraform_files/",
+    "dist/"
+  ],
+  "bin": {},
+  "homepage": "https://github.com/prefapp/firestartr-bootstrap#readme",
+  "dependencies": {
+    "catalog_common": "file:../catalog_common",
+    "cdk8s_renderer": "file:../cdk8s_renderer",
+    "github": "file:../github"
+  },
+  "devDependencies": {
+    "fast-json-patch": "^3.1.1"
+  }
+}

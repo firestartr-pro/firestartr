@@ -1,0 +1,26 @@
+{
+  "extends": "../../tsconfig.json",
+  "compilerOptions": {
+    "composite": true,
+    "allowJs": true
+  },
+  "references": [
+    {
+      "path": "../catalog_common"
+    },
+    {
+      "path": "../features_renderer"
+    },
+    {
+      "path": "../github"
+    },
+    {
+      "path": "../cdk8s_renderer"
+    },
+  ],
+  "include": [
+    "index.ts",
+    "src/**/*.ts",
+    "launch_local.ts"
+  ]
+}

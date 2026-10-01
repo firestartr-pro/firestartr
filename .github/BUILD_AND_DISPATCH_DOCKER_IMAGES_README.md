@@ -1,5 +1,9 @@
 # Build and dispatch workflows
 
+## Overview
+
+This feature builds and publishes Docker images from release, pre-release, and snapshot sources, then automatically dispatches the resulting image updates to their corresponding state repositories.
+
 This feature is a collection of seven workflows (along with their configuration files), which when used in conjunction allow a user to build final docker images from a release tag, or snapshot images, from a pre-release tag, or commit SHA; Once the images are built, the `make_dispatches` workflow dispatches the image update automatically to their respective state repositories. They can be thought of as two different but closely related features.
 
 The workflows `trigger_dispatch_on_releases.yaml`, `trigger_dispatch_on_pre-releases.yaml` and `trigger_dispatch_on_snapshot.yaml` only serve to trigger `make_dispatches.yaml` after a successful automated call to any of the `build_docker_<type>.yaml` workflows. They require no other explanation so they won't be discussed in this README
@@ -90,14 +94,14 @@ All build workflows share the following inputs:
 
 - `from`: point of the code history from which the image will be built. Can be a short or long commit SHA, a branch name or a tag name
 - `flavors`: which flavors to build. Each workflow will only look for flavors in their respective section (i.e., build_docker_releases will only build flavors from `releases`, while the other two will only build flavors from `snapshots`). Can be a single flavor, a list of comma separated flavors (spaces are trimmed) or \*. \* builds all flavors that are set as auto in `build_images.yaml` (see [Configuration](#configuration))
-- `dereference_enabled`: boolean input that enables dereference of tags when building images. Defaults to `true` in `build_docker_snapshots` and to the value of the `prereleases_dereference_enabled` feature arg (default: `true`) in `build_docker_pre-releases`.
+- `dereference_enabled`: boolean input that enables dereference of tags when building images. Defaults to `true` in `build_docker_snapshots.yaml` workflow and to the value of the `prereleases_dereference_enabled` feature arg (default: `true`) in `build_docker_pre-releases.yaml` workflow.
 
 > [!WARNING]
-> Enabling `prereleases_dereference_enabled` may cause image tags to be overwritten if your snapshots/pre-releases and releases share the same registry. Keep the `DOCKER_REGISTRY_SNAPSHOTS` and `DOCKER_REGISTRY_RELEASES` vars pointing at separate registries when enabling this parameter.
+> Disabling pre-releases dereference (arg `prereleases_dereference_enabled: false`) may cause image tags to be overwritten if your snapshots/pre-releases and releases images are uploaded to the same registry. Keep the `DOCKER_REGISTRY_SNAPSHOTS` and `DOCKER_REGISTRY_RELEASES` vars pointing at separate registries when enabling this parameter.
 
-`build_docker_snapshots` also includes this workflow-dispatch-only input:
+`build_docker_snapshots.yaml` also includes this workflow-dispatch-only input:
 
-- `autodeploy`: boolean input (default: `false`) used by `build_docker_snapshots` when launched manually (`workflow_dispatch`). When `true`, the downstream `trigger_dispatch_on_snapshot` workflow will continue and trigger `make_dispatches.yaml`; when `false`, the trigger workflow skips the dispatch step.
+- `autodeploy`: boolean input (default: `false`) used by `build_docker_snapshots.yaml` when launched manually (`workflow_dispatch`). When `true`, the downstream `trigger_dispatch_on_snapshot` workflow will continue and trigger `make_dispatches.yaml`; when `false`, the trigger workflow skips the dispatch step.
 
 ### Defaults
 

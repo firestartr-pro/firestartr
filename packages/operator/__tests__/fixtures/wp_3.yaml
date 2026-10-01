@@ -1,0 +1,40 @@
+apiVersion: firestartr.dev/v1
+kind: FirestartrTerraformWorkspace
+metadata:
+  name: s3-test-2-41370128-5a3c-4eac-8468-597d9f1a1fde
+  annotations:
+    firestartr.dev/policy: apply
+    firestartr.dev/claim-ref: s3-test-2
+    firestartr.dev/external-name: s3-test-2
+  labels:
+    claim-ref: s3-test-2
+spec:
+  firestartr:
+    tfStateKey: 41370128-5a3c-4eac-8468-597d9f1a1fde
+  context:
+    backend:
+      ref:
+        kind: FirestartrProviderConfig
+        name: backend-tf-workspaces
+    providers:
+      - ref:
+          kind: FirestartrProviderConfig
+          name: provider-aws-workspaces
+  source: Inline
+  module: |
+    variable "name" {
+    
+      type = string
+    
+    }
+
+    output "the_another_output_3" {
+
+      value = "E, ${var.name}!"
+    }
+
+  values: |
+    {
+      "name": "test-firestartr-wp-3"
+    }
+  references: []

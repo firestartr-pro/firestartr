@@ -1,0 +1,23 @@
+apiVersion: firestartr.dev/v1
+kind: FirestartrTerraformWorkspace
+metadata:
+  name: example-remote-d2d2faf2-9551-41bc-bf48-de3195c67546
+spec:
+  firestartr:
+    tfStateKey: d2d2faf2-9551-41bc-bf48-de3195c67546
+  context:
+    backend:
+      ref:
+        kind: FirestartrProviderConfig
+        name: backend-tf-workspaces
+    providers:
+      - ref:
+          kind: FirestartrProviderConfig
+          name: provider-aws-workspaces
+  source: Remote
+  module: git::https://github.com/firestartr-test/infra.git
+  values: |
+    {
+      "name": "test-name-firestartr-bucket"
+    }
+  references: []

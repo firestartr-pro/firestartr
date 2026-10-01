@@ -1,0 +1,12 @@
+kind: GroupClaim
+name: my-group
+profile:
+  displayName: "My Group"
+  email: "group@example.com"
+members:
+  - "user:user_a"
+providers:
+  github:
+    name: my-group
+    privacy: closed
+    org: my-org

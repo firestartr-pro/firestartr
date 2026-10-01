@@ -1,0 +1,47 @@
+---
+# FEATURE_NAME: release_please
+# FEATURE_VERSION: release_please-v1
+# FEATURE_URL: https://github.com/prefapp/features/tree/release_please-v1/packages/release_please
+# FEATURE_GIT_SHA: "8bea7303fc2d38b005beb85ccbbe95e4076cd0a2"
+# FEATURE_GIT_TAGS: ["release_please-v1.8.1","release_please-v1"]
+
+name: Validate Release Please Configuration
+
+on:
+  pull_request:
+    paths:
+      - 'release-please-config.json'
+      - '.release-please-manifest.json'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  validate-json-syntax:
+    name: Validate JSON Syntax
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@v6
+        with:
+          ref: ${{ github.event_name == 'pull_request' && github.event.pull_request.head.sha || github.sha }}
+
+      - name: Validate release-please-config.json syntax
+        run: |
+          if [ -f "release-please-config.json" ]; then
+            jq empty "release-please-config.json" || exit 1
+            echo "release-please-config.json syntax is valid"
+          else
+            echo "release-please-config.json not found"
+            exit 1
+          fi
+
+      - name: Validate .release-please-manifest.json syntax
+        run: |
+          if [ -f ".release-please-manifest.json" ]; then
+            jq empty ".release-please-manifest.json" || exit 1
+            echo ".release-please-manifest.json syntax is valid"
+          else
+            echo ".release-please-manifest.json not found"
+            exit 1
+          fi

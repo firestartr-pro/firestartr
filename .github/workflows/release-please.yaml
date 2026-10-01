@@ -1,0 +1,63 @@
+---
+# FEATURE_NAME: release_please
+# FEATURE_VERSION: release_please-v1
+# FEATURE_URL: https://github.com/prefapp/features/tree/release_please-v1/packages/release_please
+# FEATURE_GIT_SHA: "8bea7303fc2d38b005beb85ccbbe95e4076cd0a2"
+# FEATURE_GIT_TAGS: ["release_please-v1.8.1","release_please-v1"]
+
+name: Run Release Please
+
+on:
+  push:
+    branches:
+      - main
+
+permissions:
+  contents: write
+  pull-requests: write
+  issues: write
+
+jobs:
+  release-please:
+    name: Release Please Manifest
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/create-github-app-token@v3
+        id: generate-token
+        with:
+          app-id: ${{ vars.FS_STATE_APP_ID }}
+          private-key: ${{ secrets.FS_STATE_PEM_FILE }}
+          owner: ${{ github.repository_owner }}
+
+      - name: Release Please
+        uses: googleapis/release-please-action@45996ed1f6d02564a971a2fa1b5860e934307cf7 # v5.0.0
+        id: release
+        with:
+          token: ${{ steps.generate-token.outputs.token }}
+          target-branch: main
+          config-file: release-please-config.json
+          manifest-file: .release-please-manifest.json
+
+      - uses: actions/checkout@v6
+        if: false && steps.release.outputs.releases_created == 'true'
+
+      - name: Get major version num and update tag
+        if: false && steps.release.outputs.releases_created == 'true'
+        env:
+          GH_TOKEN: ${{ steps.generate-token.outputs.token }}
+        run: |
+          USER_ID=$(gh api "/users/${{ steps.generate-token.outputs.app-slug }}[bot]" --jq .id)
+          git config user.name "${{ steps.generate-token.outputs.app-slug }}[bot]"
+          git config user.email "${USER_ID}+${{ steps.generate-token.outputs.app-slug }}[bot]@users.noreply.github.com"
+
+          path_released='${{ steps.release.outputs.paths_released }}'
+
+          manifest=$(cat .release-please-manifest.json)
+
+          echo $path_released | jq -cr '.[]' | while read -r release; do
+            version=$(echo "$manifest" | jq -cr ".\"$release\"")
+            major=$(echo "$version" | cut -d. -f1)
+            TAG_NAME="${release/*\//}-v${major}"
+            git tag -fa "$TAG_NAME"  -m "Update major version tag"
+            git push origin "$TAG_NAME" --force
+          done

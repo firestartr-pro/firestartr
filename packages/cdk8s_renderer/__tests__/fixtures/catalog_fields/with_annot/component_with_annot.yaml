@@ -1,0 +1,21 @@
+kind: ComponentClaim
+version: "1.0"
+type: service
+lifecycle: production
+system: 'system:test-system'
+owner: 'user:user-a'
+name: app
+annotations:
+  tag: tag
+providers:
+  github:
+    description: app test
+    name: app
+    org: test
+    visibility: private
+    branchStrategy:
+      name: none
+      defaultBranch: master
+    actions:
+      oidc:
+        useDefault: true

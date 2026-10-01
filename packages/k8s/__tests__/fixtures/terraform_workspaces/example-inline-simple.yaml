@@ -1,0 +1,32 @@
+apiVersion: firestartr.dev/v1
+kind: FirestartrTerraformWorkspace
+metadata:
+  annotations:
+    firestartr.dev/claim-ref: TFWorkspaceClaim/test-module-a
+    firestartr.dev/external-name: test_module_a
+  labels:
+    claim-ref: test-module-a
+  name: test-module-a-a3940e77-1d8d-4bbb-ab76-62996c99ad6a
+spec:
+  context:
+    backend:
+      ref:
+        kind: FirestartrProviderConfig
+        name: aws-state-bucket
+    providers:
+      - ref:
+          kind: FirestartrProviderConfig
+          name: aws-dev-iam
+  firestartr:
+    tfStateKey: a3940e77-1d8d-4bbb-ab76-62996c99ad6a
+  module: |
+    output "hello" {
+      value = "Hello, World!"
+    }
+
+    output "hello-2" {
+      value = "Hello, World! 2"
+    }
+  references: []
+  source: Inline
+  values: '{}'

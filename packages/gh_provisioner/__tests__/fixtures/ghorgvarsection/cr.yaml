@@ -1,0 +1,40 @@
+apiVersion: firestartr.dev/v1
+kind: FirestartrGithubOrganizationVariableSection
+metadata:
+  annotations:
+    firestartr.dev/claim-ref: OrgSettingsClaim/github_org_variables
+    firestartr.dev/external-name: firestartr-test-variables
+    firestartr.dev/revision: "1"
+  labels:
+    claim-ref: github-org-variables
+  name: firestartr-test-variables
+spec:
+  org: firestartr-test
+  actionsVariables:
+    - name: DEPLOY_KEY
+      value: deploy-key-value
+      visibility: all
+    - name: STAGING_HOST
+      value: staging.example.com
+      visibility: selected
+      selectedRepositories:
+        - firestartr-test/component-a
+        - firestartr-test/component-b
+    - name: INTERNAL_FLAG
+      value: "true"
+      visibility: private
+  context:
+    backend:
+      ref:
+        kind: FirestartrProviderConfig
+        name: kubernetes-provider
+    provider:
+      ref:
+        kind: FirestartrProviderConfig
+        name: github
+  firestartr:
+    tfStateKey: github-org-variables
+  writeConnectionSecretToRef:
+    name: firestartrgithuborganizationvariablesection-firestartr-test-outputs
+    outputs:
+      - key: managed_variables

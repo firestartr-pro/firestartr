@@ -1,0 +1,42 @@
+{
+  "name": "@firestartr/firestartr-cdk8s_renderer",
+  "version": "0.0.0",
+  "license": "Apache-2.0",
+  "engines": {
+    "node": ">=22"
+  },
+  "type": "module",
+  "main": "./dist/index.js",
+  "types": "./dist/index.d.ts",
+  "private": true,
+  "scripts": {
+    "import": "cdk8s import",
+    "synth": "cdk8s synth",
+    "watch": "tsc --build -w",
+    "test": "jest",
+    "build": "ncc build index.ts -o dist --minify",
+    "upgrade": "npm i cdk8s@latest cdk8s-cli@latest",
+    "upgrade:next": "npm i cdk8s@next cdk8s-cli@next",
+    "lint": "gts lint",
+    "lint-fix": "gts fix",
+    "export-schemas": "tsx scripts/schema-exporter.ts"
+  },
+  "dependencies": {
+    "@types/jest": "^30.0.0",
+    "catalog_common": "file:../catalog_common",
+    "cdk8s": "^2.70.105",
+    "constructs": "^10.8.1",
+    "features_preparer": "file:../features_preparer",
+    "github": "file:../github",
+    "jest": "^30.1.3",
+    "ts-jest": "^29.4.14",
+    "yaml": "^2.9.1"
+  },
+  "devDependencies": {
+    "ajv": "^8.17.1",
+    "cdk8s-cli": "2.207.58",
+    "fast-json-patch": "^3.1.1",
+    "lodash": "4.18.1",
+    "uuid": "^9.0.0"
+  }
+}

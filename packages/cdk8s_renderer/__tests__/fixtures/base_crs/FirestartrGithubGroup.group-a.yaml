@@ -1,0 +1,27 @@
+apiVersion: firestartr.dev/v1
+kind: FirestartrGithubGroup
+metadata:
+  annotations:
+    firestartr.dev/claim-ref: GroupClaim/group_a
+    firestartr.dev/external-name: group-a
+    firestartr.dev/revision: "1"
+  labels:
+    claim-ref: group-a
+  name: group-a
+spec:
+  org: firestartr-test
+  privacy: closed
+  description: Prefapp all description
+  members:
+    - ref:
+        kind: FirestartrGithubMembership
+        name: user-a-github-77e78665-b7eb-4312-9a36-a573432fcead
+        needsSecret: false
+  firestartr:
+    tfStateKey: dcb1c970-4e8f-43e8-be77-c354f84b3ab6
+  writeConnectionSecretToRef:
+    name: firestartrgithubgroup-group-a-dcb1c970-4e8f-43e8-be77-c354f84b3ab6-outputs
+    outputs:
+      - key: id
+      - key: nodeId
+      - key: slug

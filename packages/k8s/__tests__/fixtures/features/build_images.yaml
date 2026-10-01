@@ -1,0 +1,52 @@
+apiVersion: firestartr.dev/v1
+kind: FirestartrGithubRepositoryFeature
+metadata:
+  annotations:
+  name: test-demo-a-mkdocs-v0.6.1
+spec:
+  firestartr:
+    tfStateKey: uuid-test-demo-a-tech-docs-11111
+  type: tech_docs
+  version: v0.6.1
+  org: firestartr-test
+  repositoryTarget:
+    ref:
+      kind: FirestartrGithubRepository
+      name: test-demo-a
+      needsSecret: false
+    branch: main
+  files:
+    - path: mkdocs.yaml
+      userManaged: true
+      content: |-
+        c2l0ZV9uYW1lOiAiVGVjaERvY3MiCnNpdGVfZGVzY3JpcHRpb246ICJDdXN0b20gZG9jdW1lbnRh
+        dGlvbiIKCm5hdjoKICAtIEludHJvZHVjdGlvbjogaW5kZXgubWQKCnBsdWdpbnM6CiAgLSB0ZWNo
+        ZG9jcy1jb3Jl
+    - path: docs/index.md
+      userManaged: true
+      content: |-
+        IyBUZWNoRG9jcwoKQ3VzdG9tIGRvY3VtZW50YXRpb24KCiMjIEdldHRpbmcgc3RhcnRlZAoKU3Rh
+        cnQgd3JpdGluZyB5b3VyIGRvY3VtZW50YXRpb24gYnkgYWRkaW5nIG1vcmUgbWFya2Rvd24gKC5t
+        ZCkgZmlsZXMgdG8gdGhpcyBmb2xkZXIgKC9kb2NzKSBvciByZXBsYWNlIHRoZSBjb250ZW50IGlu
+        IHRoaXMgZmlsZS4KCiMjIFRhYmxlIG9mIENvbnRlbnRzCgpUaGUgVGFibGUgb2YgQ29udGVudHMg
+        b24gdGhlIHJpZ2h0IGlzIGdlbmVyYXRlZCBhdXRvbWF0aWNhbGx5IGJhc2VkIG9uIHRoZSBoaWVy
+        YXJjaHkKb2YgaGVhZGluZ3MuIE9ubHkgdXNlIG9uZSBIMSAoYCNgIGluIE1hcmtkb3duKSBwZXIg
+        ZmlsZS4KCiMjIFNpdGUgbmF2aWdhdGlvbgoKRm9yIG5ldyBwYWdlcyB0byBhcHBlYXIgaW4gdGhl
+        IGxlZnQgaGFuZCBuYXZpZ2F0aW9uIHlvdSBuZWVkIGVkaXQgdGhlIGBta2RvY3MueW1sYApmaWxl
+        IGluIHJvb3Qgb2YgeW91ciByZXBvLiBUaGUgbmF2aWdhdGlvbiBjYW4gYWxzbyBsaW5rIG91dCB0
+        byBvdGhlciBzaXRlcy4KCkFsdGVybmF0aXZlbHksIGlmIHRoZXJlIGlzIG5vIGBuYXZgIHNlY3Rp
+        b24gaW4gYG1rZG9jcy55bWxgLCBhIG5hdmlnYXRpb24gc2VjdGlvbgp3aWxsIGJlIGNyZWF0ZWQg
+        Zm9yIHlvdS4gSG93ZXZlciwgeW91IHdpbGwgbm90IGJlIGFibGUgdG8gdXNlIGFsdGVybmF0ZSB0
+        aXRsZXMgZm9yCnBhZ2VzLCBvciBpbmNsdWRlIGxpbmtzIHRvIG90aGVyIHNpdGVzLgoKTm90ZSB0
+        aGF0IE1rRG9jcyB1c2VzIGBta2RvY3MueW1sYCwgbm90IGBta2RvY3MueWFtbGAsIGFsdGhvdWdo
+        IGJvdGggYXBwZWFyIHRvIHdvcmsuClNlZSBhbHNvIDxodHRwczovL3d3dy5ta2RvY3Mub3JnL3Vz
+        ZXItZ3VpZGUvY29uZmlndXJhdGlvbi8+Lgo=
+  context:
+    backend:
+      ref:
+        kind: FirestartrProviderConfig
+        name: aws-state-bucket
+    provider:
+      ref:
+        kind: FirestartrProviderConfig
+        name: github-app

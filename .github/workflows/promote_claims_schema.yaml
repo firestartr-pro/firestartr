@@ -1,0 +1,118 @@
+name: Promote Claims Schema to Docs Repo
+
+on:
+  push:
+    branches:
+      - main
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  promote:
+    name: Promote Claims Schema
+    runs-on: ubuntu-24.04
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v7
+        with:
+          path: gitops
+
+      - name: Generate GitHub App token
+        id: app-token
+        uses: actions/create-github-app-token@v3
+        with:
+          app-id: ${{ vars.FIRESTARTER_DOCS_APP_ID }}
+          private-key: ${{ secrets.FIRESTARTR_DOCS_APP_PEM_FILE }}
+          owner: firestartr-pro
+          repositories: docs
+
+      - name: Checkout docs repo
+        uses: actions/checkout@v7
+        with:
+          repository: firestartr-pro/docs
+          path: pro-docs
+          token: ${{ steps.app-token.outputs.token }}
+
+      - name: Setup environment variables
+        run: |
+          echo "PRO_DOCS_CORE_PATH=$GITHUB_WORKSPACE/pro-docs/site/raw/core" >> "$GITHUB_ENV"
+          echo "PROMOTION_SUMMARY=$GITHUB_WORKSPACE/promotion-summary.md" >> "$GITHUB_ENV"
+
+          # Initialize summary file
+          cat > "$GITHUB_WORKSPACE/promotion-summary.md" << EOF
+          # Claims Schema Promotion Summary
+
+          **Date:** $(date -u '+%Y-%m-%d %H:%M:%S UTC')
+
+          ## Promoted Files
+
+          EOF
+
+      - name: Setup node
+        uses: actions/setup-node@v7
+        with:
+          node-version: "22"
+          registry-url: "https://npm.pkg.github.com"
+          cache: "npm"
+          cache-dependency-path: "gitops/package-lock.json"
+
+      - name: Install deps
+        working-directory: gitops
+        run: |
+          npm ci
+
+      - name: Promote claims schema
+        working-directory: gitops
+        run: |
+          set -e
+
+          # Prepare pro-docs path
+          pro_docs_claims_path="${PRO_DOCS_CORE_PATH}/claims"
+          mkdir -p "${pro_docs_claims_path}"
+
+          # Generate claims.schema.json
+          npm run export-schemas --workspace packages/cdk8s_renderer --silent > "${pro_docs_claims_path}/claims.schema.json"
+
+          # Copy claims.schema.json to pro-docs
+          schemas_path="${pro_docs_claims_path}/claims.schema.json"
+          if [ -f "${schemas_path}" ]; then
+            echo "✓ **Claims Schema**: \`${pro_docs_claims_path}/claims.schema.json\`" >> "$PROMOTION_SUMMARY"
+          else
+            echo "✗ **Claims Schema**: Not found (${schemas_path})" >> "$PROMOTION_SUMMARY"
+            echo "::error:: ${schemas_path} not found"
+          fi
+
+      - name: Get GitHub App User ID
+        id: get-user-id
+        run: |
+          USER_ID=$(gh api "/users/${{ steps.app-token.outputs.app-slug }}[bot]" --jq .id)
+          echo "user-id=${USER_ID}" >> "$GITHUB_OUTPUT"
+        env:
+          GITHUB_TOKEN: ${{ steps.app-token.outputs.token }}
+
+      - name: Commit and push changes to docs repo
+        working-directory: pro-docs
+        run: |
+          set -e
+          git config user.name "${{ steps.app-token.outputs.app-slug }}[bot]"
+          git config user.email "${{ steps.get-user-id.outputs.user-id }}+${{ steps.app-token.outputs.app-slug }}[bot]@users.noreply.github.com"
+          git add .
+          if git diff --staged --quiet; then
+            echo "No changes to commit"
+            echo "" >> "$PROMOTION_SUMMARY"
+            echo "ℹ️ **Status**: No changes to commit" >> "$PROMOTION_SUMMARY"
+          else
+            git commit -m "docs: update claims schema"
+            git push origin main
+            echo "" >> "$PROMOTION_SUMMARY"
+            echo "✓ **Status**: Changes committed and pushed to firestartr-pro/docs" >> "$PROMOTION_SUMMARY"
+          fi
+
+      - name: Display final summary
+        if: always()
+        run: |
+          echo "---"
+          cat "$PROMOTION_SUMMARY"
+          cat "$PROMOTION_SUMMARY" > "$GITHUB_STEP_SUMMARY"

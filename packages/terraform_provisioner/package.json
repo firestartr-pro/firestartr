@@ -1,0 +1,30 @@
+{
+  "name": "@firestartr/firestartr-terraform_provisioner",
+  "version": "0.0.1",
+  "private": false,
+  "description": "Catalog common utilities and functions",
+  "type": "module",
+  "main": "./dist/index.js",
+  "types": "./dist/index.d.ts",
+  "scripts": {
+    "test": "jest",
+    "tsc": "tsc",
+    "build": "ncc build index.ts -o dist --minify",
+    "lint": "gts lint",
+    "lint-fix": "gts fix"
+  },
+  "files": [
+    "dist",
+    "package.json"
+  ],
+  "author": "",
+  "license": "ISC",
+  "devDependencies": {
+    "github": "file:../github",
+    "catalog_common": "file:../catalog_common",
+    "ajv": "^6.12.3"
+  },
+  "engines": {
+    "node": ">=22"
+  }
+}

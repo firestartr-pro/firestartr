@@ -1,0 +1,28 @@
+kind: TFWorkspaceClaim
+lifecycle: production
+name: workspace_c
+type: bucket
+owner: 'group:firestartr-test-all'
+system: 'system:system_a'
+version: '1.0'
+providers:
+  terraform:
+    name: bucket-s3
+    source: Inline
+    values:
+      name: "abcdefg"
+      string_value: "My example"
+      bool_value: false
+      string_list_value:
+        - "My example"
+        - "My example 2"
+      number_value: 123
+      object_list_value:
+        - internal: 3
+          external: 27
+          protocol: tcp
+    context:
+      providers:
+        - name: provider-aws-workspaces
+      backend:
+        name: backend-tf-workspaces

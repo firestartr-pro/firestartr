@@ -1,0 +1,16 @@
+apiVersion: backstage.io/v1alpha1
+kind: Group
+metadata:
+  name: group_b
+  description: a new testing group
+  annotations:
+    fire-starter.dev/uuid: 37b483b2-31b5-4955-8648-73ceed10b123
+spec:
+  type: business-unit
+  profile:
+    displayName: testGroupB
+    email: foo@foo.com
+    picture: https://example.com/groups/bu-infrastructure.jpeg
+  children: []
+  members: ["user_b"]
+  provisioner: {}

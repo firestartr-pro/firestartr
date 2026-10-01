@@ -1,0 +1,37 @@
+apiVersion: firestartr.dev/v1
+kind: FirestartrGithubOrgWebhook
+metadata:
+  annotations:
+    firestartr.dev/claim-ref: OrgWebhookClaim/orgwebhook_a
+    firestartr.dev/external-name: my-github-org-webhook
+    firestartr.dev/revision: "1"
+  labels:
+    claim-ref: orgwebhook-a
+  name: my-github-org-webhook-ece587ce-4367-4910-8429-9f44f0524d7d
+spec:
+  orgName: example-org
+  webhook:
+    url: https://example.com/webhook
+    contentType: json
+    secretRef:
+      name: my-webhook-secret
+      key: webhook-secret-key
+    active: true
+    events:
+      - push
+      - pull_request
+      - issues
+  context:
+    backend:
+      ref:
+        kind: FirestartrProviderConfig
+        name: kubernetes-provider
+    provider:
+      ref:
+        kind: FirestartrProviderConfig
+        name: github
+  firestartr:
+    tfStateKey: ece587ce-4367-4910-8429-9f44f0524d7d
+  writeConnectionSecretToRef:
+    name: firestartrgithuborgwebhook-my-github-org-webhook-ece587ce-4367-4910-8429-9f44f0524d7d-outputs
+    outputs: []

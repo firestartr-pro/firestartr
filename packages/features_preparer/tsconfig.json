@@ -1,0 +1,24 @@
+{
+  "extends": "../../tsconfig.json",
+  "compilerOptions": {
+    "composite": true,
+    "allowJs": true
+  },
+  "references": [
+    {
+      "path": "../github"
+    },
+    {
+      "path": "../catalog_common"
+    },
+    {
+      "path": "../features_renderer"
+    }
+  ],
+  "include": [
+    "bin/test-feature.ts",
+    "bin/get-feature.ts",
+    "index.ts",
+    "src/**/*.ts"
+  ]
+}

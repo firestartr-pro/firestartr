@@ -1,0 +1,7 @@
+globalValues:
+  oidc:
+    useDefault: false
+defaultValues:
+  stack: python
+  allowAutoMerge: true
+  codeowners: "blah"

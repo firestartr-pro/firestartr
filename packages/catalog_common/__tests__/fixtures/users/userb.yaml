@@ -1,0 +1,17 @@
+apiVersion: backstage.io/v1alpha1
+kind: User
+metadata:
+  name:  userb
+  annotations:
+    fire-starter.dev/uuid: afac5a62-2843-4355-a4d0-5bcfb8671419
+spec:
+  profile:
+    displayName: usera
+    email: foo2@foo.com
+    picture: https://example.com/staff/jenny-with-party-hat.jpeg
+  memberOf: []
+  provisioner:
+    role: admin
+    status:
+      value: "provisioned"
+      extras: [""]

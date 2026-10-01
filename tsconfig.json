@@ -1,0 +1,48 @@
+{
+  "compilerOptions": {
+    "target": "ES2020",
+    "module": "esnext",
+    "moduleResolution": "Node",
+    "strict": false,
+    "noImplicitAny": false,
+    "noImplicitThis": false,
+    "strictNullChecks": false,
+    "skipLibCheck": true,
+    "forceConsistentCasingInFileNames": true,
+    "declaration": true,
+    "sourceMap": false,
+    "baseUrl": ".",
+    "noImplicitReturns": false,
+    "noUnusedLocals": false,
+    "alwaysStrict": false,
+    "noUnusedParameters": false,
+    "noFallthroughCasesInSwitch": true,
+    "esModuleInterop": true,
+    "paths": {
+      "catalog_common": [
+        "packages/catalog_common/index.ts"
+      ],
+      "cdk8s_renderer": [
+        "packages/cdk8s_renderer/index.ts"
+      ],
+      "features_renderer": [
+        "packages/features_renderer/index.ts"
+      ],
+      "github": [
+        "packages/github/index.ts"
+      ],
+      "terraform_provisioner": [
+        "packages/terraform_provisioner/index.ts"
+      ],
+      "features_preparer": [
+        "packages/features_preparer/index.ts"
+      ],
+      "gh_provisioner": [
+        "packages/gh_provisioner/index.ts"
+      ],
+      "crs_status_service": [
+        "packages/crs_status_service/index.ts"
+      ],
+    }
+  },
+}

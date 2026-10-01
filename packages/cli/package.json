@@ -1,0 +1,43 @@
+{
+  "name": "@firestartr/cli",
+  "version": "2.11.1",
+  "private": false,
+  "description": "Commandline tool",
+  "main": "build/main.js",
+  "types": "build/main.d.ts",
+  "type": "module",
+  "files": [
+    "build/"
+  ],
+  "bin": {
+    "firestartr-cli": "build/index.js"
+  },
+  "scripts": {
+    "cli": "ts-node ./main.ts",
+    "test": "jest",
+    "build": "ncc build main.ts -o build",
+    "prebuild": "./postbuild.sh",
+    "lint": "gts lint",
+    "lint-fix": "gts fix"
+  },
+  "author": "Firestartr contributors",
+  "license": "ISC",
+  "dependencies": {
+    "semver": "^7.8.5"
+  },
+  "devDependencies": {
+    "@types/command-line-args": "^5.2.0",
+    "@types/semver": "^7.8.0",
+    "catalog_common": "file:../catalog_common",
+    "cdk8s_renderer": "file:../cdk8s_renderer",
+    "command-line-args": "^5.2.1",
+    "crs_analyzer": "file:../crs_analyzer",
+    "crs_status_service": "file:../crs_status_service",
+    "importer": "file:../importer",
+    "operator": "file:../operator",
+    "scaffolder": "file:../scaffolder"
+  },
+  "engines": {
+    "node": ">=22"
+  }
+}

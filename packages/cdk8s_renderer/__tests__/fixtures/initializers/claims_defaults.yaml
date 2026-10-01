@@ -1,0 +1,18 @@
+ComponentClaim:
+  platformOwner: "group:firestartr-test-platform-team"
+  providers:
+    github:
+      orgPermissions: 'none'
+      technology:
+        stack: "node"
+        version: "14"
+      features: []
+GroupClaim:
+  providers:
+    github:
+      org: fransuisco
+      privacy: closed
+      #   - name: tech_docs
+      #     version: 0.7.0
+      #     args:
+      #       installOnBranch: experimental

@@ -1,0 +1,160 @@
+{
+  "type": "object",
+  "description": "An ArgoCD Deploy claim",
+  "x-fs-forge-icon": { "emoji": "🚀", "ascii": "[ARG]" },
+  "x-fs-forge-summary": "Deploy an application to Argo CD from a claim.",
+  "unevaluatedProperties": false,
+  "properties": {
+    "name": {
+      "type": "string"
+    },
+    "kind": {
+      "type": "string"
+    },
+    "description": {
+      "type": "string"
+    },
+    "type": {
+      "type": "string"
+    },
+    "lifecycle": {
+      "type": "string"
+    },
+    "version": {
+      "type": "string"
+    },
+    "system": {
+      "type": "string",
+      "pattern": "^system:.+$"
+    },
+    "project": {
+      "type": "string"
+    },
+    "providers": {
+      "type": "object",
+      "properties": {
+        "argocd": {
+          "type": "object",
+          "description": "An argocd deploy",
+          "allOf": [
+            {
+              "type": "object",
+              "description": "An envelope for a any kind of claim",
+              "properties": {
+                "name": {
+                  "type": "string"
+                }
+              },
+              "additionalProperties": true,
+              "required": ["name"]
+            },
+            {
+              "type": "object",
+              "properties": {
+                "name": {
+                  "type": "string"
+                },
+                "project": {
+                  "type": "string"
+                },
+                "chart": {
+                  "type": "object",
+                  "description": "An argocd deploy chart reference",
+                  "properties": {
+                    "name": {
+                      "type": "string",
+                      "description": "The name of the chart"
+                    },
+                    "version": {
+                      "type": "string",
+                      "description": "Version to use of the chart"
+                    },
+                    "oci": {
+                      "type": "boolean",
+                      "description": "Whether the chart is an oci chart",
+                      "default": false
+                    },
+                    "source": {
+                      "type": "string",
+                      "description": "RepoURL or registry for the chart"
+                    }
+                  },
+                  "required": ["name", "version", "source"]
+                },
+                "values": {
+                  "type": "array",
+                  "items": {
+                    "type": "object",
+                    "description": "An argocd deploy values",
+                    "properties": {
+                      "source": {
+                        "type": "string",
+                        "description": "RepoURL of the values"
+                      },
+                      "paths": {
+                        "type": "array",
+                        "items": {
+                          "type": "string",
+                          "description": "path to get values from"
+                        }
+                      },
+                      "revision": {
+                        "type": "string",
+                        "description": "revision of the repo"
+                      }
+                    },
+                    "required": ["source", "paths", "revision"]
+                  }
+                },
+                "destination": {
+                  "type": "object",
+                  "properties": {
+                    "namespace": {
+                      "type": "string",
+                      "description": "namespace to deploy"
+                    },
+                    "server": {
+                      "type": "string"
+                    },
+                    "name": {
+                      "type": "string"
+                    }
+                  }
+                }
+              },
+              "required": ["name"]
+            }
+          ]
+        }
+      },
+      "additionalProperties": false,
+      "required": ["argocd"]
+    },
+    "profile": {
+      "type": "object",
+      "description": "A profile for a claim",
+      "properties": {
+        "displayName": {
+          "type": "string"
+        },
+        "email": {
+          "type": "string"
+        },
+        "picture": {
+          "type": "string"
+        }
+      },
+      "additionalProperties": false
+    },
+    "annotations": {
+      "type": "object",
+      "patternProperties": {
+        "^[a-zA-Z0-9/.-]+$": {
+          "type": "string"
+        }
+      },
+      "additionalProperties": false
+    }
+  },
+  "required": ["name", "kind", "providers"]
+}

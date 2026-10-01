@@ -1,0 +1,12 @@
+[
+  {
+    "version": "1.1.0",
+    "date": "2025-01-02T00:00:00Z",
+    "url": "feature_a/1.1.0/feature-schema.json"
+  },
+  {
+    "version": "1.0.0",
+    "date": "2025-01-01T00:00:00Z",
+    "url": "https://example.invalid/feature_a/1.0.0/schema.json"
+  }
+]

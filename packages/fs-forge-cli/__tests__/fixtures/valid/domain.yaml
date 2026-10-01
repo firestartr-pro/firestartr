@@ -1,0 +1,6 @@
+kind: DomainClaim
+name: my-domain
+description: "My domain"
+owner: "user:my-user"
+providers:
+  catalog: {}

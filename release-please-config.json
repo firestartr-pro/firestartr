@@ -1,0 +1,36 @@
+{
+  "bootstrap-sha": "0997df7cc4ca637c8668202b2ffe588041ce6389",
+  "release-type": "node",
+  "packages": {
+    ".": {
+      "include-component-in-tag": false,
+      "exclude-paths": ["packages/features_renderer", "packages/fs-forge-cli"]
+    },
+    "packages/features_renderer": {
+      "component": "features_renderer",
+      "extra-files": [
+        {
+          "type": "json",
+          "path": "/package-lock.json",
+          "jsonpath": "$.packages['packages/features_renderer'].version"
+        }
+      ]
+    },
+    "packages/fs-forge-cli": {
+      "component": "fs-forge-cli",
+      "extra-files": [
+        {
+          "type": "json",
+          "path": "/package-lock.json",
+          "jsonpath": "$.packages['packages/fs-forge-cli'].version"
+        },
+        {
+          "type": "json",
+          "path": "oclif.manifest.json",
+          "jsonpath": "$.version"
+        }
+      ]
+    }
+  },
+  "separate-pull-requests": true
+}

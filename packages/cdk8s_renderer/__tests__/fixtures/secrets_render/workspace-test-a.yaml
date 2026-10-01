@@ -1,0 +1,20 @@
+kind: TFWorkspaceClaim
+lifecycle: production
+resourceType: test-a-resource-type
+name: test-a
+owner: 'group:firestartr-test-all'
+system: 'system:my-system'
+version: '1.0'
+providers:
+  terraform:
+    name: test_a
+    source: Remote
+    module: https://github.com/infra/acme-predev-aks@main
+    valuesSchema: file:/global/my-schemas/my-schema.json
+    values:
+      a: "${{ secret:app-tenant-env.rds_conn }}"
+    context:
+      providers:
+        - name: aws-westeurope
+      backend:
+        name: foo

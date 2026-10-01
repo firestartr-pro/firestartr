@@ -1,0 +1,61 @@
+apiVersion: firestartr.dev/v1
+kind: FirestartrTerraformWorkspace
+metadata:
+  name: s3-test-2-fb79f8fc-5d25-41b1-aadc-0a3189390f95
+  annotations:
+    firestartr.dev/claim-ref: none
+spec:
+  firestartr:
+    tfStateKey: fb79f8fc-5d25-41b1-aadc-0a3189390f95
+  context:
+    backend:
+      ref:
+        kind: FirestartrProviderConfig
+        name: backend-tf-workspaces
+    provider:
+      ref:
+        kind: FirestartrProviderConfig
+        name: provider-aws-workspaces
+  source: Inline
+  module: |
+    variable "name" {
+      type = string
+    }
+
+    output "the_another_output" {
+
+      value = "Hola 2, ${var.name}!"
+
+    }
+
+    output "the_another_output_2" {
+
+      value = "aaaaa, ${var.name}!"
+
+    }
+
+    output "the_another_output_3" {
+
+      value = "E, ${var.name}!"
+
+    }
+
+    variable "lalalalal" {
+      type = string
+    }
+
+    resource "aws_s3_bucket" "test-bucket-for-firestartr" {
+      bucket        = "test-output-bucket-firestartr-${var.name}-2"
+      force_destroy = true
+    }
+  values: |
+    {
+      "name": "${{ references.TEST_OUTPUT }}",
+      "lalalalal": "lalalalal"
+    }
+  references:
+    - name: TEST_OUTPUT
+      ref:
+        kind: FirestartrTerraformWorkspace
+        name: s3-test-3627b80e-62cc-4c80-977d-2f821e769fbe
+        key: testOutput

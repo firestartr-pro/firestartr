@@ -1,0 +1,23 @@
+{
+  "extends": "../../tsconfig.json",
+  "compilerOptions": {
+    "composite": true,
+    "allowJs": true,
+    "resolveJsonModule": true
+  },
+  "include": [
+    "src/**/*.ts",
+    "**/*.ts"
+  ],
+  "references": [
+    {
+      "path": "../features_preparer"
+    },
+    {
+      "path": "../catalog_common"
+    },
+    {
+      "path": "../github"
+    }
+  ]
+}

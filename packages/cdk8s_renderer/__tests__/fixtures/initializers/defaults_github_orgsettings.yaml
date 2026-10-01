@@ -1,0 +1,13 @@
+name: orgsettings_base
+apiVersion: firestartr.dev/v1
+kind: OrgSettingsClaim
+defaultValues:
+  context:
+    backend:
+      ref:
+        kind: FirestartrProviderConfig
+        name: aws-state-bucket
+    provider:
+      ref:
+        kind: FirestartrProviderConfig
+        name: github-app

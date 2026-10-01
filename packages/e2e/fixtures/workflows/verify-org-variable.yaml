@@ -1,0 +1,36 @@
+# Committed by the org-variables e2e test into a disposable generated repository.
+# The workflow compares a GitHub Actions organization variable with the expected
+# value dispatched by the test; the run's success conclusion is the authoritative
+# value assertion. Values are passed as workflow_dispatch inputs and environment
+# variables, and are not printed to logs.
+name: verify-org-variable
+
+run-name: ${{ inputs.correlation_id }}
+
+on:
+  workflow_dispatch:
+    inputs:
+      variable_name:
+        description: Organization variable to verify
+        required: true
+        type: string
+      expected_value:
+        description: Expected plaintext value of the variable
+        required: true
+        type: string
+      correlation_id:
+        description: Unique ID correlating this run with its dispatching test
+        required: true
+        type: string
+
+jobs:
+  verify-org-variable-value:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Compare provisioned org variable with expected value
+        env:
+          ACTUAL_VALUE: ${{ vars[inputs.variable_name] }}
+          EXPECTED_VALUE: ${{ inputs.expected_value }}
+        run: >
+          node -e "if (process.env.ACTUAL_VALUE !== process.env.EXPECTED_VALUE)
+          { console.error('org variable value mismatch'); process.exit(1); }"

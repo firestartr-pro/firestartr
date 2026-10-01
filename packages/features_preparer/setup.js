@@ -1,0 +1,2 @@
+// The debug module doesn't seem to work here
+if (process.env.SHOW_SETUP) console.log('1Hello from setup.js');

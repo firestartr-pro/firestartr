@@ -1,0 +1,36 @@
+apiVersion: firestartr.dev/v1
+kind: FirestartrProviderConfig
+metadata:
+  name: azure-prod
+spec:
+  source: Inline
+  version: "0.0.0"
+  type: azurerm
+  config: |
+    {
+      "subscription_id": "${{ secrets.AZURE_SUBSCRIPTION_ID }}",
+      "tenant_id": "${{ secrets.AZURE_TENANT_ID }}",
+      "client_id": "${{ secrets.AZURE_CLIENT_ID }}",
+      "client_secret": "${{ secrets.AZURE_CLIENT_SECRET }}"
+    }
+  secrets:
+    AZURE_SUBSCRIPTION_ID:
+      secretRef:
+        name: azure-prod
+        namespace: default
+        key: subscription_id
+    AZURE_TENANT_ID:
+      secretRef:
+        name: azure-prod
+        namespace: default
+        key: tenant_id
+    AZURE_CLIENT_ID:
+      secretRef:
+        name: azure-prod
+        namespace: default
+        key: client_id
+    AZURE_CLIENT_SECRET:
+      secretRef:
+        name: azure-prod
+        namespace: default
+        key: client_secret

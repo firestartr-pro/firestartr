@@ -1,0 +1,152 @@
+on:
+  workflow_dispatch:
+    inputs:
+      version:
+        description: 'Package version (semantic version string, e.g., 1.0.0 or 1.0.0-beta.1)'
+        required: false
+  release:
+    types: [released]
+
+permissions:
+  id-token: write
+  contents: read
+
+name: Publish Claim Schemas NPM Package
+
+jobs:
+  publish-npm:
+    # Component releases (e.g. fs-forge-cli-v*) are not schema releases:
+    # skip them so their tags don't reach the semver validation below.
+    if: ${{ github.event_name != 'release' || startsWith(github.event.release.tag_name, 'v') || startsWith(github.event.release.tag_name, 'schemas-v') }}
+    runs-on: ubuntu-24.04
+
+    steps:
+
+    - uses: actions/checkout@v7
+      with:
+        fetch-depth: 0
+        fetch-tags: true
+
+    - uses: actions/setup-node@v7
+      name: Setup Node
+      with:
+        node-version: "22"
+        # switch registry to public npm
+        registry-url: "https://registry.npmjs.org"
+        scope: "@firestartr"
+        cache: "npm"
+        cache-dependency-path: "package-lock.json"
+
+    - name: Update npm
+      run: npm install -g npm@11.5.1
+
+    - name: Install
+      run: |
+        npm ci
+
+    - name: Validate and prepare package version
+      id: version
+      env:
+        INPUT_VERSION: ${{ github.event.inputs.version }}
+        EVENT_NAME: ${{ github.event_name }}
+        RELEASE_TAG: ${{ github.event.release.tag_name }}
+      run: |
+        VERSION="$INPUT_VERSION"
+
+        if [ -z "$VERSION" ] && [ "$EVENT_NAME" = "release" ]; then
+          VERSION="$RELEASE_TAG"
+        fi
+
+        if [ -z "$VERSION" ]; then
+          VERSION=$(git describe --tags --abbrev=0 2>/dev/null)
+        fi
+
+        if [ -z "$VERSION" ]; then
+          echo "ERROR: No version provided and no git tags found"
+          echo "For manual trigger: provide version input"
+          echo "For auto trigger: ensure git tags exist in format: schemas-v* or v*"
+          exit 1
+        fi
+
+        # Strip common tag prefixes if present for npm compatibility
+        VERSION="${VERSION#schemas-v}"
+        VERSION="${VERSION#v}"
+        if ! [[ "$VERSION" =~ ^[0-9]+\.[0-9]+\.[0-9]+(-[a-zA-Z0-9]+(\.[a-zA-Z0-9]+)*)?(\+[a-zA-Z0-9]+(\.[a-zA-Z0-9]+)*)?$ ]]; then
+          echo "ERROR: Invalid semantic version format: $VERSION"
+          echo "Expected format: major.minor.patch[-prerelease][+metadata]"
+          exit 1
+        fi
+
+        echo "version=${VERSION}" >> $GITHUB_OUTPUT
+        echo "Publishing @firestartr/firestartr-claims_schemas version: ${VERSION}"
+
+    - name: Build claim schemas package
+      working-directory: packages/cdk8s_renderer
+      id: build_schemas
+      run: |
+        SCRIPT_OUTPUT=$(npx tsx scripts/schema-npm-producer.ts ${{ steps.version.outputs.version }} 2>&1)
+        SCRIPT_EXIT=$?
+
+        if [ $SCRIPT_EXIT -ne 0 ]; then
+          echo "ERROR: schema-npm-producer script failed"
+          echo "$SCRIPT_OUTPUT"
+          exit 1
+        fi
+
+        PACKAGE_DIR=$(echo "$SCRIPT_OUTPUT" | grep 'Wrote schemas' | sed 's/.*in: //' | head -1)
+
+        if [ -z "$PACKAGE_DIR" ] || [ ! -d "$PACKAGE_DIR" ]; then
+          # Fallback: find the most recent generated directory
+          PACKAGE_DIR=$(ls -dt /tmp/cdk8s-claims-npm-* 2>/dev/null | head -1)
+        fi
+
+        if [ -z "$PACKAGE_DIR" ] || [ ! -d "$PACKAGE_DIR" ]; then
+          echo "ERROR: Failed to generate schemas package"
+          echo "Script output:"
+          echo "$SCRIPT_OUTPUT"
+          exit 1
+        fi
+
+        echo "package_dir=${PACKAGE_DIR}" >> $GITHUB_OUTPUT
+        echo "Generated schemas package at: $PACKAGE_DIR"
+        ls -la "$PACKAGE_DIR"
+
+    - name: Install generated package dependencies
+      run: |
+        cd "${{ steps.build_schemas.outputs.package_dir }}"
+        npm install
+        node smoke.test.js
+
+    - name: Check if version already published
+      run: |
+        PACKAGE_NAME="@firestartr/firestartr-claims_schemas"
+        VERSION="${{ steps.version.outputs.version }}"
+
+        # For public packages npm view works without auth; just verify the version doesn't exist
+        if npm view "${PACKAGE_NAME}@${VERSION}" --registry https://registry.npmjs.org > /dev/null 2>&1; then
+          echo "WARNING: Version ${VERSION} of ${PACKAGE_NAME} is already published"
+          echo "To republish, use a different version number"
+          exit 1
+        fi
+        echo "Version ${VERSION} is new and ready to publish"
+
+    - name: Publish generated schemas package (via OIDC)
+      run: |
+        cd "${{ steps.build_schemas.outputs.package_dir }}"
+        # npm >=11.5.1 supports OIDC-based authentication from GitHub Actions when
+        # the workflow has permissions: id-token: write and npm is up-to-date.
+        npm publish --registry https://registry.npmjs.org --access public --tag $(echo "${{ steps.version.outputs.version }}" | grep -q '-' && echo "prerelease" || echo "latest")
+
+#    - name: Cleanup temporary artifacts
+#      if: always()
+#      run: |
+#        rm -rf /tmp/cdk8s-claims-npm-* || true
+#        echo "Cleaned up temporary artifacts"
+#
+#    - name: Publish Summary
+#      if: success()
+#      run: |
+#        echo "Claim schemas package v${{ steps.version.outputs.version }} published successfully to GitHub Packages"
+#        echo "Package: @firestartr/claims-schemas"
+#        echo "Version: ${{ steps.version.outputs.version }}"
+#        echo "Registry: https://npm.pkg.github.com"

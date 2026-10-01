@@ -1,0 +1,10 @@
+kind: UserClaim
+name: my-user
+profile:
+  displayName: "My User"
+  email: "user@example.com"
+providers:
+  github:
+    name: my-user-github
+    org: my-org
+    role: member

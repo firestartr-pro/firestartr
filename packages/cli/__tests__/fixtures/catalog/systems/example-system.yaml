@@ -1,0 +1,13 @@
+apiVersion: backstage.io/v1alpha1
+kind: System
+metadata:
+  name: example-system
+  description: firestartr-test default application
+  annotations:
+    fire-starter.dev/uuid: 42a7cbd2-1fe1-4ca9-9d18-af9470cd3e96
+spec:
+  owner: nexample-group-1obody
+  provisioner:
+    status:
+      value: PENDING_REVIEW
+      extras: []

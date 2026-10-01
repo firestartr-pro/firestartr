@@ -1,0 +1,14 @@
+{
+  "name": "local-dev",
+  "engineVersion": "v0.19.10",
+  "sdk": {
+    "source": "go"
+  },
+  "dependencies": [
+    {
+      "name": "firestartr-core",
+      "source": "https://github.com/prefapp/daggerverse-private/firestartr-core@feat/local-dev-firestartr-core",
+      "pin": "3a49555f59d23c29e7d25470d951ae453bbc37de"
+    }
+  ]
+}

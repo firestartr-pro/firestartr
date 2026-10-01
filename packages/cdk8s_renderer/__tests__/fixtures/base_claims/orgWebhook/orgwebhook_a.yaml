@@ -1,0 +1,19 @@
+---
+kind: OrgWebhookClaim
+version: "1.0"
+name: orgwebhook_a
+system: "system:system_a"
+owner: "group:group_a"
+providers:
+  github:
+    name: my-github-org-webhook
+    orgName: firestartr-test
+    webhook:
+      url: https://example.com/webhook
+      active: true
+      contentType: json
+      events:
+        - push
+        - pull_request
+        - issues
+      secretRef: "ref:secretsclaim:secret_a:rds_conn"

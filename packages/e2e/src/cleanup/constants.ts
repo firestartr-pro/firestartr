@@ -1,0 +1,1 @@
+export const DELETE_TIMEOUT_SECONDS = 600;

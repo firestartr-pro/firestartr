@@ -1,0 +1,8 @@
+feature_name: "feature_claimpatches_only"
+args: {}
+files: []
+claimPatches:
+  - name: "add_annotation"
+    op: "add"
+    path: "/annotations/backstage.io~1techdocs-ref"
+    value: "url:https://github.com/prefapp/feature_claimpatches_only/tree/main"

@@ -1,0 +1,37 @@
+states:
+  terraform: 
+    repo: firestartr-test/state-infra
+    crKinds:
+      FirestartrTerraformWorkspace:
+    workflows:
+      notify: "notify.yaml"
+      hydrate: "hydrate.yaml"
+  github:
+    repo: firestartr-test/state-github
+    crKinds:
+      FirestartrGithubRepository:
+      FirestartrGithubGroup:
+      FirestartrGithubMembership:
+      FirestartrGithubRepositoryFeature:
+    workflows:
+      notify: "notify.yaml"
+      hydrate: "hydrate.yaml"
+  catalog:
+    repo: firestartr-test/catalog
+    crKinds:
+      Component:
+      User:
+      Group:
+      Domain:
+      System:
+      Resource: 
+    workflows:
+      notify: "notify.yaml"
+      hydrate: "hydrate.yaml"
+  secrets:
+    repo: firestartr-test/state-secrets
+    crKinds:
+      ExternalSecret:
+    workflows:
+      notify: "notify.yaml"
+      hydrate: "hydrate.yaml"

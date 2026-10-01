@@ -1,0 +1,8 @@
+kind: OrgSettingsClaim
+version: '1.0'
+name: minimal-org-settings
+providers:
+  github:
+    name: minimal-org-settings
+    org: my-org
+    billing_email: billing@example.com

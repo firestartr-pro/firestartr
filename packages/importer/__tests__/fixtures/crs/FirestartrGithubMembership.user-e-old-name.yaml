@@ -1,0 +1,12 @@
+apiVersion: firestartr.dev/v1
+kind: FirestartrGithubMembership
+metadata:
+  name: user-e-old-name
+  annotations:
+    firestartr.dev/external-name: user-e-old-name
+    firestartr.dev/claim-ref: "UserClaim/user-e"
+spec:
+  org: firestartr-test
+  role: admin
+  firestartr:
+    tfStateKey: c8928642-85ca-4c83-a498-4f217214ba28

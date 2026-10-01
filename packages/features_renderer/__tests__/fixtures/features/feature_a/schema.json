@@ -1,0 +1,28 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "title": "feature_a args",
+  "type": "object",
+  "properties": {
+    "feature_name": {
+      "const": "feature_a"
+    },
+    "foo": {
+      "type": "string",
+      "default": "foo-default"
+    }
+  },
+  "description": "Schema for the feature_a feature, mirroring the prefapp/features generator rules.",
+  "version": "1.0.0",
+  "fileManifest": [
+    {
+      "src": "test.txt",
+      "dest": "$DEST",
+      "user_managed": false
+    },
+    {
+      "src": ".github/workflows/{{| TECH |}}/pr-verify.yaml",
+      "dest": ".github/workflows/pr-verify.yaml",
+      "user_managed": false
+    }
+  ]
+}

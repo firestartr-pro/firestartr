@@ -1,0 +1,14 @@
+apiVersion: firestartr.dev/v1
+kind: FirestartrProviderConfig
+metadata:
+  name: kubernetes
+spec:
+  source: "the source"
+  version: "0.0.0"
+  type: kubernetes
+  config: >
+    {
+    "secret_suffix": "state2",
+    "in_cluster_config": true,
+    "namespace": "test"
+    }

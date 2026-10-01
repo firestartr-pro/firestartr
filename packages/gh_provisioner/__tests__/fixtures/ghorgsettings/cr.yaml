@@ -1,0 +1,53 @@
+apiVersion: firestartr.dev/v1
+kind: FirestartrGithubOrganizationSettings
+metadata:
+  annotations:
+    firestartr.dev/claim-ref: OrgSettingsClaim/github_org_settings
+    firestartr.dev/external-name: firestartr-test-settings
+    firestartr.dev/revision: "1"
+  labels:
+    claim-ref: github-org-settings
+  name: firestartr-test-settings
+spec:
+  org: firestartr-test
+  billingEmail: billing@example.com
+  company: Prefapp
+  blog: https://example.com
+  email: hello@example.com
+  twitterUsername: prefapp
+  location: Vigo
+  name: Firestartr Test
+  description: Firestartr test organization
+  hasOrganizationProjects: true
+  hasRepositoryProjects: true
+  defaultRepositoryPermission: read
+  membersCanCreateRepositories: false
+  membersCanCreatePublicRepositories: false
+  membersCanCreatePrivateRepositories: true
+  membersCanCreateInternalRepositories: false
+  membersCanCreatePages: true
+  membersCanCreatePublicPages: false
+  membersCanCreatePrivatePages: true
+  membersCanForkPrivateRepositories: false
+  webCommitSignoffRequired: true
+  advancedSecurityEnabledForNewRepositories: false
+  dependabotAlertsEnabledForNewRepositories: true
+  dependabotSecurityUpdatesEnabledForNewRepositories: true
+  dependencyGraphEnabledForNewRepositories: true
+  secretScanningEnabledForNewRepositories: true
+  secretScanningPushProtectionEnabledForNewRepositories: true
+  context:
+    backend:
+      ref:
+        kind: FirestartrProviderConfig
+        name: kubernetes-provider
+    provider:
+      ref:
+        kind: FirestartrProviderConfig
+        name: github
+  firestartr:
+    tfStateKey: github-org-settings
+  writeConnectionSecretToRef:
+    name: firestartrgithuborganizationsettings-firestartr-test-outputs
+    outputs:
+      - key: organization_settings_id

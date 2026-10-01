@@ -1,0 +1,30 @@
+apiVersion: firestartr.dev/v1
+kind: FirestartrGithubGroup
+metadata:
+  name: group-e
+spec:
+  org: firestartr-test
+  privacy: closed
+  description: 'adfasd'
+
+  members: []
+
+  context:
+    backend:
+      ref:
+        kind: FirestartrProviderConfig
+        name: aws-state-bucket
+    provider:
+      ref:
+        kind: FirestartrProviderConfig
+        name: github-app
+
+  firestartr:
+    tfStateKey: e863ffe2-481c-499a-bc9f-06135ccfc2cb
+
+  writeConnectionSecretToRef:
+    name: firestartrgithubgroup-group-e-outputs
+    outputs:
+    - key: id
+    - key: nodeId
+    - key: slug

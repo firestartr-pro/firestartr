@@ -1,0 +1,33 @@
+apiVersion: firestartr.dev/v1
+kind: FirestartrGithubRepositoryFeature
+metadata:
+  annotations:
+  name: potato-2ae0542a-288d-4223-89e9-3edb49de5e6c
+spec:
+  firestartr:
+    tfStateKey: 2ae0542a-288d-4223-89e9-3edb49de5e6c
+  type: potato
+  version: v0.6.1
+  org: firestartr-test
+  repositoryTarget:
+    ref:
+      kind: FirestartrGithubRepository
+      name: test-demo-repo
+      needsSecret: false
+    branch: main
+  files:
+    - path: potato.yaml
+      userManaged: true
+      content: |-
+        c2l0ZV9uYW1lOiAiVGVjaERvY3MiCnNpdGVfZGVzY3JpcHRpb246ICJDdXN0b20gZG9jdW1lbnRh
+        dGlvbiIKCm5hdjoKICAtIEludHJvZHVjdGlvbjogaW5kZXgubWQKCnBsdWdpbnM6CiAgLSB0ZWNo
+        ZG9jcy1jb3Jl
+  context:
+    backend:
+      ref:
+        kind: FirestartrProviderConfig
+        name: aws-state-bucket
+    provider:
+      ref:
+        kind: FirestartrProviderConfig
+        name: github-app

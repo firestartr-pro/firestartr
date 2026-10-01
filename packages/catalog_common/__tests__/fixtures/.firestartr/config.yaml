@@ -1,0 +1,64 @@
+organizations:
+  - name: prefapp
+    component_types:
+      - service
+      - library
+      - spa
+      - web
+      - batch
+      - config
+      - cli
+      - cac
+      - iac
+      - gha
+      - docs
+      - catalog
+      - generic
+    ciSystem: github
+    repositoriesDefault:
+      defaultBranch: main
+    lifecycle:
+      - experimental
+      - production
+      - deprecated
+      - archived
+    registries:
+      - docker_releases_publication
+      - docker_snapshots_publication
+      - docker_ci
+    technologies:
+      - name: node
+        allowed_component_types:
+          - library
+          - service
+        default_version: '16'
+        versions:
+          - name: '18'
+            artifact_repositories:
+              - releases
+              - snapshots
+            default_images:
+              build: 'node:18-slim'   
+              run: 'node:18-alpine'
+          - name: '16'
+            allowed_component_types:
+              - service
+            artifact_repositories:
+              - releases
+              - snapshots
+            default_images:
+              build: 'node:16-slim'   
+              run: 'node:16-alpine'
+      - name: python
+        allowed_component_types:
+          - service
+        versions:
+          - name: '3.11.1'
+            allowed_component_types:
+              - service
+            artifact_repositories:
+              - releases
+              - snapshots
+            default_images:
+              build: 'python:3.11.1-slim'   
+              run: 'python:3.11.1-alpine'

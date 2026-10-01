@@ -1,0 +1,21 @@
+kind: TFWorkspaceClaim
+lifecycle: production
+resourceType: test-b-resource-type
+name: test-b
+owner: 'group:firestartr-test-all'
+system: 'system:my-system'
+version: '1.0'
+providers:
+  terraform:
+    name: test_b
+    source: Remote
+    module: https://github.com/infra/acme-predev-aks@main
+    values:
+      nested:
+        test2: "${{ tfworkspace:test-a:outputs.name }}"
+      test1: "${{ tfworkspace:test-a:outputs.id }}"
+    context:
+      providers:
+        - name: aws-westeurope
+      backend:
+        name: foo

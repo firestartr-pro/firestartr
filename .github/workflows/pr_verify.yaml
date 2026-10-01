@@ -1,0 +1,112 @@
+name: Pr verify
+
+on:
+  push:
+    branches:
+      - main
+  pull_request:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  pull-requests: read
+  packages: read
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  lint-and-transpile:
+    runs-on: ubuntu-24.04
+    steps:
+      - name: Checkout repo
+        uses: actions/checkout@v7
+
+      - name: Setup node
+        uses: actions/setup-node@v7
+        with:
+          node-version: "22"
+          cache: "npm"
+          cache-dependency-path: "package-lock.json"
+
+      - name: Linter
+        env:
+          NPM_AUTH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          npm ci
+          npm run lint
+
+      - name: Transpile typescript files
+        run: |
+          NODE_OPTIONS="--max-old-space-size=4096" npm run build --workspace packages/cli
+          NODE_OPTIONS="--max-old-space-size=4096" npm run build --workspace packages/fs-forge-cli
+          npm run lint-fix --workspace packages/fs-forge-cli
+
+      - name: Import CRDs with CDK8s
+        working-directory: packages/cdk8s_renderer
+        run: cat ../k8s/src/crds/*.yaml | ../../node_modules/.bin/cdk8s import /dev/stdin
+
+      - name: Make sure CDK8s were updated if needed
+        working-directory: packages/cdk8s_renderer
+        run: |
+          git diff --quiet --exit-code imports/firestartr.dev.ts
+
+      - name: Make sure fs-forge-cli generated commands are up to date
+        working-directory: packages/fs-forge-cli
+        run: |
+          git diff --quiet --exit-code src/commands/
+
+  unit-tests:
+    runs-on: ubuntu-24.04
+    strategy:
+      matrix:
+        workspace:
+          - cdk8s_renderer
+          - cli
+          - crs_analyzer
+          - crs_status_service
+          - features_preparer
+          - features_renderer
+          - github
+          - importer
+          - k8s
+          - operator
+          - gh_provisioner
+          - scaffolder
+          - terraform_provisioner
+          - fs-forge-cli
+    steps:
+      - name: Checkout repo
+        uses: actions/checkout@v7
+        with:
+          ref: ${{ github.event.pull_request.head.ref || github.sha }}
+
+      - name: Setup node
+        uses: actions/setup-node@v7
+        with:
+          node-version: "22"
+          registry-url: "https://registry.npmjs.org/"
+          scope: "@firestartr"
+          cache: "npm"
+          cache-dependency-path: "package-lock.json"
+
+      - name: Install dependencies
+        env:
+          NPM_AUTH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: npm ci
+
+      - name: Setup OpenTofu
+        uses: opentofu/setup-opentofu@a1320f892987e89d278cc92dc5adc984fb93aca4 # v2.0.2
+        if: ${{ matrix.workspace == 'gh_provisioner' }}
+        with:
+          tofu_version: "1.10"
+
+      - name: Create symbolic link to terraform
+        if: ${{ matrix.workspace == 'gh_provisioner' }}
+        run: sudo ln -s $(which tofu) /usr/local/bin/terraform
+
+      - name: Unit Tests
+        env:
+          ORG: firestartr-test
+        run: npm run test --workspace packages/${{ matrix.workspace }}

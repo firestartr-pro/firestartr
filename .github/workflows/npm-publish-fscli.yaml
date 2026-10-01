@@ -1,0 +1,63 @@
+name: Publish fs-forge-cli to npm
+
+on:
+  workflow_dispatch:
+    inputs:
+      snapshot:
+        description: 'Publish a snapshot version (appends -snapshot.<SHA8>)'
+        required: true
+        type: boolean
+        default: false
+
+permissions:
+  contents: read
+  id-token: write
+
+jobs:
+  publish-fs-forge-cli:
+    if: inputs.snapshot || github.ref_name == github.event.repository.default_branch
+    runs-on: ubuntu-24.04
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v7
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v7
+        with:
+          node-version: '22'
+          registry-url: 'https://registry.npmjs.org'
+          cache: npm
+          cache-dependency-path: package-lock.json
+
+      - name: Update npm
+        run: npm install -g npm@11.5.1
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Set snapshot version
+        if: inputs.snapshot
+        working-directory: packages/fs-forge-cli
+        run: |
+          SHA8="$(git rev-parse HEAD | cut -c1-8)"
+          BASE_VERSION="$(npm pkg get version --workspaces=false | tr -d '"')"
+          SNAPSHOT_VERSION="${BASE_VERSION}-snapshot.${SHA8}"
+          npm pkg set "version=${SNAPSHOT_VERSION}"
+          echo "Publishing @firestartr/fs-forge-cli@${SNAPSHOT_VERSION}"
+
+      - name: Build fs-forge-cli
+        working-directory: packages/fs-forge-cli
+        run: npm run build
+
+      - name: Generate oclif manifest
+        working-directory: packages/fs-forge-cli
+        run: npx oclif manifest
+
+      - name: Publish fs-forge-cli
+        working-directory: packages/fs-forge-cli
+        run: |
+          if [[ "${{ inputs.snapshot }}" == "true" ]]; then
+            npm publish --tag snapshot
+          else
+            npm publish
+          fi

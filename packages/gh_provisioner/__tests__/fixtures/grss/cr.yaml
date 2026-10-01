@@ -1,0 +1,160 @@
+apiVersion: firestartr.dev/v1
+kind: FirestartrGithubRepositorySecretsSection
+metadata:
+  annotations:
+    firestartr.dev/external-name: component_a
+    firestartr.dev/foo: foo22
+    kubectl.kubernetes.io/last-applied-configuration: |
+      {"apiVersion":"firestartr.dev/v1","kind":"FirestartrGithubRepositorySecretsSection","metadata":{"annotations":{"firestartr.dev/external-name":"component_a"},"name":"component-a-3914ca50-cc80-4961-a139-464028818a9","namespace":"default"},"spec":{"context":{"backend":{"ref":{"kind":"FirestartrProviderConfig","name":"kubernetes-backend"}},"provider":{"ref":{"kind":"FirestartrProviderConfig","name":"github"}}},"firestartr":{"tfStateKey":"9999ca50-cc80-4961-a139-464028818a9"},"repositoryTarget":{"ref":{"kind":"FirestartrGithubRepository","name":"component-a-3914ca50-cc80-4961-a139-464028818a92","needsSecret":false}},"secrets":{"actions":[{"name":"FOO2","ref":{"key":"rds_conn","kind":"Secret","name":"secret-a"}},{"name":"FOO3","ref":{"key":"rds_conn","kind":"Secret","name":"secret-a"}},{"name":"FOO4","ref":{"key":"rds_conn","kind":"Secret","name":"secret-a"}}],"codespaces":[{"name":"FOO","ref":{"key":"rds_conn","kind":"Secret","name":"secret-a"}}]}}}
+  creationTimestamp: 2026-03-01T19:04:02Z
+  finalizers:
+    - firestartr.dev/finalizer
+  generation: 5
+  managedFields:
+    - apiVersion: firestartr.dev/v1
+      fieldsType: FieldsV1
+      fieldsV1:
+        f:metadata:
+          f:annotations:
+            .: {}
+            f:firestartr.dev/external-name: {}
+            f:kubectl.kubernetes.io/last-applied-configuration: {}
+        f:spec:
+          .: {}
+          f:context:
+            .: {}
+            f:backend:
+              .: {}
+              f:ref:
+                .: {}
+                f:kind: {}
+            f:provider:
+              .: {}
+              f:ref:
+                .: {}
+                f:kind: {}
+                f:name: {}
+          f:firestartr:
+            .: {}
+            f:tfStateKey: {}
+          f:repositoryTarget:
+            .: {}
+            f:ref:
+              .: {}
+              f:kind: {}
+              f:name: {}
+              f:needsSecret: {}
+          f:secrets: {}
+      manager: kubectl-client-side-apply
+      operation: Update
+      time: 2026-03-01T19:04:02Z
+    - apiVersion: firestartr.dev/v1
+      fieldsType: FieldsV1
+      fieldsV1:
+        f:metadata:
+          f:finalizers:
+            .: {}
+            v:"firestartr.dev/finalizer": {}
+          f:ownerReferences:
+            .: {}
+            k:{"uid":"1b3b0d9a-d7e2-4fc5-b773-38d61c280c5d"}: {}
+      manager: node
+      operation: Update
+      time: 2026-03-01T19:05:43Z
+    - apiVersion: firestartr.dev/v1
+      fieldsType: FieldsV1
+      fieldsV1:
+        f:status:
+          .: {}
+          f:conditions: {}
+      manager: node
+      operation: Update
+      subresource: status
+      time: 2026-03-01T19:13:36Z
+    - apiVersion: firestartr.dev/v1
+      fieldsType: FieldsV1
+      fieldsV1:
+        f:metadata:
+          f:annotations:
+            f:firestartr.dev/foo: {}
+        f:spec:
+          f:context:
+            f:backend:
+              f:ref:
+                f:name: {}
+          f:secrets:
+            f:actions: {}
+            f:codespaces: {}
+      manager: kubectl-edit
+      operation: Update
+      time: 2026-03-01T19:14:19Z
+  name: component-a-3914ca50-cc80-4961-a139-464028818a9
+  namespace: default
+  ownerReferences:
+    - apiVersion: firestartr.dev/v1
+      blockOwnerDeletion: true
+      controller: true
+      kind: FirestartrGithubRepository
+      name: component-a-3914ca50-cc80-4961-a139-464028818a92
+      uid: 1b3b0d9a-d7e2-4fc5-b773-38d61c280c5d
+  resourceVersion: "553356"
+  uid: f4da5c7c-2212-41c4-8f83-96f343c19ab6
+spec:
+  context:
+    backend:
+      ref:
+        kind: FirestartrProviderConfig
+        name: kubernetes-provider
+    provider:
+      ref:
+        kind: FirestartrProviderConfig
+        name: github
+  firestartr:
+    tfStateKey: 9999ca50-cc80-4961-a139-464028818a9
+  repositoryTarget:
+    ref:
+      kind: FirestartrGithubRepository
+      name: component-a-3914ca50-cc80-4961-a139-464028818a92
+      needsSecret: false
+  secrets:
+    actions:
+      - name: SECRET_A
+        ref:
+          key: a
+          kind: Secret
+          name: my-secret
+      - name: SECRET_B
+        ref:
+          key: b
+          kind: Secret
+          name: my-secret
+    codespaces:
+      - name: SECRET_C
+        ref:
+          key: c
+          kind: Secret
+          name: my-secret
+status:
+  conditions:
+    - lastSyncTime: 2026-03-01T19:13:36.161Z
+      lastTransitionTime: 2026-03-01T19:05:43.120Z
+      message: Sync process finished
+      nextSyncTime: 2026-03-01T19:13:36.161Z
+      reason: UPDATED
+      status: "False"
+      type: SYNCHRONIZED
+    - lastTransitionTime: 2026-03-01T19:05:43.137Z
+      message: An error occurred while executing the Terraform apply operation.
+      reason: UPDATED
+      status: "True"
+      type: ERROR
+    - lastTransitionTime: 2026-03-01T19:05:43.147Z
+      message: An error occurred while executing the Terraform apply operation.
+      reason: UPDATED
+      status: "False"
+      type: PROVISIONED
+    - lastTransitionTime: 2026-03-01T19:05:43.158Z
+      message: An error occurred while executing the Terraform apply operation.
+      reason: UPDATED
+      status: "False"
+      type: PROVISIONING

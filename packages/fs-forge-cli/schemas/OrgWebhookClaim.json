@@ -1,0 +1,125 @@
+{
+  "type": "object",
+  "description": "A Organization Webhook claim",
+  "x-fs-forge-icon": { "emoji": "🪝", "ascii": "[WHK]" },
+  "x-fs-forge-summary": "Configure a webhook for a GitHub organization.",
+  "unevaluatedProperties": false,
+  "properties": {
+    "name": {
+      "type": "string"
+    },
+    "kind": {
+      "type": "string"
+    },
+    "description": {
+      "type": "string"
+    },
+    "type": {
+      "type": "string"
+    },
+    "lifecycle": {
+      "type": "string"
+    },
+    "version": {
+      "type": "string"
+    },
+    "system": {
+      "type": "string",
+      "pattern": "^system:.+$"
+    },
+    "owner": {
+      "type": "string",
+      "pattern": "^[^:]+:[^:]+$"
+    },
+    "providers": {
+      "type": "object",
+      "properties": {
+        "github": {
+          "type": "object",
+          "description": "A Github Organization Webhook claim",
+          "allOf": [
+            {
+              "type": "object",
+              "description": "An envelope for a any kind of claim",
+              "properties": {
+                "name": {
+                  "type": "string"
+                }
+              },
+              "additionalProperties": true,
+              "required": ["name"]
+            },
+            {
+              "type": "object",
+              "properties": {
+                "orgName": {
+                  "type": "string",
+                  "description": "Organization name on GitHub"
+                },
+                "webhook": {
+                  "type": "object",
+                  "properties": {
+                    "url": {
+                      "type": "string",
+                      "description": "Webhook endpoint URL"
+                    },
+                    "contentType": {
+                      "type": "string",
+                      "description": "Payload content type (json or form)",
+                      "enum": ["json", "form"]
+                    },
+                    "active": {
+                      "type": "boolean",
+                      "description": "If the webhook is active"
+                    },
+                    "secretRef": {
+                      "type": "string",
+                      "pattern": "^ref:secretsclaim:([a-zA-Z0-9_-]+):([a-zA-Z0-9_-]+)$",
+                      "description": "the reference of the secret"
+                    },
+                    "events": {
+                      "type": "array",
+                      "description": "List of events that trigger the webhook (e.g., push, pull_request, issues)",
+                      "items": {
+                        "type": "string"
+                      }
+                    }
+                  },
+                  "required": ["url", "contentType", "events", "secretRef"]
+                }
+              },
+              "required": ["orgName", "webhook"]
+            }
+          ]
+        }
+      },
+      "additionalProperties": false
+    },
+    "profile": {
+      "type": "object",
+      "description": "A profile for a claim",
+      "properties": {
+        "displayName": {
+          "type": "string"
+        },
+        "email": {
+          "type": "string"
+        },
+        "picture": {
+          "type": "string"
+        }
+      },
+      "additionalProperties": false
+    },
+    "annotations": {
+      "type": "object",
+      "patternProperties": {
+        "^[a-zA-Z0-9/.-]+$": {
+          "type": "string"
+        }
+      },
+      "additionalProperties": false
+    }
+  },
+  "required": ["name", "kind", "providers"]
+}

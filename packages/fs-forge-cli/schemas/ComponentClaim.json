@@ -1,0 +1,618 @@
+{
+  "type": "object",
+  "description": "A component claim",
+  "x-fs-forge-icon": { "emoji": "🧩", "ascii": "[CMP]" },
+  "x-fs-forge-summary": "Describe a software component and the repository that hosts it.",
+  "unevaluatedProperties": false,
+  "properties": {
+    "name": {
+      "type": "string",
+      "pattern": "^[a-z0-9]([a-z0-9._-]*[a-z0-9])?$",
+      "maxLength": 63
+    },
+    "kind": {
+      "type": "string"
+    },
+    "description": {
+      "type": "string"
+    },
+    "type": {
+      "type": "string"
+    },
+    "lifecycle": {
+      "type": "string"
+    },
+    "version": {
+      "type": "string"
+    },
+    "providers": {
+      "type": "object",
+      "properties": {
+        "github": {
+          "type": "object",
+          "description": "A component github claim",
+          "unevaluatedProperties": false,
+          "allOf": [
+            {
+              "type": "object",
+              "description": "An envelope for a any kind of claim",
+              "properties": {
+                "name": {
+                  "type": "string"
+                }
+              },
+              "additionalProperties": true,
+              "required": [
+                "name"
+              ]
+            },
+            {
+              "type": "object",
+              "properties": {
+                "org": {
+                  "type": "string",
+                  "description": "GitHub organization where the component repository is created; different from --org, the claims-repo organization.",
+                  "pattern": "^[a-z0-9]([a-z0-9._-]*[a-z0-9])?$",
+                  "maxLength": 63
+                },
+                "name": {
+                  "type": "string",
+                  "description": "The github repo name"
+                },
+                "tfStateKey": {
+                  "type": "string",
+                  "pattern": "^[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-4[0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12,}$"
+                },
+                "orgPermissions": {
+                  "type": "string",
+                  "description": "The level of org Permission"
+                },
+                "sync": {
+                  "type": "object",
+                  "properties": {
+                    "enabled": {
+                      "type": "boolean"
+                    },
+                    "period": {
+                      "type": "string",
+                      "pattern": "^[0-9]+[smhd]$"
+                    },
+                    "policy": {
+                      "type": "string"
+                    },
+                    "schedule": {
+                      "type": "string"
+                    },
+                    "schedule_timezone": {
+                      "type": "string"
+                    }
+                  },
+                  "additionalProperties": false,
+                  "required": [
+                    "enabled"
+                  ]
+                },
+                "technology": {
+                  "type": "object",
+                  "properties": {
+                    "stack": {
+                      "type": "string"
+                    },
+                    "version": {
+                      "type": "string"
+                    }
+                  },
+                  "additionalProperties": false,
+                  "required": [
+                    "stack",
+                    "version"
+                  ]
+                },
+                "defaultBranch": {
+                  "type": "string"
+                },
+                "branchStrategy": {
+                  "type": "object",
+                  "description": "A branch strategy for a claim",
+                  "properties": {
+                    "name": {
+                      "type": "string"
+                    },
+                    "defaultBranch": {
+                      "type": "string"
+                    }
+                  },
+                  "additionalProperties": false,
+                  "required": [
+                    "name"
+                  ]
+                },
+                "additionalBranches": {
+                  "type": "array",
+                  "items": {
+                    "type": "object",
+                    "properties": {
+                      "name": {
+                        "type": "string"
+                      },
+                      "orphan": {
+                        "type": "boolean"
+                      }
+                    },
+                    "additionalProperties": false,
+                    "required": [
+                      "name",
+                      "orphan"
+                    ]
+                  }
+                },
+                "actions": {
+                  "type": "object",
+                  "description": "Actions configuration",
+                  "properties": {
+                    "oidc": {
+                      "type": "object",
+                      "properties": {
+                        "useDefault": {
+                          "type": "boolean"
+                        },
+                        "includeClaimKeys": {
+                          "type": "array",
+                          "items": {
+                            "type": "string"
+                          }
+                        }
+                      },
+                      "additionalProperties": false
+                    }
+                  },
+                  "additionalProperties": false,
+                  "required": [
+                    "oidc"
+                  ]
+                },
+                "archiveOnDestroy": {
+                  "type": "boolean",
+                  "description": "whether this repo should be archived when the claim is deleted"
+                },
+                "allowMergeCommit": {
+                  "type": "boolean"
+                },
+                "allowSquashMerge": {
+                  "type": "boolean"
+                },
+                "allowRebaseMerge": {
+                  "type": "boolean"
+                },
+                "allowAutoMerge": {
+                  "type": "boolean"
+                },
+                "deleteBranchOnMerge": {
+                  "type": "boolean"
+                },
+                "autoInit": {
+                  "type": "boolean"
+                },
+                "allowUpdateBranch": {
+                  "type": "boolean"
+                },
+                "hasIssues": {
+                  "type": "boolean"
+                },
+                "hasWiki": {
+                  "type": "boolean"
+                },
+                "hasDiscussions": {
+                  "type": "boolean"
+                },
+                "pages": {
+                  "type": "object",
+                  "properties": {
+                    "cname": {
+                      "type": "string"
+                    },
+                    "public": {
+                      "type": "boolean"
+                    },
+                    "https_enforced": {
+                      "type": "boolean"
+                    },
+                    "buildType": {
+                      "type": "string",
+                      "enum": [
+                        "workflow",
+                        "legacy"
+                      ]
+                    },
+                    "source": {
+                      "type": "object",
+                      "properties": {
+                        "branch": {
+                          "type": "string"
+                        },
+                        "path": {
+                          "type": "string",
+                          "enum": [
+                            "/",
+                            "/docs"
+                          ]
+                        }
+                      },
+                      "additionalProperties": false
+                    }
+                  },
+                  "additionalProperties": false,
+                  "if": {
+                    "required": ["https_enforced"],
+                    "properties": { "https_enforced": { "const": true } }
+                  },
+                  "then": {
+                    "required": ["cname"]
+                  }
+                },
+                "additionalRules": {
+                  "type": "array",
+                  "items": {
+                    "type": "object",
+                    "properties": {
+                      "path": {
+                        "type": "string"
+                      },
+                      "owners": {
+                        "type": "array",
+                        "items": {
+                          "type": "string",
+                          "pattern": "^(user|group):([a-z0-9]([a-z0-9._-]*[a-z0-9])?/)?[a-z0-9]([a-z0-9._-]*[a-z0-9])?$"
+                        }
+                      }
+                    },
+                    "required": [
+                      "path",
+                      "owners"
+                    ],
+                    "additionalProperties": false
+                  }
+                },
+                "visibility": {
+                  "type": "string",
+                  "enum": [
+                    "private",
+                    "public",
+                    "internal"
+                  ]
+                },
+                "description": {
+                  "type": "string",
+                  "description": "The purpose of this repo"
+                },
+                "features": {
+                  "type": "array",
+                  "items": {
+                    "description": "A feature for a GithubComponentClaim",
+                    "type": "object",
+                    "properties": {
+                      "name": {
+                        "type": "string",
+                        "description": "The name of the feature"
+                      },
+                      "version": {
+                        "type": "string",
+                        "description": "The semver of the feature"
+                      },
+                      "ref": {
+                        "type": "string",
+                        "pattern": "^[a-zA-Z0-9-._@/]+$",
+                        "description": "A github reference (commit, tag, branch)"
+                      },
+                      "args": {
+                        "type": "object",
+                        "properties": {},
+                        "additionalProperties": true
+                      },
+                      "repo": {
+                        "type": "string",
+                        "description": "A repo where the feature exists, format: owner/repository",
+                        "pattern": "^[a-zA-Z0-9-._]+/[a-zA-Z0-9-._]+$"
+                      }
+                    },
+                    "required": [
+                      "name"
+                    ],
+                    "oneOf": [
+                      {
+                        "type": "object",
+                        "required": [
+                          "ref"
+                        ],
+                        "not": {
+                          "required": [
+                            "version"
+                          ]
+                        }
+                      },
+                      {
+                        "type": "object",
+                        "required": [
+                          "version"
+                        ],
+                        "not": {
+                          "required": [
+                            "ref"
+                          ]
+                        }
+                      }
+                    ],
+                    "additionalProperties": false
+                  }
+                },
+                "vars": {
+                  "type": "object",
+                  "properties": {
+                    "actions": {
+                      "type": "array",
+                      "items": {
+                        "type": "object",
+                        "description": "A var for a github repo",
+                        "properties": {
+                          "name": {
+                            "type": "string",
+                            "description": "the name of the var"
+                          },
+                          "value": {
+                            "type": "string",
+                            "description": "the value of the var"
+                          }
+                        },
+                        "required": [
+                          "name",
+                          "value"
+                        ],
+                        "additionalProperties": false
+                      }
+                    }
+                  },
+                  "additionalProperties": false
+                },
+                "secrets": {
+                  "type": "object",
+                  "properties": {
+                    "actions": {
+                      "type": "array",
+                      "items": {
+                        "type": "object",
+                        "description": "A secret for a github repo",
+                        "properties": {
+                          "name": {
+                            "type": "string",
+                            "description": "the name of the secret"
+                          },
+                          "value": {
+                            "type": "string",
+                            "description": "the reference of the secret",
+                            "pattern": "^ref:secretsclaim:([a-zA-Z0-9_-]+):([a-zA-Z0-9_-]+)$"
+                          }
+                        },
+                        "required": [
+                          "name",
+                          "value"
+                        ],
+                        "additionalProperties": false
+                      }
+                    },
+                    "codespaces": {
+                      "type": "array",
+                      "items": {
+                        "type": "object",
+                        "description": "A secret for a github repo",
+                        "properties": {
+                          "name": {
+                            "type": "string",
+                            "description": "the name of the secret"
+                          },
+                          "value": {
+                            "type": "string",
+                            "description": "the reference of the secret",
+                            "pattern": "^ref:secretsclaim:([a-zA-Z0-9_-]+):([a-zA-Z0-9_-]+)$"
+                          }
+                        },
+                        "required": [
+                          "name",
+                          "value"
+                        ],
+                        "additionalProperties": false
+                      }
+                    },
+                    "dependabot": {
+                      "type": "array",
+                      "items": {
+                        "type": "object",
+                        "description": "A secret for a github repo",
+                        "properties": {
+                          "name": {
+                            "type": "string",
+                            "description": "the name of the secret"
+                          },
+                          "value": {
+                            "type": "string",
+                            "description": "the reference of the secret",
+                            "pattern": "^ref:secretsclaim:([a-zA-Z0-9_-]+):([a-zA-Z0-9_-]+)$"
+                          }
+                        },
+                        "required": [
+                          "name",
+                          "value"
+                        ],
+                        "additionalProperties": false
+                      }
+                    }
+                  },
+                  "additionalProperties": false
+                },
+                "topics": {
+                  "type": "array",
+                  "items": {
+                    "type": "string",
+                    "maxLength": 50,
+                    "pattern": "^[a-z0-9][a-z0-9-]*$"
+                  }
+                },
+                "labels": {
+                  "type": "array",
+                  "items": {
+                    "type": "object",
+                    "required": [
+                      "name",
+                      "color"
+                    ],
+                    "properties": {
+                      "name": {
+                        "type": "string",
+                        "minLength": 1,
+                        "maxLength": 50,
+                        "pattern": "^[^\"\\\\\\s]+(?: +[^\"\\\\\\s]+)*$",
+                        "description": "Label name (1-50 chars, no \" or \\ characters)"
+                      },
+                      "color": {
+                        "type": "string",
+                        "pattern": "^[0-9a-fA-F]{6}$",
+                        "description": "Color in hexadecimal without # (6 chars)"
+                      },
+                      "description": {
+                        "type": "string",
+                        "maxLength": 100,
+                        "description": "Optional label description (max 100 chars)"
+                      }
+                    },
+                    "additionalProperties": false
+                  }
+                },
+                "overrides": {
+                  "type": "object",
+                  "properties": {},
+                  "additionalProperties": true
+                }
+              },
+              "additionalProperties": false,
+              "required": [
+                "visibility",
+                "org",
+                "branchStrategy"
+              ]
+            }
+          ]
+        }
+      },
+      "additionalProperties": false
+    },
+    "profile": {
+      "type": "object",
+      "description": "A profile for a claim",
+      "properties": {
+        "displayName": {
+          "type": "string"
+        },
+        "email": {
+          "type": "string"
+        },
+        "picture": {
+          "type": "string"
+        }
+      },
+      "additionalProperties": false
+    },
+    "annotations": {
+      "type": "object",
+      "patternProperties": {
+        "^[a-zA-Z0-9/.-]+$": {
+          "type": "string"
+        }
+      },
+      "additionalProperties": false
+    },
+    "system": {
+      "type": "string",
+      "pattern": "^system:([a-z0-9]([a-z0-9._-]*[a-z0-9])?/)?[a-z0-9]([a-z0-9._-]*[a-z0-9])?$"
+    },
+    "owner": {
+      "type": "string",
+      "pattern": "^(user|group):([a-z0-9]([a-z0-9._-]*[a-z0-9])?/)?[a-z0-9]([a-z0-9._-]*[a-z0-9])?$"
+    },
+    "maintainedBy": {
+      "type": "array",
+      "items": {
+        "type": "string",
+        "pattern": "^(user|group|collaborator):([a-z0-9]([a-z0-9._-]*[a-z0-9])?/)?[a-z0-9]([a-z0-9._-]*[a-z0-9])?$"
+      }
+    },
+    "platformOwner": {
+      "type": "string",
+      "pattern": "^(user|group):([a-z0-9]([a-z0-9._-]*[a-z0-9])?/)?[a-z0-9]([a-z0-9._-]*[a-z0-9])?$"
+    },
+    "subComponentOf": {
+      "type": "string",
+      "pattern": "^component:([a-z0-9]([a-z0-9._-]*[a-z0-9])?/)?[a-z0-9]([a-z0-9._-]*[a-z0-9])?$"
+    },
+    "providesApis": {
+      "anyOf": [
+        {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "properties": {
+              "name": {
+                "type": "string"
+              },
+              "definitionfile": {
+                "type": "string"
+              },
+              "type": {
+                "type": "string"
+              }
+            },
+            "required": [
+              "name",
+              "definitionfile",
+              "type"
+            ],
+            "additionalProperties": false
+          }
+        },
+        {
+          "type": "object",
+          "additionalProperties": {
+            "type": "object",
+            "properties": {
+              "name": {
+                "type": "string"
+              },
+              "definitionfile": {
+                "type": "string"
+              },
+              "type": {
+                "type": "string"
+              }
+            },
+            "required": [
+              "name",
+              "definitionfile",
+              "type"
+            ],
+            "additionalProperties": false
+          }
+        }
+      ]
+    },
+    "consumesApis": {
+      "type": "array",
+      "items": {
+        "type": "string"
+      }
+    }
+  },
+  "required": [
+    "name",
+    "kind",
+    "providers",
+    "owner"
+  ]
+}

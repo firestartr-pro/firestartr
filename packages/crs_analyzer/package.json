@@ -1,0 +1,22 @@
+{
+  "name": "@firestartr/firestartr-crs_analyzer",
+  "version": "0.0.0",
+  "private": true,
+  "description": "Package to analyze firestartr crs",
+  "main": "./dist/index.js",
+  "types": "./dist/index.d.ts",
+  "type": "module",
+  "scripts": {
+    "build": "ncc build index.ts -o dist",
+    "test": "jest",
+    "lint": "gts lint",
+    "lint-fix": "gts fix"
+  },
+  "author": "",
+  "license": "ISC",
+  "dependencies": {
+   "@kubernetes/client-node": "^1.4.0",
+    "catalog_common": "file:../catalog_common",
+    "github": "file:../github"
+  }
+}

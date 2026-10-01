@@ -1,0 +1,2 @@
+export const FIRESTARTR_ALL_GROUP_TFSTATE_KEY =
+  '267b7788-9129-4e81-a2a4-41de5ec89d8c';

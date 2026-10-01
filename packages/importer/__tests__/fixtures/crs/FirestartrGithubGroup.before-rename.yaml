@@ -1,0 +1,20 @@
+apiVersion: firestartr.dev/v1
+kind: FirestartrGithubGroup
+metadata:
+  name: before-rename
+  annotations:
+    firestartr.dev/external-name: before-rename
+    firestartr.dev/claim-ref: "GroupClaim/before-name"
+spec:
+  description: Prefapp all description
+  members: []
+  org: 'test'
+  privacy: 'private'
+  firestartr:
+    tfStateKey: 102bbea5-269f-4852-9ecb-ccb2835f8999
+  writeConnectionSecretToRef:
+    name: firestartrgithubgroup-before-rename-outputs
+    outputs:
+      - key: id
+      - key: nodeId
+      - key: slug

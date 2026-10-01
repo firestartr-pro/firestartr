@@ -1,0 +1,33 @@
+kind: TFWorkspaceClaim
+lifecycle: production
+resourceType: tfworkspace-configmap
+name: tfworkspace_a
+owner: 'group:firestartr'
+system: 'system:system_a'
+version: '1.0'
+providers:
+  terraform:
+    name: tfworkspace_a
+    policy: full-control
+    source: Inline
+    module: |
+      variable "configmap_name" {
+        type = string
+      }
+
+      resource "kubernetes_config_map" "e2e" {
+        metadata {
+          name = var.configmap_name
+        }
+
+        data = {
+          test = "tfworkspace-e2e"
+        }
+      }
+    values:
+      configmap_name: tfworkspace-a
+    context:
+      providers:
+        - name: kubernetes
+      backend:
+        name: kubernetes-backend

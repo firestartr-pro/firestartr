@@ -1,0 +1,13 @@
+apiVersion: backstage.io/v1alpha1
+kind: System
+metadata:
+  name: '-system'
+  description: ' default application'
+  annotations:
+    fire-starter.dev/uuid: d4438773-9b78-4933-adcb-efddc8b041fa
+spec:
+  owner: nobody
+  provisioner:
+    status:
+      value: PENDING_REVIEW
+      extras: []

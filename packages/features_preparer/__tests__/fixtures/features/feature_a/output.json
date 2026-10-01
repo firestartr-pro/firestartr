@@ -1,0 +1,17 @@
+{
+  "files":[{
+    "localPath":"templates/test.txt",
+    "repoPath":"test.txt",
+    "userManaged":false
+  }, {
+    "localPath":"templates/.github/workflows/pr-verify.yaml",
+    "repoPath":".github/workflows/pr-verify.yaml",
+    "userManaged":false
+  }],
+  "claimPatches":[{
+    "name":"add_annotation",
+    "op":"add",
+    "path":"/annotations/backstage.io~1techdocs-ref",
+    "value":"url:https://github.com/prefapp/feature_a/tree/main"
+  }]
+}

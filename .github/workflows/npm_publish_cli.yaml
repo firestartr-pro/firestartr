@@ -1,0 +1,88 @@
+name: NPM publish CLI
+run-name: Publishing cli at ${{ inputs.version || github.event.release.tag_name }} version
+on:
+  workflow_dispatch:
+    inputs:
+      version:
+        description: "cli version"
+        required: true
+      create-pr:
+        description: "Create a PR bumping the version in package.json (snapshots should set false)"
+        type: boolean
+        default: true
+        required: false
+  release:
+    types: [released]
+
+permissions:
+  id-token: write  # Required for OIDC
+  contents: write
+  pull-requests: write
+  issues: write
+
+jobs:
+  publish-cli:
+    if: github.event_name == 'workflow_dispatch' || startsWith(github.event.release.tag_name, 'v')
+    runs-on: ubuntu-24.04
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v7
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v7
+        with:
+          node-version: "22"
+          registry-url: "https://registry.npmjs.org"
+          cache: "npm"
+          cache-dependency-path: "package-lock.json"
+
+        # Update npm to 11.5.1 to be able to authenticate with OIDC
+      - name: Update npm
+        run: npm install -g npm@11.5.1
+
+      - name: Install
+        run: |
+          npm ci
+
+      - name: Update package.json version
+        uses: actions/github-script@v9
+        id: update-package-json-version
+        env:
+          PACKAGE_VERSION: ${{ inputs.version || github.event.release.tag_name }}
+          PACKAGE: cli
+        with:
+          script: |
+            const script = require('./.github/scripts/update-package-json-version.cjs');
+            return script({core});
+
+      - name: Install CLI dependencies
+        working-directory: packages/cli
+        run: npm ci
+
+      - name: Build
+        working-directory: packages/cli
+        run: NODE_OPTIONS="--max-old-space-size=4096" npm run build
+
+      - name: Publish
+        working-directory: packages/cli
+        run: |
+          # In case of pre-release versions, publish with 'snapshot' tag
+          if [ "${{ fromJson(steps.update-package-json-version.outputs.result).isPreRelease }}" = "true" ]; then
+            npm publish --tag snapshot
+          else
+            npm publish
+          fi
+
+      - name: Create Pull Request
+        uses: peter-evans/create-pull-request@c0f553fe549906ede9cf27b5156039d195d2ece0 # v8.1.0
+        if: "${{ fromJson(steps.update-package-json-version.outputs.result).isPreRelease != 'true' && (github.event_name != 'workflow_dispatch' || inputs.create-pr) }}"
+        with:
+          token: ${{ secrets.GITHUB_TOKEN }}
+          commit-message: "ci: bump cli to version ${{ inputs.version || github.event.release.tag_name }}"
+          branch: "feat/bump-cli-to-${{ inputs.version || github.event.release.tag_name }}"
+          base: ${{ github.event.repository.default_branch }}
+          delete-branch: true
+          title: "ci: 🦖 bump cli to version: ${{ inputs.version || github.event.release.tag_name }}"
+          labels: |
+            bump/cli
+          draft: false

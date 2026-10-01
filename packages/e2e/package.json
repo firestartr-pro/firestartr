@@ -1,0 +1,38 @@
+{
+  "name": "@firestartr/firestartr-e2e",
+  "version": "0.0.1",
+  "private": false,
+  "description": "Package to manage e2e tests",
+  "main": "dist/index.js",
+  "type": "module",
+  "types": "dist/index.d.ts",
+  "scripts": {
+    "test": "jest",
+    "lint": "gts lint",
+    "lint-fix": "gts fix",
+    "test-suites": "node ./scripts/run",
+    "test-crd-upgrade": "jest --runInBand --runTestsByPath __tests__/github/org-script-crd-upgrade.test.ts"
+  },
+  "files": [
+    "dist",
+    "package.json"
+  ],
+  "author": "",
+  "license": "ISC",
+  "devDependencies": {
+    "@types/jest": "^30.0.0",
+    "catalog_common": "file:../catalog_common",
+    "debug": "^4.3.4",
+    "dotenv": "^17.4.1",
+    "github": "file:../github",
+    "importer": "file:../importer",
+    "jest": "^29.7.0",
+    "render": "file:../cdk8s_renderer",
+    "ts-jest": "^29.4.14"
+  },
+  "dependencies": {
+    "@kubernetes/client-node": "^1.4.0",
+    "cdk8s": "^2.70.105",
+    "yaml": "^2.9.1"
+  }
+}

@@ -2,8 +2,8 @@
 # FEATURE_NAME: build_and_dispatch_docker_images
 # FEATURE_VERSION: build_and_dispatch_docker_images-v5
 # FEATURE_URL: https://github.com/prefapp/features/tree/build_and_dispatch_docker_images-v5/packages/build_and_dispatch_docker_images
-# FEATURE_GIT_SHA: "2c3081793137d8cde377436057466e38cb4190bc"
-# FEATURE_GIT_TAGS: ["build_and_dispatch_docker_images-v5.6.1","build_and_dispatch_docker_images-v5"]
+# FEATURE_GIT_SHA: "b4db429cdc80af8e1a72cfef34762348f83adb37"
+# FEATURE_GIT_TAGS: ["build_and_dispatch_docker_images-v5.7.2","build_and_dispatch_docker_images-v5"]
 
 name: Trigger dispatches on snapshot
 run-name: Trigger dispatches on new snapshots built at "${{ github.event.workflow_run.head_sha }}"
@@ -21,18 +21,29 @@ permissions:
 jobs:
   on-success:
     runs-on: "ubuntu-24.04"
-    if: ${{ github.event.workflow_run.conclusion == 'success' }}
+    if: ${{
+        github.event.workflow_run.conclusion == 'success' &&
+        github.event.workflow_run.head_repository.full_name == github.repository &&
+        (
+          github.event.workflow_run.event == 'push' ||
+          github.event.workflow_run.event == 'workflow_dispatch' ||
+          github.event.workflow_run.event == 'pull_request'
+        )
+      }}
     steps:
       - name: Check if dispatch should proceed
         id: check_autodeploy
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          REPOSITORY: ${{ github.repository }}
+          RUN_ID: ${{ github.event.workflow_run.id }}
+          RUN_EVENT: ${{ github.event.workflow_run.event }}
+          RUN_HEAD_BRANCH: ${{ github.event.workflow_run.head_branch }}
+          DEFAULT_BRANCH: 'main'
         run: |
-          EVENT="${{ github.event.workflow_run.event }}"
-          if [[ "$EVENT" != "workflow_dispatch" ]]; then
-            echo "should_dispatch=true" >> "$GITHUB_OUTPUT"
-          else
-            CHECK_JOB_ID=$(gh api "/repos/${{ github.repository }}/actions/runs/${{ github.event.workflow_run.id }}/jobs" --jq '.jobs[] | select(.name == "check-commits") | .id' 2>&1) || {
+          set -euo pipefail
+          if [[ "$RUN_EVENT" == "workflow_dispatch" ]]; then
+            CHECK_JOB_ID=$(gh api "/repos/$REPOSITORY/actions/runs/$RUN_ID/jobs" --jq '.jobs[] | select(.name == "check-commits") | .id' 2>&1) || {
               echo "::warning::Failed to resolve check-commits job id: $CHECK_JOB_ID"
               echo "should_dispatch=false" >> "$GITHUB_OUTPUT"
               exit 0
@@ -44,7 +55,7 @@ jobs:
               exit 0
             fi
 
-            CHECK_JOB_LOG=$(gh run view "${{ github.event.workflow_run.id }}" --repo "${{ github.repository }}" --job "$CHECK_JOB_ID" --log 2>&1) || {
+            CHECK_JOB_LOG=$(gh run view "$RUN_ID" --repo "$REPOSITORY" --job "$CHECK_JOB_ID" --log 2>&1) || {
               echo "::warning::Failed to read triggering check-commits logs: $CHECK_JOB_LOG"
               echo "should_dispatch=false" >> "$GITHUB_OUTPUT"
               exit 0
@@ -56,7 +67,7 @@ jobs:
 
               FROM=$(grep -m1 -Eo 'from:[[:space:]]+[^[:space:]"]+' <<< "$CHECK_JOB_LOG" | sed 's/from:[[:space:]]*//' || true)
               if [[ -n "$FROM" ]]; then
-                RESOLVED_SHA=$(gh api "/repos/${{ github.repository }}/commits/$FROM" --jq '.sha' 2>/dev/null || true)
+                RESOLVED_SHA=$(gh api "/repos/$REPOSITORY/commits/$FROM" --jq '.sha' 2>/dev/null || true)
                 if [[ -n "$RESOLVED_SHA" ]]; then
                   echo "Resolved 'from' input ($FROM) to SHA: ${RESOLVED_SHA:0:7}"
                   echo "built_sha=${RESOLVED_SHA:0:7}" >> "$GITHUB_OUTPUT"
@@ -68,17 +79,28 @@ jobs:
               echo "::notice::Autodeploy input was not true in triggering workflow"
               echo "should_dispatch=false" >> "$GITHUB_OUTPUT"
             fi
+          elif [[ "$RUN_EVENT" == "pull_request" ]]; then
+            echo "::notice::Trusted same-repository pull request; relaying autodeploy label on the built image"
+            echo "should_dispatch=true" >> "$GITHUB_OUTPUT"
+          elif [[ "$RUN_EVENT" == "push" && "$RUN_HEAD_BRANCH" == "$DEFAULT_BRANCH" ]]; then
+            echo "should_dispatch=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "::warning::Ignoring '$RUN_EVENT' run of '$RUN_HEAD_BRANCH'"
+            echo "should_dispatch=false" >> "$GITHUB_OUTPUT"
           fi
 
       - name: Calculate short SHA
         if: ${{ steps.check_autodeploy.outputs.should_dispatch == 'true' }}
         id: calculate_sha
+        env:
+          BUILT_SHA: ${{ steps.check_autodeploy.outputs.built_sha }}
+          RUN_HEAD_SHA: ${{ github.event.workflow_run.head_sha }}
         run: |
-          BUILT_SHA="${{ steps.check_autodeploy.outputs.built_sha }}"
+          set -euo pipefail
           if [[ -n "$BUILT_SHA" ]]; then
             SHA_SHORT="$BUILT_SHA"
           else
-            SHA_SHORT=$(cut -c 1-7 <<< '${{ github.event.workflow_run.head_sha }}')
+            SHA_SHORT=$(cut -c 1-7 <<< "$RUN_HEAD_SHA")
           fi
           echo "sha_short=$SHA_SHORT" >> "$GITHUB_OUTPUT"
 
@@ -86,11 +108,15 @@ jobs:
         if: ${{ steps.check_autodeploy.outputs.should_dispatch == 'true' }}
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          REPOSITORY: ${{ github.repository }}
+          SHA_SHORT: ${{ steps.calculate_sha.outputs.sha_short }}
+          RUN_ID: ${{ github.event.workflow_run.id }}
         run: |
+          set -euo pipefail
           echo 'The triggering workflow passed'
-          gh workflow run make_dispatches.yaml -R ${{ github.repository }} \
+          gh workflow run make_dispatches.yaml -R "$REPOSITORY" \
           -f image_type=snapshots \
           -f flavors='*' \
-          -f overwrite_version=${{ steps.calculate_sha.outputs.sha_short }} \
+          -f overwrite_version="$SHA_SHORT" \
           -f filter_by_env="dev" \
-          -f workflow_run_id="${{ github.event.workflow_run.id }}"
+          -f workflow_run_id="$RUN_ID"

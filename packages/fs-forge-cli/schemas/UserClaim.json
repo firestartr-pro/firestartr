@@ -1,0 +1,90 @@
+{
+  "type": "object",
+  "description": "A user claim",
+  "x-fs-forge-icon": { "emoji": "👤", "ascii": "[USR]" },
+  "x-fs-forge-summary": "Manage a GitHub user's organization membership.",
+  "unevaluatedProperties": false,
+  "properties": {
+    "name": {
+      "type": "string"
+    },
+    "kind": {
+      "type": "string"
+    },
+    "description": {
+      "type": "string"
+    },
+    "type": {
+      "type": "string"
+    },
+    "lifecycle": {
+      "type": "string"
+    },
+    "version": {
+      "type": "string"
+    },
+    "providers": {
+      "type": "object",
+      "properties": {
+        "github": {
+          "type": "object",
+          "description": "A membership github claim",
+          "allOf": [
+            {
+              "type": "object",
+              "description": "An envelope for a any kind of claim",
+              "properties": {
+                "name": {
+                  "type": "string"
+                }
+              },
+              "additionalProperties": true,
+              "required": ["name"]
+            },
+            {
+              "type": "object",
+              "properties": {
+                "role": {
+                  "type": "string",
+                  "enum": ["admin", "member"]
+                },
+                "org": {
+                  "type": "string",
+                  "description": "GitHub organization whose membership is managed; different from --org, the claims-repo organization."
+                }
+              },
+              "required": ["org", "role"]
+            }
+          ]
+        }
+      },
+      "additionalProperties": false
+    },
+    "profile": {
+      "type": "object",
+      "description": "A profile for a claim",
+      "properties": {
+        "displayName": {
+          "type": "string"
+        },
+        "email": {
+          "type": "string"
+        },
+        "picture": {
+          "type": "string"
+        }
+      },
+      "additionalProperties": false
+    },
+    "annotations": {
+      "type": "object",
+      "patternProperties": {
+        "^[a-zA-Z0-9/.-]+$": {
+          "type": "string"
+        }
+      },
+      "additionalProperties": false
+    }
+  },
+  "required": ["name", "kind", "providers"]
+}

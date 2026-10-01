@@ -1,0 +1,9 @@
+name: my-component
+kind: ComponentClaim
+providers:
+  github:
+    name: my-repo
+    org: my-org
+    visibility: private
+    branchStrategy:
+      name: gitflow

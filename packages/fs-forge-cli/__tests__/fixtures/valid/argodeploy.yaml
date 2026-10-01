@@ -1,0 +1,11 @@
+kind: ArgoDeployClaim
+name: redis-deploy
+system: "system:my-system"
+project: "default"
+providers:
+  argocd:
+    name: redis-deploy
+    chart:
+      name: redis
+      source: registry-1.docker.io/bitnamicharts
+      version: 18.12.1

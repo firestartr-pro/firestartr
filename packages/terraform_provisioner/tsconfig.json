@@ -1,0 +1,23 @@
+{
+  "extends": "../../tsconfig.json",
+  "compilerOptions": {
+    "composite": true
+  },
+  "references": [
+    {
+      "path": "../catalog_common"
+    },
+  ],
+  "exclude": [
+    "dist/**/*",
+    "node_modules/**/*",
+    "**/*.test.ts",
+    "**/*.spec.ts"
+  ],
+  "include": [
+    "index.ts",
+    "src/*.ts",
+    "src/**/*.ts",
+    "src/**/*.json"
+  ]
+}

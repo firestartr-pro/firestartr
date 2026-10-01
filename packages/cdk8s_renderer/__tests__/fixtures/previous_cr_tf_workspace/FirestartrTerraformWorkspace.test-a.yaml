@@ -1,0 +1,22 @@
+kind: FirestartrTerraformWorkspace
+metadata:
+  annotations:
+    firestartr.dev/claim-ref: TFWorkspaceClaim/test-a
+    firestartr.dev/external-name: test_a
+  labels:
+    claim-ref: test-a
+  name: test-a-da021e9d-a895-4a0c-9038-2dee36611330
+spec:
+  context:
+    backend:
+      ref:
+        kind: FirestartrProviderConfig
+        name: foo
+    providers:
+      - ref:
+          kind: FirestartrProviderConfig
+          name: aws-westeurope
+  firestartr:
+    tfStateKey: da021e9d-a895-4a0c-9038-2dee36611330
+  values: '{"resource_group":"${{ references.name }}","resource_group_2":"${{ references.id }}"}'
+  references: []

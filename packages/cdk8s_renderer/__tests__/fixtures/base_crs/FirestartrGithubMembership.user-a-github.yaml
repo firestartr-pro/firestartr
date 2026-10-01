@@ -1,0 +1,18 @@
+apiVersion: firestartr.dev/v1
+kind: FirestartrGithubMembership
+metadata:
+  annotations:
+    firestartr.dev/claim-ref: UserClaim/user_a
+    firestartr.dev/external-name: user-a-github
+    firestartr.dev/revision: "1"
+  labels:
+    claim-ref: user-a
+  name: user-a-github
+spec:
+  org: firestartr-test
+  role: member
+  firestartr:
+    tfStateKey: 77e78665-b7eb-4312-9a36-a573432fcead
+  writeConnectionSecretToRef:
+    name: firestartrgithubmembership-user-a-github-77e78665-b7eb-4312-9a36-a573432fcead-outputs
+    outputs: []

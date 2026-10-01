@@ -1,0 +1,64 @@
+apiVersion: firestartr.dev/v1
+kind: FirestartrTerraformWorkspace
+metadata:
+  annotations:
+    firestartr.dev/claim-ref: TFWorkspaceClaim/workspace_c
+    firestartr.dev/external-name: bucket-s3
+    firestartr.dev/policy: observe
+    firestartr.dev/revision: "1"
+  labels:
+    claim-ref: workspace-c
+  name: bucket-s3-a1190273-6620-4502-91ea-f12faa166a5a
+spec:
+  context:
+    backend:
+      ref:
+        kind: FirestartrProviderConfig
+        name: backend-tf-workspaces
+    providers:
+      - ref:
+          kind: FirestartrProviderConfig
+          name: provider-aws-workspaces
+  firestartr:
+    tfStateKey: a1190273-6620-4502-91ea-f12faa166a5a
+  module: |+
+    # file.tf
+    terraform {
+      required_providers {
+        aws = {
+          source  = "hashicorp/aws"
+          version = "~> 4.16"
+        }
+      }
+
+      required_version = ">= 1.2.0"
+    }
+
+    provider "aws" {
+      region  = "us-west-2"
+    }
+
+    resource "aws_instance" "app_server" {
+      ami           = "ami-830c94e3"
+      instance_type = "t2.micro"
+
+      tags = {
+        Name = "ExampleAppServerInstance"
+      }
+    }
+
+    # file_2.tf
+    # This is a test comment for the file_2.tf file
+
+    resource "aws_instance" "other" {
+      ami           = "ami-830c94e3"
+      instance_type = "t2.micro"
+
+      tags = {
+        Name = "ExampleAppServerInstance"
+      }
+    }
+
+  source: Inline
+  values: '{"name":"abcdefg","string_value":"My example","bool_value":false,"string_list_value":["My example","My example 2"],"number_value":123,"object_list_value":[{"internal":3,"external":27,"protocol":"tcp"}]}'
+  references: []

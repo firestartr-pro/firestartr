@@ -1,0 +1,109 @@
+{
+  "type": "object",
+  "description": "A group claim",
+  "x-fs-forge-icon": { "emoji": "👥", "ascii": "[GRP]" },
+  "x-fs-forge-summary": "Manage a GitHub team and its membership.",
+  "unevaluatedProperties": false,
+  "properties": {
+    "name": {
+      "type": "string"
+    },
+    "kind": {
+      "type": "string"
+    },
+    "description": {
+      "type": "string"
+    },
+    "type": {
+      "type": "string"
+    },
+    "lifecycle": {
+      "type": "string"
+    },
+    "version": {
+      "type": "string"
+    },
+    "children": {
+      "type": "array",
+      "items": {
+        "type": "string"
+      }
+    },
+    "parent": {
+      "type": "string",
+      "pattern": "^[^:]+:[^:]+$"
+    },
+    "members": {
+      "type": "array",
+      "items": {
+        "type": "string"
+      }
+    },
+    "providers": {
+      "type": "object",
+      "properties": {
+        "github": {
+          "type": "object",
+          "description": "A team github claim",
+          "allOf": [
+            {
+              "type": "object",
+              "description": "An envelope for a any kind of claim",
+              "properties": {
+                "name": {
+                  "type": "string"
+                }
+              },
+              "additionalProperties": true,
+              "required": ["name"]
+            },
+            {
+              "type": "object",
+              "properties": {
+                "privacy": {
+                  "type": "string",
+                  "enum": ["closed", "secret"]
+                },
+                "description": {
+                  "type": "string"
+                },
+                "org": {
+                  "type": "string",
+                  "description": "GitHub organization where the Team is created; different from --org, the claims-repo organization."
+                }
+              },
+              "required": ["org", "privacy"]
+            }
+          ]
+        }
+      },
+      "additionalProperties": false
+    },
+    "profile": {
+      "type": "object",
+      "description": "A profile for a claim",
+      "properties": {
+        "displayName": {
+          "type": "string"
+        },
+        "email": {
+          "type": "string"
+        },
+        "picture": {
+          "type": "string"
+        }
+      },
+      "additionalProperties": false
+    },
+    "annotations": {
+      "type": "object",
+      "patternProperties": {
+        "^[a-zA-Z0-9/.-]+$": {
+          "type": "string"
+        }
+      },
+      "additionalProperties": false
+    }
+  },
+  "required": ["name", "kind", "providers"]
+}

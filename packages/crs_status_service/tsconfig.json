@@ -1,0 +1,19 @@
+{
+  "extends": "../../tsconfig.json",
+  "compilerOptions": {
+    "composite": true,
+    "strict": true
+  },
+  "references": [
+    {
+      "path": "../catalog_common"
+    }
+  ],
+  "include": [
+    "index.ts",
+    "src/**/*.ts",
+    "__tests__/**/*.ts",
+    "launch_dev.ts",
+    "smoke-test.ts"
+  ]
+}

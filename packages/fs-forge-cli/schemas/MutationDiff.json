@@ -1,0 +1,29 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "MutationDiff",
+  "description": "The JSON output of a mutation diff shown with --show-defaults.",
+  "type": "object",
+  "additionalProperties": false,
+  "properties": {
+    "changes": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "properties": {
+          "path": {
+            "type": "string"
+          },
+          "before": {},
+          "after": {}
+        },
+        "required": ["path"]
+      }
+    },
+    "defaults": {
+      "type": "object",
+      "additionalProperties": {}
+    }
+  },
+  "required": ["changes", "defaults"]
+}

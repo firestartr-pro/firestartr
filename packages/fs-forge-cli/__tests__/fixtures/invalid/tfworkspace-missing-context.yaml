@@ -1,0 +1,9 @@
+kind: TFWorkspaceClaim
+name: my-workspace
+owner: "group:my-team"
+providers:
+  terraform:
+    name: my-workspace
+    source: Inline
+    values:
+      configmap_name: my-config

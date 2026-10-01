@@ -1,0 +1,8 @@
+[
+  "users/example-user-1.yaml",
+  "users/example-user-2.yaml",
+  "users/example-user-3.yaml",
+  "groups/example-group-1.yaml",
+  "groups/example-group-2.yaml",
+  "components/example-component-1.yaml"
+]

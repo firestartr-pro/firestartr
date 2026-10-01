@@ -1,0 +1,7 @@
+feature_name: "workflows"
+args: {}
+files:
+  - src: .github/workflows/pr-verify.yaml
+    dest: .github/workflows/pr-verify.yaml
+    user_managed: false
+claimPatches: []

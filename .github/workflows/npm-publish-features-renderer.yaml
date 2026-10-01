@@ -1,0 +1,74 @@
+on:
+  workflow_dispatch:
+    inputs:
+      version:
+        description: "features renderer version"
+        required: true
+      create-pr:
+        description: "Create a PR bumping the version in package.json (snapshots should set false)"
+        type: boolean
+        default: true
+        required: false
+
+permissions:
+  contents: write
+  packages: write
+  id-token: write
+
+name: Publish package features renderer
+jobs:
+  publish-npm:
+    runs-on: ubuntu-24.04
+    steps:
+    - uses: actions/checkout@v7
+
+    - uses: actions/setup-node@v7
+      name: Setup Node
+      with:
+        node-version: 22
+        registry-url: https://registry.npmjs.org/
+        scope: '@firestartr'
+        cache: "npm"
+        cache-dependency-path: "package-lock.json"
+
+    - name: Update package.json version
+      uses: actions/github-script@v9
+      id: update-package-json-version
+      env:
+        PACKAGE_VERSION: ${{ inputs.version || github.event.release.tag_name }}
+        PACKAGE: features_renderer
+      with:
+        script: |
+          const script = require('./scripts/update-package-json-version.cjs');
+          console.log(script({core, fs, semver}));
+
+      # Update npm to 11.5.1 to be able to authenticate with OIDC
+    - name: Update npm
+      run: npm install -g npm@11.5.1
+
+    - name: Build @firestartr/features_renderer package
+      run: |
+        npm ci
+        npm run build --workspace packages/features_renderer
+
+    - name: Publish
+      working-directory: packages/features_renderer
+      run: |
+        # In case of pre-release versions, publish with 'snapshot' tag
+        if [ "${{ fromJson(steps.update-package-json-version.outputs.result).isPreRelease }}" = "true" ]; then
+          npm publish --tag snapshot
+        else
+          npm publish
+        fi
+
+    - name: Create Pull Request
+      uses: peter-evans/create-pull-request@c0f553fe549906ede9cf27b5156039d195d2ece0
+      if: "${{ fromJson(steps.update-package-json-version.outputs.result).isPreRelease != 'true' && (github.event_name != 'workflow_dispatch' || inputs.create-pr) }}"
+      with:
+        token: ${{ secrets.GITHUB_TOKEN }}
+        commit-message: "ci: bump features renderer to version ${{ inputs.version || github.event.release.tag_name }}"
+        branch: "feat/bump-features-renderer-to-${{ inputs.version || github.event.release.tag_name }}"
+        base: ${{ github.event.repository.default_branch }}
+        delete-branch: true
+        title: "ci: 🦖 bump features renderer to version: ${{ inputs.version || github.event.release.tag_name }}"
+        draft: false

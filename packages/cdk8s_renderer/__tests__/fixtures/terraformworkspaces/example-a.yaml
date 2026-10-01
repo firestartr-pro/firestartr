@@ -1,0 +1,26 @@
+apiVersion: firestartr.dev/v1
+kind: FirestartrTerraformWorkspace
+metadata:
+  annotations:
+    firestartr.dev/claim-ref: TFWorkspaceClaim/example-a
+    firestartr.dev/external-name: example-a
+    firestartr.dev/policy: observe
+  labels:
+    claim-ref: example-a
+  name: example-a-73d7f0c7-64df-4226-a563-35e505b69b3c
+spec:
+  context:
+    backend:
+      ref:
+        kind: FirestartrProviderConfig
+        name: example-backend
+    providers:
+      - ref:
+          kind: FirestartrProviderConfig
+          name: example-provider
+  firestartr:
+    tfStateKey: 73d7f0c7-64df-4226-a563-35e505b69b3c
+  module: git::https://github.com/example/claims.git//claims/tfworkspaces/example-a?ref=master
+  source: Remote
+  values: '{"name":"foo"}'
+  references: []

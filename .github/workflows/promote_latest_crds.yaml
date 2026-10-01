@@ -1,0 +1,181 @@
+name: Promote CRDs to Docs Repo
+
+on:
+  release:
+    types: [released]
+  push:
+    branches:
+      - main
+    paths:
+      - 'packages/k8s/src/crds/**'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  promote-latest-crds:
+    # Only root releases (plain v* tags) publish versioned CRDs; component
+    # releases (e.g. fs-forge-cli-v*) are skipped.
+    if: ${{ github.event_name != 'release' || startsWith(github.event.release.tag_name, 'v') }}
+    name: Promote Latest CRDs
+    runs-on: ubuntu-24.04
+    steps:
+      - name: Checkout for release
+        if: github.event_name == 'release'
+        uses: actions/checkout@v7
+        with:
+          ref: ${{ github.event.release.tag_name }}
+          path: gitops
+
+      - name: Checkout for push or workflow_dispatch
+        if: github.event_name != 'release'
+        uses: actions/checkout@v7
+        with:
+          path: gitops
+
+      - name: Generate GitHub App token
+        id: app-token
+        uses: actions/create-github-app-token@v3
+        with:
+          app-id: ${{ vars.FIRESTARTER_DOCS_APP_ID }}
+          private-key: ${{ secrets.FIRESTARTR_DOCS_APP_PEM_FILE }}
+          owner: firestartr-pro
+          repositories: docs
+
+      - name: Checkout docs repo
+        uses: actions/checkout@v7
+        with:
+          repository: firestartr-pro/docs
+          path: pro-docs
+          token: ${{ steps.app-token.outputs.token }}
+
+      - name: Setup environment variables
+        env:
+          EVENT_NAME: ${{ github.event_name }}
+          RELEASE_TAG: ${{ github.event.release.tag_name }}
+          COMMIT_SHA: ${{ github.sha }}
+        run: |
+          echo "PRO_DOCS_CORE_PATH=$GITHUB_WORKSPACE/pro-docs/site/raw/core" >> "$GITHUB_ENV"
+          echo "PROMOTION_SUMMARY=$GITHUB_WORKSPACE/promotion-summary.md" >> "$GITHUB_ENV"
+
+          BRANCH_NAME="${GITHUB_REF#refs/heads/}"
+          echo "BRANCH_NAME=${BRANCH_NAME}" >> "$GITHUB_ENV"
+
+          # Determine event info for summary
+          case "$EVENT_NAME" in
+            release)
+              EVENT_INFO="**Release:** ${RELEASE_TAG}"
+              ;;
+            push)
+              EVENT_INFO="**Branch:** ${BRANCH_NAME}"
+              ;;
+            workflow_dispatch)
+              EVENT_INFO="**Branch:** ${BRANCH_NAME} (workflow_dispatch)"
+              ;;
+          esac
+
+          # Initialize summary file
+          cat > "$GITHUB_WORKSPACE/promotion-summary.md" << EOF
+          # CRDs Promotion Summary
+
+          ${EVENT_INFO}
+          **Commit:** ${COMMIT_SHA}
+          **Date:** $(date -u '+%Y-%m-%d %H:%M:%S UTC')
+
+          ## Promoted Files
+
+          EOF
+
+      - name: Promote CRDs
+        working-directory: gitops
+        env:
+          EVENT_NAME: ${{ github.event_name }}
+          RELEASE_TAG: ${{ github.event.release.tag_name }}
+        run: |
+          set -e
+
+          # Function to promote CRDs to a specific target directory
+          promote_crds() {
+            local target_path="$1"
+            local description="$2"
+
+            local full_path="${PRO_DOCS_CORE_PATH}/crds/${target_path}"
+            mkdir -p "${full_path}"
+
+            # Generate CRDs
+            cat packages/k8s/src/crds/*.yaml > "${full_path}/index.yaml"
+
+            if [[ -f "${full_path}/index.yaml" ]]; then
+              echo "✓ **${description}**: \`${full_path}/index.yaml\`" >> "$PROMOTION_SUMMARY"
+            else
+              echo "✗ **${description}**: Failed to generate CRDs" >> "$PROMOTION_SUMMARY"
+              echo "::error:: Failed to generate ${description}"
+              exit 1
+            fi
+          }
+
+          # Determine which CRDs to promote based on event type
+          case "$EVENT_NAME" in
+            release)
+              # On release: promote versioned CRDs and latest
+              promote_crds "${RELEASE_TAG}" "Versioned CRDs (${RELEASE_TAG})"
+              promote_crds "latest" "Latest CRDs"
+              ;;
+            push)
+              # On push to main: promote only to main
+              promote_crds "main" "Main Branch CRDs"
+              ;;
+            workflow_dispatch)
+              # On workflow_dispatch: promote branch-specific CRDs only
+              promote_crds "${BRANCH_NAME}" "Branch CRDs (${BRANCH_NAME})"
+              ;;
+          esac
+
+      - name: Get GitHub App User ID
+        id: get-user-id
+        run: |
+          USER_ID=$(gh api "/users/${{ steps.app-token.outputs.app-slug }}[bot]" --jq .id)
+          echo "user-id=${USER_ID}" >> "$GITHUB_OUTPUT"
+        env:
+          GITHUB_TOKEN: ${{ steps.app-token.outputs.token }}
+
+      - name: Commit and push changes to docs repo
+        working-directory: pro-docs
+        env:
+          EVENT_NAME: ${{ github.event_name }}
+          RELEASE_TAG: ${{ github.event.release.tag_name }}
+          COMMIT_SHA: ${{ github.sha }}
+        run: |
+          set -e
+          git config user.name "${{ steps.app-token.outputs.app-slug }}[bot]"
+          git config user.email "${{ steps.get-user-id.outputs.user-id }}+${{ steps.app-token.outputs.app-slug }}[bot]@users.noreply.github.com"
+          git add .
+
+          if git diff --staged --quiet; then
+            echo "" >> "$PROMOTION_SUMMARY"
+            echo "ℹ️ **Status**: No changes to commit" >> "$PROMOTION_SUMMARY"
+          else
+            # Create commit message based on event type
+            case "$EVENT_NAME" in
+              release)
+                COMMIT_MSG="docs: update CRDs for release ${RELEASE_TAG}"
+                ;;
+              push)
+                COMMIT_MSG="docs: update CRDs from main@${COMMIT_SHA}"
+                ;;
+              workflow_dispatch)
+                COMMIT_MSG="docs: update CRDs from ${BRANCH_NAME}@${COMMIT_SHA}"
+                ;;
+            esac
+
+            git commit -m "${COMMIT_MSG}"
+            git push origin main
+            echo "" >> "$PROMOTION_SUMMARY"
+            echo "✓ **Status**: Changes committed and pushed to firestartr-pro/docs" >> "$PROMOTION_SUMMARY"
+          fi
+
+      - name: Display final summary
+        if: always()
+        run: |
+          cat "$PROMOTION_SUMMARY" > "$GITHUB_STEP_SUMMARY"

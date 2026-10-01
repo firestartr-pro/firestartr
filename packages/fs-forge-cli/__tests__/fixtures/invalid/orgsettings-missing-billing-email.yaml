@@ -1,0 +1,7 @@
+kind: OrgSettingsClaim
+version: '1.0'
+name: missing-billing-org-settings
+providers:
+  github:
+    name: missing-billing
+    org: my-org

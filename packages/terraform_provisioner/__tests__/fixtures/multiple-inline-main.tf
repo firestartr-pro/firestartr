@@ -1,0 +1,31 @@
+terraform {
+
+  
+
+  
+
+}
+
+provider "azurerm" {
+    features {}
+    subscription_id = "00000000-0000-0000-0000-000000000000"
+    client_id       = "00000000-0000-0000-0000-000000000000"
+    client_secret   = "00000000-0000-0000-0000-000000000000"
+    tenant_id       = "00000000-0000-0000-0000-000000000000"
+    use_msi        = false
+}
+
+provider "azurerm" {
+    features {}
+    subscription_id = "11111111-1111-1111-1111-111111111111"
+    client_id       = "11111111-1111-1111-1111-111111111111"
+    client_secret   = "11111111-1111-1111-1111-111111111111"
+    tenant_id       = "11111111-1111-1111-1111-111111111111"
+    use_msi        = false
+    alias          = "secondary"
+}
+
+resource "azurerm_resource_group" "example" {
+    name     = "example-resources"
+    location = "West Europe"
+}

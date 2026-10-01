@@ -1,0 +1,22 @@
+apiVersion: argoproj.io/v1alpha1
+kind: Application
+metadata:
+  annotations:
+    firestartr.dev/external-name: redis-deploy
+  name: redis-deploy
+spec:
+  destination:
+    namespace: default
+    server: https://kubernetes.default.svc
+  project: default
+  sources:
+    - chart: redis
+      helm:
+        passCredentials: true
+        valueFiles:
+          - $valuesa/redis/values.yaml
+      repoURL: registry-1.docker.io/bitnamicharts
+      targetRevision: 18.12.1
+    - ref: valuesa
+      repoURL: https://github.com/firestartr-test/test-argoapp-state
+      targetRevision: main

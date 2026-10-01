@@ -1,0 +1,120 @@
+apiVersion: firestartr.dev/v1
+kind: TerraformWorkspace
+metadata:
+  name: example
+spec:
+  firestartr:
+    tfStateKey: c51c7b2c-fcdc-48b9-b5b2-fcaed2894f90
+  tf_module:
+    repo: github.com/prefapp/tfm/example
+    name: example
+    version: main
+  context:
+    backend:
+      ref:
+        kind: FirestartrProviderConfig
+        name: aws-state-bucket
+    provider:
+      ref:
+        kind: FirestartrProviderConfig
+        name: aws-dev-iam
+  inline: |
+    resource "aws_s3_bucket" "example" {
+      bucket = "my-tf-test-bucket"
+
+      tags = {
+        Name        = "My bucket"
+        Environment = "Dev"
+      }
+    }
+
+    variable "name" {
+      type = string
+    }
+
+    variable "name2" {
+      type = string
+    }
+
+    variable "property" {
+      type = bool
+    }
+
+    variable "property2" {
+      type = object({
+        property3 = string
+      })
+    }
+
+    output "name" {
+      value = var.name
+    }
+  values: |
+    {
+      "name": "${{ references.NAME }}",
+      "name2": "${{ references.NAME2 }}",
+      "property": true,
+      "property2": {
+        "property3": "concatenated-${{ references.NAME }}-${{ references.NAME2 }}"
+      },
+      "property4":  "${{ references.property4 }}",
+      "property5":  "${{ references.property5 }}",
+      "property6":  "${{ references.property6 }}",
+      "property7":  "${{ references.property7 }}",
+      "property8":  "${{ references.property8 }}",
+      "property9":  "${{ references.property9 }}",
+      "property10":  "${{ references.property10 }}",
+      "property11":  "${{ references.property11 }}"
+    }
+  references:
+    - name: "NAME"
+      ref:
+        kind: FirestartrTerraformWorkspace
+        name: previous-example
+        key: NAME
+    - name: "NAME2"
+      ref:
+        kind: FirestartrTerraformWorkspace
+        name: previous-example
+        key: NAME2
+    - name: "property4"
+      ref:
+        kind: FirestartrTerraformWorkspace
+        name: previous-example
+        key: property4
+    - name: "property5"
+      ref:
+        kind: FirestartrTerraformWorkspace
+        name: previous-example
+        key: property5
+    - name: "property6"
+      ref:
+        kind: FirestartrTerraformWorkspace
+        name: previous-example
+        key: property6
+    - name: "property7"
+      ref:
+        kind: FirestartrTerraformWorkspace
+        name: previous-example
+        key: property7
+    - name: "property8"
+      ref:
+        kind: FirestartrTerraformWorkspace
+        name: previous-example
+        key: property8
+    - name: "property9"
+      ref:
+        kind: FirestartrTerraformWorkspace
+        name: previous-example
+        key: property9
+    - name: "property10"
+      ref:
+        kind: FirestartrTerraformWorkspace
+        name: previous-example
+        key: property10
+    - name: "property11"
+      ref:
+        kind: FirestartrTerraformWorkspace
+        name: previous-example
+        key: property11
+

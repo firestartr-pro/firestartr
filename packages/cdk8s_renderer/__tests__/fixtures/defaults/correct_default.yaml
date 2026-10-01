@@ -1,0 +1,15 @@
+name: repo_base
+apiVersion: firestartr.dev/v1
+kind: ComponentClaim
+globalValues:
+  org: "test"
+  actions:
+    oidc:
+      useDefault: false
+defaultValues:
+  firestartr:
+    technology:
+      stack: node
+  repo:
+    allowAutoMerge: true
+    codeowners: "blah"
