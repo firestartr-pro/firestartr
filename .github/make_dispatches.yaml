@@ -7,7 +7,7 @@ dispatches:
         dispatch_event_type: "new-dispatch-image"
         base_path: ""
         tenant: prefapp
-        application: firestartr 
+        application: firestartr
         env: dev
         service_names: ['controller']
         version: $branch_main
