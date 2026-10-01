@@ -4,7 +4,7 @@ customer: "firestartr-e2e"
 cluster: "kind"
 operator:
   ## Note: CI overrides this via E2E_CHART_VERSION in .github/workflows/e2e.yaml
-  chartVersion: "3.5.0"
+  chartVersion: "4.2.2"
   imageName: "ghcr.io/firestartr-pro/firestartr"
 
   ## The operator image with this tag is the one supposed to be loaded into the

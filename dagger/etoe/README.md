@@ -61,7 +61,7 @@ customer: "firestartr-e2e"
 cluster: "kind" # currently unused by the module; use --kind-cluster-name at runtime
 operator:
   # CI overrides this from .github/workflows/e2e.yaml
-  chartVersion: "3.5.0"
+  chartVersion: "4.2.2"
   # imageTag: "v1.54.0_full-aws" # uncomment for local execution, or pass --image-tag
 credentials:
   region: "eu-west-1"
