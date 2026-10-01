@@ -15,8 +15,6 @@ snapshots:
     platforms:
       - linux/amd64
       - linux/arm64
-    extra_tags:
-      - run-slim
 
   run-aws:
     auto: false
@@ -24,8 +22,6 @@ snapshots:
     platforms:
       - linux/amd64
       - linux/arm64
-    extra_tags:
-      - run-aws
 
   run-az:
     auto: false
@@ -33,8 +29,6 @@ snapshots:
     platforms:
       - linux/amd64
       - linux/arm64
-    extra_tags:
-      - run-az
 
   full-aws:
     auto: true
