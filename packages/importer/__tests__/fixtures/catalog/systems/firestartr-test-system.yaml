@@ -1,0 +1,13 @@
+apiVersion: backstage.io/v1alpha1
+kind: System
+metadata:
+  name: firestartr-test-system
+  description: firestartr-test default application
+  annotations:
+    fire-starter.dev/uuid: f362173a-50d4-42c3-88a1-6ffb11e12702
+spec:
+  owner: nobody
+  provisioner:
+    status:
+      value: PENDING_REVIEW
+      extras: []

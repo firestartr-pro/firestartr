@@ -1,0 +1,14 @@
+kind: OrgWebhookClaim
+name: my-webhook
+system: "system:my-system"
+owner: "group:my-group"
+providers:
+  github:
+    name: my-github-org-webhook
+    orgName: my-org
+    webhook:
+      url: https://example.com/webhook
+      contentType: json
+      events:
+        - push
+      secretRef: "ref:secretsclaim:my-secret:rds_conn"

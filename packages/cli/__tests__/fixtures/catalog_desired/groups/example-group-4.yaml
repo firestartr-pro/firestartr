@@ -1,0 +1,18 @@
+apiVersion: backstage.io/v1alpha1
+kind: Group
+metadata:
+  name: example-group-4
+  description: examle group
+  annotations: {}
+spec:
+  type: business-unit
+  profile:
+    displayName: example-group-4
+    email: group-5@example.com
+    picture: https://example.com/groups/bu-infrastructure.jpeg
+  children: []
+  members: []
+  provisioner:
+    status:
+        value: "provisioned"
+        extras: [""]

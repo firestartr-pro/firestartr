@@ -2,8 +2,8 @@
 # FEATURE_NAME: build_and_dispatch_docker_images
 # FEATURE_VERSION: build_and_dispatch_docker_images-v5
 # FEATURE_URL: https://github.com/prefapp/features/tree/build_and_dispatch_docker_images-v5/packages/build_and_dispatch_docker_images
-# FEATURE_GIT_SHA: "2c3081793137d8cde377436057466e38cb4190bc"
-# FEATURE_GIT_TAGS: ["build_and_dispatch_docker_images-v5.6.1","build_and_dispatch_docker_images-v5"]
+# FEATURE_GIT_SHA: "b4db429cdc80af8e1a72cfef34762348f83adb37"
+# FEATURE_GIT_TAGS: ["build_and_dispatch_docker_images-v5.7.2","build_and_dispatch_docker_images-v5"]
 
 name: Trigger dispatches on releases
 run-name: Trigger dispatches on new release build
@@ -21,15 +21,22 @@ permissions:
 jobs:
   on-success:
     runs-on: ubuntu-24.04
-    if: ${{ github.event.workflow_run.conclusion == 'success' }}
+    if: ${{
+        github.event.workflow_run.conclusion == 'success' &&
+        github.event.workflow_run.event == 'release' &&
+        github.event.workflow_run.head_repository.full_name == github.repository
+      }}
     steps:
       - name: Dispatch image changes to state repos
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          REPOSITORY: ${{ github.repository }}
+          RUN_ID: ${{ github.event.workflow_run.id }}
         run: |
+          set -euo pipefail
           echo 'The triggering workflow passed'
-          gh workflow run make_dispatches.yaml -R ${{ github.repository }} \
+          gh workflow run make_dispatches.yaml -R "$REPOSITORY" \
           -f image_type=releases \
           -f flavors='*' \
           -f filter_by_env="pro" \
-          -f workflow_run_id="${{ github.event.workflow_run.id }}"
+          -f workflow_run_id="$RUN_ID"

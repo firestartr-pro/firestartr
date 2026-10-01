@@ -1,9 +1,113 @@
 snapshots:
-  default:
+  ##############################################################
+  # Images that will be deployed in staging envs               #
+  ##############################################################
+  slim:
     auto: true
-    dockerfile: Dockerfile
+    dockerfile: docker/slim.Dockerfile
+    platforms:
+      - linux/amd64
+      - linux/arm64
+
+  run-slim:
+    auto: false
+    dockerfile: docker/run-slim.Dockerfile
+    platforms:
+      - linux/amd64
+      - linux/arm64
+
+  run-aws:
+    auto: false
+    dockerfile: docker/run-aws.Dockerfile
+    platforms:
+      - linux/amd64
+      - linux/arm64
+
+  run-az:
+    auto: false
+    dockerfile: docker/run-az.Dockerfile
+    platforms:
+      - linux/amd64
+      - linux/arm64
+
+  full-aws:
+    auto: true
+    dockerfile: docker/full-aws.Dockerfile
+    platforms:
+      - linux/amd64
+      - linux/arm64
+
+  full-az:
+    auto: false
+    dockerfile: docker/full-az.Dockerfile
+    platforms:
+      - linux/amd64
+      - linux/arm64
 
 releases:
-  default:
+  ##############################################################
+  # Images that will be deployed in production envs
+  # When a new release is created, the slim, full-aws and full-az images
+  # will be built and pushed to the registry.
+
+  ############# WARNING ##############
+  # The base images: build, run-slim, run-aws and run-az are not built automatically !!!!
+  # They should be built manually using the `build_docker_releases` workflow dispatch, and also,
+  # the related dynamic tags (build, run-slim, run-aws and run-az) will be pushed to the registry.
+  ##############################################################
+  build:
+    auto: false
+    dockerfile: docker/build.Dockerfile
+    platforms:
+      - linux/amd64
+      - linux/arm64
+    extra_tags:
+      - build
+
+  run-slim:
+    auto: false
+    dockerfile: docker/run-slim.Dockerfile
+    platforms:
+      - linux/amd64
+      - linux/arm64
+    extra_tags:
+      - run-slim
+
+  run-aws:
+    auto: false
+    dockerfile: docker/run-aws.Dockerfile
+    platforms:
+      - linux/amd64
+      - linux/arm64
+    extra_tags:
+      - run-aws
+
+  run-az:
+    auto: false
+    dockerfile: docker/run-az.Dockerfile
+    platforms:
+      - linux/amd64
+      - linux/arm64
+    extra_tags:
+      - run-az
+
+  slim:
     auto: true
-    dockerfile: Dockerfile
+    dockerfile: docker/slim.Dockerfile
+    platforms:
+      - linux/amd64
+      - linux/arm64
+
+  full-aws:
+    auto: true
+    dockerfile: docker/full-aws.Dockerfile
+    platforms:
+      - linux/amd64
+      - linux/arm64
+
+  full-az:
+    auto: true
+    dockerfile: docker/full-az.Dockerfile
+    platforms:
+      - linux/amd64
+      - linux/arm64

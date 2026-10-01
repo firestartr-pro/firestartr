@@ -1,0 +1,21 @@
+apiVersion: firestartr.dev/v1
+kind: FirestartrGithubMembership
+metadata:
+  name: user-d
+spec:
+  org: firestartr-test
+  firestartr:
+    tfStateKey: aaaeaaaa-aaaa-4aaa-aaaa-aaaaaaaaaaaa
+  role: member
+  writeConnectionSecretToRef:
+    name: firestartrgithubmembership-user-d-outputs
+    outputs: []
+  context:
+    backend:
+      ref:
+        kind: FirestartrProviderConfig
+        name: aws-state-bucket
+    provider:
+      ref:
+        kind: FirestartrProviderConfig
+        name: github-app

@@ -1,0 +1,24 @@
+---
+org: "firestartr-e2e"
+customer: "firestartr-e2e"
+cluster: "kind"
+operator:
+  ## Note: CI overrides this via E2E_CHART_VERSION in .github/workflows/e2e.yaml
+  chartVersion: "4.2.2"
+  imageName: "ghcr.io/firestartr-pro/firestartr"
+
+  ## The operator image with this tag is the one supposed to be loaded into the
+  ## kind cluster when the dagger module is executed.
+  ##
+  ## This is NOT loaded automatically (pullPolicy = "Never"), unless you set the
+  ## flag `--use-config-image` while executing the module.
+  ##
+  ## The image tag can also be indicated with the flag `--image-tag="<tag>"`,
+  ## which is done in the CI pipeline to use the last generated image from the
+  ## current PR.
+  # imageTag: "v1.54.0_full-aws"
+credentials:
+  region: "eu-west-1"
+
+  ## AWS credentials are supplied separately as Dagger Secret handles.
+  ## CI exchanges OIDC outside Dagger (see .github/workflows/e2e.yaml).

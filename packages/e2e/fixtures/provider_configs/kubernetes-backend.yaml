@@ -1,0 +1,9 @@
+apiVersion: firestartr.dev/v1
+kind: FirestartrProviderConfig
+metadata:
+  name: kubernetes-backend
+spec:
+  config: '{"namespace":"default"}'
+  source: "hashicorp/kubernetes"
+  type: kubernetes
+  version: "3.0.1"

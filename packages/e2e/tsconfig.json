@@ -1,0 +1,25 @@
+{
+  "extends": "../../tsconfig.json",
+  "compilerOptions": {
+    "composite": true,
+    "allowJs": true
+  },
+  "references": [
+    {
+      "path": "../github"
+    },
+    {
+      "path": "../catalog_common"
+    },
+    {
+      "path": "../cdk8s_renderer"
+    }
+  ],
+  "include": [
+    "index.ts",
+    "globalSetup.ts",
+    "globalTeardown.ts",
+    "src/**/*.ts",
+    "__tests__/**/*.ts"
+  ]
+}

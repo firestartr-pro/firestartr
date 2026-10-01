@@ -1,0 +1,11 @@
+dist/
+.git
+.env
+.env.compose
+node_modules
+packages/*/build
+packages/*/dist
+packages/*/dist_external
+packages/features_renderer/src/*.js
+*.tsbuildinfo
+*.tgz

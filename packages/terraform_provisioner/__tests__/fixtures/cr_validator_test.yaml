@@ -1,0 +1,32 @@
+apiVersion: firestartr.dev/v1
+kind: FirestartrTerraformWorkspace
+metadata:
+  annotations:
+    firestartr.dev/claim-ref: TFWorkspaceClaim/test
+    firestartr.dev/external-name: test
+    firestartr.dev/policy: create-only
+    firestartr.dev/last-state-pr: firestartr-test/state-infra#50
+    firestartr.dev/last-claim-pr: firestartr-test/state-infra#50
+  labels:
+    claim-ref: test
+  name: test-2be33970-3c6e-4fb7-8150-6168239fee3f
+spec:
+  context:
+    backend:
+      ref:
+        kind: FirestartrProviderConfig
+        name: backend-tf-workspaces
+    providers:
+      - ref:
+          kind: FirestartrProviderConfig
+          name: provider-aws-workspaces
+  firestartr:
+    tfStateKey: 2be33970-3c6e-4fb7-8150-6168239fee3f
+  module: |
+    # Resource Group
+    output "test" {
+      value = "test"
+    }
+  source: Inline
+  values: '{}' # This is a placeholder for the values that will be passed to the module
+  references: []

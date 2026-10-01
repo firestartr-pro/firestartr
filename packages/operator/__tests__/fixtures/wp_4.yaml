@@ -1,0 +1,27 @@
+apiVersion: firestartr.dev/v1
+kind: FirestartrTerraformWorkspace
+metadata:
+  annotations:
+    firestartr.dev/claim-ref: TFWorkspaceClaim/Test-remote-a
+    firestartr.dev/external-name: test_remote_a
+    firestartr.dev/policy: observe
+  labels:
+    claim-ref: test-remote-a
+  name: test-remote-a-e2d08676-2f7b-431a-916d-ba04508bb6b2
+spec:
+  context:
+    backend:
+      ref:
+        kind: FirestartrProviderConfig
+        name: firestartr-terraform-state
+    providers:
+      - ref:
+          kind: FirestartrProviderConfig
+          name: provider-aws-workspaces
+  firestartr:
+    tfStateKey: e2d08676-2f7b-431a-916d-ba04508bb6b2
+  module: git::https://github.com/firestartr-test/infra.git
+  source: Remote
+  values: '{"name":"firestartr-bucket-test-remote","string_value":"myvaluesito-my-concatenated-string","bool_value":false,"string_list_value":["My example","My example 2"],"number_value":123,"object_list_value":[{"internal":3,"external":27,"protocol":"tcp"}]}'
+  references: []
+

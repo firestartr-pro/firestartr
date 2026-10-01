@@ -1,0 +1,20 @@
+services:
+  firestartr:
+    build:
+      dockerfile: docker/dev.Dockerfile
+    network_mode: "host"
+    working_dir: /library
+    volumes:
+      - ${PWD}:/library
+      - /usr/local/bin/kubectl:/usr/local/bin/kubectl
+      - $HOME/.kube:/root/.kube
+    environment:
+      - DEBUG=${DEBUG}
+      - GITHUB_APP_ID=${GITHUB_APP_ID}
+      - GITHUB_APP_INSTALLATION_ID=${GITHUB_APP_INSTALLATION_ID}
+      - GITHUB_APP_INSTALLATION_ID_PREFAPP=${GITHUB_APP_INSTALLATION_ID_PREFAPP}
+      - GITHUB_APP_PEM_FILE=${GITHUB_APP_PEM_FILE}
+      - ORG=${ORG}
+      - IS_DEV_LOCAL_ENVIRONMENT=true
+      - IS_DEV_ENVIRONMENT=true
+      - PREFAPP_BOT_PAT=${PREFAPP_BOT_PAT}

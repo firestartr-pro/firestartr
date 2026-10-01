@@ -1,0 +1,16 @@
+{
+  "extends": "../../tsconfig.json",
+  "compilerOptions": {
+    "composite": true,
+    "allowJs": true
+  },
+  "references": [
+    {
+      "path": "../catalog_common"
+    }
+  ],
+  "include": [
+    "index.ts",
+    "src/**/*.ts"
+  ]
+}

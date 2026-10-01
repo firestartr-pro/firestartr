@@ -1,0 +1,25 @@
+{
+  "extends": "../../tsconfig.json",
+  "compilerOptions": {
+    "composite": true,
+    "allowJs": true
+  },
+  "references": [
+    {
+      "path": "../catalog_common"
+    },
+    {
+      "path": "../github"
+    }
+  ],
+  "exclude": [
+    "dist/**/*",
+    "node_modules/**/*",
+    "**/*.test.ts",
+    "**/*.spec.ts"
+  ],
+  "include": [
+    "index.ts",
+    "src/**/*.ts"
+  ]
+}

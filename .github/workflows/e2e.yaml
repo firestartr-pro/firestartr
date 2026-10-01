@@ -1,0 +1,477 @@
+name: e2e
+
+on:
+  push:
+    branches:
+      - main
+  workflow_dispatch:
+    inputs:
+      all_suites:
+        description: "Run all suites defined in this branch (ignores 'suites' input)"
+        required: false
+        type: boolean
+        default: false
+      suite_github:
+        description: "github"
+        required: false
+        type: boolean
+        default: false
+      suite_terraform:
+        description: "terraform"
+        required: false
+        type: boolean
+        default: false
+      suite_core:
+        description: "core"
+        required: false
+        type: boolean
+        default: false
+      suite_massive:
+        description: "massive"
+        required: false
+        type: boolean
+        default: false
+      suite_k8s_rate_limits:
+        description: "k8s-rate-limits"
+        required: false
+        type: boolean
+        default: false
+      suite_crd_upgrade:
+        description: "crd-upgrade"
+        required: false
+        type: boolean
+        default: false
+      suite_retry_lifecycle:
+        description: "retry-lifecycle"
+        required: false
+        type: boolean
+        default: false
+      suites:
+        description: "Comma-separated list of suites to run (empty = use checkboxes above)"
+        required: false
+        default: ""
+      debug_logs:
+        description: "Enable debug-level logs for e2e tests"
+        required: false
+        type: boolean
+        default: false
+      fail_fast:
+        description: "Fail fast on first suite failure"
+        required: false
+        type: boolean
+        default: false
+      ref:
+        description: "Git ref to checkout (branch/tag/SHA)"
+        required: false
+        default: ""
+      chart_version:
+        description: "Firestartr controller chart version"
+        required: false
+        default: "4.2.0"
+      crd_upgrade_baseline_version:
+        description: "Baseline CRD version for CRD upgrade e2e test"
+        required: false
+        default: "latest"
+      skip_crd_validation:
+        description: "Skip validate-crds job before running e2e"
+        required: false
+        type: boolean
+        default: false
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.event_name == 'workflow_dispatch' && (inputs.ref || github.ref) || github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  resolve-k8s-versions:
+    if: ${{ github.event_name != 'workflow_dispatch' || !inputs.skip_crd_validation }}
+    runs-on: ubuntu-24.04
+    outputs:
+      versions: ${{ steps.resolve.outputs.versions }}
+    steps:
+      - name: Resolve Kubernetes versions matrix
+        id: resolve
+        env:
+          DEFAULT_K8S_VERSIONS: v1_33,v1_34,v1_35
+        run: |
+          set -euo pipefail
+
+          raw_versions="${DEFAULT_K8S_VERSIONS}"
+
+          normalized_versions="${raw_versions//[[:space:]]/}"
+
+          if [ -z "$normalized_versions" ]; then
+            echo "No Kubernetes versions provided"
+            exit 1
+          fi
+
+          IFS=',' read -r -a requested_versions <<< "$normalized_versions"
+
+          if [ "${#requested_versions[@]}" -eq 0 ]; then
+            echo "No Kubernetes versions provided"
+            exit 1
+          fi
+
+          declare -A seen=()
+          valid_versions=()
+
+          for version in "${requested_versions[@]}"; do
+            if [ -z "$version" ]; then
+              echo "Kubernetes version list contains an empty value"
+              exit 1
+            fi
+
+            case "$version" in
+              v1_31|v1_32|v1_33|v1_34|v1_35)
+                if [ -z "${seen[$version]+x}" ]; then
+                  valid_versions+=("$version")
+                  seen[$version]=1
+                fi
+                ;;
+              *)
+                echo "Unsupported Kubernetes version: $version"
+                echo "Allowed versions: v1_31,v1_32,v1_33,v1_34,v1_35"
+                exit 1
+                ;;
+            esac
+          done
+
+          versions_json=$(printf '%s\n' "${valid_versions[@]}" | jq -R . | jq -cs .)
+          echo "versions=$versions_json" >> "$GITHUB_OUTPUT"
+          echo "Resolved versions: $versions_json"
+
+  validate-crds:
+    if: ${{ github.event_name != 'workflow_dispatch' || !inputs.skip_crd_validation }}
+    needs: resolve-k8s-versions
+    name: validate-crds (${{ matrix.version }})
+    strategy:
+      fail-fast: false
+      matrix:
+        version: ${{ fromJSON(needs.resolve-k8s-versions.outputs.versions) }}
+    uses: ./.github/workflows/validate-crds.yaml
+    with:
+      versions: ${{ matrix.version }}
+
+  unit-tests:
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          ref: ${{ github.event_name == 'workflow_dispatch' && inputs.ref || github.ref }}
+
+      - uses: actions/setup-node@v7
+        with:
+          node-version: "22"
+          cache: "npm"
+
+      - name: Install dependencies
+        run: npm ci
+
+      - uses: actions/setup-go@v7
+        with:
+          go-version-file: dagger/etoe/go.mod
+          cache-dependency-path: dagger/etoe/go.sum
+
+      - name: Read Dagger CLI version for Go tests
+        run: echo "DAGGER_VERSION=$(jq -r '.engineVersion' dagger/etoe/dagger.json)" >> "$GITHUB_ENV"
+
+      - name: Setup Dagger CLI for Go tests
+        uses: dagger/dagger-for-github@456fc3af63a2ba6f9789af9c55045b459115541b # v8.3.0
+        with:
+          version: ${{ env.DAGGER_VERSION }}
+
+      - uses: actions/create-github-app-token@v3
+        id: unit-app-token
+        with:
+          app-id: ${{ vars.FS_DAGGERVERSE_APP_ID }}
+          private-key: ${{ secrets.FS_DAGGERVERSE_PEM_FILE }}
+          owner: ${{ github.repository_owner }}
+
+      - name: Configure private Dagger dependency access for Go tests
+        env:
+          APP_TOKEN: ${{ steps.unit-app-token.outputs.token }}
+        run: |
+          git config --global credential.helper store
+          printf 'https://x-access-token:%s@github.com\n' "$APP_TOKEN" > ~/.git-credentials
+          chmod 0600 ~/.git-credentials
+
+      - name: Run Dagger credential tests
+        id: run-dagger-credential-tests
+        continue-on-error: true
+        working-directory: dagger/etoe
+        run: |
+          bash load-e2e-auth.test.sh
+          env -u AWS_ACCESS_KEY_ID -u AWS_SECRET_ACCESS_KEY -u AWS_SESSION_TOKEN -u AWS_PROFILE dagger develop --progress=plain
+          env -u AWS_ACCESS_KEY_ID -u AWS_SECRET_ACCESS_KEY -u AWS_SESSION_TOKEN -u AWS_PROFILE dagger run --progress=plain -- go test ./...
+
+      - name: Run unit tests
+        id: run-unit-tests
+        continue-on-error: true
+        working-directory: packages/e2e
+        run: |
+          set -o pipefail
+          # Core tests that need a Kubernetes cluster run in the Dagger e2e job.
+          TEST_ARGS="__tests__/unit"
+
+          echo "Running tests: $TEST_ARGS"
+          npm test -- $TEST_ARGS 2>&1 | tee "${{ runner.temp }}/e2e-tests-unit.log"
+
+      - name: Publish unit tests summary
+        if: always()
+        env:
+          TEST_STEP_OUTCOME: ${{ steps.run-unit-tests.outcome == 'success' && steps.run-dagger-credential-tests.outcome == 'success' && 'success' || 'failure' }}
+          SUITE: unit
+        run: .github/scripts/publish-e2e-tests-summary.sh
+
+      - name: Upload unit test logs
+        if: always()
+        uses: actions/upload-artifact@v7
+        with:
+          name: e2e-logs-unit-${{ github.run_id }}
+          retention-days: 7
+          if-no-files-found: ignore
+          path: |
+            ${{ runner.temp }}/e2e-tests-unit.log
+
+      - name: Fail workflow if unit tests failed
+        if: always() && (steps.run-unit-tests.outcome != 'success' || steps.run-dagger-credential-tests.outcome != 'success')
+        run: |
+          echo "Unit tests failed."
+          exit 1
+
+  build-operator-image:
+    runs-on: ubuntu-24.04
+    env:
+      E2E_IMAGE_PLATFORM: linux/amd64
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          ref: ${{ github.event_name == 'workflow_dispatch' && inputs.ref || github.ref }}
+
+      - name: Build operator image
+        run: |
+          docker build \
+            --platform "${E2E_IMAGE_PLATFORM}" \
+            --file docker/full-aws.Dockerfile \
+            --tag "ghcr.io/firestartr-pro/firestartr:e2e-local" \
+            .
+
+      - name: Save operator image as tarball
+        run: |
+          docker save ghcr.io/firestartr-pro/firestartr:e2e-local | gzip > /tmp/operator-image.tar.gz
+
+      - name: Upload operator image artifact
+        uses: actions/upload-artifact@v7
+        with:
+          name: operator-image-${{ github.run_id }}
+          path: /tmp/operator-image.tar.gz
+          retention-days: 1
+
+  prepare-matrix:
+    runs-on: ubuntu-24.04
+    outputs:
+      suites: ${{ steps.prepare.outputs.suites }}
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          ref: ${{ github.event_name == 'workflow_dispatch' && inputs.ref || github.ref }}
+
+      - id: prepare
+        env:
+          # include 'core' in ALL_SUITES so it can be selected for e2e matrix
+          ALL_SUITES: github,terraform,massive,k8s-rate-limits,crd-upgrade,retry-lifecycle,core
+          PUSH_SUITES: github,terraform,crd-upgrade
+          SUITES: ${{ github.event_name == 'workflow_dispatch' && inputs.suites || '' }}
+          ALL_SUITES_FLAG: ${{ github.event_name == 'workflow_dispatch' && inputs.all_suites || false }}
+          SUITE_GITHUB: ${{ github.event_name == 'workflow_dispatch' && inputs.suite_github || 'false' }}
+          SUITE_TERRAFORM: ${{ github.event_name == 'workflow_dispatch' && inputs.suite_terraform || 'false' }}
+          SUITE_MASSIVE: ${{ github.event_name == 'workflow_dispatch' && inputs.suite_massive || 'false' }}
+          SUITE_K8S_RATE_LIMITS: ${{ github.event_name == 'workflow_dispatch' && inputs.suite_k8s_rate_limits || 'false' }}
+          SUITE_CRD_UPGRADE: ${{ github.event_name == 'workflow_dispatch' && inputs.suite_crd_upgrade || 'false' }}
+          SUITE_RETRY_LIFECYCLE: ${{ github.event_name == 'workflow_dispatch' && inputs.suite_retry_lifecycle || 'false' }}
+          SUITE_CORE: ${{ github.event_name == 'workflow_dispatch' && inputs.suite_core || 'false' }}
+        run: node .github/scripts/prepare-suite-matrix.js
+
+  e2e:
+    needs: [validate-crds, build-operator-image, prepare-matrix]
+    if: ${{ always() && (needs.validate-crds.result == 'success' || needs.validate-crds.result == 'skipped') && needs.build-operator-image.result == 'success' && needs.prepare-matrix.result == 'success' }}
+    runs-on: ubuntu-24.04
+    strategy:
+      fail-fast: ${{ github.event_name == 'workflow_dispatch' && inputs.fail_fast || false }}
+      matrix:
+        suite: ${{ fromJSON(needs.prepare-matrix.outputs.suites) }}
+    permissions:
+      id-token: write
+      contents: read
+      packages: write
+    env:
+      E2E_IMAGE_TAG: e2e-local
+      E2E_IMAGE_PLATFORM: linux/amd64
+      E2E_KIND_CLUSTER_NAME: e2e-${{ matrix.suite }}
+      E2E_CHART_VERSION: ${{ github.event_name == 'workflow_dispatch' && inputs.chart_version || '4.2.0' }}
+      E2E_INPUT_SUITES: ${{ github.event_name == 'workflow_dispatch' && inputs.suites || '' }}
+      E2E_RUN_CRD_UPGRADE_ONLY: ${{ github.event_name == 'workflow_dispatch' && inputs.run_crd_upgrade_only || false }}
+      E2E_RUN_MASSIVE_TEST: ${{ github.event_name == 'workflow_dispatch' && inputs.run_massive_test || false }}
+      E2E_CRD_UPGRADE_BASELINE_VERSION: ${{ github.event_name == 'workflow_dispatch' && inputs.crd_upgrade_baseline_version || 'latest' }}
+      E2E_DEBUG_LOGS: ${{ github.event_name == 'workflow_dispatch' && inputs.debug_logs || false }}
+
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          ref: ${{ github.event_name == 'workflow_dispatch' && inputs.ref || github.ref }}
+          path: project-dir
+
+      - name: Read Dagger CLI version
+        run: |
+          DAGGER_VERSION=$(cat project-dir/dagger/etoe/dagger.json | jq -r '.engineVersion')
+          echo "DAGGER_VERSION=$DAGGER_VERSION" >> "$GITHUB_ENV"
+
+      - name: Setup Dagger CLI
+        uses: dagger/dagger-for-github@456fc3af63a2ba6f9789af9c55045b459115541b # v8.3.0
+        with:
+          version: ${{ env.DAGGER_VERSION }}
+
+      - name: Download operator image
+        uses: actions/download-artifact@v8
+        with:
+          name: operator-image-${{ github.run_id }}
+          path: /tmp
+
+      - name: Load operator image
+        run: |
+          docker load < <(gunzip -c /tmp/operator-image.tar.gz)
+          rm -f /tmp/operator-image.tar.gz
+
+      - name: Tag and load published-chart image name into Kind
+        run: |
+          # Some chart versions expect the operator image under a different repository name.
+          # Tag the locally-built image under the firestartr-pro name so the installed chart can find it.
+          docker tag ghcr.io/firestartr-pro/firestartr:${E2E_IMAGE_TAG} ghcr.io/firestartr-pro/firestartr:${E2E_IMAGE_TAG} || true
+          kind load docker-image "ghcr.io/firestartr-pro/firestartr:${E2E_IMAGE_TAG}" --name "${E2E_KIND_CLUSTER_NAME}" || true
+
+      - uses: actions/create-github-app-token@v3
+        id: app-token
+        with:
+          app-id: ${{ vars.FS_DAGGERVERSE_APP_ID }}
+          private-key: ${{ secrets.FS_DAGGERVERSE_PEM_FILE }}
+          owner: ${{ github.repository_owner }}
+
+      - name: Configure git credentials for private Dagger dependencies
+        run: |
+          git config --global credential.helper store
+          echo "https://x-access-token:${{ steps.app-token.outputs.token }}@github.com" > ~/.git-credentials
+          chmod 0600 ~/.git-credentials
+
+      - name: Create Kind cluster
+        uses: helm/kind-action@06c1ae10762d3b9c1644e7fe69596ae519e015a2 # v1.15.0
+        with:
+          cluster_name: ${{ env.E2E_KIND_CLUSTER_NAME }}
+          config: ${{ matrix.suite == 'k8s-rate-limits' && 'project-dir/dagger/etoe/kind-configs/api-rate-limit.yaml' || '' }}
+
+      - name: Load operator image into Kind cluster
+        run: kind load docker-image "ghcr.io/firestartr-pro/firestartr:${E2E_IMAGE_TAG}" --name "${E2E_KIND_CLUSTER_NAME}"
+
+      - name: Load CRD upgrade baseline operator image into Kind cluster
+        if: ${{ matrix.suite == 'crd-upgrade' }}
+        env:
+          BASELINE_VERSION: ${{ env.E2E_CRD_UPGRADE_BASELINE_VERSION }}
+          GHCR_TOKEN: ${{ secrets.GHCR_READ_TOKEN || github.token }}
+          GHCR_USERNAME: ${{ secrets.GHCR_READ_USERNAME || vars.GHCR_READ_USERNAME || (secrets.GHCR_READ_TOKEN && github.repository_owner) || github.actor }}
+          PROJECT_DIR: project-dir
+        run: project-dir/.github/scripts/load-crd-upgrade-baseline-image.sh
+
+      - name: Install in-branch CRDs into Kind cluster
+        if: ${{ matrix.suite != 'crd-upgrade' }}
+        run: |
+          kubectl apply -f project-dir/packages/k8s/src/crds/
+
+      # Exchange OIDC for AWS credentials outside Dagger; Dagger receives
+      # only environment-backed Secret handles.
+      - name: Configure AWS credentials for e2e
+        uses: aws-actions/configure-aws-credentials@7474bc4690e29a8392af63c5b98e7449536d5c3a # v4.3.1
+        with:
+          aws-region: eu-west-1
+          role-to-assume: ${{ vars.E2E_AWS_OIDC_ROLE }}
+          role-session-name: dagger-e2e-${{ github.run_id }}
+          mask-aws-account-id: true
+
+      - name: Get Kind cluster port
+        id: kind-port
+        run: |
+          PORT=$(docker inspect --format='{{(index (index .NetworkSettings.Ports "6443/tcp") 0).HostPort}}' "${E2E_KIND_CLUSTER_NAME}-control-plane")
+          echo "port=$PORT" >> "$GITHUB_OUTPUT"
+
+      - name: Run e2e tests
+        id: run-e2e-tests
+        timeout-minutes: 120
+        continue-on-error: true
+        working-directory: project-dir/dagger/etoe
+        run: |
+          set -o pipefail
+
+          CONFIG_FILE="${GITHUB_WORKSPACE}/project-dir/.github/e2e.yaml"
+          source ./load-e2e-auth.sh
+          CONFIG_ORG="$(e2e_config_value "$CONFIG_FILE" org)"
+          CONFIG_CUSTOMER="$(e2e_config_value "$CONFIG_FILE" customer)"
+          CONFIG_REGION="$(e2e_config_value "$CONFIG_FILE" region)"
+          fetch_e2e_test_credentials "$CONFIG_CUSTOMER" "$CONFIG_ORG" "$CONFIG_REGION"
+
+          SUITES="${{ matrix.suite }}"
+          echo "Running e2e suite: ${SUITES}"
+
+          LOG_FILE="$RUNNER_TEMP/e2e-tests-${{ matrix.suite }}.log"
+          echo "E2E_LOG_FILE=$LOG_FILE" >> "$GITHUB_ENV"
+
+          dagger \
+            --config="file://${CONFIG_FILE}" \
+            --aws-access-key="env:AWS_ACCESS_KEY_ID" \
+            --aws-secret-access-key="env:AWS_SECRET_ACCESS_KEY" \
+            --aws-session-token="env:AWS_SESSION_TOKEN" \
+            --github-app-id="env:GITHUB_APP_ID" \
+            --github-app-pem-file="env:GITHUB_APP_PEM_FILE" \
+            --prefapp-bot-pat="env:PREFAPP_BOT_PAT" \
+            call cmd-run-tests \
+            --kubeconfig="${HOME}/.kube" \
+            --kind-svc="tcp://localhost:${{ steps.kind-port.outputs.port }}" \
+            --kind-cluster-name="${E2E_KIND_CLUSTER_NAME}" \
+            --project-dir="file://${GITHUB_WORKSPACE}/project-dir" \
+            --suites="${SUITES}" \
+            --name-prefix="${{ matrix.suite }}-${{ github.run_id }}" \
+            --image-tag="${{ env.E2E_IMAGE_TAG }}" \
+            --chart-version="${E2E_CHART_VERSION}" \
+            --org="${CONFIG_ORG}" \
+            --customer="${CONFIG_CUSTOMER}" \
+            --crd-upgrade-baseline-version="${E2E_CRD_UPGRADE_BASELINE_VERSION}" \
+            --crd-upgrade-baseline-operator-image-tag="${E2E_CRD_UPGRADE_BASELINE_OPERATOR_IMAGE_TAG:-}" \
+            --debug-logs="${E2E_DEBUG_LOGS}" \
+            2>&1 | tee "$LOG_FILE"
+
+      - name: Publish e2e tests summary
+        if: always()
+        env:
+          TEST_STEP_OUTCOME: ${{ steps.run-e2e-tests.outcome }}
+          SUITE: ${{ matrix.suite }}
+        run: project-dir/.github/scripts/publish-e2e-tests-summary.sh
+
+      - name: Upload e2e logs and diagnostics
+        if: always()
+        uses: actions/upload-artifact@v7
+        with:
+          name: e2e-logs-${{ matrix.suite }}-${{ github.run_id }}
+          retention-days: 7
+          if-no-files-found: ignore
+          path: |
+            ${{ runner.temp }}/e2e-tests-${{ matrix.suite }}.log
+            ${{ runner.temp }}/e2e-clean-${{ matrix.suite }}.log
+            ${{ runner.temp }}/e2e-summary-source-${{ matrix.suite }}.log
+            ${{ runner.temp }}/e2e-lifecycle-${{ matrix.suite }}.txt
+            ${{ runner.temp }}/e2e-diagnostics-${{ matrix.suite }}.txt
+
+      - name: Fail workflow if e2e tests failed
+        if: always() && steps.run-e2e-tests.outcome != 'success'
+        run: |
+          echo "E2E tests failed for suite '${{ matrix.suite }}'. Check the workflow summary for details."
+          exit 1

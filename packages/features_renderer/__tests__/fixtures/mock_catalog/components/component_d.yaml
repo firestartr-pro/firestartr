@@ -1,0 +1,38 @@
+apiVersion: backstage.io/v1alpha1
+kind: Component
+metadata:
+  name: component_d
+  description: A code repo
+  annotations:
+    backstage.io/source-location: url:https://github.com/prefapp/example-repo
+    github.com/project-slug: prefapp/example-repo
+    fire-starter.dev/uuid: 86dd69d0-eaf8-4ed1-b6e4-763f46ae89a4
+spec:
+  type: generic
+  lifecycle: production
+  owner: ygroup
+  maintainedBy:
+    - ygroup
+  platformOwner: prefapp-team
+  provisioner:
+    org: prefapp
+    orgPermissions: contribute
+    technology:
+      stack: python
+      version: 3.11.1
+    repo:
+      visibility: private
+      ciSystem: github
+      defaultBranch: main
+      branchStrategy: trunkBasedDevelopment
+      branches:
+        protections:
+          override:
+            is_override: false
+            number_reviewer: null
+    status:
+      value: PROVISIONED
+      extras: []
+    features:
+      - name: tech_docs
+        version: 0.2.0

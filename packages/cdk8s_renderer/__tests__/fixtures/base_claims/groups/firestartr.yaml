@@ -1,0 +1,17 @@
+kind: GroupClaim
+name: "firestartr"
+description: "External owner group used in E2E references"
+type: "business-unit"
+profile:
+  displayName: "firestartr"
+  email: "firestartr@"
+  picture: "https://example.com/groups/bu-infrastructure.jpeg"
+members: []
+providers:
+  github:
+    name: firestartr
+    privacy: closed
+    org: firestartr-e2e
+    # tfStateKey is intentionally omitted: the UUIDInitializer assigns one at
+    # render time, and E2E tests that need the real cluster value should fetch
+    # it dynamically via client.k8s.getGroupTfStateKey('firestartr').

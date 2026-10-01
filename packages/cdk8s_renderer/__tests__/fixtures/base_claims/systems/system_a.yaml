@@ -1,0 +1,7 @@
+kind: SystemClaim
+version: "1.0"
+name: "system_a"
+description: "system-description"
+domain: "domain:domain_a"
+providers:
+  catalog:

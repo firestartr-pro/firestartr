@@ -1,0 +1,4 @@
+internal/dagger/** linguist-generated=true
+/dagger.gen.go linguist-generated
+/internal/querybuilder/** linguist-generated
+/internal/telemetry/** linguist-generated

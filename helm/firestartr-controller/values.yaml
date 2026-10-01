@@ -1,0 +1,58 @@
+crsAnalyzer:
+  enabled: false
+tfPlanner:
+  enabled: false
+argoRefresher:
+  enabled: false
+
+general:
+  # Operator image used for e2e/local runs. CI builds and loads
+  # ghcr.io/firestartr-pro/firestartr:e2e-local into Kind, so set
+  # the chart default here to match the CI image name/tag.
+  image: "ghcr.io/firestartr-pro/firestartr:e2e-local"
+
+controller:
+  imagePullPolicy: Never
+  workingDir: /library
+  command:
+    - sh
+    - -c
+    - tail -f /dev/null
+  extraVolumes:
+    - name: development
+      hostPath:
+        path: /development
+        type: Directory
+  extraVolumeMounts:
+    - name: development
+      mountPath: /library
+  env:
+    - name: IS_DEV_LOCAL_ENVIRONMENT
+      value: "true"
+  # Local defaults to avoid Helm template nil-pointer when datadog/apm sections
+  # are not provided by the caller (especially during e2e/local wizard runs).
+  # Setting these to false keeps the chart helpers safe and matches expected
+  # local behaviour used by CI (e2e-local image flows).
+  apm:
+    enabled: false
+  datadog:
+    enabled: false
+
+externalSecrets:
+  auth:
+    provider: raw
+    config:
+      aws:
+        service: ParameterStore
+        region: eu-west-1
+        auth:
+          secretRef:
+            accessKeyIDSecretRef:
+              name: firestartr-firestartr-controller
+              key: AWS_ACCESS_KEY_ID
+            secretAccessKeySecretRef:
+              name: firestartr-firestartr-controller
+              key: AWS_SECRET_ACCESS_KEY
+            sessionTokenSecretRef:
+              name: firestartr-firestartr-controller
+              key: AWS_SESSION_TOKEN

@@ -1,0 +1,206 @@
+---
+apiVersion: apiextensions.k8s.io/v1
+kind: CustomResourceDefinition
+metadata:
+  name: githubrepositoryfeatures.firestartr.dev
+spec:
+  group: firestartr.dev
+  names:
+    kind: FirestartrGithubRepositoryFeature
+    plural: githubrepositoryfeatures
+    singular: githubrepositoryfeature
+    shortNames:
+      - ghrepofeat
+  scope: Namespaced
+  versions:
+    - name: v1
+      served: true
+      storage: true
+      subresources:
+        status: {}
+      schema:
+        openAPIV3Schema:
+          description: "A resource to handle features for GitHub repos."
+          type: object
+          properties:
+            spec:
+              type: object
+              properties:
+                firestartr:
+                  type: object
+                  properties:
+                    tfStateKey:
+                      type: string
+                  required:
+                    - tfStateKey
+                type:
+                  type: string
+                org:
+                  type: string
+                context:
+                  type: object
+                  required:
+                    - backend
+                    - provider
+                  properties:
+                    backend:
+                      type: object
+                      required:
+                        - ref
+                      properties:
+                        ref:
+                          type: object
+                          required:
+                            - kind
+                            - name
+                          properties:
+                            kind:
+                              type: string
+                              enum:
+                                - FirestartrProviderConfig
+                            name:
+                              type: string
+                    provider:
+                      type: object
+                      required:
+                        - ref
+                      properties:
+                        ref:
+                          type: object
+                          required:
+                            - kind
+                            - name
+                          properties:
+                            kind:
+                              type: string
+                              enum:
+                                - FirestartrProviderConfig
+                            name:
+                              type: string
+                version:
+                  type: string
+                repositoryTarget:
+                  type: object
+                  properties:
+                    ref:
+                      type: object
+                      properties:
+                        kind:
+                          type: string
+                        name:
+                          type: string
+                        needsSecret:
+                          type: boolean
+                      required:
+                        - kind
+                        - name
+                        - needsSecret
+                    branch:
+                      type: string
+                  required:
+                    - ref
+                    - branch
+                files:
+                  type: array
+                  items:
+                    type: object
+                    properties:
+                      path:
+                        type: string
+                      userManaged:
+                        type: boolean
+                      content:
+                        type: string
+                      targetBranch:
+                        type: string
+                        default: ""
+                    required:
+                      - path
+                      - userManaged
+                      - content
+              required:
+                - type
+                - version
+                - org
+                - repositoryTarget
+                - files
+                - context
+            status:
+              type: object
+              properties:
+                conditions:
+                  type: array
+                  items:
+                    type: object
+                    required:
+                      - status
+                      - type
+                    properties:
+                      lastSyncTime:
+                        type: string
+                        format: date-time
+                      nextSyncTime:
+                        type: string
+                        format: date-time
+                      lastTransitionTime:
+                        type: string
+                        format: date-time
+                      lastUpdateTime:
+                        type: string
+                        format: date-time
+                      message:
+                        type: string
+                      observedGeneration:
+                        type: integer
+                        format: int64
+                      reason:
+                        type: string
+                      status:
+                        type: string
+                        enum:
+                          - "True"
+                          - "False"
+                          - "Unknown"
+                      type:
+                        type: string
+                  x-kubernetes-list-map-keys:
+                    - type
+                  x-kubernetes-list-type: map
+                failedIssuanceAttempts:
+                  type: integer
+                lastFailureTime:
+                  type: string
+                  format: date-time
+                nextPrivateKeySecretName:
+                  type: string
+                notAfter:
+                  type: string
+                  format: date-time
+                notBefore:
+                  type: string
+                  format: date-time
+                renewalTime:
+                  type: string
+                  format: date-time
+                retryCount:
+                  type: integer
+                  description: "Number of retry attempts since last successful operation"
+                nextRetryTime:
+                  type: string
+                  format: date-time
+                  description: "Scheduled time for the next retry attempt"
+                revision:
+                  type: integer
+      additionalPrinterColumns:
+        - name: STATE
+          type: string
+          description: Current state of the resource
+          jsonPath: .status.conditions[?(@.status=="True")].type
+        - name: REASON
+          type: string
+          description: Reason for the resource's state
+          jsonPath: .status.conditions[?(@.status=="True")].reason
+        - name: MESSAGE
+          type: string
+          description: Small description of the reason
+          jsonPath: .status.conditions[?(@.status=="True")].message

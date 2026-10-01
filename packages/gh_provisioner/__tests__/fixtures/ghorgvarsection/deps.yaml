@@ -1,0 +1,12 @@
+FirestartrProviderConfig-github:
+  cr:
+    apiVersion: firestartr.dev/v1
+    kind: FirestartrProviderConfig
+    metadata:
+      name: github
+    spec:
+      config: |
+        {"owner":"firestartr-test"}
+      source: integrations/github
+      type: github
+      version: ~> 6.0

@@ -1,0 +1,5 @@
+globalValues:
+  org: "test"
+  actions:
+    oidc:
+      useDefault: false

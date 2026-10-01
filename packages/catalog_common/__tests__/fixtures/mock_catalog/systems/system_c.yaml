@@ -1,0 +1,10 @@
+apiVersion: backstage.io/v1alpha1
+kind: System
+metadata:
+  name: system_c
+  description: System C description
+  annotations:
+    fire-starter.dev/uuid: uuid-system_c-3333333
+spec:
+  owner: group_b
+  provisioner:

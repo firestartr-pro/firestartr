@@ -1,0 +1,5 @@
+*.d.ts.map
+*.js.map
+!bin/run.js
+dist
+build

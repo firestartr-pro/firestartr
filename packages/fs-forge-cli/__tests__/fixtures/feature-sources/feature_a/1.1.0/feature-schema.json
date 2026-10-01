@@ -1,0 +1,35 @@
+{
+  "title": "feature_a args",
+  "type": "object",
+  "properties": {
+    "enabled": {
+      "type": "boolean",
+      "description": "Enable Feature A",
+      "default": false
+    },
+    "ratio": {
+      "type": "number",
+      "description": "Feature A ratio"
+    },
+    "tags": {
+      "type": "array",
+      "items": { "type": "string" },
+      "default": ["stable"]
+    },
+    "weights": {
+      "type": "array",
+      "items": { "type": "number" },
+      "default": [1.5]
+    },
+    "retries": {
+      "type": "array",
+      "items": { "type": "integer" },
+      "default": [3]
+    }
+  },
+  "additionalProperties": false,
+  "fileManifest": [
+    { "src": "feature.txt", "dest": "feature.txt", "user_managed": false }
+  ],
+  "version": "1.1.0"
+}

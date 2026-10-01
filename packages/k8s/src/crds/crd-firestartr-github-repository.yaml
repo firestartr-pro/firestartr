@@ -1,0 +1,431 @@
+---
+apiVersion: apiextensions.k8s.io/v1
+kind: CustomResourceDefinition
+metadata:
+  name: githubrepositories.firestartr.dev
+spec:
+  group: firestartr.dev
+  names:
+    kind: FirestartrGithubRepository
+    plural: githubrepositories
+    singular: githubrepository
+    shortNames:
+      - ghrepo
+  scope: Namespaced
+  versions:
+    - name: v1
+      served: true
+      storage: true
+      subresources:
+        status: {}
+      schema:
+        openAPIV3Schema:
+          description: "A resource to handle the GitHub repos of an organization."
+          type: object
+          properties:
+            spec:
+              type: object
+              properties:
+                org:
+                  type: string
+                context:
+                  type: object
+                  required:
+                    - backend
+                    - provider
+                  properties:
+                    backend:
+                      type: object
+                      required:
+                        - ref
+                      properties:
+                        ref:
+                          type: object
+                          required:
+                            - kind
+                            - name
+                          properties:
+                            kind:
+                              type: string
+                              enum:
+                                - FirestartrProviderConfig
+                            name:
+                              type: string
+                    provider:
+                      type: object
+                      required:
+                        - ref
+                      properties:
+                        ref:
+                          type: object
+                          required:
+                            - kind
+                            - name
+                          properties:
+                            kind:
+                              type: string
+                              enum:
+                                - FirestartrProviderConfig
+                            name:
+                              type: string
+                firestartr:
+                  type: object
+                  properties:
+                    tfStateKey:
+                      type: string
+                    technology:
+                      type: object
+                      properties:
+                        stack:
+                          type: string
+                        version:
+                          type: string
+                  required:
+                    - tfStateKey
+                    - technology
+                repo:
+                  type: object
+                  properties:
+                    description:
+                      type: string
+                    allowMergeCommit:
+                      type: boolean
+                    allowSquashMerge:
+                      type: boolean
+                    allowRebaseMerge:
+                      type: boolean
+                    allowAutoMerge:
+                      type: boolean
+                    deleteBranchOnMerge:
+                      type: boolean
+                    autoInit:
+                      type: boolean
+                    archiveOnDestroy:
+                      type: boolean
+                      default: true
+                    allowUpdateBranch:
+                      type: boolean
+                    hasIssues:
+                      type: boolean
+                    hasWiki:
+                      type: boolean
+                    hasDiscussions:
+                      type: boolean
+                    topics:
+                      type: array
+                      items:
+                        type: string
+                        description: "Topics of this repo"
+                        maxLength: 50
+                        pattern: '^[a-z0-9][a-z0-9-]*$'
+                      default: []
+                    labels:
+                      type: array
+                      default: []
+                      description: "Array of labels to create in GitHub"
+                      items:
+                        type: object
+                        required:
+                          - name
+                          - color
+                        properties:
+                          name:
+                            type: string
+                            minLength: 1
+                            maxLength: 50
+                            pattern: '^.*\S.*$'
+                            description: "Label name (1-50 characters, not only whitespace)"
+                          color:
+                            type: string
+                            pattern: '^[0-9a-fA-F]{6}$'
+                            description: "Hexadecimal color without # (6 characters)"
+                          description:
+                            type: string
+                            maxLength: 100
+                            description: "Optional label description (max 100 characters)"
+                    visibility:
+                      type: string
+                      enum:
+                        - private
+                        - public
+                        - internal
+                    defaultBranch:
+                      type: string
+                    additionalBranches:
+                      type: array
+                      items:
+                        type: object
+                        properties:
+                          name:
+                            type: string
+                            description: "The name of the additional branch"
+                          orphan:
+                            type: boolean
+                            description: "Whether the additional branch is orphaned"
+                    codeowners:
+                      type: string
+                  required:
+                    - visibility
+                    - defaultBranch
+                actions:
+                  type: object
+                  properties:
+                    oidc:
+                      type: object
+                      properties:
+                        useDefault:
+                          type: boolean
+                          default: true
+                        includeClaimKeys:
+                          type: array
+                          items:
+                            type: string
+                      required:
+                        - useDefault
+                        - includeClaimKeys
+                  required:
+                    - oidc
+                pages:
+                  type: object
+                  properties:
+                    cname:
+                      type: string
+                    public:
+                      type: boolean
+                    https_enforced:
+                      type: boolean
+                    source:
+                      type: object
+                      properties:
+                        branch:
+                          type: string
+                        path:
+                          type: string
+                          enum:
+                            - "/"
+                            - "/docs"
+                    buildType:
+                      type: string
+                      enum:
+                        - workflow
+                        - legacy
+                  oneOf:
+                    - not:
+                        required:
+                          - https_enforced
+                    - allOf:
+                      - required:
+                          - https_enforced
+                      - required:
+                          - cname
+                permissions:
+                  type: array
+                  items:
+                    type: object
+                    properties:
+                      role:
+                        type: string
+                      collaborator:
+                        type: string
+                      ref:
+                        type: object
+                        properties:
+                          kind:
+                            type: string
+                          name:
+                            type: string
+                          needsSecret:
+                            type: boolean
+                    oneOf:
+                      - required:
+                          - ref
+                      - required:
+                          - collaborator
+                vars:
+                  type: object
+                  properties:
+                    # Define the variable item schema anchor
+                    variableItemSchema: &variableItemSchema
+                      type: object
+                      properties:
+                        name:
+                          type: string
+                        value:
+                          type: string
+                        ref:
+                          type: object
+                          properties:
+                            kind:
+                              type: string
+                            name:
+                              type: string
+                            key:
+                              type: string
+                          required:
+                            - kind
+                            - name
+                            - key
+                      oneOf:
+                        - required:
+                            - name
+                            - ref
+                        - required:
+                            - name
+                            - value
+                    actions:
+                      type: array
+                      items: *variableItemSchema
+                branchProtections:
+                  type: array
+                  items:
+                    type: object
+                    properties:
+                      branch:
+                        type: string
+                      statusChecks:
+                        type: array
+                        items:
+                          type: string
+                      requiredReviewersCount:
+                        type: integer
+                      requiredCodeownersReviewers:
+                        type: boolean
+                      enforceAdmins:
+                        type: boolean
+                      requireSignedCommits:
+                        type: boolean
+                      requireConversationResolution:
+                        type: boolean
+                      bypassPullRequestAllowances:
+                        type: object
+                        properties:
+                          apps:
+                            type: array
+                            items:
+                              type: string
+                          teams:
+                            type: array
+                            items:
+                              type: string
+                          users:
+                            type: array
+                            items:
+                              type: string
+                      pushAllowances:
+                        type: object
+                        properties:
+                          apps:
+                            type: array
+                            items:
+                              type: string
+                          teams:
+                            type: array
+                            items:
+                              type: string
+                          users:
+                            type: array
+                            items:
+                              type: string
+                    required:
+                      - branch
+                writeConnectionSecretToRef:
+                  type: object
+                  properties:
+                    name:
+                      type: string
+                    outputs:
+                      type: array
+                      items:
+                        type: object
+                        properties:
+                          key:
+                            type: string
+                        required:
+                          - key
+                  required:
+                    - name
+                    - outputs
+              required:
+                - org
+                - firestartr
+                - context
+                - repo
+                - actions
+                - permissions
+                - branchProtections
+                - writeConnectionSecretToRef
+            status:
+              type: object
+              properties:
+                conditions:
+                  type: array
+                  items:
+                    type: object
+                    required:
+                      - status
+                      - type
+                    properties:
+                      lastSyncTime:
+                        type: string
+                        format: date-time
+                      nextSyncTime:
+                        type: string
+                        format: date-time
+                      lastTransitionTime:
+                        type: string
+                        format: date-time
+                      lastUpdateTime:
+                        type: string
+                        format: date-time
+                      message:
+                        type: string
+                      observedGeneration:
+                        type: integer
+                        format: int64
+                      reason:
+                        type: string
+                      status:
+                        type: string
+                        enum:
+                          - "True"
+                          - "False"
+                          - "Unknown"
+                      type:
+                        type: string
+                  x-kubernetes-list-map-keys:
+                    - type
+                  x-kubernetes-list-type: map
+                failedIssuanceAttempts:
+                  type: integer
+                lastFailureTime:
+                  type: string
+                  format: date-time
+                nextPrivateKeySecretName:
+                  type: string
+                notAfter:
+                  type: string
+                  format: date-time
+                notBefore:
+                  type: string
+                  format: date-time
+                renewalTime:
+                  type: string
+                  format: date-time
+                retryCount:
+                  type: integer
+                  description: "Number of retry attempts since last successful operation"
+                nextRetryTime:
+                  type: string
+                  format: date-time
+                  description: "Scheduled time for the next retry attempt"
+                revision:
+                  type: integer
+      additionalPrinterColumns:
+        - name: STATE
+          type: string
+          description: Current state of the resource
+          jsonPath: .status.conditions[?(@.status=="True")].type
+        - name: REASON
+          type: string
+          description: Reason for the resource's state
+          jsonPath: .status.conditions[?(@.status=="True")].reason

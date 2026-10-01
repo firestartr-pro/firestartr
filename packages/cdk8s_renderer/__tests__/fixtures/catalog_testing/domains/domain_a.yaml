@@ -1,0 +1,7 @@
+kind: DomainClaim
+version: "1.0"
+name: "domain-name"
+description: "domain-description"
+owner: "user:user-a"
+providers:
+  catalog:

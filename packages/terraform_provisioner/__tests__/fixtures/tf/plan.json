@@ -1,0 +1,3 @@
+{"@level":"info","@message":"Terraform 1.7.0","@module":"terraform.ui","@timestamp":"2024-02-02T11:26:34.978763Z","terraform":"1.7.0","type":"version","ui":"1.2"}
+{"@level":"info","@message":"local_file.foo: Plan to create","@module":"terraform.ui","@timestamp":"2024-02-02T11:26:36.344036Z","change":{"resource":{"addr":"local_file.foo","module":"","resource":"local_file.foo","implied_provider":"local","resource_type":"local_file","resource_name":"foo","resource_key":null},"action":"create"},"type":"planned_change"}
+{"@level":"info","@message":"Plan: 1 to add, 0 to change, 0 to destroy.","@module":"terraform.ui","@timestamp":"2024-02-02T11:26:36.346804Z","changes":{"add":1,"change":0,"import":0,"remove":0,"operation":"plan"},"type":"change_summary"}

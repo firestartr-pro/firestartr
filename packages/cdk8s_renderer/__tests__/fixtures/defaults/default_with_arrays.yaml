@@ -1,0 +1,49 @@
+name: repo_base
+apiVersion: firestartr.dev/v1
+kind: FirestartrGithubRepository
+globalValues:
+  permissions:
+    - role: admin
+      ref:
+        kind: FirestartrGithubGroup
+        name: added-team
+        needsSecret: true
+    - role: member
+      ref:
+        kind: FirestartrGithubMembership
+        name: added-user
+        needsSecret: false
+    - role: member
+      ref:
+        kind: FirestartrGithubGroup
+        name: firestartr-test-platform-team
+        needsSecret: true
+    - role: member
+      ref:
+        kind: FirestartrGithubMembership
+        name: user-i
+        needsSecret: false
+
+defaultValues:
+  permissions:
+    - role: admin
+      ref:
+        kind: FirestartrGithubGroup
+        name: added-team
+        needsSecret: true
+    - role: member
+      ref:
+        kind: FirestartrGithubMembership
+        name: added-user
+        needsSecret: false
+    - role: admin
+      ref:
+        kind: FirestartrGithubGroup
+        name: firestartr-test-platform-team
+        needsSecret: true
+    - role: admin
+      ref:
+        kind: FirestartrGithubMembership
+        name: user-i
+        needsSecret: false
+

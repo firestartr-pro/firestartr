@@ -1,0 +1,16 @@
+kind: GroupClaim
+name: "group_b"
+description: "Prefapp missing member description"
+type: "business-unit"
+profile:
+  displayName: "group_b"
+  email: "group-b@"
+  picture: "https://example.com/groups/bu-infrastructure.jpeg"
+members:
+  - "user:user_a"
+parent: "group:group_a"
+providers:
+  github:
+    name: group-b
+    privacy: closed
+    org: firestartr-test

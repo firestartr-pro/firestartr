@@ -1,0 +1,21 @@
+kind: TFWorkspaceClaim
+lifecycle: production
+name: Test-remote-a
+type: bucket
+owner: 'group:firestartr-test-all'
+system: my-system
+version: '1.0'
+providers:
+  terraform:
+    name: bucket-s3
+    source: Inline
+    module: | 
+      output "test" {
+        value = "test"
+      }
+    tfStateKey: dde90b42-2cdc-4c21-9df1-e8761f1b294f
+    values: {}
+    context:
+      providers: []
+      backend:
+        name: kubernetes-backend

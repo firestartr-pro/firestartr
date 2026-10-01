@@ -1,0 +1,7 @@
+defaultValues:
+  firestartr:
+    technology:
+      stack: node 
+  repo:
+    allowAutoMerge: true
+    codeowners: "blah"

@@ -1,0 +1,56 @@
+{
+  "name": "@firestartr/fs-forge-cli",
+  "version": "1.0.0",
+  "private": false,
+  "license": "ISC",
+  "description": "firestartr CLI — deterministic claim operations for the Internal Developer Platform",
+  "type": "module",
+  "bin": {
+    "fs-forge": "bin/run.js"
+  },
+  "main": "dist/index.js",
+  "types": "dist/index.d.ts",
+  "scripts": {
+    "build": "tsc",
+    "prebuild": "tsx src/codegen/generateCommands.ts",
+    "generate": "tsx src/codegen/generateCommands.ts",
+    "test": "jest",
+    "lint": "gts lint",
+    "lint-fix": "gts fix"
+  },
+  "files": [
+    "dist/",
+    "bin/",
+    "schemas/",
+    "oclif.manifest.json"
+  ],
+  "oclif": {
+    "bin": "fs-forge",
+    "dirname": "fs-forge-cli",
+    "commands": "./dist/commands",
+    "plugins": [
+      "@oclif/plugin-help"
+    ],
+    "helpClass": "./dist/help.js",
+    "topicSeparator": " "
+  },
+  "dependencies": {
+    "@oclif/core": "4.11.14",
+    "@oclif/plugin-help": "6.2.53",
+    "@octokit/rest": "22.0.1",
+    "ajv": "8.20.0",
+    "fast-json-patch": "3.1.1",
+    "tar": "7.5.22",
+    "yaml": "2.9.1"
+  },
+  "devDependencies": {
+    "@jest/globals": "29.7.0",
+    "@oclif/test": "4.1.20",
+    "@types/node": "^22.13.14",
+    "tsx": "4.23.15",
+    "typescript": "5.0.4"
+  },
+  "engines": {
+    "node": ">=22"
+  }
+}

@@ -1,0 +1,9 @@
+feature_name: "feature_arg"
+args:
+  MESSAGE:
+    $arg: message
+files:
+  - src: test.txt
+    dest: test.txt
+    upgradable: false
+claimPatches: []

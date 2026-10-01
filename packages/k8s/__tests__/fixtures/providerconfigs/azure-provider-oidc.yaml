@@ -1,0 +1,16 @@
+apiVersion: firestartr.dev/v1
+kind: FirestartrProviderConfig
+metadata:
+  name: azure-prod
+spec:
+  source: Inline
+  version: "0.0.0"
+  type: azurerm
+  config: |
+    {
+      "use_oidc": "true",
+      "subscription_id": "<SUBSCRIPTION_ID>",
+      "tenant_id": "<TENANT_ID>",
+      "client_id": "<CLIENT_ID>",
+      "oidc_token_file_path": "/var/run/secrets/azure-identity/azure-identity-token"
+    }

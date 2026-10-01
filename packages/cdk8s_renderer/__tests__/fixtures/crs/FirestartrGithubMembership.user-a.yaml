@@ -1,0 +1,21 @@
+apiVersion: firestartr.dev/v1
+kind: FirestartrGithubMembership
+metadata:
+  name: user-a
+  annotations:
+    firestartr.dev/external-name: user-a
+    firestartr.dev/claim-ref: "UserClaim/user-a"
+spec:
+  context:
+    backend:
+      ref:
+        kind: FirestartrProviderConfig
+        name: firestartr-terraform-state
+    provider:
+      ref:
+        kind: FirestartrProviderConfig
+        name: github-app
+  org: firestartr-test
+  role: admin
+  firestartr:
+    tfStateKey: f33edcf5-cad6-4f55-8c3b-364b58898cf7

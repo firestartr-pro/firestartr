@@ -1,0 +1,63 @@
+{
+  "type": "object",
+  "description": "A relation graph: nodes and directed, labelled edges. Matches the RelationGraph shape produced by `discovery map --json` and rendered by `diagram print`.",
+  "additionalProperties": false,
+  "properties": {
+    "nodes": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "properties": {
+          "id": {
+            "type": "string",
+            "description": "Unique node id, conventionally `<kind>:<name>`"
+          },
+          "kind": {
+            "type": "string",
+            "description": "Node kind; drives icon lookup, falls back to a generic icon for unknown kinds"
+          },
+          "name": {
+            "type": "string"
+          },
+          "dangling": {
+            "type": "boolean",
+            "description": "Marks a referenced-but-undefined node"
+          },
+          "status": {
+            "type": "string",
+            "enum": ["added", "removed", "changed"]
+          }
+        },
+        "required": ["id", "kind", "name"]
+      }
+    },
+    "edges": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "properties": {
+          "from": {
+            "type": "string",
+            "description": "Source node id"
+          },
+          "to": {
+            "type": "string",
+            "description": "Target node id"
+          },
+          "relation": {
+            "type": "string",
+            "description": "Free-text edge label"
+          },
+          "status": {
+            "type": "string",
+            "enum": ["added", "removed", "changed"]
+          }
+        },
+        "required": ["from", "to", "relation"]
+      }
+    }
+  },
+  "required": ["nodes", "edges"]
+}

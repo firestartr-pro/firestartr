@@ -1,0 +1,175 @@
+{
+  "type": "object",
+  "description": "A TF Workspace claim",
+  "x-fs-forge-icon": { "emoji": "🧱", "ascii": "[TFW]" },
+  "x-fs-forge-summary": "Manage a Terraform workspace and its infrastructure state.",
+  "unevaluatedProperties": false,
+  "properties": {
+    "name": {
+      "type": "string"
+    },
+    "kind": {
+      "type": "string"
+    },
+    "description": {
+      "type": "string"
+    },
+    "type": {
+      "type": "string"
+    },
+    "lifecycle": {
+      "type": "string"
+    },
+    "version": {
+      "type": "string"
+    },
+    "resourceType": {
+      "type": "string"
+    },
+    "system": {
+      "type": "string",
+      "pattern": "^system:.+$"
+    },
+    "owner": {
+      "type": "string",
+      "pattern": "^[^:]+:[^:]+$"
+    },
+    "providers": {
+      "type": "object",
+      "properties": {
+        "terraform": {
+          "type": "object",
+          "description": "A terraform workspace",
+          "allOf": [
+            {
+              "type": "object",
+              "description": "An envelope for a any kind of claim",
+              "properties": {
+                "name": {
+                  "type": "string"
+                }
+              },
+              "additionalProperties": true,
+              "required": ["name"]
+            },
+            {
+              "type": "object",
+              "properties": {
+                "policy": {
+                  "type": "string",
+                  "enum": [
+                    "apply",
+                    "create-only",
+                    "create-update-only",
+                    "full-control",
+                    "observe",
+                    "observe-only"
+                  ]
+                },
+                "name": {
+                  "type": "string"
+                },
+                "source": {
+                  "type": "string",
+                  "enum": ["remote", "inline", "Remote", "Inline"]
+                },
+                "sync": {
+                  "type": "object",
+                  "properties": {
+                    "enabled": {
+                      "type": "boolean"
+                    },
+                    "period": {
+                      "type": "string",
+                      "pattern": "^[0-9]+[smhd]$"
+                    },
+                    "schedule": {
+                      "type": "string"
+                    },
+                    "schedule_timezone": {
+                      "type": "string"
+                    },
+                    "policy": {
+                      "type": "string"
+                    }
+                  },
+                  "additionalProperties": false,
+                  "required": ["enabled"]
+                },
+                "valuesSchema": {
+                  "type": "string",
+                  "description": "a locator for a json schema to validate values"
+                },
+                "values": {
+                  "type": "object",
+                  "properties": {},
+                  "additionalProperties": true
+                },
+                "module": {
+                  "type": "string"
+                },
+                "context": {
+                  "type": "object",
+                  "properties": {
+                    "providers": {
+                      "type": "array",
+                      "items": {
+                        "type": "object",
+                        "properties": {
+                          "name": {
+                            "type": "string"
+                          }
+                        },
+                        "additionalProperties": false
+                      }
+                    },
+                    "backend": {
+                      "type": "object",
+                      "properties": {
+                        "name": {
+                          "type": "string"
+                        }
+                      },
+                      "additionalProperties": false
+                    }
+                  },
+                  "required": ["providers"],
+                  "additionalProperties": false
+                }
+              },
+              "required": ["values", "context", "source", "name"]
+            }
+          ]
+        }
+      },
+      "additionalProperties": false,
+      "required": ["terraform"]
+    },
+    "profile": {
+      "type": "object",
+      "description": "A profile for a claim",
+      "properties": {
+        "displayName": {
+          "type": "string"
+        },
+        "email": {
+          "type": "string"
+        },
+        "picture": {
+          "type": "string"
+        }
+      },
+      "additionalProperties": false
+    },
+    "annotations": {
+      "type": "object",
+      "patternProperties": {
+        "^[a-zA-Z0-9/.-]+$": {
+          "type": "string"
+        }
+      },
+      "additionalProperties": false
+    }
+  },
+  "required": ["name", "kind", "owner", "providers"]
+}

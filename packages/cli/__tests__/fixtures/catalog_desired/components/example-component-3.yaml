@@ -1,0 +1,36 @@
+apiVersion: backstage.io/v1alpha1
+kind: Component
+metadata:
+  name: example-component-3
+  description: example
+  annotations:
+    backstage.io/source-location: url:https://github.com/example/example-component-3
+    github.com/project-slug: example/example-component-3
+spec:
+  type: service
+  lifecycle: production
+  owner: nobody
+  maintainedBy: []
+  platformOwner: example-group-1
+  provisioner:
+    org: example
+    orgPermissions: none
+    technology:
+      stack: null
+      version: null
+    repo:
+      visibility: private
+      ciSystem: github
+      defaultBranch: main
+      branchStrategy: none
+      additionalCodeownersRules: []
+      branches:
+        protections:
+          override:
+            is_override: false
+            number_reviewer: null
+    status:
+      value: provisiouned
+      extras: []
+    features: []
+  system: example

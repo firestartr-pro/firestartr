@@ -1,0 +1,15 @@
+apiVersion: v1
+kind: Dummy
+metadata:
+  annotations:
+    backstage.io/techdocs-ref: url:https://github.com/test/espinete/tree/main
+  name: espinete
+spec:
+  firestartr:
+    tfStateKey: a
+  org: test
+  preferences:
+    maxValue: 20
+    strategy: none
+  repo:
+    branch: master

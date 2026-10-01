@@ -1,0 +1,47 @@
+externalSecrets:
+  enabled: false
+
+argoRefresher:
+  enabled: false
+
+tfPlanner:
+  enabled: false
+
+crsAnalyzer:
+  enabled: false
+
+
+providerConfigs:
+  kubernetes-backend:
+    config: '{"namespace":"dev"}'
+    source: "hashicorp/kubernetes"
+    type: kubernetes
+    version: 3.0.1
+
+controller:
+  imagePullPolicy: Never
+  workingDir: /library
+  command:
+    - sh
+    - -c
+    - tail -f /dev/null
+  extraVolumes:
+    - name: development
+      hostPath:
+        path: /development
+        type: Directory
+  extraVolumeMounts:
+    - name: development
+      mountPath: /library
+  env:
+    - name: IS_DEV_LOCAL_ENVIRONMENT
+      value: "true"
+
+extraManifests:
+- apiVersion: v1
+  data:
+    a: YQ==
+  kind: Secret
+  metadata:
+    name: firestartr-firestartr-controller
+  type: Opaque

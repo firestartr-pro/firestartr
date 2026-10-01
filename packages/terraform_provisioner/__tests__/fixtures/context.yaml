@@ -1,0 +1,20 @@
+source: Remote
+module: "git::https://github.com/prefapp/tfm.git//modules/azure-resource-group?ref=main"
+values:
+  name: "group_one"
+  location: "westEurope"
+requiredProviders:
+  - name: azurerm
+    source: hashicorp/azurerm
+    version: ">=3.79.0"
+    config: {}    
+secrets: []
+backend:
+  aws:
+    config:
+      bucket: prefapp-backstage-dev
+      region: eu-west-1
+tfStateKey: test-key-toni
+references:
+  URL: "http://example.com"
+projectPath: "/tmp/my-project"

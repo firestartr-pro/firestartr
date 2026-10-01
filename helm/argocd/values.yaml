@@ -1,0 +1,8 @@
+## Argo Configs
+configs:
+  # General Argo CD configuration
+  ## Ref: https://github.com/argoproj/argo-cd/blob/master/docs/operator-manual/argocd-cm.yaml
+  cm:
+    # -- Timeout to discover if a new manifests version got published to the repository
+    timeout.reconciliation: 20s
+    

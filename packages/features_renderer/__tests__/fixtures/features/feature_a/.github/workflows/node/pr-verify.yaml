@@ -1,0 +1,53 @@
+name: pr-verify
+
+on:
+  pull_request:
+
+jobs:
+  pr-verify:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      packages: write
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v3
+        with:
+          ref: ${{ github.event.pull_request.head.ref }}
+
+      - uses: actions/setup-node@v3
+        with:
+          node-version: 16
+
+      - name: Lint folder
+        env:
+          GITHUB_TOKEN: ${{ secrets.TOKEN_GITHUB }}
+        run: |
+          yarn install
+          yarn lint:all
+
+      - name: Start mockoon
+        run: |
+          docker run -d --mount type=bind,source=$(pwd)/__tests__/fixtures/mockoon/backstage-api-simulation.json,target=/data,readonly -p 5000:3000 mockoon/cli:latest --data data --port 3000
+          echo "Waiting the container to start..."
+          sleep 20
+          curl http://localhost:5000/api/firestartr-config
+
+      # Unit tests from previos version of pr-verify
+      - name: Unit tests
+        env:
+          TOKEN: ${{secrets.TOKEN_GITHUB}}
+          GITHUB_TOKEN: ${{secrets.TOKEN_GITHUB}}
+          PROVISIONER_VAR_REPO_CATALOG_URL: "github.com?repo=catalog&owner=prefapp"
+        run: yarn run test
+
+      - name: Build
+        uses: docker/build-push-action@v4
+        with:
+          build-args: | 
+            GITHUB_TOKEN=${{ secrets.TOKEN_GITHUB }}
+            BASE_URL='https://test.es'
+          file: Dockerfile.demo.deploy
+          tags: test:test
+          push: false

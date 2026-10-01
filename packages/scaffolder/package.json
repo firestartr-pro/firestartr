@@ -1,0 +1,21 @@
+{
+  "name": "@firestartr/firestartr-scaffolder",
+  "version": "0.0.0",
+  "private": true,
+  "description": "Package to manage scaffolding operations",
+  "type": "module",
+  "main": "dist/index.js",
+  "types": "dist/index.d.ts",
+  "scripts": {
+    "build": "ncc build index.ts -o dist --minify",
+    "test": "jest",
+    "lint": "gts lint",
+    "lint-fix": "gts fix"
+  },
+  "author": "",
+  "license": "ISC",
+  "dependencies": {
+    "catalog_common": "file:../catalog_common",
+    "github": "file:../github"
+  }
+}

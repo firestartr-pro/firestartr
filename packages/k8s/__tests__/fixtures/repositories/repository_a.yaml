@@ -1,0 +1,81 @@
+apiVersion: firestartr.dev/v1
+kind: FirestartrGithubRepository
+metadata:
+  name: test-demo-repo
+spec:
+  org: firestartr-test
+  firestartr:
+    tfStateKey: c4975e4c-f81f-4ec4-9b3f-68eb892710e9
+    technology:
+      stack: example-stack
+      version: "1.0"
+  repo:
+    allowMergeCommit: true
+    allowSquashMerge: true
+    allowRebaseMerge: true
+    allowAutoMerge: true
+    deleteBranchOnMerge: true
+    autoInit: true
+    archiveOnDestroy: false
+    allowUpdateBranch: true
+    hasIssues: true
+    visibility: private
+    defaultBranch: main
+    codeowners: example-codeowners
+  actions:
+    oidc:
+      useDefault: true
+      includeClaimKeys: []
+  permissions:
+    - role: admin
+      ref:
+        kind: FirestartrGithubMembership
+        name: user-h
+        needsSecret: false
+    - role: push
+      ref:
+        kind: FirestartrGithubGroup
+        name: group-a
+        needsSecret: true
+    - role: admin
+      ref:
+        kind: FirestartrGithubGroup
+        name: group-b
+        needsSecret: true
+    - role: pull
+      ref:
+        kind: FirestartrGithubGroup
+        name: group-c
+        needsSecret: true
+    - role: maintain
+      ref:
+        kind: FirestartrGithubGroup
+        name: group-d
+        needsSecret: true
+  branchProtections:
+    - branch: main
+      statusChecks:
+        - check1
+        - check2
+      requiredReviewersCount: 2
+      requiredCodeownersReviewers: true
+      enforceAdmins: true
+      requireSignedCommits: true
+      requireConversationResolution: true
+  writeConnectionSecretToRef:
+    name: firestartrgithubrepository-test-demo-a-outputs
+    outputs:
+      - key: repoId
+      - key: nodeId
+      - key: fullName
+      - key: htmlUrl
+      - key: sshCloneUrl
+  context:
+    backend:
+      ref:
+        kind: FirestartrProviderConfig
+        name: aws-state-bucket
+    provider:
+      ref:
+        kind: FirestartrProviderConfig
+        name: github-app

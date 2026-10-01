@@ -1,0 +1,8 @@
+apiVersion: firestartr.dev/v1 
+kind: FirestartrDummyA          
+metadata:
+  name: a3
+spec:
+  computation: 
+    numberOfSeconds: 10
+    numberOfSecondsToDestroy: 2

@@ -1,0 +1,19 @@
+apiVersion: backstage.io/v1alpha1
+kind: Group
+metadata:
+  name: example-group-3
+  description: examle group
+  annotations:
+    fire-starter.dev/uuid: dcdb723f-3f7e-4d27-8cd2-6222caaf12f3
+spec:
+  type: business-unit
+  profile:
+    displayName: example-group-3
+    email: group-5@example.com
+    picture: https://example.com/groups/bu-infrastructure.jpeg
+  children: []
+  members: []
+  provisioner:
+    status:
+        value: "provisioned"
+        extras: [""]

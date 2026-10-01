@@ -1,0 +1,14 @@
+name: group_base
+apiVersion: firestartr.dev/v1
+kind: FirestartrGithubGroup
+defaultValues:
+  context:
+    backend:
+      ref:
+        kind: FirestartrProviderConfig
+        name: aws-state-bucket
+    provider:
+      ref:
+        kind: FirestartrProviderConfig
+        name: github-app
+  org: potatoide-dev

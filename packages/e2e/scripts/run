@@ -1,0 +1,500 @@
+import { spawn } from 'child_process';
+import fs from 'node:fs/promises';
+import path from 'node:path';
+
+const TESTS_DIR = path.resolve(process.cwd(), '__tests__');
+const TEST_FILE_SUFFIX = '.test.ts';
+const CRD_UPGRADE_TEST_PATH =
+  '__tests__/github/org-script-crd-upgrade.test.ts';
+const ORG_SETTINGS_TEST_PATH =
+  '__tests__/github/org-settings-render-apply.test.ts';
+const CRD_UPGRADE_ONLY_SUITE = 'crd-upgrade';
+const CRD_UPGRADE_TEST_NAME_ALIAS = 'org-script-crd-upgrade';
+const MASSIVE_TEST_PATH = '__tests__/massive/massive-creation-deletion.test.ts';
+const MASSIVE_SUITE = 'massive';
+const MASSIVE_TEST_NAME_ALIAS = 'massive-creation-deletion';
+const MASSIVE_ENV_VAR = 'E2E_RUN_MASSIVE';
+const K8S_RATE_LIMITS_TEST_PATH =
+  '__tests__/k8s-rate-limits/k8s-api-rate-limits.test.ts';
+const K8S_RATE_LIMITS_SUITE = 'k8s-rate-limits';
+const K8S_RATE_LIMITS_TEST_NAME_ALIAS = 'k8s-api-rate-limits';
+const K8S_RATE_LIMITS_ENV_VAR = 'E2E_RUN_K8S_RATE_LIMITS';
+const RETRY_LIFECYCLE_TEST_PATH =
+  '__tests__/terraform/retry-lifecycle.test.ts';
+const RETRY_LIFECYCLE_SUITE = 'retry-lifecycle';
+const RETRY_LIFECYCLE_ENV_VAR = 'E2E_RUN_RETRY_LIFECYCLE';
+const CRD_UPGRADE_SELECTOR_ALIASES = new Set([
+  CRD_UPGRADE_ONLY_SUITE,
+  CRD_UPGRADE_TEST_NAME_ALIAS,
+]);
+const MASSIVE_SELECTOR_ALIASES = new Set([
+  MASSIVE_SUITE,
+  MASSIVE_TEST_NAME_ALIAS,
+]);
+const K8S_RATE_LIMITS_SELECTOR_ALIASES = new Set([
+  K8S_RATE_LIMITS_SUITE,
+  K8S_RATE_LIMITS_TEST_NAME_ALIAS,
+]);
+const RETRY_LIFECYCLE_SELECTOR_ALIASES = new Set([
+  RETRY_LIFECYCLE_SUITE,
+]);
+const CRD_UPGRADE_BASELINE_ENV_VAR = 'E2E_CRD_UPGRADE_BASELINE_VERSION';
+const CRD_UPGRADE_PHASE_ENV_VAR = 'E2E_CRD_UPGRADE_PHASE';
+const CRD_UPGRADE_PHASES = [
+  'baseline-crds',
+  'baseline-create',
+  'target-crds',
+  'target-validate',
+];
+const DEFAULT_CRD_UPGRADE_BASELINE_VERSION = 'latest';
+const K8S_REQUIRED_ENV = ['E2E_ORG', 'E2E_NAMESPACE', 'E2E_KUBECONFIG'];
+const GITHUB_REQUIRED_ENV = [
+  'GITHUB_APP_ID',
+  'GITHUB_APP_PEM_FILE',
+  'BACKEND_PROVIDER_NAME',
+  'GITHUB_PROVIDER_NAME',
+];
+
+async function run() {
+  try {
+    const args = process.argv.slice(2);
+    const timestamp = () => new Date().toISOString();
+
+    if (args.includes('--help') || args.includes('-h')) {
+      printHelp();
+      return;
+    }
+
+    if (args.includes('--list')) {
+      const selectors = await listSelectors();
+      console.log(selectors.join('\n'));
+      return;
+    }
+
+    const reportDir = extractReportDir(args);
+
+    if (!hasSuitesArg(args)) {
+      const selectors = await listSelectors();
+      console.log(selectors.join('\n'));
+      return;
+    }
+
+    console.log(`[${timestamp()}] Resolving suites: ${args.join(' ')}`);
+    const { requestedSuites, testPaths } = await resolveSuites(args);
+    console.log(`[${timestamp()}] Suites: ${requestedSuites.join(', ')}`);
+    console.log(`[${timestamp()}] Test files (${testPaths.length}):\n  ${testPaths.join('\n  ')}`);
+    const shouldRunCrdUpgrade = requiresCrdUpgradePhaseEnv(
+      requestedSuites,
+      testPaths,
+    );
+    const shouldRunOrgSettings = testPaths.includes(ORG_SETTINGS_TEST_PATH);
+    const shouldRunMassive = requiresMassiveEnv(requestedSuites, testPaths);
+    const shouldRunK8sRateLimits = requiresK8sRateLimitsEnv(requestedSuites, testPaths);
+    const shouldRunRetryLifecycle = requiresRetryLifecycleEnv(requestedSuites, testPaths);
+    const regularTestPaths = testPaths.filter(
+      (testPath) =>
+        testPath !== CRD_UPGRADE_TEST_PATH &&
+        testPath !== ORG_SETTINGS_TEST_PATH,
+    );
+    const childEnv = buildChildEnv(shouldRunCrdUpgrade, shouldRunMassive, shouldRunK8sRateLimits, shouldRunRetryLifecycle);
+
+    await validateEnv({ requestedSuites, testPaths });
+
+    const extraJestArgs = await ensureReportDir(reportDir);
+    if (reportDir) {
+      console.log(`[${timestamp()}] Reports will be written to ${reportDir}`);
+    }
+
+    if (regularTestPaths.length > 0) {
+      console.log(`[${timestamp()}] Spawning regular tests: ${regularTestPaths.join(', ')}`);
+      await spawnTest(prepareTests(regularTestPaths, extraJestArgs), childEnv);
+    }
+
+    if (shouldRunCrdUpgrade) {
+      console.log(`[${timestamp()}] Spawning CRD upgrade test`);
+      await spawnTest(crdUpgradeTestCommand(extraJestArgs), childEnv);
+    }
+
+    if (shouldRunOrgSettings) {
+      console.log(`[${timestamp()}] Spawning org settings test`);
+      await spawnTest(orgSettingsTestCommand(extraJestArgs), childEnv);
+    }
+
+    console.log(`[${timestamp()}] All test runs completed`);
+  } catch (err) {
+    fatal(`Unexpected error: ${err}`);
+  }
+}
+
+function printHelp() {
+  console.log(`Usage: node ./scripts/run <suites>
+
+Suites are comma-separated and can match top-level directories under __tests__.
+They can also match any test file name under __tests__ (without '.test.ts').
+If a test name matches multiple files, all matches are run.
+Special value: 'all' to run all regular suites.
+Special value: '${CRD_UPGRADE_ONLY_SUITE}' (or '${CRD_UPGRADE_TEST_NAME_ALIAS}') to run only one explicit CRD upgrade phase.
+Special value: '${MASSIVE_SUITE}' (or '${MASSIVE_TEST_NAME_ALIAS}') to run only the optional massive creation/deletion test.
+Special value: '${K8S_RATE_LIMITS_SUITE}' (or '${K8S_RATE_LIMITS_TEST_NAME_ALIAS}') to run only the optional K8s API rate limits test.
+Special value: '${RETRY_LIFECYCLE_SUITE}' to run only the optional retry lifecycle test.
+
+Note: the CRD upgrade, massive, k8s-rate-limits, and retry-lifecycle tests are excluded from the regular 'all' catalog here. Dagger adds the CRD upgrade orchestration before regular 'all' when suites='all' is requested. Direct CRD upgrade execution requires ${CRD_UPGRADE_PHASE_ENV_VAR} to be set to one of: ${CRD_UPGRADE_PHASES.join(', ')}. The '${MASSIVE_SUITE}' selector sets ${MASSIVE_ENV_VAR}=true for the child Jest run; the '${K8S_RATE_LIMITS_SUITE}' selector sets ${K8S_RATE_LIMITS_ENV_VAR}=true; the '${RETRY_LIFECYCLE_SUITE}' selector sets ${RETRY_LIFECYCLE_ENV_VAR}=true; unqualified Jest invocations leave these tests skipped.
+
+Examples:
+  node ./scripts/run all
+  node ./scripts/run github
+  node ./scripts/run github,unit
+  node ./scripts/run names,wait,group-render-apply
+
+Options:
+  --report-dir <dir>  Write Jest JSON report to <dir>/report.json
+  --list              Print available suite and test selectors
+  -h, --help          Show this help
+`);
+}
+
+async function listSuites() {
+  const entries = await fs.readdir(TESTS_DIR, { withFileTypes: true });
+  return entries
+    .filter((entry) => entry.isDirectory())
+    .map((entry) => entry.name)
+    .sort();
+}
+
+async function listSelectors() {
+  const { selectorNames } = await buildTestCatalog();
+  return selectorNames;
+}
+
+function isInCluster() {
+  return !!(
+    process.env.KUBERNETES_SERVICE_HOST &&
+    process.env.KUBERNETES_SERVICE_PORT
+  );
+}
+
+async function validateEnv({ requestedSuites, testPaths }) {
+  const required = requiredEnvFor(requestedSuites, testPaths).filter(
+    (neededEnv) => {
+      if (neededEnv === 'E2E_KUBECONFIG' && isInCluster()) {
+        return false;
+      }
+      return !process.env[neededEnv];
+    },
+  );
+  const errors = required.map(
+    (neededEnv) => `- Env var '${neededEnv}' is not defined and it is needed`,
+  );
+
+  if (requiresCrdUpgradePhaseEnv(requestedSuites, testPaths)) {
+    const phase = process.env[CRD_UPGRADE_PHASE_ENV_VAR]?.trim();
+
+    if (!phase) {
+      errors.push(
+        `- Env var '${CRD_UPGRADE_PHASE_ENV_VAR}' is required when selecting the CRD upgrade test directly. Dagger normally sets it while running phases (${CRD_UPGRADE_PHASES.join(', ')}). Use the Dagger cmd-run-tests path with --suites=${CRD_UPGRADE_ONLY_SUITE}, or set ${CRD_UPGRADE_PHASE_ENV_VAR}=<phase> when invoking npm run test-crd-upgrade.`,
+      );
+    }
+  }
+
+  if (errors.length > 0) {
+    fatal(errors.join('\n'));
+  }
+}
+
+function requiredEnvFor(requestedSuites, testPaths) {
+  return [
+    ...(requiresK8sEnv(requestedSuites, testPaths) ? K8S_REQUIRED_ENV : []),
+    ...(requiresGithubEnv(requestedSuites, testPaths) ? GITHUB_REQUIRED_ENV : []),
+  ];
+}
+
+function requiresGithubEnv(requestedSuites, testPaths) {
+  return (
+    requestedSuites.includes('all') ||
+    requestedSuites.some(isCrdUpgradeSelector) ||
+    requestedSuites.includes('github') ||
+    requestedSuites.includes('import') ||
+    requestedSuites.some(isMassiveSelector) ||
+    testPaths.some((testPath) => testPath.startsWith('__tests__/github/')) ||
+    testPaths.some((testPath) => testPath.startsWith('__tests__/import/'))
+  );
+}
+
+function requiresK8sEnv(_requestedSuites, testPaths) {
+  return testPaths.some((testPath) => !testPath.startsWith('__tests__/unit/'));
+}
+
+function requiresCrdUpgradePhaseEnv(requestedSuites, testPaths) {
+  return (
+    requestedSuites.some(isCrdUpgradeSelector) ||
+    testPaths.includes(CRD_UPGRADE_TEST_PATH)
+  );
+}
+
+function requiresMassiveEnv(requestedSuites, testPaths) {
+  return (
+    requestedSuites.some(isMassiveSelector) ||
+    testPaths.includes(MASSIVE_TEST_PATH)
+  );
+}
+
+function requiresK8sRateLimitsEnv(requestedSuites, testPaths) {
+  return (
+    requestedSuites.some(isK8sRateLimitsSelector) ||
+    testPaths.includes(K8S_RATE_LIMITS_TEST_PATH)
+  );
+}
+
+function requiresRetryLifecycleEnv(requestedSuites, testPaths) {
+  return (
+    requestedSuites.some(isRetryLifecycleSelector) ||
+    testPaths.includes(RETRY_LIFECYCLE_TEST_PATH)
+  );
+}
+
+async function resolveSuites(args) {
+  const [suitesArg] = args.filter((arg) => !arg.startsWith('-'));
+
+  if (!suitesArg) {
+    fatal('Argument "suites" is needed');
+  }
+
+  const catalog = await buildTestCatalog();
+  const allowedSuites = new Set(catalog.selectorNames);
+  const requestedSuites = suitesArg
+    .split(/\s*,\s*/)
+    .map((suite) => suite.toLowerCase());
+
+  if (requestedSuites.some(isCrdUpgradeSelector) && requestedSuites.length > 1) {
+    fatal(
+      `'${CRD_UPGRADE_ONLY_SUITE}' cannot be combined with other suites.
+Use '${CRD_UPGRADE_ONLY_SUITE}' alone to run only the CRD upgrade test.`,
+    );
+  }
+
+  if (requestedSuites.includes('all')) {
+    return {
+      requestedSuites,
+      testPaths: [...catalog.testPaths],
+    };
+  }
+
+  const invalidSuites = requestedSuites.filter(
+    (suite) => !allowedSuites.has(suite),
+  );
+
+  if (invalidSuites.length > 0) {
+    fatal(
+      `Unknown selectors: ${invalidSuites.join(', ')}\nAvailable selectors: ${catalog.selectorNames.join(', ')}`,
+    );
+  }
+
+  const testPaths = new Set();
+
+  for (const suite of requestedSuites) {
+    if (isCrdUpgradeSelector(suite)) {
+      testPaths.add(CRD_UPGRADE_TEST_PATH);
+      continue;
+    }
+
+    if (isMassiveSelector(suite)) {
+      testPaths.add(MASSIVE_TEST_PATH);
+      continue;
+    }
+
+    if (isK8sRateLimitsSelector(suite)) {
+      testPaths.add(K8S_RATE_LIMITS_TEST_PATH);
+      continue;
+    }
+
+    if (isRetryLifecycleSelector(suite)) {
+      testPaths.add(RETRY_LIFECYCLE_TEST_PATH);
+      continue;
+    }
+
+    if (catalog.suiteNames.includes(suite)) {
+      for (const testPath of catalog.testsBySuite.get(suite) ?? []) {
+        testPaths.add(testPath);
+      }
+
+      continue;
+    }
+
+    for (const testPath of catalog.testsByName.get(suite) ?? []) {
+      testPaths.add(testPath);
+    }
+  }
+
+  return {
+    requestedSuites,
+    testPaths: [...testPaths].sort(),
+  };
+}
+
+function hasSuitesArg(args) {
+  return args.some((arg) => !arg.startsWith('-'));
+}
+
+function extractReportDir(args) {
+  const idx = args.indexOf('--report-dir');
+  if (idx === -1) return null;
+  const dir = args[idx + 1];
+  if (!dir || dir.startsWith('-')) {
+    fatal('--report-dir requires a directory path');
+  }
+  args.splice(idx, 2);
+  return dir;
+}
+
+async function ensureReportDir(reportDir) {
+  if (!reportDir) return [];
+  await fs.mkdir(reportDir, { recursive: true });
+  const jsonFile = path.join(reportDir, 'report.json');
+  return ['--json', '--outputFile', jsonFile];
+}
+
+function prepareTests(testPaths, extraJestArgs) {
+  return ['test', '--', '--runTestsByPath', ...testPaths, ...extraJestArgs];
+}
+
+function crdUpgradeTestCommand(extraJestArgs) {
+  return ['test', '--', '--runInBand', '--runTestsByPath', CRD_UPGRADE_TEST_PATH, ...extraJestArgs];
+}
+
+function orgSettingsTestCommand(extraJestArgs) {
+  return ['test', '--', '--runInBand', '--runTestsByPath', ORG_SETTINGS_TEST_PATH, ...extraJestArgs];
+}
+
+function buildChildEnv(shouldRunCrdUpgrade, shouldRunMassive, shouldRunK8sRateLimits, shouldRunRetryLifecycle) {
+  const childEnv = { ...process.env };
+
+  if (shouldRunCrdUpgrade && !childEnv[CRD_UPGRADE_BASELINE_ENV_VAR]) {
+    childEnv[CRD_UPGRADE_BASELINE_ENV_VAR] =
+      DEFAULT_CRD_UPGRADE_BASELINE_VERSION;
+  }
+
+  if (shouldRunMassive) {
+    childEnv[MASSIVE_ENV_VAR] = 'true';
+  }
+
+  if (shouldRunK8sRateLimits) {
+    childEnv[K8S_RATE_LIMITS_ENV_VAR] = 'true';
+  }
+
+  if (shouldRunRetryLifecycle) {
+    childEnv[RETRY_LIFECYCLE_ENV_VAR] = 'true';
+  }
+
+  return childEnv;
+}
+
+async function buildTestCatalog() {
+  const suiteNames = await listSuites();
+  const testPaths = (await listTestFiles()).filter(
+    (testPath) =>
+      testPath !== CRD_UPGRADE_TEST_PATH &&
+      testPath !== MASSIVE_TEST_PATH &&
+      testPath !== K8S_RATE_LIMITS_TEST_PATH &&
+      testPath !== RETRY_LIFECYCLE_TEST_PATH,
+  );
+  const testsBySuite = new Map();
+  const testsByName = new Map();
+
+  for (const testPath of testPaths) {
+    const suiteName = getTopLevelSuiteName(testPath);
+    const testName = path.basename(testPath, TEST_FILE_SUFFIX).toLowerCase();
+    addSelectorMatch(testsBySuite, suiteName, testPath);
+    addSelectorMatch(testsByName, testName, testPath);
+  }
+
+  return {
+    suiteNames,
+    selectorNames: [
+      ...new Set([
+        ...suiteNames,
+        ...testsByName.keys(),
+        ...CRD_UPGRADE_SELECTOR_ALIASES,
+        ...MASSIVE_SELECTOR_ALIASES,
+        ...K8S_RATE_LIMITS_SELECTOR_ALIASES,
+        ...RETRY_LIFECYCLE_SELECTOR_ALIASES,
+      ]),
+    ].sort(),
+    testPaths,
+    testsBySuite,
+    testsByName,
+  };
+}
+
+async function listTestFiles(dirPath = TESTS_DIR) {
+  const entries = await fs.readdir(dirPath, { withFileTypes: true });
+  const nestedTestPaths = await Promise.all(
+    entries.map(async (entry) => {
+      const entryPath = path.join(dirPath, entry.name);
+
+      if (entry.isDirectory()) {
+        return listTestFiles(entryPath);
+      }
+
+      if (entry.isFile() && entry.name.endsWith(TEST_FILE_SUFFIX)) {
+        return [toWorkspaceRelativePath(entryPath)];
+      }
+
+      return [];
+    }),
+  );
+
+  return nestedTestPaths.flat().sort();
+}
+
+function getTopLevelSuiteName(testPath) {
+  const [suiteName] = testPath.replace(/^__tests__\//, '').split('/');
+  return suiteName;
+}
+
+function toWorkspaceRelativePath(filePath) {
+  return path.relative(process.cwd(), filePath).split(path.sep).join('/');
+}
+
+function addSelectorMatch(matchMap, selector, testPath) {
+  if (!matchMap.has(selector)) {
+    matchMap.set(selector, []);
+  }
+
+  matchMap.get(selector).push(testPath);
+}
+
+function isCrdUpgradeSelector(suite) {
+  return CRD_UPGRADE_SELECTOR_ALIASES.has(suite.toLowerCase());
+}
+
+function isMassiveSelector(suite) {
+  return MASSIVE_SELECTOR_ALIASES.has(suite.toLowerCase());
+}
+
+function isK8sRateLimitsSelector(suite) {
+  return K8S_RATE_LIMITS_SELECTOR_ALIASES.has(suite.toLowerCase());
+}
+
+function isRetryLifecycleSelector(suite) {
+  return RETRY_LIFECYCLE_SELECTOR_ALIASES.has(suite.toLowerCase());
+}
+
+function spawnTest(args, runEnv = process.env) {
+  return new Promise((ok, ko) => {
+    const proc = spawn('npm', args, {
+      stdio: ['inherit', 'inherit', 'inherit'],
+      env: runEnv,
+    });
+    proc.on('error', (err) => ko(`Error on process ${err}`));
+    proc.on('exit', (code) => (code === 0 ? ok() : ko(`Error on process ${code}`)));
+  });
+}
+
+function fatal(error) {
+  console.error('FATAL ERRORS:');
+  console.error(error);
+
+  process.exit(1);
+}
+
+run();

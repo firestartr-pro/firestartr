@@ -1,0 +1,11 @@
+ComponentClaim:
+  providers:
+    github:
+      repo:
+        branchStrategy:
+          name: none
+      orgPermissions: none
+      technology:
+        stack: "node"
+        version: "14"
+      features: []

@@ -1,0 +1,27 @@
+apiVersion: firestartr.dev/v1
+kind: FirestartrGithubOrganizationSettings
+metadata:
+  name: existing-org-settings-11111111-1111-1111-1111-111111111111
+  annotations:
+    firestartr.dev/claim-ref: OrgSettingsClaim/existing_org_settings
+    firestartr.dev/external-name: existing-org-settings
+    firestartr.dev/revision: "1"
+  labels:
+    claim-ref: existing-org-settings
+spec:
+  org: firestartr-existing
+  billingEmail: existing-billing@example.com
+  context:
+    backend:
+      ref:
+        kind: FirestartrProviderConfig
+        name: aws-state-bucket
+    provider:
+      ref:
+        kind: FirestartrProviderConfig
+        name: github-app
+  firestartr:
+    tfStateKey: 11111111-1111-1111-1111-111111111111
+  writeConnectionSecretToRef:
+    name: firestartrgithuborganizationsettings-existing-org-settings-11111111-1111-1111-1111-111111111111-outputs
+    outputs: []

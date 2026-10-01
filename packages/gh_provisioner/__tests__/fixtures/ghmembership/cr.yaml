@@ -1,0 +1,72 @@
+# Please edit the object below. Lines beginning with a '#' will be ignored,
+# and an empty file will abort the edit. If an error occurs while saving this file will be
+# reopened with the relevant failures.
+#
+apiVersion: firestartr.dev/v1
+kind: FirestartrGithubMembership
+metadata:
+  annotations:
+    firestartr.dev/claim-ref: UserClaim/user-b
+    firestartr.dev/external-name: user-b
+    firestartr.dev/revision: "1"
+    kubectl.kubernetes.io/last-applied-configuration: |
+      {"apiVersion":"firestartr.dev/v1","kind":"FirestartrGithubMembership","metadata":{"annotations":{"firestartr.dev/claim-ref":"UserClaim/user-b","firestartr.dev/external-name":"user-b","firestartr.dev/revision":"1"},"generation":1,"labels":{"claim-ref":"user-b"},"name":"user-b-5be60205-618d-4f9f-ab55-1e91d25fd1b3","namespace":"default"},"spec":{"context":{"backend":{"ref":{"kind":"FirestartrProviderConfig","name":"kubernetes-provider"}},"provider":{"ref":{"kind":"FirestartrProviderConfig","name":"github"}}},"firestartr":{"tfStateKey":"5be60205-618d-4f9f-ab55-1e91d25fd1b3"},"org":"example-org","role":"admin","writeConnectionSecretToRef":{"name":"firestartrgithubmembership-user-b-5be60205-618d-4f9f-ab55-1e91d25fd1b3-outputs","outputs":[]}}}
+  creationTimestamp: "2026-02-10T23:35:28Z"
+  finalizers:
+  - firestartr.dev/finalizer
+  generation: 1
+  labels:
+    claim-ref: user-b
+  name: user-b-5be60205-618d-4f9f-ab55-1e91d25fd1b3
+  namespace: default
+  resourceVersion: "92241"
+  uid: c7a08727-e0e2-4420-b585-e7651c7cf697
+spec:
+  context:
+    backend:
+      ref:
+        kind: FirestartrProviderConfig
+        name: kubernetes-provider
+    provider:
+      ref:
+        kind: FirestartrProviderConfig
+        name: github
+  firestartr:
+    tfStateKey: 5be60205-618d-4f9f-ab55-1e91d25fd1b3
+  org: example-org
+  role: admin
+  writeConnectionSecretToRef:
+    name: firestartrgithubmembership-user-b-5be60205-618d-4f9f-ab55-1e91d25fd1b3-outputs
+    outputs: []
+status:
+  conditions:
+  - lastSyncTime: "2026-02-10T23:35:49.076Z"
+    lastTransitionTime: "2026-02-10T23:35:28.553Z"
+    lastUpdateTime: "2026-02-10T23:35:49.080Z"
+    message: Sync process finished
+    nextSyncTime: "2026-02-10T23:35:49.076Z"
+    observedGeneration: 1
+    reason: CREATED
+    status: "False"
+    type: SYNCHRONIZED
+  - lastTransitionTime: "2026-02-10T23:35:28.577Z"
+    lastUpdateTime: "2026-02-10T23:35:49.055Z"
+    message: doApply
+    observedGeneration: 1
+    reason: CREATED
+    status: "False"
+    type: ERROR
+  - lastTransitionTime: "2026-02-10T23:35:28.592Z"
+    lastUpdateTime: "2026-02-10T23:35:49.040Z"
+    message: terraform apply finished
+    observedGeneration: 1
+    reason: CREATED
+    status: "True"
+    type: PROVISIONED
+  - lastTransitionTime: "2026-02-10T23:35:28.611Z"
+    lastUpdateTime: "2026-02-10T23:35:49.023Z"
+    message: Terraform apply finished
+    observedGeneration: 1
+    reason: CREATED
+    status: "False"
+    type: PROVISIONING

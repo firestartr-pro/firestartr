@@ -1,0 +1,19 @@
+{
+  "name": "@firestartr/firestartr-k8s",
+  "version": "0.0.0",
+  "private": true,
+  "description": "Package to manage listen gitops events and manage the firestartr",
+  "main": "dist/index.js",
+  "type": "module",
+  "scripts": {
+    "build": "ncc build index.ts -o dist --minify",
+    "test": "jest",
+    "start": "ts-node index.ts",
+    "lint": "gts lint",
+    "lint-fix": "gts fix"
+  },
+  "author": "",
+  "license": "ISC",
+  "dependencies": {},
+  "devDependencies": {}
+}

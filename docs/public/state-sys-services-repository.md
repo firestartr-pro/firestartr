@@ -1,0 +1,143 @@
+# 🔍 Overview
+
+This repository is dedicated to managing system services for Kubernetes clusters, referred to as sys-services. These services are critical components that ensure the smooth operation of the Kubernetes clusters, such as ingress controllers, configuration reloading utilities (e.g., Stakater Reloader), and other essential utilities.
+
+The repository centralizes all sys-service definitions and deployment configurations to ensure consistency, manageability, and automation across multiple Kubernetes clusters.
+
+## 📂 Structure of the repository
+
+The repository is organized into a hierarchical folder structure to map services to clusters:
+
+### 🌱 `main` (or `master`) branch
+
+The main branch contains configuration files for sys-services. These files include values.yaml or similar templates that define the input parameters and settings required for generating Kubernetes manifests.
+
+* **Purpose**: Acts as the source of truth for configuration data. It allows developers to manage high-level settings without directly interacting with raw Kubernetes manifests.
+* **Structure**:
+
+```shell
+kubernetes-sys-services/
+  ├── <cluster-name>/
+  │      ├── <service-name>.yaml
+  │      ├── <service-name>/
+  │      │      ├── values.yaml
+  ├── another-cluster/
+  │      └── another-service/
+```
+
+Each service requires a configuration file at the following path *kubernetes-sys-services/<cluster-name>/<service-name>.yaml* with the following structure:
+
+```yaml
+chart: <alias>/<chart-name>
+registry: <registry_url>
+version: <version>
+releaseName: <release_name>
+hooks: []
+extraPatches: []
+```
+
+### 🚀 `deployment` branch
+
+The deployment branch contains raw Kubernetes manifests that are generated based on the configurations from the main branch. These manifests are directly applied to the Kubernetes clusters by ArgoCD.
+
+* **Purpose**: Provides the final rendered Kubernetes objects that ArgoCD can deploy to clusters. These are the manifests ArgoCD synchronizes with the clusters.
+
+* **Structure**:
+
+```shell
+kubernetes-sys-services/
+  ├── <cluster-name>/
+  │      ├── <service-name>/
+  │      │      ├── Deployment.<metadata.name>.yaml
+  │      │      ├── Configmap.<metada.name>.yaml
+  │      │      └── ...other-resources
+  ├── another-cluster/
+  │      └── another-service/
+```
+
+## 🗂️ ApplicationSets and AppProjects per Sys-Service
+
+In this setup, each sys-service has its own ApplicationSet and AppProject, providing granular control over deployments and ensuring clear separation of concerns between services.
+
+### 📦 ApplicationSet per Sys-Service
+
+Each sys-service is managed by a dedicated ApplicationSet, which is responsible for dynamically creating and managing ArgoCD applications for that service across all relevant clusters.
+
+* **Dynamic Application Generation:**
+        The ApplicationSet scans the deployment branch and generates ArgoCD Applications for each <cluster-name>/<service-name> path.
+* **Granularity:**
+        Each sys-service has its own ApplicationSet, which keeps configurations modular and easy to manage.
+* **Scalability:**
+        Adding a new sys-service requires only a new ApplicationSet definition, making the system easily extendable.
+* **Cluster Mapping:**
+        The ApplicationSet uses folder paths to map clusters and services, ensuring deployments target the correct clusters without manual intervention.
+ 
+```yaml
+---
+apiVersion: argoproj.io/v1alpha1
+kind: ApplicationSet
+metadata:
+  name: state-sys-service-<sys-service-name>
+  namespace: argocd
+spec:
+  generators:
+  - git:
+      directories:
+      - path: kubernetes-sys-services/*/* # kubernetes-sys-services/cluster/service
+      repoURL: https://github.com/<org>/state-sys-services.git
+      revision: deployment
+      values:
+        central-aks: https://kubernetes.default.svc
+  goTemplate: true
+  goTemplateOptions:
+  - missingkey=error
+  template:
+    metadata:
+      name: '{{index .path.segments 1}}-{{index .path.segments 2}}'
+      labels:
+        app-name: '<application-name>'
+    spec:
+      destination:
+        namespace: 'kube-system' # specific namespace for the sys-service
+        server: '{{index .values (index .path.segments 1)}}' # server
+      project: '<sys-service-name>' # one project for each sys-service
+      source:
+        path: '{{index .path.segments 0}}/{{index .path.segments 1}}/{{index .path.segments 2}}'
+        repoURL: https://github.com/<org>/state-sys-services.git
+        targetRevision: deployment
+      syncPolicy:
+        automated:
+          prune: true
+        syncOptions:
+        - CreateNamespace=true
+```
+
+### 🛠️ AppProject per Sys-Service
+
+Every sys-service is assigned a dedicated AppProject, which defines the scope, permissions, and boundaries for the applications generated by its ApplicationSet.
+
+* **Isolated Scope:** Each sys-service operates within its own AppProject, preventing interference between different services.
+* **Source and Destination Restrictions:**
+  * The AppProject limits:
+    * Source Repositories: Only allows applications to use the specific sys-services repository.
+    * Destinations: Restricts deployments to the kube-system namespace in the permitted clusters.
+* **Security:** Ensures that no sys-service can deploy outside its intended scope, reducing the risk of misconfigurations or unauthorized access.
+```yaml
+---
+apiVersion: argoproj.io/v1alpha1
+kind: AppProject
+metadata:
+  name: <sys-service-name>
+  namespace: argocd
+spec:
+  description: 'Project for <sys-service-name>'
+  sourceRepos:
+  - "https://github.com/<org>/state-sys-services"
+  destinations:
+  - namespace: "{kube-system}" # <- allowed namespaces
+    server: >- 
+      {
+      https://kubernetes.default.svc,
+      https://kubernetes.another.svc 
+      }
+```

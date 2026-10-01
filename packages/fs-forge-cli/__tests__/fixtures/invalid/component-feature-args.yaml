@@ -1,0 +1,17 @@
+name: my-component
+kind: ComponentClaim
+owner: group:my-team
+providers:
+  github:
+    name: my-repo
+    org: my-org
+    visibility: private
+    branchStrategy:
+      name: gitflow
+    sync:
+      enabled: true
+    features:
+      - name: feature_a
+        version: 1.1.0
+        args:
+          enabled: yes

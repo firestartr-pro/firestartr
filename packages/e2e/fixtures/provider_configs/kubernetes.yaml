@@ -1,0 +1,11 @@
+apiVersion: firestartr.dev/v1
+kind: FirestartrProviderConfig
+metadata:
+  name: kubernetes
+spec:
+  type: kubernetes
+  version: "2.33.0"
+  source: "hashicorp/kubernetes"
+  config: '{}'
+  inline: |
+    provider "kubernetes" {}

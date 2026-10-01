@@ -1,0 +1,26 @@
+{
+  "extends": "../../tsconfig.json",
+  "compilerOptions": {
+    "rootDir": "../../",
+    "composite": true,
+    "allowJs": true
+  },
+  "references": [
+    {
+      "path": "../catalog_common"
+    },
+    {
+      "path": "../terraform_provisioner"
+    },
+    {
+      "path": "../github"
+    }
+  ],
+  "exclude": [
+    "dist/**/*"
+  ],
+  "include": [
+    "index.ts",
+    "src/**/*.ts"
+  ]
+}

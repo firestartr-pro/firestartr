@@ -1,0 +1,72 @@
+{
+  "type": "object",
+  "description": "A System claim",
+  "x-fs-forge-icon": { "emoji": "🏗️", "ascii": "[SYS]" },
+  "x-fs-forge-summary": "Describe a system made up of related components.",
+  "unevaluatedProperties": false,
+  "properties": {
+    "name": {
+      "type": "string"
+    },
+    "kind": {
+      "type": "string"
+    },
+    "description": {
+      "type": "string"
+    },
+    "type": {
+      "type": "string"
+    },
+    "lifecycle": {
+      "type": "string"
+    },
+    "version": {
+      "type": "string"
+    },
+    "domain": {
+      "type": "string",
+      "pattern": "^domain:.+$"
+    },
+    "owner": {
+      "type": "string",
+      "pattern": "^[^:]+:[^:]+$"
+    },
+    "providers": {
+      "type": "object",
+      "properties": {
+        "catalog": {
+          "type": "object",
+          "properties": {},
+          "additionalProperties": true
+        }
+      },
+      "additionalProperties": false
+    },
+    "profile": {
+      "type": "object",
+      "description": "A profile for a claim",
+      "properties": {
+        "displayName": {
+          "type": "string"
+        },
+        "email": {
+          "type": "string"
+        },
+        "picture": {
+          "type": "string"
+        }
+      },
+      "additionalProperties": false
+    },
+    "annotations": {
+      "type": "object",
+      "patternProperties": {
+        "^[a-zA-Z0-9/.-]+$": {
+          "type": "string"
+        }
+      },
+      "additionalProperties": false
+    }
+  },
+  "required": ["name", "kind", "providers"]
+}

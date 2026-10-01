@@ -1,0 +1,23 @@
+apiVersion: firestartr.dev/v1
+kind: FirestartrProviderConfig
+metadata:
+  name: github-app
+spec:
+  source: Inline
+  version: "0.0.0"
+  type: github
+  config: >
+    {
+      "app_auth": {
+        "id": "<GITHUB_APP_ID>",
+        "installation_id": "<GITHUB_APP_INSTALLATION_ID>",
+        "pem_file": "${{ secrets.GITHUB_APP_PEM_FILE }}"
+      },
+      "owner": "firestartr-test"
+    }
+  secrets:
+    GITHUB_APP_PEM_FILE:
+      secretRef:
+        name: github-app
+        namespace: default
+        key: pem_file

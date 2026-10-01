@@ -1,0 +1,11 @@
+apiVersion: firestartr.dev/v1 
+kind: FirestartrDummyB    
+metadata:
+  name: b1
+spec:
+  computation: 
+    numberOfSeconds: 20
+    numberOfSecondsToDestroy: 40
+  needs:
+    kind: FirestartrDummyA
+    name: a1

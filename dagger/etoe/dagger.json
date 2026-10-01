@@ -1,0 +1,14 @@
+{
+  "name": "etoe",
+  "engineVersion": "v0.21.9",
+  "sdk": {
+    "source": "go"
+  },
+  "dependencies": [
+    {
+      "name": "firestartr-core",
+      "source": "https://github.com/prefapp/daggerverse-private/firestartr-core@main",
+      "pin": "5cd2c7027fe6537a180cb8e6a4330afd75407c1e"
+    }
+  ]
+}

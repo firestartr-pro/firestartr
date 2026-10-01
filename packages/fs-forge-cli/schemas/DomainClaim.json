@@ -1,0 +1,67 @@
+{
+  "type": "object",
+  "description": "A domain claim",
+  "x-fs-forge-icon": { "emoji": "🌐", "ascii": "[DOM]" },
+  "x-fs-forge-summary": "Describe a domain that groups related systems and components.",
+  "unevaluatedProperties": false,
+  "properties": {
+    "name": {
+      "type": "string"
+    },
+    "kind": {
+      "type": "string"
+    },
+    "description": {
+      "type": "string"
+    },
+    "type": {
+      "type": "string"
+    },
+    "lifecycle": {
+      "type": "string"
+    },
+    "version": {
+      "type": "string"
+    },
+    "owner": {
+      "type": "string"
+    },
+    "providers": {
+      "type": "object",
+      "properties": {
+        "catalog": {
+          "type": "object",
+          "properties": {},
+          "additionalProperties": true
+        }
+      },
+      "additionalProperties": false
+    },
+    "profile": {
+      "type": "object",
+      "description": "A profile for a claim",
+      "properties": {
+        "displayName": {
+          "type": "string"
+        },
+        "email": {
+          "type": "string"
+        },
+        "picture": {
+          "type": "string"
+        }
+      },
+      "additionalProperties": false
+    },
+    "annotations": {
+      "type": "object",
+      "patternProperties": {
+        "^[a-zA-Z0-9/.-]+$": {
+          "type": "string"
+        }
+      },
+      "additionalProperties": false
+    }
+  },
+  "required": ["name", "kind", "description", "owner", "providers"]
+}

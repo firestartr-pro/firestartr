@@ -1,0 +1,5 @@
+kind: SystemClaim
+version: "1.0"
+name: "my-system"
+description: "system-description"
+providers: {}

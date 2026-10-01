@@ -1,0 +1,9 @@
+{
+  "nodes": [
+    { "id": "team:platform", "kind": "team", "name": "platform" },
+    { "id": "service:api", "kind": "service", "name": "api" }
+  ],
+  "edges": [
+    { "from": "team:platform", "to": "service:api", "relation": "owns" }
+  ]
+}

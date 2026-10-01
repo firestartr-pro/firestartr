@@ -1,0 +1,86 @@
+apiVersion: firestartr.dev/v1
+kind: FirestartrTerraformWorkspace
+metadata:
+  name: example-inline
+spec:
+  source: Inline
+  firestartr:
+    tfStateKey: a51c7b2c-fcdc-48b9-b5b2-fcaed2894f90
+  context:
+    backend:
+      ref:
+        kind: FirestartrProviderConfig
+        name: aws-state-bucket
+    providers:
+      - ref:
+          kind: FirestartrProviderConfig
+          name: github-app
+  source: Inline
+  module: |
+    resource "random_string" "random" {
+      length           = 15
+      special          = true
+      override_special = "/@£$"
+    }
+
+    resource "random_pet" "server" {
+      keepers = {
+        keeper-name = var.name
+      }
+    }
+
+    variable "name" {
+      type = string
+    }
+  values: |
+    {
+      "name": "${{ references.NAME }}"
+    }
+  references:
+    - name: NAME
+      ref:
+        kind: FirestartrTerraformWorkspace
+        name: example-inline-2
+        key: NAME_OF_EXAMPLE_2
+---
+apiVersion: firestartr.dev/v1
+kind: FirestartrTerraformWorkspace
+metadata:
+  name: example-inline-2
+spec:
+  firestartr:
+    tfStateKey: f51c7b2c-fcdc-48b9-b5b2-fcaed2894f90
+  context:
+    backend:
+      ref:
+        kind: FirestartrProviderConfig
+        name: backend-tf-workspaces
+    providers:
+      - ref:
+          kind: FirestartrProviderConfig
+          name: github-app
+  source: Inline
+  module: |
+    resource "random_pet" "server" {
+      keepers = {
+        keeper-name = var.name
+      }
+    }
+
+    variable "name" {
+      type = string
+    }
+
+    output "NAME_OF_EXAMPLE_2" {
+      value = var.name
+    }
+
+    resource "aws_s3_bucket" "test-bucket-for-firestartr" {
+      bucket        = "test-bucket-for-firestartr"
+      force_destroy = true
+    }
+  values: |
+    {
+      "name": "example-2"
+    }
+  references: []

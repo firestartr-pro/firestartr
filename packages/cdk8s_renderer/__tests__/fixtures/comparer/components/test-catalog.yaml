@@ -1,0 +1,23 @@
+kind: ComponentClaim
+version: "1.0"
+type: "service"
+lifecycle: "production"
+owner: "group:my-team"
+name: "test-catalog"
+platformOwner: "group:my-platform-team"
+maintainedBy:
+  - collaborator:test
+providers:
+  github:
+    description: "Testing catalog to check reconfiguring aspects"
+    org: "firestartr-test"
+    name: "test-catalog"
+    orgPermissions: 'none'
+    visibility: "private"
+    branchStrategy:
+      name: trunkBasedDevelopment
+      defaultBranch: "main"
+    features:
+      []
+      # - name: release_please
+      #   version: 1.1.0

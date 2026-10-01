@@ -1,0 +1,23 @@
+kind: TFWorkspaceClaim
+lifecycle: production
+resourceType: wp-a
+name: workspace_a
+owner: 'group:firestartr-test-all'
+system: 'system:system_a'
+version: '1.0'
+providers:
+  terraform:
+    name: wp_a
+    source: Remote
+    module: https://github.com/infra/acme-predev-aks@main
+    valuesSchema: file:/global/my-schemas/my-schema.json
+    values:
+      nested:
+        test1: "${{ tfworkspace:workspace_b:outputs.id }}"
+      secret_test: "${{ secret:secret_a.rds_conn}}"
+    context:
+      providers:
+        - name: aws-westeurope
+      backend:
+        name: foo
+

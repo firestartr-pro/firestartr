@@ -1,0 +1,35 @@
+{
+  "name": "@firestartr/firestartr-catalog_common",
+  "version": "0.0.2",
+  "private": false,
+  "description": "Catalog common utilities and functions",
+  "main": "dist/index.js",
+  "type": "module",
+  "scripts": {
+    "test": "jest",
+    "build": "ncc build index.ts -o dist --minify",
+    "lint": "gts lint",
+    "lint-fix": "gts fix"
+  },
+  "files": [
+    "dist",
+    "package.json"
+  ],
+  "author": "",
+  "license": "ISC",
+  "devDependencies": {
+    "csv-stringify": "6.9.0",
+    "debug": "^4.3.4",
+    "jsonpointer": "^5.0.1",
+    "lodash": "4.18.1",
+    "uuid": "^9.0.0"
+  },
+  "engines": {
+    "node": ">=22"
+  },
+  "dependencies": {
+    "cron-parser": "5.5.0",
+    "winston": "^3.17.0",
+    "yaml": "^2.9.1"
+  }
+}

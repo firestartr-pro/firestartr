@@ -1,0 +1,26 @@
+feature_name: "feature_a"
+enable_validation: true
+args:
+  NAME:
+    $ref: [name]
+  LITERAL:
+    $default: "foo-default"
+    $arg: foo
+  TECH:
+    $ref: [providers, github, technology, stack]
+  DEST:
+    $ref: [annotations, firestartr.dev/dest-annotation]
+
+files:
+  - src: test.txt
+    dest: $DEST
+    upgradable: false
+    target_branch: deployment
+  - src: .github/workflows/{{| TECH |}}/pr-verify.yaml
+    dest: .github/workflows/pr-verify.yaml
+    upgradable: false
+claimPatches:
+  - name: "add_annotation"
+    op: "add"
+    path: "/annotations/backstage.io~1techdocs-ref"
+    value: "url:https://github.com/prefapp/feature_a/tree/main"

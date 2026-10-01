@@ -1,0 +1,11 @@
+globalValues:
+  org: "test"
+  actions:
+    oidc:
+      useDefault: false
+defaultValues:
+  technology:
+    stack: python
+  repo:
+    allowAutoMerge: true
+    codeowners: "blah"

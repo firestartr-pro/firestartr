@@ -1,0 +1,38 @@
+{
+  "name": "@firestartr/firestartr-operator",
+  "version": "0.0.0",
+  "description": "A k8s operator",
+  "main": "dist/index.js",
+  "types": "dist/index.d.ts",
+  "type": "module",
+  "scripts": {
+    "test": "jest",
+    "tsc": "tsc",
+    "build": "ncc build index.ts -o dist --minify",
+    "build-external": "ncc build external_cmd.ts -o dist_external --minify",
+    "lint": "gts lint",
+    "lint-fix": "gts fix",
+    "local-ts": "tsx launch_local.ts",
+    "local-launch": "./scripts/local.sh"
+  },
+  "author": "",
+  "license": "ISC",
+  "dependencies": {
+    "@kubernetes/client-node": "^1.4.0",
+    "@opentelemetry/api": "^1.9.0",
+    "@opentelemetry/exporter-prometheus": "^0.222.0",
+    "@opentelemetry/sdk-metrics": "^2.11.0",
+    "catalog_common": "file:../catalog_common",
+    "cdk8s_renderer": "file:../cdk8s_renderer",
+    "command-line-args": "^5.2.1",
+    "dotenv": "^16.4.7",
+    "express": "^4.18.2",
+    "fast-json-patch": "^3.1.1",
+    "gh_provisioner": "file:../gh_provisioner",
+    "github": "file:../github",
+    "terraform_provisioner": "file:../terraform_provisioner"
+  },
+  "engines": {
+    "node": ">=22"
+  }
+}

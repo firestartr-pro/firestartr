@@ -1,0 +1,73 @@
+---
+apiVersion: apiextensions.k8s.io/v1
+kind: CustomResourceDefinition
+metadata:
+  name: tfresults.firestartr.dev
+spec:
+  group: firestartr.dev
+  names:
+    kind: TFResult
+    plural: tfresults
+    singular: tfresult
+    shortNames:
+      - tfresult 
+  scope: Namespaced
+  versions:
+    - name: v1
+      served: true
+      storage: true
+      subresources:
+        status: {}                    # Required to enable .status as a subresource
+      schema:
+        openAPIV3Schema:
+          description: "A resource to handle Terraform results."
+          type: object
+          properties:
+            spec:
+              type: object
+              properties:
+                reference:
+                  type: object
+                  properties:
+                    refKind:
+                      type: string
+                    refName:
+                      type: string
+                  required:
+                    - refKind
+                    - refName
+                action:
+                  type: string
+                  description: "DEPRECATED: this field is no longer used and will be removed in a future version."
+                result:
+                  type: string
+                  description: "Terraform command output or result data."
+              required:
+                - reference
+            status:
+              type: object
+              properties:
+                exitCode:
+                  type: integer
+                  description: "Exit code returned by the terraform command"
+                  default: 0
+                lastUpdateTime:
+                  type: string
+                  format: date-time
+                retryCount:
+                  type: integer
+                  description: "Number of retry attempts for this operation"
+                  default: 0
+      additionalPrinterColumns:       # Makes kubectl get / k9s beautiful
+        - name: STATUS
+          type: integer
+          description: Exit code returned by the terraform command
+          jsonPath: .status.exitCode
+        - name: LAST UPDATE
+          type: date
+          description: Last time the TFResult status was updated
+          jsonPath: .status.lastUpdateTime
+        - name: RETRIES
+          type: integer
+          description: Number of retry attempts
+          jsonPath: .status.retryCount

@@ -1,0 +1,249 @@
+{
+  "type": "object",
+  "description": "An Org Settings claim for GitHub organization variables and settings",
+  "x-fs-forge-icon": { "emoji": "🏢", "ascii": "[ORG]" },
+  "x-fs-forge-summary": "Configure GitHub organization settings and variables.",
+  "unevaluatedProperties": false,
+  "properties": {
+    "name": {
+      "type": "string",
+      "pattern": "^[a-z0-9]([a-z0-9._-]*[a-z0-9])?$",
+      "maxLength": 63
+    },
+    "kind": {
+      "type": "string"
+    },
+    "description": {
+      "type": "string"
+    },
+    "type": {
+      "type": "string"
+    },
+    "lifecycle": {
+      "type": "string"
+    },
+    "version": {
+      "type": "string"
+    },
+    "providers": {
+      "type": "object",
+      "required": ["github"],
+      "properties": {
+        "github": {
+          "type": "object",
+          "description": "GitHub organization settings and variables",
+          "unevaluatedProperties": false,
+          "allOf": [
+            {
+              "type": "object",
+              "description": "An envelope for a any kind of claim",
+              "properties": {
+                "name": {
+                  "type": "string"
+                }
+              },
+              "required": ["name"]
+            },
+            {
+              "type": "object",
+              "properties": {
+                "org": {
+                  "type": "string",
+                  "pattern": "^[a-z0-9]([a-z0-9._-]*[a-z0-9])?$",
+                  "maxLength": 63,
+                  "description": "GitHub organization name"
+                },
+                "tfStateKey": {
+                  "type": "string",
+                  "pattern": "^[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-4[0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12,}$"
+                },
+                "billing_email": {
+                  "type": "string",
+                  "description": "Billing email for the organization"
+                },
+                "company": {
+                  "type": "string",
+                  "description": "Company name"
+                },
+                "blog": {
+                  "type": "string",
+                  "description": "Blog URL"
+                },
+                "email": {
+                  "type": "string",
+                  "description": "Contact email"
+                },
+                "twitter_username": {
+                  "type": "string",
+                  "description": "Twitter username"
+                },
+                "location": {
+                  "type": "string",
+                  "description": "Organization location"
+                },
+                "description": {
+                  "type": "string",
+                  "description": "Organization description"
+                },
+                "has_organization_projects": {
+                  "type": "boolean",
+                  "description": "Whether organization projects are enabled"
+                },
+                "has_repository_projects": {
+                  "type": "boolean",
+                  "description": "Whether repository projects are enabled"
+                },
+                "default_repository_permission": {
+                  "type": "string",
+                  "description": "Default permission for new repositories",
+                  "enum": ["read", "write", "admin", "none"]
+                },
+                "members_can_create_repositories": {
+                  "type": "boolean",
+                  "description": "Whether members can create repositories"
+                },
+                "members_can_create_public_repositories": {
+                  "type": "boolean",
+                  "description": "Whether members can create public repositories"
+                },
+                "members_can_create_private_repositories": {
+                  "type": "boolean",
+                  "description": "Whether members can create private repositories"
+                },
+                "members_can_create_internal_repositories": {
+                  "type": "boolean",
+                  "description": "Whether members can create internal repositories"
+                },
+                "members_can_create_pages": {
+                  "type": "boolean",
+                  "description": "Whether members can create pages"
+                },
+                "members_can_create_public_pages": {
+                  "type": "boolean",
+                  "description": "Whether members can create public pages"
+                },
+                "members_can_create_private_pages": {
+                  "type": "boolean",
+                  "description": "Whether members can create private pages"
+                },
+                "members_can_fork_private_repositories": {
+                  "type": "boolean",
+                  "description": "Whether members can fork private repositories"
+                },
+                "web_commit_signoff_required": {
+                  "type": "boolean",
+                  "description": "Whether web commit signoff is required"
+                },
+                "advanced_security_enabled_for_new_repositories": {
+                  "type": "boolean",
+                  "description": "Whether advanced security is enabled for new repositories"
+                },
+                "dependabot_alerts_enabled_for_new_repositories": {
+                  "type": "boolean",
+                  "description": "Whether Dependabot alerts are enabled for new repositories"
+                },
+                "dependabot_security_updates_enabled_for_new_repositories": {
+                  "type": "boolean",
+                  "description": "Whether Dependabot security updates are enabled for new repositories"
+                },
+                "dependency_graph_enabled_for_new_repositories": {
+                  "type": "boolean",
+                  "description": "Whether the dependency graph is enabled for new repositories"
+                },
+                "secret_scanning_enabled_for_new_repositories": {
+                  "type": "boolean",
+                  "description": "Whether secret scanning is enabled for new repositories"
+                },
+                "secret_scanning_push_protection_enabled_for_new_repositories": {
+                  "type": "boolean",
+                  "description": "Whether secret scanning push protection is enabled for new repositories"
+                },
+                "actions_variables": {
+                  "type": "array",
+                  "description": "GitHub Actions organization variables",
+                  "x-fs-forge-unique-item-property": "name",
+                  "items": {
+                    "type": "object",
+                    "properties": {
+                      "name": {
+                        "type": "string",
+                        "pattern": "^[A-Za-z0-9_]+$",
+                        "description": "Variable name"
+                      },
+                      "value": {
+                        "type": "string",
+                        "description": "Variable value"
+                      },
+                      "visibility": {
+                        "type": "string",
+                        "description": "Variable visibility scope",
+                        "enum": ["all", "private", "selected"]
+                      },
+                      "selected_repositories": {
+                        "type": "array",
+                        "description": "Repository refs (component:<name>) when visibility is selected",
+                        "items": {
+                          "type": "string",
+                          "pattern": "^component:([a-z0-9]([a-z0-9._-]*[a-z0-9])?/)?[a-z0-9]([a-z0-9._-]*[a-z0-9])?$"
+                        }
+                      }
+                    },
+                    "required": ["name", "value", "visibility"],
+                    "additionalProperties": false,
+                    "allOf": [
+                      {
+                        "if": {
+                          "properties": {
+                            "visibility": { "const": "selected" }
+                          },
+                          "required": ["visibility"]
+                        },
+                        "then": {},
+                        "else": {
+                          "properties": {
+                            "selected_repositories": {
+                              "type": "array",
+                              "maxItems": 0
+                            }
+                          }
+                        }
+                      }
+                    ]
+                  }
+                }
+              },
+              "required": ["org", "billing_email"]
+            }
+          ]
+        }
+      },
+      "additionalProperties": false
+    },
+    "profile": {
+      "type": "object",
+      "description": "A profile for a claim",
+      "properties": {
+        "displayName": {
+          "type": "string"
+        },
+        "email": {
+          "type": "string"
+        },
+        "picture": {
+          "type": "string"
+        }
+      },
+      "additionalProperties": false
+    },
+    "annotations": {
+      "type": "object",
+      "patternProperties": {
+        "^[a-zA-Z0-9/.-]+$": {
+          "type": "string"
+        }
+      },
+      "additionalProperties": false
+    }
+  },
+  "required": ["name", "kind", "providers"]
+}

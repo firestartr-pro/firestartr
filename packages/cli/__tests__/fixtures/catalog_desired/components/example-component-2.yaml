@@ -1,0 +1,37 @@
+apiVersion: backstage.io/v1alpha1
+kind: Component
+metadata:
+  name: example-component-2
+  description: example
+  annotations:
+    backstage.io/source-location: url:https://github.com/example/example-component-4
+    github.com/project-slug: example/example-component-2
+    fire-starter.dev/uuid: 5f726c18-a22a-4d3f-99c0-21e47f0a82c2
+spec:
+  type: service
+  lifecycle: production
+  owner: nobody
+  maintainedBy: []
+  platformOwner: example-group-1
+  provisioner:
+    org: example
+    orgPermissions: none
+    technology:
+      stack: null
+      version: null
+    repo:
+      visibility: private
+      ciSystem: github
+      defaultBranch: main
+      branchStrategy: none
+      additionalCodeownersRules: []
+      branches:
+        protections:
+          override:
+            is_override: false
+            number_reviewer: null
+    status:
+      value: provisiouned
+      extras: []
+    features: []
+  system: example

@@ -1,0 +1,15 @@
+kind: GroupClaim
+name: "group_a"
+description: "Prefapp all description"
+type: "business-unit"
+profile:
+  displayName: "group_a"
+  email: "group-a@"
+  picture: "https://example.com/groups/bu-infrastructure.jpeg"
+members:
+  - "user:user_a"
+providers:
+  github:
+    name: group-a
+    privacy: closed
+    org: firestartr-test

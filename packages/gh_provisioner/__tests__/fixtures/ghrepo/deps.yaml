@@ -1,0 +1,220 @@
+FirestartrProviderConfig-kubernetes-provider:
+  cr:
+    apiVersion: firestartr.dev/v1
+    kind: FirestartrProviderConfig
+    metadata:
+      annotations:
+        meta.helm.sh/release-name: firestartr-init
+        meta.helm.sh/release-namespace: default
+      creationTimestamp: 2026-02-06T23:45:49Z
+      generation: 1
+      labels:
+        app.kubernetes.io/managed-by: Helm
+      managedFields:
+        - apiVersion: firestartr.dev/v1
+          fieldsType: FieldsV1
+          fieldsV1:
+            f:metadata:
+              f:annotations:
+                .: {}
+                f:meta.helm.sh/release-name: {}
+                f:meta.helm.sh/release-namespace: {}
+              f:labels:
+                .: {}
+                f:app.kubernetes.io/managed-by: {}
+            f:spec:
+              .: {}
+              f:config: {}
+              f:source: {}
+              f:type: {}
+              f:version: {}
+          manager: helm
+          operation: Update
+          time: 2026-02-06T23:45:49Z
+      name: kubernetes-provider
+      namespace: default
+      resourceVersion: "1490"
+      uid: a4227d3e-c421-4062-8fb2-ecd53e3ae375
+    spec:
+      config: |
+        {"namespace": "default"}
+      source: hashicorp/kubernetes
+      type: kubernetes
+      version: 3.0.1
+FirestartrProviderConfig-github:
+  cr:
+    apiVersion: firestartr.dev/v1
+    kind: FirestartrProviderConfig
+    metadata:
+      annotations:
+        meta.helm.sh/release-name: firestartr-init
+        meta.helm.sh/release-namespace: default
+      creationTimestamp: 2026-02-06T23:45:49Z
+      generation: 1
+      labels:
+        app.kubernetes.io/managed-by: Helm
+      managedFields:
+        - apiVersion: firestartr.dev/v1
+          fieldsType: FieldsV1
+          fieldsV1:
+            f:metadata:
+              f:annotations:
+                .: {}
+                f:meta.helm.sh/release-name: {}
+                f:meta.helm.sh/release-namespace: {}
+              f:labels:
+                .: {}
+                f:app.kubernetes.io/managed-by: {}
+            f:spec:
+              .: {}
+              f:config: {}
+              f:secrets:
+                .: {}
+                f:GITHUB_APP_ID:
+                  .: {}
+                  f:secretRef:
+                    .: {}
+                    f:key: {}
+                    f:name: {}
+                    f:namespace: {}
+                f:GITHUB_APP_INSTALLATION_ID:
+                  .: {}
+                  f:secretRef:
+                    .: {}
+                    f:key: {}
+                    f:name: {}
+                    f:namespace: {}
+                f:GITHUB_APP_PEM_FILE:
+                  .: {}
+                  f:secretRef:
+                    .: {}
+                    f:key: {}
+                    f:name: {}
+                    f:namespace: {}
+              f:source: {}
+              f:type: {}
+              f:version: {}
+          manager: helm
+          operation: Update
+          time: 2026-02-06T23:45:49Z
+      name: github
+      namespace: default
+      resourceVersion: "1489"
+      uid: 6f7f057d-d057-446f-afa1-8c1cc8187f2f
+    spec:
+      config: |
+        {
+            "owner": "example-org",
+
+            "app_auth": {
+                "id": "${{ secrets.GITHUB_APP_ID }}",
+                "installation_id": "${{ secrets.GITHUB_APP_INSTALLATION_ID }}",
+                "pem_file": "${{ secrets.GITHUB_APP_PEM_FILE }}"
+            }
+
+        }
+      secrets:
+        GITHUB_APP_ID:
+          secretRef:
+            key: github-app-id
+            name: providerconfig-github
+            namespace: default
+        GITHUB_APP_INSTALLATION_ID:
+          secretRef:
+            key: github-app-installation-id
+            name: providerconfig-github
+            namespace: default
+        GITHUB_APP_PEM_FILE:
+          secretRef:
+            key: github-app-pem-file
+            name: providerconfig-github
+            namespace: default
+      source: integrations/github
+      type: github
+      version: ~> 6.0
+Secret-providerconfig-github:
+  cr:
+    kind: Secret
+    apiVersion: v1
+    metadata:
+      name: providerconfig-github
+      namespace: default
+      uid: 7d0bcbb2-f378-487b-94ce-8f61a217e824
+      resourceVersion: "1484"
+      creationTimestamp: 2026-02-06T23:45:49Z
+      labels:
+        app.kubernetes.io/managed-by: Helm
+      annotations:
+        meta.helm.sh/release-name: firestartr-init
+        meta.helm.sh/release-namespace: default
+      managedFields:
+        - manager: helm
+          operation: Update
+          apiVersion: v1
+          time: 2026-02-06T23:45:49Z
+          fieldsType: FieldsV1
+          fieldsV1:
+            f:data:
+              .: {}
+              f:github-app-id: {}
+              f:github-app-installation-id: {}
+              f:github-app-pem-file: {}
+            f:metadata:
+              f:annotations:
+                .: {}
+                f:meta.helm.sh/release-name: {}
+                f:meta.helm.sh/release-namespace: {}
+              f:labels:
+                .: {}
+                f:app.kubernetes.io/managed-by: {}
+            f:type: {}
+    data:
+      github-app-id: Z2l0aHViLWFwcC1pZAo=
+      github-app-installation-id: Z2l0aHViLWFwcC1pbnN0YWxsYXRpb24taWQK
+      github-app-pem-file: Z2l0aHViLWFwcC1wZW0tZmlsZQo=
+    type: Opaque
+self-outputs:
+  cr:
+    apiVersion: v1
+    data:
+      fullName: ZXhhbXBsZS1vcmcvY29tcG9uZW50X2E=
+      htmlUrl: aHR0cHM6Ly9naXRodWIuY29tL2V4YW1wbGUtb3JnL2NvbXBvbmVudF9h
+      id: Y29tcG9uZW50X2E=
+      nodeId: Ul9rZ0RPUmdUWG1B
+      primaryLanguage: ""
+      sshCloneUrl: Z2l0QGdpdGh1Yi5jb206ZXhhbXBsZS1vcmcvY29tcG9uZW50X2EuZ2l0
+    kind: Secret
+    metadata:
+      creationTimestamp: 2026-03-06T19:09:23.000Z
+      managedFields:
+        - apiVersion: v1
+          fieldsType: FieldsV1
+          fieldsV1:
+            f:data:
+              .: {}
+              f:fullName: {}
+              f:htmlUrl: {}
+              f:id: {}
+              f:nodeId: {}
+              f:primaryLanguage: {}
+              f:sshCloneUrl: {}
+            f:metadata:
+              f:ownerReferences:
+                .: {}
+                k:{"uid":"1c692fed-7059-4a14-9c90-7372eec3192f"}: {}
+            f:type: {}
+          manager: unknown
+          operation: Update
+          time: 2026-03-06T19:09:23.000Z
+      name: firestartrgithubrepository-component-c-3914ca50-cc80-4961-a139-464028818a92-outputs
+      namespace: default
+      ownerReferences:
+        - apiVersion: firestartr.dev/v1
+          blockOwnerDeletion: true
+          controller: true
+          kind: FirestartrGithubRepository
+          name: component-c-3914ca50-cc80-4961-a139-464028818a92
+          uid: 1c692fed-7059-4a14-9c90-7372eec3192f
+      resourceVersion: "654344"
+      uid: c134a921-6047-44aa-a88f-498ea60c10a2
+    type: Opaque

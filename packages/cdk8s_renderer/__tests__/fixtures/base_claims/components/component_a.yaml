@@ -1,0 +1,59 @@
+kind: ComponentClaim
+version: "1.0"
+type: "service"
+lifecycle: "production"
+system: "system:system_a"
+owner: "group:group_a"
+name: "component_a"
+maintainedBy: ["group:group_c"]
+platformOwner: "group:group_b"
+providers:
+  github:
+    description: "Testing catalog to check reconfiguring aspects"
+    org: "firestartr-test"
+    name: "component_a"
+    orgPermissions: 'none'
+    visibility: "private"
+    hasWiki: true
+    branchStrategy:
+      name: trunkBasedDevelopment
+      defaultBranch: "main"
+    additionalRules:
+      - path: "*.js"
+        owners:
+          - "group:group_a"
+      - path: "*.ts"
+        owners:
+          - "user:user_a"
+    overrides:
+      spec:
+        actions:
+          oidc:
+            useDefault: false
+            includeClaimKeys: [patata]
+        repo:
+          allowMergeCommit: true
+          visibility: "private"
+          defaultBranch: "main"
+          topics:
+            - topic-a
+            - topic-b
+        branchProtections:
+          - branch: main
+            requiredReviewersCount: 0
+
+      additionalAdmins:
+        - "user:user_a"
+      additionalMaintainers: []
+      additionalReaders: []
+      additionalWriters: []
+      additionalCodeownersRules:
+        - path: "*.js"
+          owners:
+            - "user:user_a"
+        - path: "*.c"
+          owners:
+            - "user:user_a"
+        - path: "*.py"
+          owners:
+            - "user:user_a"

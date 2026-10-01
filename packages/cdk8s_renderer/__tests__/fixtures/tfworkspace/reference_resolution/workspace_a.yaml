@@ -1,0 +1,19 @@
+kind: TFWorkspaceClaim
+lifecycle: production
+resourceType: test-a-resource-type
+name: dependency
+owner: 'group:firestartr-test-all'
+system: 'system:my-system'
+version: '1.0'
+providers:
+  terraform:
+    name: dependency
+    source: Remote
+    module: https://github.com/infra/acme-predev-aks@main
+    values:
+      a: "a"
+    context:
+      providers:
+        - name: aws-westeurope
+      backend:
+        name: foo

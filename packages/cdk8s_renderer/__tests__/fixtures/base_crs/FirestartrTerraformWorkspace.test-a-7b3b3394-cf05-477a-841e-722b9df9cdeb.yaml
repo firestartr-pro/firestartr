@@ -1,0 +1,32 @@
+apiVersion: firestartr.dev/v1
+kind: FirestartrTerraformWorkspace
+metadata:
+  annotations:
+    firestartr.dev/claim-ref: TFWorkspaceClaim/workspace_b
+    firestartr.dev/external-name: test_a
+    firestartr.dev/policy: observe
+    firestartr.dev/revision: "1"
+  labels:
+    claim-ref: workspace-b
+  name: test-a-7b3b3394-cf05-477a-841e-722b9df9cdeb
+spec:
+  context:
+    backend:
+      ref:
+        kind: FirestartrProviderConfig
+        name: foo
+    providers:
+      - ref:
+          kind: FirestartrProviderConfig
+          name: aws-westeurope
+  firestartr:
+    tfStateKey: 7b3b3394-cf05-477a-841e-722b9df9cdeb
+  module: https://github.com/infra/acme-predev-aks@main
+  source: Remote
+  values: '{"a":"${{ references.external_secret_secret-a.rds_conn }}"}'
+  references:
+    - name: external_secret_secret_a.rds_conn
+      ref:
+        kind: ExternalSecret
+        name: secret-a
+        key: rds_conn

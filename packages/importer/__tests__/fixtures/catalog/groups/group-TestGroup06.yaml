@@ -1,0 +1,18 @@
+apiVersion: backstage.io/v1alpha1
+kind: Group
+metadata:
+  name: TestGroup06
+  description: My incredible group
+spec:
+  type: business-unit
+  profile:
+    displayName: TestGroup06
+    email: foo@foo.com
+    picture: https://example.com/groups/bu-infrastructure.jpeg
+  children: []
+  members: []
+  provisioner:
+    status:
+      value: ERROR
+      extras:
+        - $GITHUB_SERVER_URL/$GITHUB_REPOSITORY/pull/214

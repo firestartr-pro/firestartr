@@ -1,0 +1,33 @@
+{
+  "extends": "../../tsconfig.json",
+  "compilerOptions": {
+    "composite": true
+  },
+  "references": [
+    {
+      "path": "../github"
+    },
+    {
+      "path": "../terraform_provisioner"
+    },
+    {
+      "path": "../cdk8s_renderer"
+    },
+    {
+      "path": "../catalog_common"
+    },
+    {
+      "path": "../gh_provisioner"
+    }
+  ],
+  "exclude": ["node_modules", "dist", "dist/**/*", "launch_dev_test.ts"],
+  "include": [
+    "index.ts",
+    "src/tfworkspaces/process-operation.ts",
+    "dummy.ts",
+    "src/**/*.ts",
+    "server/webhookServer.ts",
+    "launch_local.ts",
+    "external_cmd.ts"
+  ]
+}

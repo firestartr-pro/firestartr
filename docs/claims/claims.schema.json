@@ -1,0 +1,1211 @@
+[
+  {
+    "$id": "Common-meta",
+    "definitions": {
+      "Envelope": {
+        "$id": "firestartr.dev://common/ClaimEnvelope",
+        "type": "object",
+        "description": "An envelope for a any kind of claim",
+        "properties": {
+          "name": {
+            "type": "string"
+          },
+          "kind": {
+            "type": "string"
+          },
+          "description": {
+            "type": "string"
+          },
+          "type": {
+            "type": "string"
+          },
+          "lifecycle": {
+            "type": "string"
+          },
+          "version": {
+            "type": "string"
+          },
+          "providers": {
+            "type": "object",
+            "description": "A map of providers"
+          },
+          "profile": {
+            "$ref": "firestartr.dev://common/ClaimProfile"
+          },
+          "annotations": {
+            "$ref": "firestartr.dev://common/FirestartrAnnotations"
+          }
+        },
+        "required": [
+          "name",
+          "kind",
+          "providers"
+        ]
+      },
+      "Provider": {
+        "$id": "firestartr.dev://common/ClaimProviderEnvelope",
+        "type": "object",
+        "description": "An envelope for a any kind of claim",
+        "properties": {
+          "name": {
+            "type": "string"
+          }
+        },
+        "additionalProperties": true,
+        "required": [
+          "name"
+        ]
+      },
+      "Profile": {
+        "$id": "firestartr.dev://common/ClaimProfile",
+        "type": "object",
+        "description": "A profile for a claim",
+        "properties": {
+          "displayName": {
+            "type": "string"
+          },
+          "email": {
+            "type": "string"
+          },
+          "picture": {
+            "type": "string"
+          }
+        },
+        "additionalProperties": false
+      },
+      "Reference": {
+        "$id": "firestartr.dev://common/FirestartrRef",
+        "type": "string",
+        "pattern": "^[^:]+:[^:]+$"
+      },
+      "SystemReference": {
+        "$id": "firestartr.dev://common/FirestartrSystemRef",
+        "type": "string",
+        "pattern": "^system:[^:]+$"
+      },
+      "ComponentReference": {
+        "$id": "firestartr.dev://common/FirestartrComponentRef",
+        "type": "string",
+        "pattern": "^component:[^:]+$"
+      },
+      "Annotations": {
+        "$id": "firestartr.dev://common/FirestartrAnnotations",
+        "type": "object",
+        "patternProperties": {
+          "^[a-zA-Z0-9/.-]+$": {
+            "type": "string"
+          }
+        },
+        "additionalProperties": false
+      }
+    }
+  },
+  {
+    "$schema": "https://json-schema.org/draft/2020-12/schema",
+    "$id": "GroupClaim",
+    "definitions": {
+      "GroupClaim": {
+        "$id": "firestartr.dev://common/GroupClaim",
+        "type": "object",
+        "description": "A group claim",
+        "unevaluatedProperties": false,
+        "allOf": [
+          {
+            "$ref": "firestartr.dev://common/ClaimEnvelope"
+          },
+          {
+            "type": "object",
+            "properties": {
+              "children": {
+                "type": "array",
+                "items": {
+                  "type": "string"
+                }
+              },
+              "parent": {
+                "$ref": "firestartr.dev://common/FirestartrRef"
+              },
+              "members": {
+                "type": "array",
+                "items": {
+                  "type": "string"
+                }
+              },
+              "providers": {
+                "type": "object",
+                "properties": {
+                  "github": {
+                    "$ref": "firestartr.dev://github/GithubTeamClaim"
+                  }
+                }
+              }
+            }
+          }
+        ]
+      }
+    }
+  },
+  {
+    "$schema": "https://json-schema.org/draft/2020-12/schema",
+    "$id": "UserClaim",
+    "definitions": {
+      "UserClaim": {
+        "$id": "firestartr.dev://common/UserClaim",
+        "type": "object",
+        "description": "A user claim",
+        "unevaluatedProperties": false,
+        "allOf": [
+          {
+            "$ref": "firestartr.dev://common/ClaimEnvelope"
+          },
+          {
+            "type": "object",
+            "properties": {
+              "providers": {
+                "type": "object",
+                "properties": {
+                  "github": {
+                    "$ref": "firestartr.dev://github/GithubUserClaim"
+                  }
+                }
+              }
+            }
+          }
+        ]
+      }
+    }
+  },
+  {
+    "$schema": "https://json-schema.org/draft/2020-12/schema",
+    "$id": "ComponentClaim",
+    "definitions": {
+      "ComponentClaim": {
+        "$id": "firestartr.dev://common/ComponentClaim",
+        "type": "object",
+        "description": "A component claim",
+        "unevaluatedProperties": false,
+        "allOf": [
+          {
+            "$ref": "firestartr.dev://common/ClaimEnvelope"
+          },
+          {
+            "type": "object",
+            "properties": {
+              "system": {
+                "type": "string",
+                "pattern": "^system:.+$"
+              },
+              "owner": {
+                "type": "string",
+                "pattern": "^[^:]+:[^:]+$"
+              },
+              "maintainedBy": {
+                "type": "array",
+                "items": {
+                  "$ref": "firestartr.dev://common/FirestartrRef"
+                }
+              },
+              "platformOwner": {
+                "$ref": "firestartr.dev://common/FirestartrRef"
+              },
+              "subComponentOf": {
+                "$ref": "firestartr.dev://common/FirestartrComponentRef"
+              },
+              "providers": {
+                "type": "object",
+                "properties": {
+                  "github": {
+                    "$ref": "firestartr.dev://github/GithubComponentClaim"
+                  }
+                }
+              }
+            },
+            "required": [
+              "owner"
+            ]
+          }
+        ]
+      }
+    }
+  },
+  {
+    "$schema": "https://json-schema.org/draft/2020-12/schema",
+    "$id": "SystemClaim",
+    "definitions": {
+      "SystemClaim": {
+        "$id": "firestartr.dev://common/SystemClaim",
+        "type": "object",
+        "description": "A System claim",
+        "unevaluatedProperties": false,
+        "allOf": [
+          {
+            "$ref": "firestartr.dev://common/ClaimEnvelope"
+          },
+          {
+            "type": "object",
+            "properties": {
+              "name": {
+                "type": "string"
+              },
+              "domain": {
+                "type": "string",
+                "pattern": "^domain:.+$"
+              },
+              "owner": {
+                "$ref": "firestartr.dev://common/FirestartrRef"
+              }
+            },
+            "required": [
+              "name"
+            ]
+          }
+        ]
+      }
+    }
+  },
+  {
+    "$schema": "https://json-schema.org/draft/2020-12/schema",
+    "$id": "DomainClaim",
+    "definitions": {
+      "DomainClaim": {
+        "$id": "firestartr.dev://common/DomainClaim",
+        "type": "object",
+        "description": "A domain claim",
+        "unevaluatedProperties": false,
+        "allOf": [
+          {
+            "$ref": "firestartr.dev://common/ClaimEnvelope"
+          },
+          {
+            "type": "object",
+            "properties": {
+              "description": {
+                "type": "string"
+              },
+              "owner": {
+                "type": "string"
+              }
+            },
+            "required": [
+              "description",
+              "owner"
+            ]
+          }
+        ]
+      }
+    }
+  },
+  {
+    "$id": "TFWorkspaceClaim",
+    "definitions": {
+      "TFWorkspaceClaim": {
+        "$id": "firestartr.dev://common/TFWorkspaceClaim",
+        "type": "object",
+        "description": "A TF Workfspace claim",
+        "unevaluatedProperties": false,
+        "allOf": [
+          {
+            "$ref": "firestartr.dev://common/ClaimEnvelope"
+          },
+          {
+            "type": "object",
+            "properties": {
+              "resourceType": {
+                "type": "string"
+              },
+              "system": {
+                "type": "string",
+                "pattern": "^system:.+$"
+              },
+              "owner": {
+                "type": "string",
+                "pattern": "^[^:]+:[^:]+$"
+              },
+              "providers": {
+                "type": "object",
+                "properties": {
+                  "terraform": {
+                    "$ref": "firestartr.dev://terraform/TerraformProvider"
+                  }
+                },
+                "required": [
+                  "terraform"
+                ]
+              }
+            },
+            "required": [
+              "owner"
+            ]
+          }
+        ]
+      }
+    }
+  },
+  {
+    "$schema": "https://json-schema.org/draft/2020-12/schema",
+    "$id": "",
+    "definitions": {
+      "ArgoDeployClaim": {
+        "$id": "firestartr.dev://common/ArgoDeployClaim",
+        "type": "object",
+        "description": "An ArgoCD Deploy claim",
+        "unevaluatedProperties": false,
+        "allOf": [
+          {
+            "$ref": "firestartr.dev://common/ClaimEnvelope"
+          },
+          {
+            "type": "object",
+            "properties": {
+              "system": {
+                "type": "string",
+                "pattern": "^system:.+$"
+              },
+              "project": {
+                "type": "string"
+              },
+              "providers": {
+                "type": "object",
+                "properties": {
+                  "argocd": {
+                    "$ref": "firestartr.dev://argocd/ArgoCDProvider"
+                  }
+                },
+                "required": [
+                  "argocd"
+                ]
+              }
+            }
+          }
+        ]
+      }
+    }
+  },
+  [
+    {
+      "$schema": "https://json-schema.org/draft/2020-12/schema",
+      "$id": "GithubTeamClaim",
+      "definitions": {
+        "GithubTeamClaim": {
+          "$id": "firestartr.dev://github/GithubTeamClaim",
+          "type": "object",
+          "description": "A team github claim",
+          "allOf": [
+            {
+              "$ref": "firestartr.dev://common/ClaimProviderEnvelope"
+            },
+            {
+              "type": "object",
+              "properties": {
+                "privacy": {
+                  "type": "string",
+                  "enum": [
+                    "closed",
+                    "secret"
+                  ]
+                },
+                "description": {
+                  "type": "string"
+                },
+                "org": {
+                  "type": "string"
+                }
+              },
+              "required": [
+                "org",
+                "privacy"
+              ]
+            }
+          ]
+        }
+      }
+    },
+    {
+      "$schema": "https://json-schema.org/draft/2020-12/schema",
+      "$id": "GithubUserClaim",
+      "definitions": {
+        "GithubTeamClaim": {
+          "$id": "firestartr.dev://github/GithubUserClaim",
+          "type": "object",
+          "description": "A membership github claim",
+          "allOf": [
+            {
+              "$ref": "firestartr.dev://common/ClaimProviderEnvelope"
+            },
+            {
+              "type": "object",
+              "properties": {
+                "role": {
+                  "type": "string",
+                  "enum": [
+                    "admin",
+                    "member"
+                  ]
+                },
+                "org": {
+                  "type": "string"
+                }
+              },
+              "required": [
+                "org",
+                "role"
+              ]
+            }
+          ]
+        }
+      }
+    },
+    {
+      "$schema": "https://json-schema.org/draft/2020-12/schema",
+      "$id": "GithubComponentFeatureClaim",
+      "definitions": {
+        "GithubComponentFeatureClaim": {
+          "$id": "firestartr.dev://github/GithubComponentFeatureClaim",
+          "description": "A feature for a GithubComponentClaim",
+          "type": "object",
+          "properties": {
+            "name": {
+              "type": "string",
+              "description": "The name of the feature"
+            },
+            "version": {
+              "type": "string",
+              "description": "The semver of the feature"
+            },
+            "ref": {
+              "type": "string",
+              "pattern": "^[a-zA-Z0-9-._@/]+$",
+              "description": "A github reference (commit, tag, branch)"
+            },
+            "args": {
+              "type": "object",
+              "properties": {},
+              "additionalProperties": true
+            },
+            "repo": {
+              "type": "string",
+              "description": "A repo where the feature exists, format: owner/repository",
+              "pattern": "^[a-zA-Z0-9-._]+/[a-zA-Z0-9-._]+$"
+            }
+          },
+          "required": [
+            "name"
+          ],
+          "oneOf": [
+            {
+              "type": "object",
+              "required": [
+                "ref"
+              ],
+              "not": {
+                "required": [
+                  "version"
+                ]
+              }
+            },
+            {
+              "type": "object",
+              "required": [
+                "version"
+              ],
+              "not": {
+                "required": [
+                  "ref"
+                ]
+              }
+            }
+          ],
+          "additionalProperties": false
+        }
+      }
+    },
+    {
+      "$schema": "https://json-schema.org/draft/2020-12/schema",
+      "$id": "GithubComponentClaim",
+      "definitions": {
+        "GithubComponentClaim": {
+          "$id": "firestartr.dev://github/GithubComponentClaim",
+          "type": "object",
+          "description": "A component github claim",
+          "unevaluatedProperties": false,
+          "allOf": [
+            {
+              "$ref": "firestartr.dev://common/ClaimProviderEnvelope"
+            },
+            {
+              "type": "object",
+              "properties": {
+                "org": {
+                  "type": "string",
+                  "description": "The github organization name"
+                },
+                "visibility": {
+                  "type": "string",
+                  "enum": [
+                    "private",
+                    "public",
+                    "internal"
+                  ]
+                },
+                "features": {
+                  "type": "array",
+                  "items": {
+                    "$ref": "firestartr.dev://github/GithubComponentFeatureClaim"
+                  }
+                },
+                "vars": {
+                  "$ref": "firestartr.dev://github/GithubComponentClaimVars"
+                },
+                "secrets": {
+                  "$ref": "firestartr.dev://github/GithubComponentClaimSecrets"
+                }
+              },
+              "required": [
+                "visibility",
+                "org"
+              ]
+            }
+          ]
+        }
+      }
+    },
+    {
+      "$schema": "https://json-schema.org/draft/2020-12/schema",
+      "$id": "GithubOrgWebhookClaim",
+      "definitions": {
+        "GithubOrgWebhookClaim": {
+          "$id": "firestartr.dev://github/GithubOrgWebhookClaim",
+          "type": "object",
+          "description": "A Github Organization Webhook claim",
+          "allOf": [
+            {
+              "$ref": "firestartr.dev://common/ClaimProviderEnvelope"
+            },
+            {
+              "type": "object",
+              "properties": {
+                "orgName": {
+                  "type": "string",
+                  "description": "Organization name on GitHub"
+                },
+                "webhook": {
+                  "type": "object",
+                  "properties": {
+                    "url": {
+                      "type": "string",
+                      "description": "Webhook endpoint URL"
+                    },
+                    "contentType": {
+                      "type": "string",
+                      "description": "Payload content type (json or form)",
+                      "enum": [
+                        "json",
+                        "form"
+                      ]
+                    },
+                    "active": {
+                      "type": "boolean",
+                      "description": "If the webhook is active"
+                    },
+                    "secretRef": {
+                      "$ref": "firestartr.dev://github/GithubComponentClaimSecretRef"
+                    },
+                    "events": {
+                      "type": "array",
+                      "description": "List of events that trigger the webhook (e.g., push, pull_request, issues)",
+                      "items": {
+                        "type": "string"
+                      }
+                    }
+                  },
+                  "required": [
+                    "url",
+                    "contentType",
+                    "events",
+                    "secretRef"
+                  ]
+                }
+              },
+              "required": [
+                "orgName",
+                "webhook"
+              ]
+            }
+          ]
+        }
+      }
+    },
+    {
+      "$schema": "https://json-schema.org/draft/2020-12/schema",
+      "$id": "GithubComponentClaimVarsAndSecrets",
+      "definitions": {
+        "GithubComponentClaimVars": {
+          "$id": "firestartr.dev://github/GithubComponentClaimVars",
+          "type": "object",
+          "properties": {
+            "actions": {
+              "type": "array",
+              "items": {
+                "$ref": "firestartr.dev://github/GithubComponentClaimRepoVar"
+              }
+            }
+          },
+          "additionalProperties": false
+        },
+        "GithubComponentClaimSecrets": {
+          "$id": "firestartr.dev://github/GithubComponentClaimSecrets",
+          "type": "object",
+          "properties": {
+            "actions": {
+              "type": "array",
+              "items": {
+                "$ref": "firestartr.dev://github/GithubComponentClaimRepoSecret"
+              }
+            },
+            "codespaces": {
+              "type": "array",
+              "items": {
+                "$ref": "firestartr.dev://github/GithubComponentClaimRepoSecret"
+              }
+            },
+            "dependabot": {
+              "type": "array",
+              "items": {
+                "$ref": "firestartr.dev://github/GithubComponentClaimRepoSecret"
+              }
+            }
+          },
+          "additionalProperties": false
+        },
+        "GithubComponentClaimSecretRef": {
+          "$id": "firestartr.dev://github/GithubComponentClaimSecretRef",
+          "type": "string",
+          "description": "the reference of the secret",
+          "pattern": "^ref:secretsclaim:([a-zA-Z0-9_-]+):([a-zA-Z0-9_-]+)$"
+        },
+        "GithubComponentClaimRepoSecret": {
+          "$id": "firestartr.dev://github/GithubComponentClaimRepoSecret",
+          "type": "object",
+          "description": "A secret for a github repo",
+          "properties": {
+            "name": {
+              "type": "string",
+              "description": "the name of the secret"
+            },
+            "value": {
+              "$ref": "firestartr.dev://github/GithubComponentClaimSecretRef"
+            }
+          },
+          "required": [
+            "name",
+            "value"
+          ],
+          "additionalProperties": false
+        },
+        "GithubComponentClaimRepoVar": {
+          "$id": "firestartr.dev://github/GithubComponentClaimRepoVar",
+          "type": "object",
+          "description": "A var for a github repo",
+          "properties": {
+            "name": {
+              "type": "string",
+              "description": "the name of the var"
+            },
+            "value": {
+              "type": "string",
+              "description": "the value of the var"
+            }
+          },
+          "required": [
+            "name",
+            "value"
+          ],
+          "additionalProperties": false
+        }
+      }
+    }
+  ],
+  [
+    {
+      "$id": "TerraformProvider",
+      "definitions": {
+        "TerraformProvider": {
+          "$id": "firestartr.dev://terraform/TerraformProvider",
+          "type": "object",
+          "description": "A terraform workspace",
+          "allOf": [
+            {
+              "$ref": "firestartr.dev://common/ClaimProviderEnvelope"
+            },
+            {
+              "type": "object",
+              "properties": {
+                "policy": {
+                  "type": "string",
+                  "enum": [
+                    "apply",
+                    "create-only",
+                    "create-update-only",
+                    "full-control",
+                    "observe",
+                    "observe-only"
+                  ]
+                },
+                "name": {
+                  "type": "string"
+                },
+                "source": {
+                  "type": "string",
+                  "enum": [
+                    "remote",
+                    "inline",
+                    "Remote",
+                    "Inline"
+                  ]
+                },
+                "sync": {
+                  "type": "object",
+                  "properties": {
+                    "enabled": {
+                      "type": "boolean"
+                    },
+                    "period": {
+                      "type": "string",
+                      "pattern": "^[0-9]+[smhd]$"
+                    },
+                    "schedule": {
+                      "type": "string"
+                    },
+                    "schedule_timezone": {
+                      "type": "string"
+                    },
+                    "policy": {
+                      "type": "string"
+                    }
+                  },
+                  "additionalProperties": false,
+                  "required": [
+                    "enabled"
+                  ],
+                  "oneOf": [
+                    {
+                      "required": [
+                        "period"
+                      ]
+                    },
+                    {
+                      "required": [
+                        "schedule"
+                      ]
+                    },
+                    {
+                      "not": {
+                        "anyOf": [
+                          {
+                            "required": [
+                              "period"
+                            ]
+                          },
+                          {
+                            "required": [
+                              "schedule"
+                            ]
+                          }
+                        ]
+                      }
+                    }
+                  ]
+                },
+                "valuesSchema": {
+                  "type": "string",
+                  "description": "a locator for a json schema to validate values"
+                },
+                "values": {
+                  "type": "object",
+                  "properties": {},
+                  "additionalProperties": true
+                },
+                "module": {
+                  "type": "string"
+                },
+                "context": {
+                  "type": "object",
+                  "properties": {
+                    "providers": {
+                      "type": "array",
+                      "items": {
+                        "type": "object",
+                        "properties": {
+                          "name": {
+                            "type": "string"
+                          }
+                        },
+                        "additionalProperties": false
+                      }
+                    },
+                    "backend": {
+                      "type": "object",
+                      "properties": {
+                        "name": {
+                          "type": "string"
+                        }
+                      },
+                      "additionalProperties": false
+                    }
+                  },
+                  "required": [
+                    "providers"
+                  ],
+                  "additionalProperties": false
+                }
+              },
+              "required": [
+                "values",
+                "context",
+                "source",
+                "name"
+              ]
+            }
+          ]
+        }
+      }
+    }
+  ],
+  [
+    {
+      "$schema": "https://json-schema.org/draft/2020-12/schema",
+      "$id": "ArgoCDProvider",
+      "definitions": {
+        "ArgoCDProvider": {
+          "$id": "firestartr.dev://argocd/ArgoCDProvider",
+          "type": "object",
+          "description": "An argocd deploy",
+          "allOf": [
+            {
+              "$ref": "firestartr.dev://common/ClaimProviderEnvelope"
+            },
+            {
+              "type": "object",
+              "properties": {
+                "name": {
+                  "type": "string"
+                },
+                "project": {
+                  "type": "string"
+                },
+                "chart": {
+                  "$ref": "firestartr.dev://argocd/ArgoCDProviderChart"
+                },
+                "values": {
+                  "type": "array",
+                  "items": {
+                    "$ref": "firestartr.dev://argocd/ArgoCDProviderValues"
+                  }
+                },
+                "destination": {
+                  "type": "object",
+                  "properties": {
+                    "namespace": {
+                      "type": "string",
+                      "description": "namespace to deploy"
+                    },
+                    "server": {
+                      "type": "string"
+                    },
+                    "name": {
+                      "type": "string"
+                    }
+                  }
+                }
+              },
+              "required": [
+                "name"
+              ]
+            }
+          ]
+        },
+        "ArgoCDProviderChart": {
+          "$id": "firestartr.dev://argocd/ArgoCDProviderChart",
+          "type": "object",
+          "description": "An argocd deploy chart reference",
+          "properties": {
+            "name": {
+              "type": "string",
+              "description": "The name of the chart"
+            },
+            "version": {
+              "type": "string",
+              "description": "Version to use of the chart"
+            },
+            "oci": {
+              "type": "boolean",
+              "description": "Whether the chart is an oci chart",
+              "default": false
+            },
+            "source": {
+              "type": "string",
+              "description": "RepoURL or registry for the chart"
+            }
+          },
+          "required": [
+            "name",
+            "version",
+            "source"
+          ]
+        },
+        "ArgoCDProviderValues": {
+          "$id": "firestartr.dev://argocd/ArgoCDProviderValues",
+          "type": "object",
+          "description": "An argocd deploy values",
+          "properties": {
+            "source": {
+              "type": "string",
+              "description": "RepoURL of the values"
+            },
+            "paths": {
+              "type": "array",
+              "items": {
+                "type": "string",
+                "description": "path to get values from"
+              }
+            },
+            "revision": {
+              "type": "string",
+              "description": "revision of the repo"
+            }
+          },
+          "required": [
+            "source",
+            "paths",
+            "revision"
+          ]
+        }
+      }
+    }
+  ],
+  [
+    {
+      "$schema": "https://json-schema.org/draft/2020-12/schema",
+      "$id": "ExternalSecretsProvider",
+      "definitions": {
+        "SecretStore": {
+          "$id": "firestartr.dev://secrets/SecretStore",
+          "type": "object",
+          "properties": {
+            "name": {
+              "type": "string"
+            },
+            "kind": {
+              "type": "string",
+              "enum": [
+                "SecretStore",
+                "ClusterSecretStore"
+              ]
+            }
+          },
+          "required": [
+            "name"
+          ]
+        },
+        "ExternalSecretsSection": {
+          "$id": "firestartr.dev://secrets/ExternalSecretsSection",
+          "type": "object",
+          "properties": {
+            "refreshInterval": {
+              "type": "string"
+            },
+            "secrets": {
+              "type": "array",
+              "items": {
+                "additionalProperties": false,
+                "type": "object",
+                "properties": {
+                  "secretName": {
+                    "type": "string"
+                  },
+                  "remoteRef": {
+                    "type": "string"
+                  }
+                },
+                "required": [
+                  "secretName"
+                ]
+              }
+            }
+          }
+        },
+        "PushSecretsSection": {
+          "$id": "firestartr.dev://secrets/PushSecretsSection",
+          "type": "array",
+          "items": {
+            "type": "object",
+            "properties": {
+              "data": {
+                "type": "object"
+              },
+              "template": {
+                "type": "object"
+              },
+              "secretName": {
+                "type": "string"
+              },
+              "refreshInterval": {
+                "type": "string"
+              },
+              "generator": {
+                "type": "object",
+                "properties": {
+                  "name": {
+                    "type": "string"
+                  },
+                  "kind": {
+                    "type": "string",
+                    "enum": [
+                      "ACRAccessToken",
+                      "ClusterGenerator",
+                      "ECRAuthorizationToken",
+                      "Fake",
+                      "GCRAccessToken",
+                      "GithubAccessToken",
+                      "QuayAccessToken",
+                      "Password",
+                      "STSSessionToken",
+                      "UUID",
+                      "VaultDynamicSecret",
+                      "Webhook",
+                      "Grafana"
+                    ]
+                  },
+                  "apiVersion": {
+                    "type": "string"
+                  },
+                  "conversionStrategy": {
+                    "type": "string"
+                  },
+                  "outputKey": {
+                    "type": "string"
+                  }
+                },
+                "required": [
+                  "name"
+                ]
+              }
+            },
+            "required": [
+              "secretName",
+              "generator"
+            ]
+          }
+        },
+        "ExternalSecretsProvider": {
+          "$id": "firestartr.dev://secrets/ExternalSecretsProvider",
+          "type": "object",
+          "description": "A external secrets claim provider",
+          "allOf": [
+            {
+              "$ref": "firestartr.dev://common/ClaimProviderEnvelope"
+            },
+            {
+              "anyOf": [
+                {
+                  "properties": {
+                    "externalSecrets": {
+                      "$ref": "firestartr.dev://secrets/ExternalSecretsSection"
+                    },
+                    "secretStore": {
+                      "$ref": "firestartr.dev://secrets/SecretStore"
+                    }
+                  },
+                  "required": [
+                    "secretStore",
+                    "externalSecrets"
+                  ]
+                },
+                {
+                  "properties": {
+                    "pushSecrets": {
+                      "$ref": "firestartr.dev://secrets/PushSecretsSection"
+                    },
+                    "secretStore": {
+                      "$ref": "firestartr.dev://secrets/SecretStore"
+                    }
+                  },
+                  "required": [
+                    "secretStore",
+                    "pushSecrets"
+                  ]
+                }
+              ]
+            }
+          ]
+        }
+      }
+    }
+  ],
+  {
+    "$schema": "https://json-schema.org/draft/2020-12/schema",
+    "$id": "SecretsClaim",
+    "definitions": {
+      "ArgoDeployClaim": {
+        "$id": "firestartr.dev://common/SecretsClaim",
+        "type": "object",
+        "description": "",
+        "unevaluatedProperties": false,
+        "allOf": [
+          {
+            "$ref": "firestartr.dev://common/ClaimEnvelope"
+          },
+          {
+            "type": "object",
+            "properties": {
+              "system": {
+                "$ref": "firestartr.dev://common/FirestartrSystemRef"
+              },
+              "providers": {
+                "type": "object",
+                "properties": {
+                  "external_secrets": {
+                    "$ref": "firestartr.dev://secrets/ExternalSecretsProvider"
+                  }
+                },
+                "required": [
+                  "external_secrets"
+                ]
+              }
+            }
+          }
+        ]
+      }
+    }
+  },
+  {
+    "$schema": "https://json-schema.org/draft/2020-12/schema",
+    "$id": "OrgWebhookClaim",
+    "definitions": {
+      "OrgWebhookClaim": {
+        "$id": "firestartr.dev://common/OrgWebhookClaim",
+        "type": "object",
+        "description": "A Organization Webhook claim",
+        "unevaluatedProperties": false,
+        "allOf": [
+          {
+            "$ref": "firestartr.dev://common/ClaimEnvelope"
+          },
+          {
+            "type": "object",
+            "properties": {
+              "providers": {
+                "type": "object",
+                "properties": {
+                  "github": {
+                    "$ref": "firestartr.dev://github/GithubOrgWebhookClaim"
+                  }
+                }
+              }
+            }
+          }
+        ]
+      }
+    }
+  }
+]

@@ -1,0 +1,25 @@
+apiVersion: firestartr.dev/v1
+kind: FirestartrProviderConfig
+metadata:
+  name: aws-dev-iam
+spec:
+  source: Inline
+  version: "0.0.0"
+  type: aws
+  config: |
+    {
+      "region": "eu-west-1",
+      "secret_key": "${{ secrets.S3_SECRET_KEY }}",
+      "access_key": "${{ secrets.S3_ACCESS_KEY }}"
+    }
+  secrets:
+    S3_SECRET_KEY:
+      secretRef:
+        name: sample-secret
+        namespace: default
+        key: secret_key
+    S3_ACCESS_KEY:
+      secretRef:
+        name: sample-secret
+        namespace: default
+        key: access_key

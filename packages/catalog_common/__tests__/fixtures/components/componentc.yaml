@@ -1,0 +1,35 @@
+apiVersion: 'backstage.io/v1alpha1'
+kind: 'Component'
+metadata:
+  name: 'component_c'
+  description: 'Component C'
+  annotations:
+    backstage.io/source-location: 'url:https://github.com/prefapp/catalog'
+    fire-starter.dev/uuid: 'uuid-component_c-3333333'
+    github.com/project-slug: 'org/component_c'
+spec:
+  type: 'service'
+  lifecycle: 'production'
+  owner: 'group_c'
+  maintainedBy:
+    - 'group_c'
+  platformOwner: 'group_c'
+  provisioner:
+    org: 'prefapp'
+    orgPermissions: none
+    technology:
+      stack: 'node'
+      version: '18'
+    repo:
+      visibility: 'private'
+      ciSystem: 'github'
+      defaultBranch: 'main'
+      branchStrategy: 'none'
+      additionalCodeownersRules: []
+      branches:
+        protections:
+          override:
+            is_override: false
+            number_reviewer: null
+    features: []
+  system: 'system_c'

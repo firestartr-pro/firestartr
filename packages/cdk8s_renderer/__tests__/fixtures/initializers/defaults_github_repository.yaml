@@ -1,0 +1,39 @@
+name: repo_base
+apiVersion: firestartr.dev/v1
+kind: ComponentClaim
+defaultValues:
+  context:
+    backend:
+      ref:
+        kind: FirestartrProviderConfig
+        name: aws-state-bucket
+    provider:
+      ref:
+        kind: FirestartrProviderConfig
+        name: github-app
+  org: firestartr-test
+  firestartr:
+    technology:
+      stack: node
+      version: "14"
+    type: service
+    lifecycle: production
+    system: firestartr-test-system
+  repo:
+    description: "another repo"
+    allowMergeCommit: true
+    allowSquashMerge: true
+    allowRebaseMerge: true
+    allowAutoMerge: false
+    deleteBranchOnMerge: false
+    autoInit: true
+    archiveOnDestroy: false
+    allowUpdateBranch: false
+    hasIssues: true
+    visibility: private
+    defaultBranch: main
+    codeowners: ""
+  actions:
+    oidc:
+      useDefault: true
+      includeClaimKeys: []

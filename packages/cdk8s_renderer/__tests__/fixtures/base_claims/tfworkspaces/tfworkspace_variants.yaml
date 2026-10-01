@@ -1,0 +1,40 @@
+kind: TFWorkspaceClaim
+lifecycle: production
+resourceType: tfworkspace-variants
+name: tfworkspace_variants
+owner: 'group:firestartr'
+system: 'system:system_a'
+version: '1.0'
+providers:
+  terraform:
+    name: parent-workspace
+    policy: full-control
+    source: Remote
+    module: https://github.com/infra/shared-module@main
+    values:
+      env: prod
+      region: eu-west-1
+      instance_count: 3
+    context:
+      providers:
+        - name: aws-prod
+      backend:
+        name: terraform-backend
+    variants:
+      - name: dr-eu
+        overrides:
+          values:
+            env: dr
+            region: eu-west-2
+            instance_count: 1
+          context:
+            providers:
+              - name: aws-eu-dr
+      - name: dr-us
+        overrides:
+          values:
+            env: dr-us
+            region: us-west-1
+          context:
+            providers:
+              - name: aws-us-dr

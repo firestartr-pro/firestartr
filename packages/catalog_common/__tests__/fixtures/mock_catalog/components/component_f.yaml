@@ -1,0 +1,47 @@
+apiVersion: "backstage.io/v1alpha1"
+kind: "Component"
+metadata:
+  name: "tools"
+  description: "Repo for different tools and scripts used by the organization"
+  annotations:
+    backstage.io/source-location: "url:https://github.com/prefapp/tools"
+    github.com/project-slug: "prefapp/tools"
+    fire-starter.dev/uuid: "7ab3007d-b45b-48cd-b27b-8d7ffb8c1adc"
+    backstage.io/techdocs-ref: "url:https://github.com/prefapp/tools/tree/main"
+spec:
+  type: "generic"
+  lifecycle: "production"
+  owner: "group_b"
+  maintainedBy:
+    - "group_b"
+  platformOwner: "group_b"
+  provisioner:
+    org: "prefapp"
+    orgPermissions: 'contribute'
+    technology:
+      stack: "python"
+      version: "3.11.1"
+    repo:
+      visibility: "private"
+      ciSystem: "github"
+      defaultBranch: "main"
+      branchStrategy: "trunkBasedDevelopment"
+      branches:
+        protections:
+          override:
+            is_override: false
+            number_reviewer: null
+      additionalCodeownersRules: null
+    features:
+      - name: "tech_docs"
+        version: "0.4.0"
+        status:
+          value: "PROVISIONED"
+          extras: ""
+        args: {}
+      - name: "issue_templates"
+        version: "1.0.1"
+        status:
+          value: "PROVISIONED"
+          extras: ""
+        args: {}

@@ -1,0 +1,51 @@
+apiVersion: backstage.io/v1alpha1
+kind: Component
+metadata:
+  name: component_a
+  description: 'Component A'
+  annotations:
+    backstage.io/source-location: url:https://github.com/prefapp/catalog
+    github.com/project-slug: org/component_a
+    fire-starter.dev/uuid: uuid-component_a-11111
+spec:
+  type: service
+  lifecycle: production
+  owner: group_a
+  maintainedBy:
+   - "group_b"
+  platformOwner: group_b
+  provisioner:
+    org: prefapp
+    orgPermissions: none
+    technology:
+      stack: node
+      version: '18'
+    repo:
+      visibility: private
+      ciSystem: github
+      defaultBranch: main
+      branchStrategy: none
+      additionalCodeownersRules:
+        - path: '*.js'
+          owners:
+            - group_b
+            - group_a
+        - path: '*.ts'
+          owners:
+            - group_b
+        - path: '*.test.js'
+          owners:
+            - group_b
+      branches:
+        protections:
+          override:
+            is_override: false
+            number_reviewer: null
+    features:
+      - name: test
+        version: 1.0.0
+        status:
+          value: PROVISIONING
+          extras: ''
+        args: {}
+  system: system_a

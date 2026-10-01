@@ -1,0 +1,81 @@
+name: validate-crds
+
+on:
+  workflow_dispatch:
+    inputs:
+      versions:
+        description: "Comma-separated list of K8s versions (p. ej. v1_33,v1_34,v1_35)"
+        required: false
+  workflow_call:
+    inputs:
+      versions:
+        type: string
+        required: true
+
+jobs:
+  validate_crds:
+    runs-on: ubuntu-24.04
+
+    steps:
+      - name: Checkout project
+        uses: actions/checkout@v7
+        with:
+          path: project-dir
+
+      - name: Checkout validate-crds module
+        uses: actions/checkout@v7
+        with:
+          repository: prefapp/daggerverse
+          ref: main
+          sparse-checkout: |
+            validate-crds/dagger.json
+          path: dagger-module
+
+      - id: extract_cli_version
+        name: Read Dagger CLI version
+        run: |
+          DAGGER_VERSION=$(cat dagger-module/validate-crds/dagger.json | jq -r ."engineVersion")
+          echo "DAGGER_VERSION=$DAGGER_VERSION" >> "$GITHUB_ENV"
+
+      - name: Setup Dagger CLI
+        uses: dagger/dagger-for-github@456fc3af63a2ba6f9789af9c55045b459115541b # v8.3.0
+        with:
+          version: ${{ env.DAGGER_VERSION }}
+
+      - name: Validate CRDs against selected K8s versions
+        env:
+          INPUT_VERSIONS: ${{ inputs.versions }}
+          CRDS_DIR: ${{ github.workspace }}/project-dir/packages/k8s/src/crds
+          CRS_DIR: ${{ github.workspace }}/project-dir/packages/k8s/__tests__/fixtures
+        run: |
+          set -euo pipefail
+
+          if [ -z "$INPUT_VERSIONS" ]; then
+            echo "No Kubernetes versions provided"
+            exit 1
+          fi
+
+          normalized_versions="${INPUT_VERSIONS//[[:space:]]/}"
+          if [ -z "$normalized_versions" ]; then
+            echo "No valid Kubernetes versions provided"
+            exit 1
+          fi
+
+          IFS=',' read -ra versions <<< "$normalized_versions"
+
+          for version in "${versions[@]}"; do
+            if [ -z "$version" ]; then
+              continue
+            fi
+
+            echo "Validating CRDs for Kubernetes ${version}"
+            dagger \
+              -m github.com/prefapp/daggerverse/validate-crds \
+              call \
+              --docker-socket=/var/run/docker.sock \
+              --kind-svc=tcp://127.0.0.1:3000 \
+              --crds-dir="$CRDS_DIR" \
+              --crs-dir="$CRS_DIR" \
+              --version="${version}" \
+              validate
+          done

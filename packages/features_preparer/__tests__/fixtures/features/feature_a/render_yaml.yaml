@@ -1,0 +1,17 @@
+apiVersion: 'firestartr.dev/v1'
+kind: 'FirestartrGithubRepositoryFeature'
+metadata:
+  annotations: []
+  name: 'tech_docs'
+spec:
+  version: '0.3.1'
+  repositoryTarget:
+    name: 'firestartr-test'
+    branch: 'main'
+  files:
+    - path: 'test.txt'
+      userManaged: false
+      content: 'SGVsbG8gZnJvbSB7e3wgTkFNRSB8fX0sIGdpdmUgbWUgYSBmb28gYW5kIGkgZ2l2ZSB5b3UgYSB7e3wgTElURVJBTCB8fX0K'
+    - path: '.github/workflows/pr-verify.yaml'
+      userManaged: false
+      content: 'bmFtZTogR2l0SHViIEFjdGlvbnMgUHl0aG9uCm9uOiBbcHVzaF0Kam9iczoKICB0ZXN0OgogICAgcnVucy1vbjogdWJ1bnR1LWxhdGVzdAogICAgc3RlcHM6CiAgICAgIC0gcnVuOiBlY2hvICLwn46JIFRoZSBqb2Igd2FzIGF1dG9tYXRpY2FsbHkgdHJpZ2dlcmVkLiIK'

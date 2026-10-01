@@ -1,0 +1,6 @@
+kind: UserClaim
+name: my-user
+providers:
+  github:
+    name: my-user-github
+    org: my-org

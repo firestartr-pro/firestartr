@@ -2,8 +2,8 @@
 # FEATURE_NAME: build_and_dispatch_docker_images
 # FEATURE_VERSION: build_and_dispatch_docker_images-v5
 # FEATURE_URL: https://github.com/prefapp/features/tree/build_and_dispatch_docker_images-v5/packages/build_and_dispatch_docker_images
-# FEATURE_GIT_SHA: "2c3081793137d8cde377436057466e38cb4190bc"
-# FEATURE_GIT_TAGS: ["build_and_dispatch_docker_images-v5.6.1","build_and_dispatch_docker_images-v5"]
+# FEATURE_GIT_SHA: "b4db429cdc80af8e1a72cfef34762348f83adb37"
+# FEATURE_GIT_TAGS: ["build_and_dispatch_docker_images-v5.7.2","build_and_dispatch_docker_images-v5"]
 
 name: Make dispatches
 
@@ -67,71 +67,141 @@ jobs:
     runs-on: ubuntu-24.04
     steps:
       - name: Show user input
+        env:
+          IMAGE_TYPE: ${{ inputs.image_type }}
+          FLAVORS: ${{ inputs.flavors }}
+          OVERWRITE_VERSION: ${{ inputs.overwrite_version }}
+          OVERWRITE_TENANT: ${{ inputs.overwrite_tenant }}
+          OVERWRITE_ENV: ${{ inputs.overwrite_env }}
+          FILTER_BY_TENANT: ${{ inputs.filter_by_tenant }}
+          FILTER_BY_ENV: ${{ inputs.filter_by_env }}
+          FILTER_BY_PLATFORM: ${{ inputs.filter_by_platform }}
+          WORKFLOW_RUN_ID: ${{ inputs.workflow_run_id }}
         run: |
-          echo "Image type: ${{ inputs.image_type }}"
-          echo "Flavors: ${{ inputs.flavors }}"
-          echo "Version overwrite: ${{ inputs.overwrite_version }}"
-          echo "Tenant overwrite: ${{ inputs.overwrite_tenant }}"
-          echo "Tenant filter: ${{ inputs.filter_by_tenant }}"
-          echo "Env overwrite: ${{ inputs.overwrite_env }}"
-          echo "Env filter: ${{ inputs.filter_by_env }}"
-          echo "Platform filter: ${{ inputs.filter_by_platform }}"
-          echo "Workflow run ID: ${{ inputs.workflow_run_id }}"
+          echo "Image type: $IMAGE_TYPE"
+          echo "Flavors: $FLAVORS"
+          echo "Version overwrite: $OVERWRITE_VERSION"
+          echo "Tenant overwrite: $OVERWRITE_TENANT"
+          echo "Tenant filter: $FILTER_BY_TENANT"
+          echo "Env overwrite: $OVERWRITE_ENV"
+          echo "Env filter: $FILTER_BY_ENV"
+          echo "Platform filter: $FILTER_BY_PLATFORM"
+          echo "Workflow run ID: $WORKFLOW_RUN_ID"
 
-      - name: Get Token from Github App
-        id: get-gh-app-token
-        uses: actions/create-github-app-token@v3
-        with:
-          app-id: ${{ vars.FS_STATE_APP_ID }}
-          private-key: ${{ secrets.FS_STATE_PEM_FILE }}
-          owner: ${{ github.repository_owner }}
+      - name: 'Install Yaml Parser'
+        run: npm install js-yaml@5.4.2
 
-      - name: 'Checkout .firestartr repository'
-        uses: actions/checkout@v6
-        with:
-          repository: '${{ github.repository_owner }}/.firestartr'
-          token: ${{ steps.get-gh-app-token.outputs.token }}
-          path: .firestartr
-
-      - name: 'Get original actor from workflow run id'
+      - name: 'Verify source workflow run'
         uses: actions/github-script@v9
         if: ${{ inputs.workflow_run_id }}
-        id: get-original-actor
+        id: verify-source-run
+        env:
+          WORKFLOW_RUN_ID: ${{ inputs.workflow_run_id }}
+          IMAGE_TYPE: ${{ inputs.image_type }}
         with:
           result-encoding: string
           script: |
-            core.info('\u001b[43mGetting original actor');
+            // Keyed by the immutable `path` the API reports for the run. The workflow
+            // `run-name` is contributor-editable (a pull_request run executes the file
+            // from the merge ref), so it must not be used to identify the producer.
+            // `events` mirrors each producer's own `on:` block; `image_types` records what
+            // that producer's images may legitimately be dispatched as (pre-releases
+            // images dispatch as 'snapshots' scoped by filter_by_env, never as 'releases').
+            const BUILD_WORKFLOWS = {
+              '.github/workflows/build_docker_snapshots.yaml': {
+                events: ['push', 'pull_request', 'workflow_dispatch'],
+                image_types: ['snapshots', '*'],
+              },
+              '.github/workflows/build_docker_releases.yaml': {
+                events: ['release', 'workflow_dispatch'],
+                image_types: ['releases', '*'],
+              },
+              '.github/workflows/build_docker_pre-releases.yaml': {
+                events: ['release', 'workflow_dispatch'],
+                image_types: ['snapshots', '*'],
+              },
+            };
 
+            const refuse = reason => core.setFailed(`Refusing untrusted build source: ${reason}`);
+            const runId = Number(process.env.WORKFLOW_RUN_ID);
+            const imageType = process.env.IMAGE_TYPE;
+
+            if (!Number.isInteger(runId) || runId <= 0) {
+              return refuse(`'${process.env.WORKFLOW_RUN_ID}' is not a valid workflow run id`);
+            }
+
+            core.info(`\u001b[43mVerifying source workflow run ${runId}`);
             const resp = await github.rest.actions.getWorkflowRun({
-               owner: context.repo.owner,
-               repo: context.repo.repo,
-               run_id: ${{ inputs.workflow_run_id }},
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              run_id: runId,
             });
+            const run = resp.data;
 
-            const actor = resp.data.actor.login
-            const triggering_actor = resp.data.triggering_actor.login
+            // Fork policy, enforced here because this step runs trusted default-branch
+            // code. The producers' own guards are not a boundary: a `pull_request` run
+            // evaluates the workflow from the merge ref, so a fork could delete them and
+            // report success with a forged build summary artifact.
+            const repoFullName = `${context.repo.owner}/${context.repo.repo}`;
+            const headRepoFullName = run.head_repository?.full_name;
+            if (headRepoFullName !== repoFullName) {
+              return refuse(`run ${runId} head repository '${headRepoFullName ?? 'unknown'}' is not ${repoFullName}`);
+            }
 
-            if(triggering_actor != actor) return `${actor},${triggering_actor}`
-            return actor
+            const producer = Object.hasOwn(BUILD_WORKFLOWS, run.path) && BUILD_WORKFLOWS[run.path];
+            if (!producer) {
+              return refuse(`workflow '${run.name}' at '${run.path}' is not a build workflow`);
+            }
+            if (!producer.events.includes(run.event)) {
+              return refuse(`event '${run.event}' is not valid for '${run.path}'`);
+            }
+            if (run.conclusion !== 'success') {
+              return refuse(`run ${runId} concluded '${run.conclusion}', expected 'success'`);
+            }
+            if (!producer.image_types.includes(imageType)) {
+              return refuse(`image_type '${imageType}' cannot be dispatched from '${run.path}'`);
+            }
 
-      - name: 'Install Yaml Parser'
-        run: npm install js-yaml
+            core.info(`Verified '${run.name}' (${run.event}, ${run.head_branch}, ${run.conclusion})`);
+
+            core.setOutput('producer', run.path);
+            core.setOutput('producer_event', run.event);
+
+            const actor = run.actor?.login ?? '';
+            const triggeringActor = run.triggering_actor?.login;
+            if (triggeringActor && triggeringActor != actor) return `${actor},${triggeringActor}`;
+            return actor;
 
       - name: 'Download build images result from workflow run id'
         uses: actions/github-script@v9
         if: ${{ inputs.workflow_run_id }}
         id: download-build-summary
+        env:
+          WORKFLOW_RUN_ID: ${{ inputs.workflow_run_id }}
+          SOURCE_WORKFLOW: ${{ steps.verify-source-run.outputs.producer }}
+          SOURCE_RUN_EVENT: ${{ steps.verify-source-run.outputs.producer_event }}
         with:
           script: |
             const jsYaml = require("js-yaml")
-            const { execSync } = require('child_process');
+            const { execFileSync } = require('child_process');
             const fs = require('fs');
+            const os = require('os');
+            const path = require('path');
+
+            const runId = Number(process.env.WORKFLOW_RUN_ID);
+            const sourceWorkflow = process.env.SOURCE_WORKFLOW;
+            const sourceRunEvent = process.env.SOURCE_RUN_EVENT;
+
+            if (!sourceWorkflow || !sourceRunEvent) {
+              core.setFailed('Could not determine the source workflow run; refusing to dispatch');
+              return;
+            }
 
             core.info('\u001b[43mGetting workflow run artifacts');
             let allArtifacts = await github.rest.actions.listWorkflowRunArtifacts({
                owner: context.repo.owner,
                repo: context.repo.repo,
-               run_id: ${{ inputs.workflow_run_id }},
+               run_id: runId,
             });
             let matchArtifact = allArtifacts.data.artifacts.filter((artifact) => {
               return artifact.name == "build-images-results"
@@ -151,11 +221,64 @@ jobs:
                archive_format: 'zip',
             });
 
-            core.info('\u001b[43mUnziping artifact build-images-results.zip...');
-            fs.writeFileSync(`${process.env.GITHUB_WORKSPACE}/build-images-results.zip`, Buffer.from(download.data));
-            execSync('unzip build-images-results.zip')
-            core.info('\u001b[43mUnziped artifact build-images-results.zip');
-            return jsYaml.load(fs.readFileSync('build_images_results.yaml'))
+            const extractDir = fs.mkdtempSync(path.join(os.tmpdir(), 'build-images-results-'));
+            const archivePath = path.join(extractDir, 'build-images-results.zip');
+
+            fs.writeFileSync(archivePath, Buffer.from(download.data));
+            core.info('\u001b[43mExtracting build_images_results.yaml from artifact...');
+            execFileSync('unzip', ['-j', '-o', archivePath, 'build_images_results.yaml', '-d', extractDir]);
+            core.info('\u001b[43mExtracted build_images_results.yaml');
+
+            const summary = jsYaml.load(fs.readFileSync(path.join(extractDir, 'build_images_results.yaml'), 'utf8'));
+
+            if (!Array.isArray(summary)) {
+              core.setFailed('build_images_results.yaml does not contain a list of build results');
+              return;
+            }
+
+            core.info(`Cross-checking ${summary.length} summary version(s) against releases`);
+            const shortShaRe = /^[0-9a-f]{7}$/i;
+            // Decided per entry from data the API attested (`run.event`) or the artifact
+            // honestly declares (`entry.image_type`) — never from the caller's
+            // `image_type` input, which would let a caller opt out of validation by
+            // asking for '*'. Snapshot builds are commit-addressed and have no release
+            // tag to check, so they are skipped by rule rather than by accident.
+            const releaseRun = sourceRunEvent === 'release';
+            for (const entry of summary) {
+              // Always validate true releases; for pre-releases/snapshots only validate
+              // if the version is not a short SHA (i.e., it was dereferenced to a tag)
+              if (entry.image_type !== 'releases' && (!releaseRun || shortShaRe.test(entry.version))) {
+                core.info(`Skipping release cross-check for ${entry.image_type} entry with version: ${entry.version}`);
+                continue;
+              }
+              try {
+                await github.rest.repos.getReleaseByTag({
+                  owner: context.repo.owner,
+                  repo: context.repo.repo,
+                  tag: entry.version,
+                });
+              } catch {
+                core.setFailed(`Build summary claims version '${entry.version}', which is not a release of ${context.payload.repository.full_name}`);
+                return;
+              }
+            }
+
+            return summary
+
+      - name: Get Token from Github App
+        id: get-gh-app-token
+        uses: actions/create-github-app-token@v3
+        with:
+          app-id: ${{ vars.FS_STATE_APP_ID }}
+          private-key: ${{ secrets.FS_STATE_PEM_FILE }}
+          owner: ${{ github.repository_owner }}
+
+      - name: 'Checkout .firestartr repository'
+        uses: actions/checkout@v6
+        with:
+          repository: '${{ github.repository_owner }}/.firestartr'
+          token: ${{ steps.get-gh-app-token.outputs.token }}
+          path: .firestartr
 
       - name: 'Dispatch changes'
         if: ${{ steps.download-build-summary.outputs.skipped != 'true' }}
@@ -174,7 +297,7 @@ jobs:
           flavors: ${{ inputs.flavors }}
           default_releases_registry: ${{ vars.DOCKER_REGISTRY_RELEASES }}
           default_snapshots_registry: ${{ vars.DOCKER_REGISTRY_SNAPSHOTS }}
-          reviewers: ${{ steps.get-original-actor.outputs.result || github.actor }}
+          reviewers: ${{ steps.verify-source-run.outputs.result || github.actor }}
           overwrite_version: ${{ inputs.overwrite_version }}
           overwrite_tenant: ${{ inputs.overwrite_tenant }}
           overwrite_env: ${{ inputs.overwrite_env }}

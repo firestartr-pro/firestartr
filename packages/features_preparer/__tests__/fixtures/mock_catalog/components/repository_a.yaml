@@ -1,0 +1,19 @@
+kind: ComponentClaim
+version: "1.0"
+type: "service"
+lifecycle: "production"
+system: "system:system_a"
+owner: "group:ygroup"
+platformOwner: "group:prefapp-team"
+name: "repository-a"
+providers:
+  github:
+    org: "prefapp"
+    name: "repository-a"
+    description: "Testing catalog to check reconfiguring aspects"
+    visibility: "private"
+    technology:
+      stack: python
+    branchStrategy:
+      name: trunkBasedDevelopment
+      defaultBranch: main
