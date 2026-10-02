@@ -7,8 +7,8 @@
   "dependencies": [
     {
       "name": "firestartr-core",
-      "source": "https://github.com/prefapp/daggerverse-private/firestartr-core@main",
-      "pin": "5cd2c7027fe6537a180cb8e6a4330afd75407c1e"
+      "source": "https://github.com/firestartr-pro/daggerverse-private/firestartr-core@main",
+      "pin": "e217b15ebaf652c97a129ad05c0c140e61ca32f6"
     }
   ]
 }
