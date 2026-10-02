@@ -40,7 +40,7 @@ jobs:
       with:
         script: |
           const script = require('./.github/scripts/update-package-json-version.cjs');
-          console.log(script({core, fs, semver}));
+          console.log(script({core}));
 
       # Update npm to 11.5.1 to be able to authenticate with OIDC
     - name: Update npm
