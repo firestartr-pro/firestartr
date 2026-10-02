@@ -245,6 +245,12 @@ void (async () => {
         main: './index.mjs',
         exports: { '.': './index.mjs' },
         devDependencies: { ajv: '^8.0.0' },
+        repository: {
+          type: 'git',
+          url: 'git+https://github.com/firestartr-pro/firestartr.git',
+          directory: 'packages/cdk8s_renderer',
+        },
+        author: 'Firestartr contributors',
         license: 'Apache-2.0',
       },
       null,
