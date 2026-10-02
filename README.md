@@ -12,7 +12,7 @@
   <a href="https://github.com/firestartr-pro/firestartr/releases/latest"><img src="https://img.shields.io/github/v/release/firestartr-pro/firestartr?style=flat-square&amp;color=89b4fa" alt="Latest release" /></a>
   <a href="https://github.com/firestartr-pro/firestartr/actions/workflows/pr_verify.yaml"><img src="https://img.shields.io/github/actions/workflow/status/firestartr-pro/firestartr/pr_verify.yaml?branch=main&amp;style=flat-square&amp;label=verify" alt="PR verify" /></a>
   <a href="https://github.com/firestartr-pro/firestartr/actions/workflows/e2e.yaml"><img src="https://img.shields.io/github/actions/workflow/status/firestartr-pro/firestartr/e2e.yaml?branch=main&amp;style=flat-square&amp;label=e2e" alt="e2e" /></a>
-  <a href="https://github.com/firestartr-pro/firestartr/blob/main/LICENSE"><img src="https://img.shields.io/github/license/firestartr-pro/firestartr?style=flat-square&amp;color=a6e3a1&amp;cacheSeconds=3600"" alt="Apache-2.0 license" /></a>
+  <a href="LICENSE"><img src="https://img.shields.io/github/license/firestartr-pro/firestartr?style=flat-square&amp;color=a6e3a1&amp;cacheSeconds=3600"" alt="Apache-2.0 license" /></a>
   <img src="https://img.shields.io/badge/TypeScript-5-89b4fa?style=flat-square&amp;logo=typescript" alt="TypeScript 5" />
   <img src="https://img.shields.io/badge/Node-%E2%89%A522-a6e3a1?style=flat-square&amp;logo=nodedotjs" alt="Node 22 or later" />
   <img src="https://img.shields.io/badge/Go-Dagger%20e2e-89b4fa?style=flat-square&amp;logo=go" alt="Go and Dagger for e2e" />
