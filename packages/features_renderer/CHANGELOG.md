@@ -1,5 +1,12 @@
 # Changelog
 
+## [2.0.1](https://github.com/firestartr-pro/firestartr/compare/features_renderer-v2.0.0...features_renderer-v2.0.1) (2026-10-02)
+
+
+### Bug Fixes
+
+* sync package json files config to public ([#34](https://github.com/firestartr-pro/firestartr/issues/34)) ([c4479db](https://github.com/firestartr-pro/firestartr/commit/c4479db87a56e4e815478465239616a1210fadc0))
+
 ## [2.0.0](https://github.com/firestartr-pro/firestartr/compare/features_renderer-v1.18.1...features_renderer-v2.0.0) (2026-10-02)
 
 
