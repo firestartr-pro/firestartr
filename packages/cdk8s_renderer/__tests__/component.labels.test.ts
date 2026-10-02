@@ -1,5 +1,6 @@
 import * as fs from "fs";
 import * as path from "path";
+import * as os from "os";
 import { Testing, YamlOutputType } from 'cdk8s';
 import { render } from '../src/renderer/renderer';
 import { AllowedProviders, configureProvider, setExcludedPaths, setPath } from '../src/config';
@@ -16,7 +17,9 @@ describe("A component", () => {
 
     jest.setTimeout(30000);
     configureProvider(AllowedProviders.all)
-    const outDirPath: string = path.join("/", "tmp", ".resourcesCDK8s");
+    const outDirPath: string = fs.mkdtempSync(path.join(os.tmpdir(), ".resourcesCDK8s-"));
+
+    afterAll(() => fs.rmSync(outDirPath, { recursive: true, force: true }));
 
     process.env['ORG'] = 'firestartr-test'
 

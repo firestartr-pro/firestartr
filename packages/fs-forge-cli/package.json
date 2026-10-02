@@ -2,9 +2,15 @@
   "name": "@firestartr/fs-forge-cli",
   "version": "2.0.0",
   "private": false,
-  "license": "ISC",
+  "license": "Apache-2.0",
   "description": "firestartr CLI — deterministic claim operations for the Internal Developer Platform",
   "type": "module",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/firestartr-pro/firestartr.git",
+    "directory": "packages/fs-forge-cli"
+  },
+  "author": "Firestartr contributors",
   "bin": {
     "fs-forge": "bin/run.js"
   },

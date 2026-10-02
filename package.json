@@ -16,8 +16,8 @@
     "type": "git",
     "url": "git+https://github.com/firestartr-pro/firestartr.git"
   },
-  "author": "",
-  "license": "ISC",
+  "author": "Firestartr contributors",
+  "license": "Apache-2.0",
   "bugs": {
     "url": "https://github.com/firestartr-pro/firestartr/issues"
   },

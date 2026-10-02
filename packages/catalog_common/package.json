@@ -15,8 +15,13 @@
     "dist",
     "package.json"
   ],
-  "author": "",
-  "license": "ISC",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/firestartr-pro/firestartr.git",
+    "directory": "packages/catalog_common"
+  },
+  "author": "Firestartr contributors",
+  "license": "Apache-2.0",
   "devDependencies": {
     "csv-stringify": "6.9.0",
     "debug": "^4.3.4",

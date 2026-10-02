@@ -15,8 +15,13 @@
     "local-ts": "tsx launch_local.ts",
     "local-launch": "./scripts/local.sh"
   },
-  "author": "",
-  "license": "ISC",
+  "author": "Firestartr contributors",
+  "license": "Apache-2.0",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/firestartr-pro/firestartr.git",
+    "directory": "packages/operator"
+  },
   "dependencies": {
     "@kubernetes/client-node": "^1.4.0",
     "@opentelemetry/api": "^1.9.0",
