@@ -1,6 +1,6 @@
 {
   "name": "@firestartr/firestartr-features_renderer",
-  "version": "1.18.1",
+  "version": "2.0.0",
   "description": "A renderer for firestartr features",
   "main": "dist/index.js",
   "private": false,
