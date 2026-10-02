@@ -17,6 +17,6 @@
   "dependencies": {
     "@kubernetes/client-node": "1.4.0",
     "catalog_common": "file:../catalog_common",
-    "express": "^4.18.2"
+    "express": "^5.2.1"
   }
 }

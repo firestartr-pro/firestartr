@@ -26,7 +26,7 @@
     "cdk8s_renderer": "file:../cdk8s_renderer",
     "command-line-args": "^5.2.1",
     "dotenv": "^16.4.7",
-    "express": "^4.18.2",
+    "express": "^5.2.1",
     "fast-json-patch": "^3.1.1",
     "gh_provisioner": "file:../gh_provisioner",
     "github": "file:../github",
