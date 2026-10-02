@@ -50,7 +50,7 @@
     "uuid": "^9.0.0"
   },
   "dependencies": {
-    "ajv": "^8.17.1",
+    "ajv": "^8.20.0",
     "libsodium-wrappers": "^0.8.4",
     "semver": "^7.8.5",
     "yaml": "^2.9.1"
