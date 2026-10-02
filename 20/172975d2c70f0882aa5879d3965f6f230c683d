@@ -1,0 +1,14 @@
+.github/workflows/npm-publish-features-renderer.yaml
+  h_7389ae929e13ef 43-44
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.5",
+  "base_commit_sha": "20172975d2c70f0882aa5879d3965f6f230c683d",
+  "prompts": {},
+  "humans": {
+    "h_7389ae929e13ef": {
+      "author": "Javier Gomez Rodriguez <javiergr@ext.zara.com>"
+    }
+  }
+}
