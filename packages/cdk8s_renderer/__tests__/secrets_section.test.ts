@@ -3,6 +3,7 @@ import {GithubRepositoryChart} from "../src/charts/github/repositoryChart"
 
 import * as fs from "fs";
 import * as path from "path";
+import * as os from "os";
 
 import { render } from '../src/renderer/renderer';
 import { AllowedProviders, configureProvider, setExcludedPaths, setPath } from '../src/config';
@@ -26,7 +27,9 @@ let storedRSSection: string | undefined = undefined
 describe("Repo's secrets section", () => {
 
     jest.setTimeout(30000);
-    const outDirPath: string = path.join("/", "tmp", ".resourcesCDK8s");
+    const outDirPath: string = fs.mkdtempSync(path.join(os.tmpdir(), ".resourcesCDK8s-"));
+
+    afterAll(() => fs.rmSync(outDirPath, { recursive: true, force: true }));
 
     configureProvider(AllowedProviders.all)
 
