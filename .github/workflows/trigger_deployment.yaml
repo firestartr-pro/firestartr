@@ -25,15 +25,15 @@ on:
         required: false
         default: ''
       platform:
-        description: 'Platform (check https://github.com/prefapp/.firestartr for valid platforms)'
+        description: 'Platform (check https://github.com/firestartr-pro/.firestartr for valid platforms)'
         required: true
         type: string
       tenant:
-        description: 'Tenant (check https://github.com/prefapp/.firestartr for valid tenants)'
+        description: 'Tenant (check https://github.com/firestartr-pro/.firestartr for valid tenants)'
         required: true
         type: string
       env:
-        description: 'Environment (check https://github.com/prefapp/.firestartr for valid environments)'
+        description: 'Environment (check https://github.com/firestartr-pro/.firestartr for valid environments)'
         required: true
         type: string
 
