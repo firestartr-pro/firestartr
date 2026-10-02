@@ -9,6 +9,12 @@
   "main": "./dist/index.js",
   "types": "./dist/index.d.ts",
   "private": true,
+  "author": "Firestartr contributors",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/firestartr-pro/firestartr.git",
+    "directory": "packages/cdk8s_renderer"
+  },
   "scripts": {
     "import": "cdk8s import",
     "synth": "cdk8s synth",

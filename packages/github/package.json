@@ -16,8 +16,13 @@
     "dist",
     "package.json"
   ],
-  "author": "",
-  "license": "ISC",
+  "author": "Firestartr contributors",
+  "license": "Apache-2.0",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/firestartr-pro/firestartr.git",
+    "directory": "packages/github"
+  },
   "devDependencies": {
     "@octokit/auth-app": "^8.0.1",
     "@octokit/core": "^7.0.0",

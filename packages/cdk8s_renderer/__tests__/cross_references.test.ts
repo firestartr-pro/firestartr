@@ -3,6 +3,7 @@ import { render } from '../src/renderer/renderer';
 import { AllowedProviders, configureProvider, setExcludedPaths, setPath } from '../src/config';
 import * as fs from "fs";
 import * as path from "path";
+import * as os from "os";
 import { emptyRenderedClaims } from '../src/refresolver';
 import { resetLazyLoader } from "../src/loader/lazy_loader";
 
@@ -21,7 +22,9 @@ describe("Cross references", () => {
 
   process.env['ORG'] = 'firestartr-test'
 
-  const outDirPath: string = path.join("/", "tmp", ".resourcesCDK8s");
+  const outDirPath: string = fs.mkdtempSync(path.join(os.tmpdir(), ".resourcesCDK8s-"));
+
+  afterAll(() => fs.rmSync(outDirPath, { recursive: true, force: true }));
 
   beforeAll(async () => {
   

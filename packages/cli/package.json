@@ -20,8 +20,13 @@
     "lint": "gts lint",
     "lint-fix": "gts fix"
   },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/firestartr-pro/firestartr.git",
+    "directory": "packages/cli"
+  },
   "author": "Firestartr contributors",
-  "license": "ISC",
+  "license": "Apache-2.0",
   "dependencies": {
     "semver": "^7.8.5"
   },
