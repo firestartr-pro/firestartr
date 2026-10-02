@@ -1,5 +1,12 @@
 # Changelog
 
+## [3.0.2](https://github.com/firestartr-pro/firestartr/compare/v3.0.1...v3.0.2) (2026-10-02)
+
+
+### Bug Fixes
+
+* **cdk8s_renderer:** add repository metadata to generated claims_schemas package ([#39](https://github.com/firestartr-pro/firestartr/issues/39)) ([1a9736c](https://github.com/firestartr-pro/firestartr/commit/1a9736c25695b8d634b0bd7848c076ff6ed7fabc))
+
 ## [3.0.1](https://github.com/firestartr-pro/firestartr/compare/v3.0.0...v3.0.1) (2026-10-02)
 
 
