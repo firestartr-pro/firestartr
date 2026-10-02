@@ -1,5 +1,5 @@
 {
     ".": "2.11.1",
-    "packages/features_renderer": "1.18.1",
+    "packages/features_renderer": "2.0.0",
     "packages/fs-forge-cli": "1.0.0"
 }
