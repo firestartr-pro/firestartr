@@ -20,7 +20,7 @@
     "catalog_common": "file:../catalog_common",
     "terraform_provisioner": "file:../terraform_provisioner",
     "github": "file:../github",
-    "octokit": "4.1.3"
+    "octokit": "5.0.5"
   },
   "repository": {
     "type": "git",
