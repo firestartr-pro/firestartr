@@ -17,8 +17,13 @@
     "dist",
     "package.json"
   ],
-  "author": "",
-  "license": "ISC",
+  "author": "Firestartr contributors",
+  "license": "Apache-2.0",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/firestartr-pro/firestartr.git",
+    "directory": "packages/terraform_provisioner"
+  },
   "devDependencies": {
     "github": "file:../github",
     "catalog_common": "file:../catalog_common",

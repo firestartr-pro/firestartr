@@ -17,8 +17,13 @@
     "dist",
     "package.json"
   ],
-  "author": "",
-  "license": "ISC",
+  "author": "Firestartr contributors",
+  "license": "Apache-2.0",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/firestartr-pro/firestartr.git",
+    "directory": "packages/e2e"
+  },
   "devDependencies": {
     "@types/jest": "^30.0.0",
     "catalog_common": "file:../catalog_common",

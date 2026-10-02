@@ -1,7 +1,8 @@
 {
   "name": "@firestartr/firestartr-gh_provisioner",
   "version": "0.0.0",
-  "license": "MPL-2.0",
+  "author": "Firestartr contributors",
+  "license": "Apache-2.0",
   "type": "module",
   "main": "dist/index.js",
   "types": "dist/index.d.ts",
@@ -20,5 +21,10 @@
     "terraform_provisioner": "file:../terraform_provisioner",
     "github": "file:../github",
     "octokit": "4.1.3"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/firestartr-pro/firestartr.git",
+    "directory": "packages/gh_provisioner"
   }
 }

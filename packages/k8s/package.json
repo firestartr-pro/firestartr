@@ -12,8 +12,13 @@
     "lint": "gts lint",
     "lint-fix": "gts fix"
   },
-  "author": "",
-  "license": "ISC",
+  "author": "Firestartr contributors",
+  "license": "Apache-2.0",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/firestartr-pro/firestartr.git",
+    "directory": "packages/k8s"
+  },
   "dependencies": {},
   "devDependencies": {}
 }

@@ -6,7 +6,11 @@
   "main": "dist/index.js",
   "types": "dist/index.d.ts",
   "type": "module",
-  "repository": "git://github.com/prefapp/firestartr-bootstrap",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/firestartr-pro/firestartr.git",
+    "directory": "packages/importer"
+  },
   "scripts": {
     "build": "ncc build index.ts -o dist --minify",
     "test": "jest",
@@ -14,10 +18,10 @@
     "lint": "gts lint",
     "lint-fix": "gts fix"
   },
-  "author": "",
-  "license": "ISC",
+  "author": "Firestartr contributors",
+  "license": "Apache-2.0",
   "bugs": {
-    "url": "https://github.com/prefapp/firestartr-bootstrap/issues"
+    "url": "https://github.com/firestartr-pro/firestartr/issues"
   },
   "files": [
     "main.ts",
@@ -26,7 +30,7 @@
     "dist/"
   ],
   "bin": {},
-  "homepage": "https://github.com/prefapp/firestartr-bootstrap#readme",
+  "homepage": "https://github.com/firestartr-pro/firestartr#readme",
   "dependencies": {
     "catalog_common": "file:../catalog_common",
     "cdk8s_renderer": "file:../cdk8s_renderer",
