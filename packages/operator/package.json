@@ -25,7 +25,7 @@
     "catalog_common": "file:../catalog_common",
     "cdk8s_renderer": "file:../cdk8s_renderer",
     "command-line-args": "^5.2.1",
-    "dotenv": "^16.4.7",
+    "dotenv": "^18.0.4",
     "express": "^4.18.2",
     "fast-json-patch": "^3.1.1",
     "gh_provisioner": "file:../gh_provisioner",
