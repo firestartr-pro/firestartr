@@ -4,8 +4,17 @@
 set -uo pipefail
 source "$(dirname "${BASH_SOURCE[0]}")/lib.sh"
 
+usage() { echo "usage: $(basename "$0") [--org <org>]" >&2; exit 2; }
 org=""
-[ "${1:-}" = "--org" ] && org="${2:-}"
+case "${1:-}" in
+  "") ;;
+  --org)
+    [ $# -eq 2 ] || usage
+    [ -n "${2:-}" ] || usage
+    org="$2"
+    ;;
+  *) usage ;;
+esac
 
 failed=0
 pass() { echo "PASS $1: $2"; }
