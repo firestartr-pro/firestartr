@@ -102,6 +102,8 @@ describe('kind registry', () => {
 
     expect(isClaimKind('ComponentClaim')).toBe(true);
     expect(isClaimKind('component')).toBe(false);
+    expect(isClaimKind('constructor')).toBe(false);
+    expect(isClaimKind('toString')).toBe(false);
 
     expect(resolveClaimReference('ComponentClaim-api')).toEqual({
       kind: 'ComponentClaim',
@@ -112,6 +114,7 @@ describe('kind registry', () => {
       name: 'my-service',
     });
     expect(resolveClaimReference('component-api')).toBeUndefined();
+    expect(resolveClaimReference('constructor-api')).toBeUndefined();
     expect(resolveClaimReference('-api')).toBeUndefined();
     expect(resolveClaimReference('ComponentClaim-')).toBeUndefined();
     expect(resolveClaimReference('foo-bar')).toBeUndefined();
