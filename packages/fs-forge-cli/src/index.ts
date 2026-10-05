@@ -12,8 +12,6 @@ export {
   publishClaim,
   resolveClaim,
 } from './claims/claimsRepo.js';
-export { createGitHubApi } from './github/index.js';
-export { pollDispatchedRun } from './claims/workflowRun.js';
 export {
   assertCreatePath,
   deterministicPath,
