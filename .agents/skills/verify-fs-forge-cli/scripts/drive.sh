@@ -75,6 +75,7 @@ evid="$run/evidence/$seq-$label"
 mkdir -p "$work" "$evid"
 : > "$evid/net.log"
 
+work_real="$(cd "$work" && pwd -P)"
 for seed in ${seeds[@]+"${seeds[@]}"}; do
   src="${seed%%=*}" dest="${seed#*=}"
   [ "$src" != "$seed" ] || dest="$(basename "$src")"
@@ -85,7 +86,22 @@ for seed in ${seeds[@]+"${seeds[@]}"}; do
   case "/$dest/" in
     */../*) fsf_die "seed destination must not contain ..: $dest" ;;
   esac
-  mkdir -p "$work/$(dirname "$dest")"
+  [ -L "$work/$dest" ] && fsf_die "seed destination must not be a symlink: $dest"
+  # A previous seed can plant a symlink, so resolve the deepest existing
+  # ancestor before mkdir: neither mkdir nor cp may leave the canonical work dir.
+  parent="$work/$(dirname "$dest")"
+  probe="$parent"
+  while [ ! -d "$probe" ]; do probe="$(dirname "$probe")"; done
+  case "$(cd "$probe" && pwd -P)" in
+    "$work_real"|"$work_real"/*) ;;
+    *) fsf_die "seed destination escapes the work dir: $dest" ;;
+  esac
+  mkdir -p "$parent"
+  real_parent="$(cd "$parent" && pwd -P)" || fsf_die "seed destination is not a directory: $dest"
+  case "$real_parent" in
+    "$work_real"|"$work_real"/*) ;;
+    *) fsf_die "seed destination escapes the work dir: $dest" ;;
+  esac
   cp -R "$src" "$work/$dest"
 done
 
