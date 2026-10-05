@@ -136,8 +136,16 @@ fi
 if [ "$mode" = offline ] && [ -s "$evid/net.log" ]; then
   verdict=FAIL reason="offline drive attempted network connects (see net.log)"; status=4
 fi
-if [ "$mode" != offline ] && [ -n "${token:-}" ] && grep -rqF -- "$token" "$evid"; then
-  verdict=FAIL reason="the GitHub token appears in the evidence"; status=4
+if [ "$mode" != offline ] && [ -n "${token:-}" ]; then
+  token_files="$(grep -rlF -- "$token" "$evid" 2>/dev/null || true)"
+  if [ -n "$token_files" ]; then
+    # The token must not survive on disk or in the transcript printed below.
+    printf '%s\n' "$token_files" | while IFS= read -r f; do
+      tmp="$(mktemp "$evid/redact.XXXXXX")"
+      awk -v s="$token" '{while (i=index($0,s)) $0=substr($0,1,i-1) "[REDACTED]" substr($0,i+length(s))} 1' "$f" > "$tmp" && mv "$tmp" "$f"
+    done
+    verdict=FAIL reason="the GitHub token appears in the evidence (redacted)"; status=4
+  fi
 fi
 if [ "$status" = 0 ] && [ "$code" != "$expect" ]; then
   verdict=FAIL reason="exit code $code, expected $expect"; status=1

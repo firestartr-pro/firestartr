@@ -90,7 +90,8 @@ Other skills own the surrounding steps:
 
 Each drive exits `0` (verdict PASS), `1` (CLI exit differs from `--expect-exit`),
 `2` (refused or bad usage) or `4` (guard breach: a network attempt in offline
-mode, a changed org in read mode, or the token found in the evidence). Read the
+mode, a changed org in read mode, or the token found in the evidence, which is
+redacted from the matching files before the verdict is reported). Read the
 final `DRIVE <NN>-<label> verdict=...` line; exit 4 means the proof is void even
 when the CLI behaved.
 

@@ -27,7 +27,7 @@ Preconditions:
 
 - `DOCTOR OK`, and `$V/doctor.sh --org <org>` for every drive below except `ob-no-org` and `ob-guards`.
 - For every drive below except `ob-no-org` and `ob-guards`: the user has named the org in this conversation and agreed to the drive. Do not take the org from `FSCRT_ORG`, from `gh`'s defaults or from a fixture. `ORG` below stands for that org.
-- A token: `GITHUB_TOKEN` in the shell, or `gh auth token`. `drive.sh` passes it to the child only in `read` and `write` modes and fails the drive when it finds the token in the evidence.
+- A token: `GITHUB_TOKEN` in the shell, or `gh auth token`. `drive.sh` passes it to the child only in `read` and `write` modes and fails the drive when it finds the token in the evidence, redacting it from every matching evidence file before reporting.
 - For `ob-write`: `ORG` is a pre org registered under `firestartr-pre/app-firestartr` at `kubernetes/firestartr-pre/<org>/` (see `smoke-test-renderer`), and the user approves each `write` drive by name. Run `publish-cli-snapshot-on-pre` first if the workflow must run this branch's CLI.
 - Org-bound modes were exercised against a stand-in `gh` only. The first live drive is unproven: read `org-before.json`, `org-after.json` and `org-diff.txt` as well as the verdict, and report anything surprising.
 
