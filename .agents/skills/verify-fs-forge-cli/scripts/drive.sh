@@ -79,6 +79,12 @@ for seed in ${seeds[@]+"${seeds[@]}"}; do
   src="${seed%%=*}" dest="${seed#*=}"
   [ "$src" != "$seed" ] || dest="$(basename "$src")"
   [ -e "$src" ] || fsf_die "seed not found: $src"
+  case "$dest" in
+    /*) fsf_die "seed destination must be relative to the work dir: $dest" ;;
+  esac
+  case "/$dest/" in
+    */../*) fsf_die "seed destination must not contain ..: $dest" ;;
+  esac
   mkdir -p "$work/$(dirname "$dest")"
   cp -R "$src" "$work/$dest"
 done
