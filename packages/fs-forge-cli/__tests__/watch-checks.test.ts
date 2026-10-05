@@ -92,6 +92,23 @@ afterEach(() => {
 });
 
 describe('watch-checks watch mode', () => {
+  it('rejects a malformed reference as an argument error (exit 2)', async () => {
+    mockApi();
+
+    const outcome = await run(
+      'component-my-app',
+      '--org',
+      'my-org',
+      '--state-repos',
+      'my-org/state-github',
+    );
+
+    expect(outcome.error?.oclif?.exit).toBe(2);
+    expect(outcome.error?.message).toContain(
+      'Invalid claim reference: component-my-app',
+    );
+  });
+
   it('exits 0 when the wet PR checks pass', async () => {
     const api = mockApi();
     api.setPullRequests(STATE_REPO, [

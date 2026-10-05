@@ -6,7 +6,7 @@ import { claimsRepo, loadClaimsMap } from '../claims/claimsRepo.js';
 
 import type { ClaimsRepo } from '../claims/claimsRepo.js';
 import { createGitHubApi } from '../github/index.js';
-import { requireOrg } from '../mutations/support.js';
+import { ORG_FLAG, requireOrg } from '../mutations/support.js';
 
 import type { PreflightKindId } from '../claims/kindRegistry.js';
 import type { ClaimKindName } from '../claims/kinds.js';
@@ -76,10 +76,7 @@ export default class Preflight extends Command {
     'old-name': Flags.string({
       description: 'Current claim name before rename (edition only)',
     }),
-    org: Flags.string({
-      description: 'GitHub organization',
-      env: 'FSCRT_ORG',
-    }),
+    org: { ...ORG_FLAG, description: 'GitHub organization' },
     scope: Flags.string({
       description: 'What to check: claims, provider, or all',
       options: ['all', 'claims', 'provider'],

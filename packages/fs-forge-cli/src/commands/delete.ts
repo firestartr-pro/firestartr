@@ -11,7 +11,7 @@ import {
   CLAIM_KIND_OPTIONS,
   normalizeClaimKind,
 } from '../mutations/definitions.js';
-import { requireOrg } from '../mutations/support.js';
+import { ORG_FLAG, requireOrg } from '../mutations/support.js';
 import { waitForDispatch } from '../utils/waitForDispatch.js';
 
 export default class Delete extends Command {
@@ -37,10 +37,7 @@ export default class Delete extends Command {
   ];
 
   static flags = {
-    org: Flags.string({
-      description: 'GitHub organization containing the claims repo',
-      env: 'FSCRT_ORG',
-    }),
+    org: ORG_FLAG,
     'include-variants': Flags.boolean({
       description: 'Also delete variant CRs (TFWorkspaceClaim only)',
       default: true,

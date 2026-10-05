@@ -4,6 +4,7 @@ import {
   applyDynamicFeatureFlags,
   resolveFeatureArgs,
 } from '../features/dynamicFlags.js';
+import { ORG_FLAG } from '../mutations/support.js';
 import { DEFAULT_FEATURE_SOURCE } from './featureSource.js';
 
 import type { FlagSpec } from './deriveFlags.js';
@@ -28,10 +29,7 @@ export const FEATURE_READ_FLAGS = {
     char: 'f',
     description: 'Local ComponentClaim YAML file',
   }),
-  org: Flags.string({
-    description: 'GitHub organization containing the claims repo',
-    env: 'FSCRT_ORG',
-  }),
+  org: ORG_FLAG,
   json: Flags.boolean({ description: 'Output as JSON' }),
 };
 

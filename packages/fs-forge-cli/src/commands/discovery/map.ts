@@ -11,7 +11,7 @@ import {
   filterRelationGraph,
   renderRelationGraph,
 } from '../../lib/relationMap.js';
-import { requireOrg } from '../../mutations/support.js';
+import { ORG_FLAG, requireOrg } from '../../mutations/support.js';
 
 export default class DiscoveryMap extends Command {
   static description = 'Show the relation tree for every claim in an org';
@@ -23,10 +23,7 @@ export default class DiscoveryMap extends Command {
   ];
 
   static flags = {
-    org: Flags.string({
-      description: 'GitHub organization containing the claims repo',
-      env: 'FSCRT_ORG',
-    }),
+    org: ORG_FLAG,
     ref: Flags.string({ description: 'Claims repo branch, tag, or commit' }),
     kind: Flags.string({
       description: 'Only show this claim kind by short ID (repeatable)',

@@ -9,8 +9,12 @@ import {
 import { applyDefaultsFromRepo } from '../../claims/defaults.js';
 import { createGitHubApi } from '../../github/index.js';
 import { serializeClaim } from '../../claims/keyOrdering.js';
-import { isClaimKind } from '../../mutations/definitions.js';
-import { parseClaimYaml, requireOrg } from '../../mutations/support.js';
+import { resolveClaimReference } from '../../claims/kindRegistry.js';
+import {
+  ORG_FLAG,
+  parseClaimYaml,
+  requireOrg,
+} from '../../mutations/support.js';
 
 function claimKind(claim: Record<string, unknown>): string {
   const kind = claim.kind;
@@ -41,10 +45,7 @@ export default class DefaultsApply extends Command {
   };
 
   static flags = {
-    org: Flags.string({
-      description: 'GitHub organization containing the claims repo',
-      default: async () => process.env.FSCRT_ORG,
-    }),
+    org: ORG_FLAG,
     file: Flags.string({
       char: 'f',
       description: 'Path to a local claim YAML file',
@@ -68,10 +69,7 @@ export default class DefaultsApply extends Command {
       claim = parseClaimYaml(await readFile(flags.file, 'utf8'));
     } else {
       const reference = args.reference as string;
-      const separator = reference.indexOf('-');
-      const kind = reference.slice(0, separator);
-      const name = reference.slice(separator + 1);
-      if (separator < 1 || !name || !isClaimKind(kind)) {
+      if (!resolveClaimReference(reference)) {
         this.error(`Invalid claim reference: ${reference}`);
       }
       const map = await loadClaimsMap(repo);

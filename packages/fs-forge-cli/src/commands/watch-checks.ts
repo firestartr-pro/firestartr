@@ -10,6 +10,8 @@ import {
   type AggregatedCheckResult,
 } from '../claims/checkRuns.js';
 import { parseStateRepos, findWetPr, type WetPrInfo } from '../claims/wetPr.js';
+import { ORG_FLAG } from '../mutations/support.js';
+import { resolveClaimReference } from '../claims/kindRegistry.js';
 import {
   findCrOnMainBranch,
   formatPrState,
@@ -66,10 +68,7 @@ export default class WatchChecks extends Command {
   ];
 
   static flags = {
-    org: Flags.string({
-      description: 'GitHub organization containing the claims repo',
-      env: 'FSCRT_ORG',
-    }),
+    org: ORG_FLAG,
     current: Flags.boolean({
       description:
         'Read CR from state repo main branch and show its last PR status',
@@ -98,12 +97,11 @@ export default class WatchChecks extends Command {
       this.error('--org or FSCRT_ORG is required');
     }
 
-    const separator = args.reference.indexOf('-');
-    const kind = args.reference.slice(0, separator);
-    const name = args.reference.slice(separator + 1);
-    if (separator < 1 || !name || !kind) {
+    const reference = resolveClaimReference(args.reference);
+    if (!reference) {
       this.error(`Invalid claim reference: ${args.reference}`);
     }
+    const { kind, name } = reference;
 
     const repo = claimsRepo(createGitHubApi(), flags.org);
     const stateRepos = parseStateRepos(flags['state-repos'], flags.org);

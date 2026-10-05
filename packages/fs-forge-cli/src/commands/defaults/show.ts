@@ -5,7 +5,7 @@ import { claimsRepo } from '../../claims/claimsRepo.js';
 import { createGitHubApi } from '../../github/index.js';
 import { resolveDefaultsFile } from '../../claims/defaults.js';
 import { serializeClaim } from '../../claims/keyOrdering.js';
-import { requireOrg } from '../../mutations/support.js';
+import { ORG_FLAG, requireOrg } from '../../mutations/support.js';
 
 function writeLine(value: string): void {
   process.stdout.write(`${value}\n`);
@@ -27,10 +27,7 @@ export default class DefaultsShow extends Command {
   };
 
   static flags = {
-    org: Flags.string({
-      description: 'GitHub organization containing the claims repo',
-      default: async () => process.env.FSCRT_ORG,
-    }),
+    org: ORG_FLAG,
   };
 
   async run(): Promise<void> {

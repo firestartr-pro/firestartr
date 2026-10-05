@@ -2,11 +2,12 @@ import { Command, Flags } from '@oclif/core';
 
 import { claimsRepo, loadClaimsMap } from '../../claims/claimsRepo.js';
 import { createGitHubApi } from '../../github/index.js';
+import { resolveClaimReference } from '../../claims/kindRegistry.js';
 import {
   CLAIM_KIND_OPTIONS,
   normalizeClaimKind,
 } from '../../mutations/definitions.js';
-import { requireOrg } from '../../mutations/support.js';
+import { ORG_FLAG, requireOrg } from '../../mutations/support.js';
 
 interface ClaimEntry {
   kind: string;
@@ -28,10 +29,10 @@ export default class DiscoveryOrgElements extends Command {
   ];
 
   static flags = {
-    org: Flags.string({
+    org: {
+      ...ORG_FLAG,
       description: 'GitHub organization owning the claims repo',
-      env: 'FSCRT_ORG',
-    }),
+    },
     'claims-repo': Flags.string({
       description: 'Repository name for the claims repo',
       default: 'claims',
@@ -55,10 +56,11 @@ export default class DiscoveryOrgElements extends Command {
 
     const entries: ClaimEntry[] = Object.entries(map.claims)
       .map(([reference, entry]) => {
+        const resolved = resolveClaimReference(reference);
         const separator = reference.indexOf('-');
         return {
-          kind: reference.slice(0, separator),
-          name: reference.slice(separator + 1),
+          kind: resolved?.kind ?? reference.slice(0, separator),
+          name: resolved?.name ?? reference.slice(separator + 1),
           filePath: entry.filePath,
         };
       })

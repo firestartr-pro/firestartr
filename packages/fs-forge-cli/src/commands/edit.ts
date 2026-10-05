@@ -2,9 +2,9 @@ import { Args, Command, Flags } from '@oclif/core';
 
 import { claimsRepo } from '../claims/claimsRepo.js';
 import { createGitHubApi } from '../github/index.js';
+import { resolveClaimReference } from '../claims/kindRegistry.js';
 import {
   assertMutationFlags,
-  isClaimKind,
   mutationFlagsWithout,
 } from '../mutations/definitions.js';
 import { MUTATION_CONTROL_FLAGS, requireOrg } from '../mutations/support.js';
@@ -45,12 +45,11 @@ export default class Edit extends Command {
 
   async run(): Promise<void> {
     const { args, flags } = await this.parse(Edit);
-    const separator = args.reference.indexOf('-');
-    const kind = args.reference.slice(0, separator);
-    const name = args.reference.slice(separator + 1);
-    if (separator < 1 || !name || !isClaimKind(kind)) {
+    const reference = resolveClaimReference(args.reference);
+    if (!reference) {
       this.error(`Invalid claim reference: ${args.reference}`);
     }
+    const { kind, name } = reference;
     assertMutationFlags(kind, flags as Record<string, unknown>);
     if (
       (flags['add-feature']?.length || flags['remove-feature']?.length) &&
