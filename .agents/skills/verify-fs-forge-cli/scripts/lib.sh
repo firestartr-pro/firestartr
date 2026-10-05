@@ -36,11 +36,20 @@ fsf_resolve_node() {
 }
 
 # Prints the run directory: $FSF_RUN, else the one launch.sh opened last.
+# The result is canonical and must be a child of $FSF_HOME, so callers that
+# rm -rf it (cleanup.sh --purge-evidence) cannot be pointed at an arbitrary
+# directory by a typo in FSF_RUN.
 fsf_run_dir() {
-  local run="${FSF_RUN:-}"
+  local run="${FSF_RUN:-}" home real
   [ -n "$run" ] || run="$(readlink "$FSF_HOME/latest" 2>/dev/null || true)"
   [ -n "$run" ] && [ -d "$run" ] || fsf_die "no run directory; run scripts/launch.sh first (or set FSF_RUN)"
-  echo "$run"
+  real="$(cd "$run" && pwd -P)" || fsf_die "could not resolve run directory: $run"
+  home="$(cd "$FSF_HOME" 2>/dev/null && pwd -P)" || fsf_die "could not resolve $FSF_HOME; run scripts/launch.sh first"
+  case "$real" in
+    "$home"/*) ;;
+    *) fsf_die "run directory must be under $FSF_HOME: got $real" ;;
+  esac
+  echo "$real"
 }
 
 # Fingerprint of everything git sees changed under packages/.

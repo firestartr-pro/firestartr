@@ -68,7 +68,7 @@ case "$mode" in
 esac
 
 fsf_resolve_node || exit 2
-run="$(fsf_run_dir)"
+run="$(fsf_run_dir)" || exit 2
 seq="$(printf '%02d' "$(( $(ls "$run/evidence" | grep -c '^[0-9][0-9]*-') + 1 ))")"
 work="$run/work/$seq-$label"
 evid="$run/evidence/$seq-$label"

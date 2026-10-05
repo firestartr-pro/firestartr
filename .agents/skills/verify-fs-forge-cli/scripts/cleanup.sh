@@ -7,7 +7,7 @@
 set -uo pipefail
 source "$(dirname "${BASH_SOURCE[0]}")/lib.sh"
 
-run="$(fsf_run_dir)"
+run="$(fsf_run_dir)" || exit 2
 
 if [ "${1:-}" = "--purge-evidence" ]; then
   rm -rf "$run"
