@@ -7,7 +7,7 @@ import { KIND_REGISTRY } from './kindRegistry.js';
 import { isNotFoundError } from '../github/api.js';
 
 import type { ClaimsMap, ResolvedClaim } from './claimsMap.js';
-import type { GitHubApi, RepoFile, RepoRef } from '../github/api.js';
+import type { GitHubApi, RepoRef } from '../github/api.js';
 
 export interface ClaimsRepo {
   readonly ref: RepoRef;
@@ -60,14 +60,6 @@ export function claimsRepo(
   repoName = 'claims',
 ): ClaimsRepo {
   return { api, ref: { owner: org, repo: repoName } };
-}
-
-export function readClaimFile(
-  repo: ClaimsRepo,
-  path: string,
-  gitRef?: string,
-): Promise<RepoFile | null> {
-  return repo.api.readFile(repo.ref, path, gitRef);
 }
 
 async function hasInFlightClaimsMapWorkflow(

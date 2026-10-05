@@ -5,7 +5,6 @@ import {
   dispatchUnprovision,
   loadClaimsMap,
   publishClaim,
-  readClaimFile,
   readDefaultsFile,
 } from '../src/claims/claimsRepo';
 import { MemoryGitHubApi } from './fixtures/memoryGitHubApi';
@@ -180,20 +179,6 @@ describe('loadClaimsMap', () => {
 });
 
 describe('claim files and defaults', () => {
-  it('reads a claim file at the requested ref', async () => {
-    const api = new MemoryGitHubApi();
-    const claims = repo(api);
-    api.setFile(
-      claims.ref,
-      'claims/claims_defaults.yaml',
-      'ComponentClaim:\n  a: 1\n',
-    );
-
-    const file = await readClaimFile(claims, 'claims/claims_defaults.yaml');
-
-    expect(file?.content).toBe('ComponentClaim:\n  a: 1\n');
-  });
-
   it('returns null when the defaults file does not exist', async () => {
     const api = new MemoryGitHubApi();
     const claims = repo(api);

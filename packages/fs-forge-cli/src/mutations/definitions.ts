@@ -40,7 +40,7 @@ export const FLAG_SPECS_BY_KIND = Object.fromEntries(
   ]),
 ) as Record<ClaimKind, FlagSpec[]>;
 
-export const MUTATION_FLAGS = Object.fromEntries(
+const MUTATION_FLAGS = Object.fromEntries(
   Object.values(CREATE_COMMANDS).flatMap((command) => {
     const schemaFlags = new Set(command.FLAG_SPECS.map(({ path }) => path));
     return Object.entries(command.flags)

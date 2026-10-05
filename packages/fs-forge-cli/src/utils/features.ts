@@ -33,7 +33,7 @@ export function getFeatureReferences(
   return features as FeatureReference[];
 }
 
-export function setFeatureReferences(
+function setFeatureReferences(
   claim: Record<string, unknown>,
   features: FeatureReference[],
 ): void {

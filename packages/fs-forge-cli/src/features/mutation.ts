@@ -102,7 +102,7 @@ export async function loadComponentTarget(options: {
   };
 }
 
-export function assertComponentClaim(
+function assertComponentClaim(
   claim: Record<string, unknown>,
   expectedName?: string,
 ): string {
@@ -120,10 +120,7 @@ export function assertComponentClaim(
   return claim.name;
 }
 
-export function formatClaim(
-  claim: Record<string, unknown>,
-  json: boolean,
-): string {
+function formatClaim(claim: Record<string, unknown>, json: boolean): string {
   return json ? JSON.stringify(claim, null, 2) : serializeClaim(claim);
 }
 
