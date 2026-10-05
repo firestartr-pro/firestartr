@@ -22,6 +22,9 @@ source "$(dirname "${BASH_SOURCE[0]}")/lib.sh"
 label=drive mode=offline org="" expect=0 seeds=()
 while [ $# -gt 0 ]; do
   case "$1" in
+    --label|--mode|--org|--expect-exit|--seed) [ $# -ge 2 ] || fsf_die "$1 needs a value" ;;
+  esac
+  case "$1" in
     --label) label="$2"; shift 2 ;;
     --mode) mode="$2"; shift 2 ;;
     --org) org="$2"; shift 2 ;;
