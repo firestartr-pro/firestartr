@@ -1,10 +1,7 @@
 import { describe, it, expect, beforeAll, jest } from '@jest/globals';
 import { readFileSync } from 'fs';
 import { join } from 'path';
-import {
-  validateClaim,
-  registerValidator,
-} from '../src/utils/ajvValidation';
+import { createClaimValidator } from '../src/utils/ajvValidation';
 import YAML from 'yaml';
 
 const SCHEMAS_DIR = join(process.cwd(), 'schemas');
@@ -32,10 +29,10 @@ function loadYaml(filePath: string): Record<string, unknown> {
   return YAML.parse(raw) as Record<string, unknown>;
 }
 
+const validator = createClaimValidator({ schemasDir: SCHEMAS_DIR });
+
 beforeAll(() => {
-  for (const kind of SCHEMA_KINDS) {
-    registerValidator(kind, loadSchema(kind));
-  }
+  for (const kind of SCHEMA_KINDS) void loadSchema(kind);
 });
 
 describe('validateClaim', () => {
@@ -58,7 +55,7 @@ describe('validateClaim', () => {
     for (const [kind, file] of validCases) {
       it(`passes for a valid ${kind}`, async () => {
         const claim = loadYaml(join(fixtureDir, file));
-        const result = await validateClaim(claim, kind);
+        const result = await validator.validate(claim, kind);
         expect(result.valid).toBe(true);
         expect(result.errors).toEqual([]);
       });
@@ -77,7 +74,7 @@ describe('validateClaim', () => {
     for (const [label, fixturePath, expectedKind] of invalidCases) {
       it(`fails for ${label}`, async () => {
         const claim = loadYaml(join(process.cwd(), '__tests__', 'fixtures', fixturePath));
-        const result = await validateClaim(claim, expectedKind);
+        const result = await validator.validate(claim, expectedKind);
         expect(result.valid).toBe(false);
         expect(result.errors.length).toBeGreaterThan(0);
       });
@@ -101,7 +98,7 @@ describe('validateClaim', () => {
         },
       };
 
-      const result = await validateClaim(claim, 'ComponentClaim');
+      const result = await validator.validate(claim, 'ComponentClaim');
       expect(result.valid).toBe(true);
       expect(result.errors).toEqual([]);
     });
@@ -109,7 +106,7 @@ describe('validateClaim', () => {
     it('returns invalid for a claim missing required fields', async () => {
       const claim = { name: 'my-component' };
 
-      const result = await validateClaim(claim, 'ComponentClaim');
+      const result = await validator.validate(claim, 'ComponentClaim');
       expect(result.valid).toBe(false);
       expect(result.errors.length).toBeGreaterThan(0);
     });
@@ -130,14 +127,14 @@ describe('validateClaim', () => {
         },
       };
 
-      const result = await validateClaim(claim, 'ComponentClaim');
+      const result = await validator.validate(claim, 'ComponentClaim');
       expect(result.valid).toBe(false);
     });
 
     it('reports descriptive error messages', async () => {
       const claim = {};
 
-      const result = await validateClaim(claim, 'ComponentClaim');
+      const result = await validator.validate(claim, 'ComponentClaim');
       expect(result.valid).toBe(false);
       for (const err of result.errors) {
         expect(typeof err).toBe('string');
@@ -147,7 +144,7 @@ describe('validateClaim', () => {
 
     it('returns error for unknown claim kind', async () => {
       const spy = jest.spyOn(console, 'error').mockImplementation(() => {});
-      const result = await validateClaim({}, 'UnknownKind');
+      const result = await validator.validate({}, 'UnknownKind');
       spy.mockRestore();
       expect(result.valid).toBe(false);
       expect(result.errors[0]).toContain('No schema found');
@@ -168,7 +165,7 @@ describe('validateClaim', () => {
         },
       };
 
-      const result = await validateClaim(claim, 'ComponentClaim');
+      const result = await validator.validate(claim, 'ComponentClaim');
       expect(result.valid).toBe(false);
     });
 
@@ -186,7 +183,7 @@ describe('validateClaim', () => {
         },
       };
 
-      const result = await validateClaim(claim, 'ComponentClaim');
+      const result = await validator.validate(claim, 'ComponentClaim');
       expect(result.valid).toBe(false);
     });
 
@@ -212,7 +209,7 @@ describe('validateClaim', () => {
         },
       };
 
-      const result = await validateClaim(claim, 'ComponentClaim');
+      const result = await validator.validate(claim, 'ComponentClaim');
       expect(result.valid).toBe(true);
     });
 
@@ -232,7 +229,7 @@ describe('validateClaim', () => {
         },
       };
 
-      const result = await validateClaim(claim, 'ComponentClaim');
+      const result = await validator.validate(claim, 'ComponentClaim');
       expect(result.valid).toBe(true);
     });
 
@@ -252,7 +249,7 @@ describe('validateClaim', () => {
         },
       };
 
-      const result = await validateClaim(claim, 'ComponentClaim');
+      const result = await validator.validate(claim, 'ComponentClaim');
       expect(result.valid).toBe(true);
     });
 
@@ -277,7 +274,7 @@ describe('validateClaim', () => {
         },
       };
 
-      const result = await validateClaim(claim, 'ComponentClaim');
+      const result = await validator.validate(claim, 'ComponentClaim');
       expect(result.valid).toBe(true);
     });
 
@@ -297,7 +294,7 @@ describe('validateClaim', () => {
         },
       };
 
-      const result = await validateClaim(claim, 'ComponentClaim');
+      const result = await validator.validate(claim, 'ComponentClaim');
       expect(result.valid).toBe(false);
       expect(result.errors.some((e) => e.includes('cname'))).toBe(true);
     });
@@ -321,7 +318,7 @@ describe('validateClaim', () => {
         },
       };
 
-      const result = await validateClaim(claim, 'ComponentClaim');
+      const result = await validator.validate(claim, 'ComponentClaim');
       expect(result.valid).toBe(true);
     });
 
@@ -344,7 +341,7 @@ describe('validateClaim', () => {
         },
       };
 
-      const result = await validateClaim(claim, 'ComponentClaim');
+      const result = await validator.validate(claim, 'ComponentClaim');
       expect(result.valid).toBe(false);
     });
   });

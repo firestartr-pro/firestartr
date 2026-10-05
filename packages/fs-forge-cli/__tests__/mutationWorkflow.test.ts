@@ -11,7 +11,6 @@ jest.mock('../src/github/index', () => ({
 import { createGitHubApi } from '../src/github/index';
 import { claimsRepo } from '../src/claims/claimsRepo';
 import { applyClaimDefaults } from '../src/defaults/applier';
-import { registerValidator } from '../src/utils/ajvValidation';
 import {
   runClaimCreation,
   runClaimMutation,
@@ -79,10 +78,6 @@ function createRepo(options: { existingReference?: string } = {}) {
   MockCreateGitHubApi.mockReturnValue(api);
   return { api, repo };
 }
-
-beforeAll(() => {
-  registerValidator('ComponentClaim', loadSchema('ComponentClaim'));
-});
 
 beforeEach(() => {
   MockCreateGitHubApi.mockClear();

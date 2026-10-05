@@ -4,7 +4,7 @@ import { join } from 'path';
 import { assertCreatePath } from '../../claims/deterministicPath.js';
 import { runClaimCreation } from '../../mutations/creation.js';
 import { MUTATION_CONTROL_FLAGS } from '../../mutations/support.js';
-import { setSchemasDir, validateClaim } from '../../utils/ajvValidation.js';
+import { createClaimValidator } from '../../utils/ajvValidation.js';
 import { buildClaimFromFlags } from '../../utils/buildClaim.js';
 import { runtimeFlags } from '../../utils/runtimeFlags.js';
 import type { FlagSpec } from '../../utils/deriveFlags.js';
@@ -307,8 +307,10 @@ export default class CreateOrgSettings extends Command {
         [],
       ),
     };
-    setSchemasDir(join(this.config.root, 'schemas'));
-    const result = await validateClaim(claim, 'OrgSettingsClaim');
+    const validator = createClaimValidator({
+      schemasDir: join(this.config.root, 'schemas'),
+    });
+    const result = await validator.validate(claim, 'OrgSettingsClaim');
     if (!result.valid) {
       this.error(result.errors.join('\n'));
     }

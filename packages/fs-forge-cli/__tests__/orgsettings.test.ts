@@ -3,7 +3,7 @@ import { captureOutput } from '@oclif/test';
 import { readFileSync } from 'fs';
 import { join } from 'path';
 import YAML from 'yaml';
-import { validateClaim, registerValidator } from '../src/utils/ajvValidation';
+import { createClaimValidator } from '../src/utils/ajvValidation';
 import { deriveFlags } from '../src/utils/deriveFlags';
 import { buildClaimFromFlags } from '../src/utils/buildClaim';
 import {
@@ -20,8 +20,10 @@ function loadSchema(kind: string): Record<string, unknown> {
   return JSON.parse(raw);
 }
 
+const validator = createClaimValidator({ schemasDir: SCHEMA_DIR });
+
 beforeAll(() => {
-  registerValidator('OrgSettingsClaim', loadSchema('OrgSettingsClaim'));
+  void loadSchema('OrgSettingsClaim');
 });
 
 describe('OrgSettingsClaim schema', () => {
@@ -211,7 +213,7 @@ describe('OrgSettingsClaim schema', () => {
       const claim = YAML.parse(
         readFileSync(join(FIXTURE_DIR, 'valid', 'orgsettings.yaml'), 'utf8'),
       );
-      const result = await validateClaim(claim, 'OrgSettingsClaim');
+      const result = await validator.validate(claim, 'OrgSettingsClaim');
       expect(result.valid).toBe(true);
       expect(result.errors).toEqual([]);
     });
@@ -223,7 +225,7 @@ describe('OrgSettingsClaim schema', () => {
           'utf8',
         ),
       );
-      const result = await validateClaim(claim, 'OrgSettingsClaim');
+      const result = await validator.validate(claim, 'OrgSettingsClaim');
       expect(result.valid).toBe(true);
       expect(result.errors).toEqual([]);
     });
@@ -242,7 +244,7 @@ describe('OrgSettingsClaim schema', () => {
           },
         },
       };
-      const result = await validateClaim(claim, 'OrgSettingsClaim');
+      const result = await validator.validate(claim, 'OrgSettingsClaim');
       expect(result.valid).toBe(false);
     });
 
@@ -253,7 +255,7 @@ describe('OrgSettingsClaim schema', () => {
           'utf8',
         ),
       );
-      const result = await validateClaim(claim, 'OrgSettingsClaim');
+      const result = await validator.validate(claim, 'OrgSettingsClaim');
       expect(result.valid).toBe(false);
       expect(result.errors.length).toBeGreaterThan(0);
     });
@@ -270,7 +272,7 @@ describe('OrgSettingsClaim schema', () => {
           },
         },
       };
-      const result = await validateClaim(claim, 'OrgSettingsClaim');
+      const result = await validator.validate(claim, 'OrgSettingsClaim');
       expect(result.valid).toBe(false);
     });
 
@@ -287,7 +289,7 @@ describe('OrgSettingsClaim schema', () => {
           },
         },
       };
-      const result = await validateClaim(claim, 'OrgSettingsClaim');
+      const result = await validator.validate(claim, 'OrgSettingsClaim');
       expect(result.valid).toBe(true);
     });
 
@@ -303,7 +305,7 @@ describe('OrgSettingsClaim schema', () => {
           },
         },
       };
-      const result = await validateClaim(claim, 'OrgSettingsClaim');
+      const result = await validator.validate(claim, 'OrgSettingsClaim');
       expect(result.valid).toBe(false);
     });
 
@@ -320,7 +322,7 @@ describe('OrgSettingsClaim schema', () => {
           },
         },
       };
-      const result = await validateClaim(claim, 'OrgSettingsClaim');
+      const result = await validator.validate(claim, 'OrgSettingsClaim');
       expect(result.valid).toBe(false);
     });
 
@@ -340,7 +342,7 @@ describe('OrgSettingsClaim schema', () => {
           },
         },
       };
-      const result = await validateClaim(claim, 'OrgSettingsClaim');
+      const result = await validator.validate(claim, 'OrgSettingsClaim');
       expect(result.valid).toBe(false);
     });
 
@@ -359,7 +361,7 @@ describe('OrgSettingsClaim schema', () => {
           },
         },
       };
-      const result = await validateClaim(claim, 'OrgSettingsClaim');
+      const result = await validator.validate(claim, 'OrgSettingsClaim');
       expect(result.valid).toBe(false);
     });
 
@@ -378,7 +380,7 @@ describe('OrgSettingsClaim schema', () => {
           },
         },
       };
-      const result = await validateClaim(claim, 'OrgSettingsClaim');
+      const result = await validator.validate(claim, 'OrgSettingsClaim');
       expect(result.valid).toBe(false);
     });
 
@@ -402,7 +404,7 @@ describe('OrgSettingsClaim schema', () => {
           },
         },
       };
-      const result = await validateClaim(claim, 'OrgSettingsClaim');
+      const result = await validator.validate(claim, 'OrgSettingsClaim');
       expect(result.valid).toBe(false);
     });
 
@@ -426,7 +428,7 @@ describe('OrgSettingsClaim schema', () => {
           },
         },
       };
-      const result = await validateClaim(claim, 'OrgSettingsClaim');
+      const result = await validator.validate(claim, 'OrgSettingsClaim');
       expect(result.valid).toBe(false);
     });
 
@@ -450,7 +452,7 @@ describe('OrgSettingsClaim schema', () => {
           },
         },
       };
-      const result = await validateClaim(claim, 'OrgSettingsClaim');
+      const result = await validator.validate(claim, 'OrgSettingsClaim');
       expect(result.valid).toBe(true);
     });
 
@@ -475,7 +477,7 @@ describe('OrgSettingsClaim schema', () => {
           },
         },
       };
-      const result = await validateClaim(claim, 'OrgSettingsClaim');
+      const result = await validator.validate(claim, 'OrgSettingsClaim');
       expect(result.valid).toBe(false);
     });
 
@@ -494,7 +496,7 @@ describe('OrgSettingsClaim schema', () => {
           },
         },
       };
-      const result = await validateClaim(claim, 'OrgSettingsClaim');
+      const result = await validator.validate(claim, 'OrgSettingsClaim');
       expect(result.valid).toBe(false);
     });
   });

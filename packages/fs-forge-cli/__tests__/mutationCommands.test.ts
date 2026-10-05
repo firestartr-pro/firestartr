@@ -14,7 +14,7 @@ import CreateComponent from '../src/commands/create/component';
 import CreateGroup from '../src/commands/create/group';
 import CreateTfworkspace from '../src/commands/create/tfworkspace';
 import Edit from '../src/commands/edit';
-import { setSchemasDir, validateClaim } from '../src/utils/ajvValidation';
+import { createClaimValidator } from '../src/utils/ajvValidation';
 import { MemoryGitHubApi } from './fixtures/memoryGitHubApi';
 
 const ROOT = process.cwd();
@@ -416,8 +416,8 @@ describe('edit defaults integration', () => {
 
     expect(result).toBe(0);
     const mutationDiff = JSON.parse(stderr);
-    setSchemasDir(join(ROOT, 'schemas'));
-    const validation = await validateClaim(mutationDiff, 'MutationDiff');
+    const validator = createClaimValidator({ schemasDir: join(ROOT, 'schemas') });
+    const validation = await validator.validate(mutationDiff, 'MutationDiff');
     expect(validation).toEqual({ valid: true, errors: [] });
     expect(mutationDiff).toEqual({
       changes: [

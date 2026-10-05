@@ -77,7 +77,7 @@ import { join } from 'path';
 import { assertCreatePath } from '../../claims/deterministicPath.js';
 import { runClaimCreation } from '../../mutations/creation.js';
 import { MUTATION_CONTROL_FLAGS } from '../../mutations/support.js';
-import { setSchemasDir, validateClaim } from '../../utils/ajvValidation.js';
+import { createClaimValidator } from '../../utils/ajvValidation.js';
 import { buildClaimFromFlags } from '../../utils/buildClaim.js';
 ${hasFeatureReferences ? "import { mutateFeatureReference, parseFeatureReference } from '../../utils/features.js';\n" : ''}import { runtimeFlags } from '../../utils/runtimeFlags.js';
 import type { FlagSpec } from '../../utils/deriveFlags.js';
@@ -118,8 +118,10 @@ ${hasFeatureReferences ? "  feature: Flags.string({ description: 'Attach a Featu
         ${JSON.stringify(model.requiredContainers)},
       ),
     };
-${hasFeatureReferences ? "    for (const value of flags.feature ?? []) {\n      claim = mutateFeatureReference(claim, 'add', parseFeatureReference(value));\n    }\n" : ''}    setSchemasDir(join(this.config.root, 'schemas'));
-    const result = await validateClaim(claim, '${kind}');
+${hasFeatureReferences ? "    for (const value of flags.feature ?? []) {\n      claim = mutateFeatureReference(claim, 'add', parseFeatureReference(value));\n    }\n" : ''}    const validator = createClaimValidator({
+      schemasDir: join(this.config.root, 'schemas'),
+    });
+    const result = await validator.validate(claim, '${kind}');
     if (!result.valid) {
       this.error(result.errors.join('\\n'));
     }

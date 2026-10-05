@@ -57,32 +57,41 @@ ajv.addKeyword({
   validate: uniqueItemPropertyValidator,
 });
 
-const validators = new Map<string, ReturnType<Ajv2020['compile']>>();
-
 export interface ValidationResult {
   valid: boolean;
   errors: string[];
 }
 
-let schemasDir: string | undefined;
-
-export function setSchemasDir(dir: string): void {
-  schemasDir = dir;
+export interface ClaimValidator {
+  validate(
+    claim: Record<string, unknown>,
+    kind: string,
+  ): Promise<ValidationResult>;
 }
 
-export async function getValidator(
+export interface ClaimValidatorOptions {
+  /** Directory holding `<Kind>.json` claim schemas. */
+  schemasDir: string;
+}
+
+type CompiledValidator = ReturnType<Ajv2020['compile']>;
+
+// Compiled validators are pure functions of the schema file, so they are
+// shared per schemas directory across registries.
+const compiledByDirectory = new Map<string, Map<string, CompiledValidator>>();
+
+async function loadValidator(
+  schemasDir: string,
+  cache: Map<string, CompiledValidator>,
   kind: string,
-): Promise<ReturnType<Ajv2020['compile']> | null> {
-  const cached = validators.get(kind);
+): Promise<CompiledValidator | null> {
+  const cached = cache.get(kind);
   if (cached) return cached;
 
   try {
-    if (!schemasDir) return null;
-    const schemaPath = join(schemasDir, `${kind}.json`);
-    const schemaJson = await readFile(schemaPath, 'utf8');
-    const schema = JSON.parse(schemaJson);
-    const validate = ajv.compile(schema);
-    validators.set(kind, validate);
+    const schemaJson = await readFile(join(schemasDir, `${kind}.json`), 'utf8');
+    const validate = ajv.compile(JSON.parse(schemaJson));
+    cache.set(kind, validate);
     return validate;
   } catch (err) {
     console.error(`Failed to load schema for ${kind}:`, err);
@@ -90,35 +99,37 @@ export async function getValidator(
   }
 }
 
-export async function validateClaim(
-  claim: Record<string, unknown>,
-  kind: string,
-): Promise<ValidationResult> {
-  const validate = await getValidator(kind);
-  if (!validate) {
-    return {
-      valid: false,
-      errors: [`No schema found for claim kind: ${kind}`],
-    };
-  }
+/**
+ * Claim-schema registry: validation is scoped to a schemas directory instead
+ * of module-global state, so it needs no ordering between setup and use.
+ */
+export function createClaimValidator(
+  options: ClaimValidatorOptions,
+): ClaimValidator {
+  const { schemasDir } = options;
+  const cache =
+    compiledByDirectory.get(schemasDir) ?? new Map<string, CompiledValidator>();
+  compiledByDirectory.set(schemasDir, cache);
 
-  const valid = validate(claim) as boolean;
+  return {
+    async validate(claim, kind) {
+      const validate = await loadValidator(schemasDir, cache, kind);
+      if (!validate) {
+        return {
+          valid: false,
+          errors: [`No schema found for claim kind: ${kind}`],
+        };
+      }
 
-  if (valid) {
-    return { valid: true, errors: [] };
-  }
+      const valid = validate(claim) as boolean;
+      if (valid) {
+        return { valid: true, errors: [] };
+      }
 
-  const errors = (validate.errors ?? []).map((err) =>
-    `${err.instancePath} ${err.message}`.trim(),
-  );
-
-  return { valid: false, errors };
-}
-
-export function registerValidator(
-  kind: string,
-  schema: Record<string, unknown>,
-): void {
-  const validate = ajv.compile(schema);
-  validators.set(kind, validate);
+      const errors = (validate.errors ?? []).map((err) =>
+        `${err.instancePath} ${err.message}`.trim(),
+      );
+      return { valid: false, errors };
+    },
+  };
 }

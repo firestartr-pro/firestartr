@@ -10,7 +10,7 @@ import { deterministicPath } from '../claims/deterministicPath.js';
 import { serializeClaim } from '../claims/keyOrdering.js';
 import { createGitHubApi } from '../github/index.js';
 import { parseClaimYaml, requireOrg } from '../mutations/support.js';
-import { setSchemasDir, validateClaim } from '../utils/ajvValidation.js';
+import { createClaimValidator } from '../utils/ajvValidation.js';
 import { validateFeatureArgs } from '../utils/featureSchema.js';
 import {
   getFeatureReferences,
@@ -209,8 +209,8 @@ export async function runFeatureMutation(
     }
   }
 
-  setSchemasDir(deps.schemasDir);
-  const claimValidation = await validateClaim(claim, 'ComponentClaim');
+  const validator = createClaimValidator({ schemasDir: deps.schemasDir });
+  const claimValidation = await validator.validate(claim, 'ComponentClaim');
   if (!claimValidation.valid) {
     throw new Error(claimValidation.errors.join('\n'));
   }

@@ -1,7 +1,7 @@
 export { deriveFlags, deriveVariantGroups } from './utils/deriveFlags.js';
 export type { FlagSpec, FlagType, VariantGroup } from './utils/deriveFlags.js';
 export { buildClaimFromFlags } from './utils/buildClaim.js';
-export { validateClaim, registerValidator } from './utils/ajvValidation.js';
+export { createClaimValidator } from './utils/ajvValidation.js';
 export type { ValidationResult } from './utils/ajvValidation.js';
 export { claimExists } from './claims/claimsMap.js';
 export {

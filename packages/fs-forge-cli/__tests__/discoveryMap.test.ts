@@ -4,7 +4,7 @@ import { join } from 'path';
 
 import { loadClaimsArchive } from '../src/claims/archive';
 import DiscoveryMap from '../src/commands/discovery/map';
-import { setSchemasDir, validateClaim } from '../src/utils/ajvValidation';
+import { createClaimValidator } from '../src/utils/ajvValidation';
 
 jest.mock('../src/claims/archive', () => ({
   loadClaimsArchive: jest.fn(),
@@ -100,8 +100,10 @@ describe('discovery map', () => {
     expect(graph.nodes.map((node) => node.kind)).toEqual(['ComponentClaim']);
     expect(graph.edges).toEqual([]);
 
-    setSchemasDir(join(process.cwd(), 'schemas'));
-    const validation = await validateClaim(graph, 'RelationGraph');
+    const validator = createClaimValidator({
+      schemasDir: join(process.cwd(), 'schemas'),
+    });
+    const validation = await validator.validate(graph, 'RelationGraph');
     expect(validation).toEqual({ valid: true, errors: [] });
   });
 

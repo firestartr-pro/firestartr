@@ -11,7 +11,7 @@ import {
   parseClaimYaml,
   requireOrg,
 } from './support.js';
-import { setSchemasDir, validateClaim } from '../utils/ajvValidation.js';
+import { createClaimValidator } from '../utils/ajvValidation.js';
 import {
   diffClaims,
   formatMutationDiff,
@@ -139,7 +139,9 @@ export async function runClaimMutation(
     const base = parseClaimYaml(source.content);
     assertClaimIdentity(base, kind, sourceName);
 
-    setSchemasDir(join(root, 'schemas'));
+    const validator = createClaimValidator({
+      schemasDir: join(root, 'schemas'),
+    });
     const mutated = mutateClaim(
       base,
       flags,
@@ -151,7 +153,7 @@ export async function runClaimMutation(
     const merged = await defaults(transformed);
     const diff = diffClaims(base, transformed);
     const defaultsDiff = diffClaims(transformed, merged);
-    const validation = await validateClaim(merged, kind);
+    const validation = await validator.validate(merged, kind);
 
     const context = { before: base, transformed, after: merged, map };
     if (!validation.valid) {
