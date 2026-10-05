@@ -1,12 +1,10 @@
 import { Args, Command, Flags } from '@oclif/core';
 
+import { KIND_CAPABILITIES, kindById } from '../../claims/kindRegistry.js';
 import { ClaimsClient } from '../../claims/client.js';
 import { resolveDefaultsFile } from '../../claims/defaults.js';
 import { serializeClaim } from '../../claims/keyOrdering.js';
 import { requireOrg } from '../../mutations/support.js';
-import { CLAIM_KINDS } from '../kinds.js';
-
-const KIND_BY_ID = new Map(CLAIM_KINDS.map(({ id, kind }) => [id, kind]));
 
 function writeLine(value: string): void {
   process.stdout.write(`${value}\n`);
@@ -38,14 +36,15 @@ export default class DefaultsShow extends Command {
     const { args, flags } = await this.parse(DefaultsShow);
     const org = requireOrg(flags.org);
 
-    const kind = KIND_BY_ID.get(args.kind.toLowerCase());
-    if (!kind) {
+    const capability = kindById(args.kind);
+    if (!capability) {
       this.error(
-        `Unknown claim kind: ${args.kind}. Valid kinds: ${CLAIM_KINDS.map(
+        `Unknown claim kind: ${args.kind}. Valid kinds: ${KIND_CAPABILITIES.map(
           (entry) => entry.id,
         ).join(', ')}`,
       );
     }
+    const kind = capability.kind;
 
     const client = new ClaimsClient(org);
     const defaults = await resolveDefaultsFile(client);

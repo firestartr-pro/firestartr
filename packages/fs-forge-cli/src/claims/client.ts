@@ -1,7 +1,7 @@
 import { randomUUID } from 'crypto';
 import { Octokit } from '@octokit/rest';
 
-export const CATALOG_ONLY_KINDS = new Set(['SystemClaim', 'DomainClaim']);
+import { KIND_REGISTRY } from './kindRegistry.js';
 
 export interface RepoFile {
   content: string;
@@ -185,7 +185,9 @@ export class ClaimsClient {
         claimType: kind,
         claimName: name,
         correlationId,
-        skipHydration: CATALOG_ONLY_KINDS.has(kind),
+        skipHydration:
+          KIND_REGISTRY[kind as keyof typeof KIND_REGISTRY]?.catalogOnly ===
+          true,
       },
     });
 

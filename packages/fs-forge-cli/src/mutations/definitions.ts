@@ -9,6 +9,13 @@ import CreateSystem from '../commands/create/system.js';
 import CreateTfworkspace from '../commands/create/tfworkspace.js';
 import CreateUser from '../commands/create/user.js';
 
+import {
+  CLAIM_KIND_OPTIONS,
+  isClaimKind,
+  normalizeKind,
+} from '../claims/kindRegistry.js';
+
+import type { ClaimKindName } from '../claims/kinds.js';
 import type { FlagSpec } from '../utils/deriveFlags.js';
 
 const CREATE_COMMANDS = {
@@ -24,7 +31,7 @@ const CREATE_COMMANDS = {
   UserClaim: CreateUser,
 };
 
-export type ClaimKind = keyof typeof CREATE_COMMANDS;
+export type ClaimKind = ClaimKindName;
 
 export const FLAG_SPECS_BY_KIND = Object.fromEntries(
   Object.entries(CREATE_COMMANDS).map(([kind, command]) => [
@@ -56,20 +63,8 @@ export function mutationFlagsWithout(...names: string[]) {
   );
 }
 
-export function isClaimKind(value: string): value is ClaimKind {
-  return value in CREATE_COMMANDS;
-}
-
-export const CLAIM_KIND_OPTIONS = Object.keys(CREATE_COMMANDS).flatMap(
-  (kind) => [kind.replace(/Claim$/, '').toLowerCase(), kind],
-);
-
-export function normalizeClaimKind(value: string): ClaimKind | undefined {
-  const normalized = value.toLowerCase().replace(/claim$/, '');
-  return Object.keys(CREATE_COMMANDS).find(
-    (kind) => kind.toLowerCase().replace(/claim$/, '') === normalized,
-  ) as ClaimKind | undefined;
-}
+export { CLAIM_KIND_OPTIONS, isClaimKind };
+export const normalizeClaimKind = normalizeKind;
 
 export function assertMutationFlags(
   kind: ClaimKind,

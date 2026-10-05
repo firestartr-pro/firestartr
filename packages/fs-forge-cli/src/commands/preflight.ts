@@ -1,19 +1,35 @@
 import { Command, Errors, Flags } from '@oclif/core';
 
+import { KIND_CAPABILITIES } from '../claims/kindRegistry.js';
 import { ClaimsClient } from '../claims/client.js';
 import { claimExists, loadClaimsMap } from '../claims/claimsMap.js';
 import { requireOrg } from '../mutations/support.js';
 
-export const PREFLIGHT_KINDS = {
-  repo: 'ComponentClaim',
-  team: 'GroupClaim',
-  user: 'UserClaim',
-  tfworkspace: 'TFWorkspaceClaim',
-} as const;
+import type { PreflightKindId } from '../claims/kindRegistry.js';
+import type { ClaimKindName } from '../claims/kinds.js';
 
-type PreflightKindId = keyof typeof PREFLIGHT_KINDS;
+/** Presentation order of `--kind`; must match the registry's preflight kinds. */
+const PREFLIGHT_KIND_IDS = [
+  'repo',
+  'team',
+  'user',
+  'tfworkspace',
+] as const satisfies readonly PreflightKindId[];
 
-const PREFLIGHT_KIND_IDS = Object.keys(PREFLIGHT_KINDS) as PreflightKindId[];
+function preflightKind(id: PreflightKindId): ClaimKindName {
+  const capability = KIND_CAPABILITIES.find(
+    (candidate) => candidate.preflight === id,
+  );
+  if (!capability) {
+    throw new Error(`No claim kind declares preflight kind ${id}`);
+  }
+  return capability.kind;
+}
+
+export const PREFLIGHT_KINDS: Record<PreflightKindId, ClaimKindName> =
+  Object.fromEntries(
+    PREFLIGHT_KIND_IDS.map((id) => [id, preflightKind(id)]),
+  ) as Record<PreflightKindId, ClaimKindName>;
 
 interface JsonOutput {
   status: string;

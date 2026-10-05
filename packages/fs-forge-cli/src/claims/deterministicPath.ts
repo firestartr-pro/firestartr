@@ -1,23 +1,14 @@
 import { posix } from 'path';
 
+import { CLAIM_PATH_CAPABILITIES } from './kindRegistry.js';
+
 import type { ClaimKindName } from './kinds.js';
 
 export type ClaimPathCapability =
   | { readonly requiresExplicitPath: true }
   | { readonly directory: string; readonly requiresExplicitPath: false };
 
-export const CLAIM_PATH_CAPABILITIES = {
-  ComponentClaim: { directory: 'components', requiresExplicitPath: false },
-  GroupClaim: { directory: 'groups', requiresExplicitPath: false },
-  UserClaim: { directory: 'users', requiresExplicitPath: false },
-  SystemClaim: { directory: 'systems', requiresExplicitPath: false },
-  DomainClaim: { directory: 'domains', requiresExplicitPath: false },
-  OrgWebhookClaim: { directory: 'orgWebhook', requiresExplicitPath: false },
-  OrgSettingsClaim: { directory: 'orgSettings', requiresExplicitPath: false },
-  ArgoDeployClaim: { directory: 'argocd', requiresExplicitPath: false },
-  TFWorkspaceClaim: { requiresExplicitPath: true },
-  SecretsClaim: { requiresExplicitPath: true },
-} satisfies Readonly<Record<ClaimKindName, ClaimPathCapability>>;
+export { CLAIM_PATH_CAPABILITIES };
 
 function pathCapability(kind: string): ClaimPathCapability | undefined {
   return CLAIM_PATH_CAPABILITIES[kind as ClaimKindName];
