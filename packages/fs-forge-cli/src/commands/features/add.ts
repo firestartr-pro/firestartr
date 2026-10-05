@@ -6,17 +6,8 @@ import {
   FEATURE_TARGET_RELATIONSHIP,
   FeatureSchemaCommand,
 } from '../../utils/featureCommand.js';
-import {
-  loadComponentTarget,
-  writeAndPublishClaim,
-} from '../../utils/featureClaims.js';
-import {
-  buildFeatureReference,
-  mutateFeatureReference,
-} from '../../utils/features.js';
-import { setSchemasDir, validateClaim } from '../../utils/ajvValidation.js';
-import { validateFeatureArgs } from '../../utils/featureSchema.js';
-import { waitForDispatch } from '../../utils/waitForDispatch.js';
+import { runFeatureMutation } from '../../features/mutation.js';
+import { buildFeatureReference } from '../../utils/features.js';
 
 export default class FeaturesAdd extends FeatureSchemaCommand {
   static args = COMPONENT_ARG;
@@ -45,44 +36,23 @@ export default class FeaturesAdd extends FeatureSchemaCommand {
     }
     if (!this.featureSchema) this.error('Unable to resolve Feature schema');
 
-    const target = await loadComponentTarget({
-      component: args.component,
-      file: flags.file,
-      org: flags.org,
-      commit: flags.commit,
-    });
     const feature = buildFeatureReference(flags as Record<string, unknown>, [
       ...FEATURE_REFERENCE_SPECS,
       ...this.featureSpecs,
     ]);
-    const claim = mutateFeatureReference(target.claim, 'add', feature);
-    const argsValidation = validateFeatureArgs(
-      this.featureSchema,
-      feature.args ?? {},
+    await runFeatureMutation(
+      {
+        operation: 'add',
+        component: args.component,
+        file: flags.file,
+        org: flags.org,
+        commit: flags.commit,
+        noWait: flags['no-wait'],
+        json: flags.json,
+        feature,
+        featureSchema: this.featureSchema,
+      },
+      { schemasDir: `${this.config.root}/schemas` },
     );
-    if (!argsValidation.valid) this.error(argsValidation.errors.join('\n'));
-
-    setSchemasDir(`${this.config.root}/schemas`);
-    const claimValidation = await validateClaim(claim, 'ComponentClaim');
-    if (!claimValidation.valid) this.error(claimValidation.errors.join('\n'));
-
-    const result = await writeAndPublishClaim(target, claim, flags.json);
-    if (result) {
-      try {
-        await waitForDispatch(
-          result.repo.api,
-          result.repo.ref,
-          result.dispatch,
-          {
-            noWait: flags['no-wait'],
-            claimType: 'ComponentClaim',
-            claimName: target.name,
-            label: 'Provisioning',
-          },
-        );
-      } catch (error) {
-        this.error(error instanceof Error ? error.message : String(error));
-      }
-    }
   }
 }

@@ -1,10 +1,9 @@
 import { Command, Help } from '@oclif/core';
 
 import {
-  FEATURE_REFERENCE_SPECS,
-  resolveFeatureFlagSpecs,
-} from './utils/featureCommand.js';
-import { runtimeFlags } from './utils/runtimeFlags.js';
+  applyDynamicFeatureFlags,
+  resolveFeatureArgs,
+} from './features/dynamicFlags.js';
 
 import type { FlagSpec } from './utils/deriveFlags.js';
 
@@ -39,25 +38,16 @@ export default class CustomHelp extends Help {
     argv: string[],
   ): Promise<Command.Loadable> {
     if (!['features:add', 'features:edit'].includes(command.id)) return command;
-    const resolved = await resolveFeatureFlagSpecs(argv);
+    const resolved = await resolveFeatureArgs(argv);
     if (!resolved) return command;
 
     const commandClass = (await command.load()) as typeof Command & {
       FLAG_SPECS?: FlagSpec[];
     };
-    const staticFlags = Object.fromEntries(
-      Object.entries(commandClass.flags).filter(
-        ([name]) => !name.startsWith('args.'),
-      ),
-    );
-    const applyDefaults =
-      command.id === 'features:add' &&
-      !argv.some((value) => value.startsWith('--args.json'));
-    commandClass.flags = {
-      ...staticFlags,
-      ...runtimeFlags(resolved.specs, applyDefaults),
-    };
-    commandClass.FLAG_SPECS = [...FEATURE_REFERENCE_SPECS, ...resolved.specs];
+    applyDynamicFeatureFlags(commandClass, argv, {
+      applyDefaults: command.id === 'features:add',
+      resolved,
+    });
     return {
       ...command,
       flags: commandClass.flags,

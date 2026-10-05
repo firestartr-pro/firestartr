@@ -6,18 +6,8 @@ import {
   FEATURE_TARGET_RELATIONSHIP,
   FeatureSchemaCommand,
 } from '../../utils/featureCommand.js';
-import {
-  loadComponentTarget,
-  writeAndPublishClaim,
-} from '../../utils/featureClaims.js';
-import {
-  buildFeatureReference,
-  getFeatureReferences,
-  mutateFeatureReference,
-} from '../../utils/features.js';
-import { setSchemasDir, validateClaim } from '../../utils/ajvValidation.js';
-import { validateFeatureArgs } from '../../utils/featureSchema.js';
-import { waitForDispatch } from '../../utils/waitForDispatch.js';
+import { runFeatureMutation } from '../../features/mutation.js';
+import { buildFeatureReference } from '../../utils/features.js';
 
 export default class FeaturesEdit extends FeatureSchemaCommand {
   protected applyFeatureDefaults = false;
@@ -41,50 +31,23 @@ export default class FeaturesEdit extends FeatureSchemaCommand {
     const { args, flags } = await this.parse(FeaturesEdit);
     if (!this.featureSchema) this.error('Unable to resolve Feature schema');
 
-    const target = await loadComponentTarget({
-      component: args.component,
-      file: flags.file,
-      org: flags.org,
-      commit: flags.commit,
-    });
-    const existing = getFeatureReferences(target.claim).find(
-      ({ name }) => name === flags.name,
+    const feature = buildFeatureReference(flags as Record<string, unknown>, [
+      ...FEATURE_REFERENCE_SPECS,
+      ...this.featureSpecs,
+    ]);
+    await runFeatureMutation(
+      {
+        operation: 'edit',
+        component: args.component,
+        file: flags.file,
+        org: flags.org,
+        commit: flags.commit,
+        noWait: flags['no-wait'],
+        json: flags.json,
+        feature,
+        featureSchema: this.featureSchema,
+      },
+      { schemasDir: `${this.config.root}/schemas` },
     );
-    if (!existing) this.error(`Feature not found: ${flags.name}`);
-
-    const feature = buildFeatureReference(
-      flags as Record<string, unknown>,
-      [...FEATURE_REFERENCE_SPECS, ...this.featureSpecs],
-      existing,
-    );
-    const argsValidation = validateFeatureArgs(
-      this.featureSchema,
-      feature.args ?? {},
-    );
-    if (!argsValidation.valid) this.error(argsValidation.errors.join('\n'));
-
-    const claim = mutateFeatureReference(target.claim, 'edit', feature);
-    setSchemasDir(`${this.config.root}/schemas`);
-    const claimValidation = await validateClaim(claim, 'ComponentClaim');
-    if (!claimValidation.valid) this.error(claimValidation.errors.join('\n'));
-
-    const result = await writeAndPublishClaim(target, claim, flags.json);
-    if (result) {
-      try {
-        await waitForDispatch(
-          result.repo.api,
-          result.repo.ref,
-          result.dispatch,
-          {
-            noWait: flags['no-wait'],
-            claimType: 'ComponentClaim',
-            claimName: target.name,
-            label: 'Provisioning',
-          },
-        );
-      } catch (error) {
-        this.error(error instanceof Error ? error.message : String(error));
-      }
-    }
   }
 }
