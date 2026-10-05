@@ -13,23 +13,27 @@ set -euo pipefail
 
 # GET <path> <jq filter> as one JSON value. Every page `gh api --paginate`
 # returns is fed to `jq -s <filter>`, so list endpoints are aggregated instead
-# of being truncated at the first page. A 404 (repo or workflow absent) reads
-# as an empty list.
+# of being truncated at the first page. Any failure aborts the snapshot, since
+# GitHub answers 404 for a private repo the token cannot read. Only a call
+# marked "optional" (a workflow the org may not have) reads a 404 as an empty
+# list.
 get() {
-  local path="$1" filter="$2" out
+  local path="$1" filter="$2" optional="${3:-}" out
   if out="$(gh api --paginate "$path" 2>&1)"; then
     printf '%s' "$out" | jq -s "$filter"
     return
   fi
-  case "$out" in *"HTTP 404"*) echo '[]' ;; *) echo "gh api $path failed: $out" >&2; return 1 ;; esac
+  if [ "$optional" = optional ] && [[ "$out" == *"HTTP 404"* ]]; then echo '[]'; return; fi
+  echo "gh api $path failed: $out" >&2
+  return 1
 }
 
 snap() {
   local org="$1" out="$2" runs_p runs_u state
-  runs_p="$(get "repos/$org/claims/actions/workflows/provision-claim.yaml/runs?per_page=100" '[.[].workflow_runs[] | {id,status,conclusion,head_branch}]')"
-  runs_u="$(get "repos/$org/claims/actions/workflows/unprovision-claim.yaml/runs?per_page=100" '[.[].workflow_runs[] | {id,status,conclusion,head_branch}]')"
+  runs_p="$(get "repos/$org/claims/actions/workflows/provision-claim.yaml/runs?per_page=100" '[.[].workflow_runs[] | {id,status,conclusion,head_branch}]' optional)"
+  runs_u="$(get "repos/$org/claims/actions/workflows/unprovision-claim.yaml/runs?per_page=100" '[.[].workflow_runs[] | {id,status,conclusion,head_branch}]' optional)"
   state="$(for repo in state-github state-infra; do
-    get "repos/$org/$repo/pulls?state=all&per_page=100" 'add // []' | jq --arg repo "$repo" '{($repo): [.[].number]}'
+    get "repos/$org/$repo/pulls?state=all&per_page=100" 'add // []' | jq --arg repo "$repo" '{($repo): [.[].number]}' || exit 1
   done | jq -s add)"
   jq -n \
     --arg org "$org" \
