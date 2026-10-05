@@ -1,4 +1,5 @@
 import { mutateClaim } from './mutateClaim.js';
+import { isRecord } from './isRecord.js';
 
 import type { FlagSpec } from './deriveFlags.js';
 
@@ -9,10 +10,6 @@ export interface FeatureReference {
   ref?: string;
   repo?: string;
   args?: Record<string, unknown>;
-}
-
-function isRecord(value: unknown): value is Record<string, unknown> {
-  return typeof value === 'object' && value !== null && !Array.isArray(value);
 }
 
 export function getFeatureReferences(

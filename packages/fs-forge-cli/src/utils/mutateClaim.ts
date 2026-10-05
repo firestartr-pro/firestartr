@@ -1,4 +1,5 @@
 import { buildClaimFromFlags } from './buildClaim.js';
+import { isRecord } from './isRecord.js';
 import { serializeClaim } from '../claims/keyOrdering.js';
 import type { FlagSpec, VariantGroup } from './deriveFlags.js';
 
@@ -8,10 +9,6 @@ export interface ClaimDiff {
   after?: unknown;
 }
 
-function isObject(value: unknown): value is Record<string, unknown> {
-  return typeof value === 'object' && value !== null && !Array.isArray(value);
-}
-
 function hasOwn(value: object, key: string): boolean {
   return Object.prototype.hasOwnProperty.call(value, key);
 }
@@ -19,7 +16,7 @@ function hasOwn(value: object, key: string): boolean {
 function getNestedValue(value: Record<string, unknown>, path: string): unknown {
   let current: unknown = value;
   for (const part of path.split('.')) {
-    if (!isObject(current) || !hasOwn(current, part)) return undefined;
+    if (!isRecord(current) || !hasOwn(current, part)) return undefined;
     current = current[part];
   }
   return current;
@@ -39,7 +36,7 @@ function deleteNestedValue(value: Record<string, unknown>, path: string): void {
   let current = value;
   for (const part of parts.slice(0, -1)) {
     const child = current[part];
-    if (!hasOwn(current, part) || !isObject(child)) return;
+    if (!hasOwn(current, part) || !isRecord(child)) return;
     current = child;
     parents.push(current);
   }
@@ -60,7 +57,7 @@ function mergeObjects(
       throw new Error(`Invalid override key: ${key}`);
     }
     const current = target[key];
-    if (isObject(value) && isObject(current)) {
+    if (isRecord(value) && isRecord(current)) {
       mergeObjects(current, value);
     } else {
       target[key] = value;
@@ -117,7 +114,7 @@ export function diffClaims(
   prefix = '',
 ): ClaimDiff[] {
   if (Object.is(before, after)) return [];
-  if (isObject(before) && isObject(after)) {
+  if (isRecord(before) && isRecord(after)) {
     return [
       ...new Set([...Object.keys(before), ...Object.keys(after)]),
     ].flatMap((key) =>
