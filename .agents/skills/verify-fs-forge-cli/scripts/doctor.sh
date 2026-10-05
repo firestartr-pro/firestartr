@@ -61,10 +61,19 @@ drive="$FSF_SKILL_DIR/scripts/drive.sh"
 "$drive" --mode read -- kinds >/dev/null 2>&1
 [ $? = 2 ] && pass guard-org "drive.sh refuses an org-bound drive with no --org" || fail guard-org "drive.sh ran an org-bound drive without a named org"
 
-case "$FSF_HOME" in
-  "$FSF_REPO"/*) fail evidence-dir "$FSF_HOME is inside the repo; set FSF_HOME outside it" ;;
-  *) mkdir -p "$FSF_HOME" && [ -w "$FSF_HOME" ] && pass evidence-dir "$FSF_HOME is writable and outside the repo" || fail evidence-dir "$FSF_HOME is not writable" ;;
-esac
+# Compare physical paths: a '../' detour or a symlink can hide the real target,
+# so create the directory, resolve it, and only then check it is outside the repo.
+real_repo="$(cd "$FSF_REPO" && pwd -P)"
+if ! mkdir -p "$FSF_HOME" 2>/dev/null; then
+  fail evidence-dir "$FSF_HOME is not writable"
+else
+  real_home="$(cd "$FSF_HOME" && pwd -P)" || real_home=""
+  case "$real_home" in
+    "") fail evidence-dir "$FSF_HOME could not be resolved" ;;
+    "$real_repo"|"$real_repo"/*) fail evidence-dir "$real_home is inside the repo; set FSF_HOME outside it" ;;
+    *) [ -w "$real_home" ] && pass evidence-dir "$real_home is writable and outside the repo" || fail evidence-dir "$real_home is not writable" ;;
+  esac
+fi
 
 command -v jq >/dev/null 2>&1 && pass jq "$(command -v jq)" || fail jq "jq is required by org-snapshot.sh and this script"
 
