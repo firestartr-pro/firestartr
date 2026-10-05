@@ -24,7 +24,7 @@ This directory is the maintained source for verifying the user-facing behavior o
 
 - CLI proof includes the command (`cmd.txt`), stdout, stderr and the exit code, plus `files-changed.txt` (files written; empty means none) and `net.log` (connects attempted).
 - A mutation command proves its result with a second view: validate what `create` printed, list what `features add` printed.
-- Org-bound proof includes `org-diff.txt`; a `read` drive passes only when it is empty.
+- Org-bound proof includes `org-diff.txt`; on an unchanged `read` drive it holds the line `no change in fs-forge branches, PRs or workflow runs`, so any `diff` output means the drive changed org state.
 - Record the feature ID and entry point beside every verdict.
 - Report an unreachable path with the attempted command and the unmet precondition (for example: no org named, no token).
 - Do not report a skipped entry point as verified through a different path: `create <kind>` does not stand in for `create <kind> --commit`.
