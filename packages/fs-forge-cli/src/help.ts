@@ -4,6 +4,7 @@ import {
   applyDynamicFeatureFlags,
   resolveFeatureArgs,
 } from './features/dynamicFlags.js';
+import { FeatureSchemaCommand } from './utils/featureCommand.js';
 
 import type { FlagSpec } from './utils/deriveFlags.js';
 
@@ -37,15 +38,18 @@ export default class CustomHelp extends Help {
     command: Command.Loadable,
     argv: string[],
   ): Promise<Command.Loadable> {
-    if (!['features:add', 'features:edit'].includes(command.id)) return command;
+    const commandClass = (await command.load()) as typeof Command & {
+      FLAG_SPECS?: FlagSpec[];
+      applyFeatureDefaults?: boolean;
+    };
+    if (!(commandClass.prototype instanceof FeatureSchemaCommand)) {
+      return command;
+    }
     const resolved = await resolveFeatureArgs(argv);
     if (!resolved) return command;
 
-    const commandClass = (await command.load()) as typeof Command & {
-      FLAG_SPECS?: FlagSpec[];
-    };
     applyDynamicFeatureFlags(commandClass, argv, {
-      applyDefaults: command.id === 'features:add',
+      applyDefaults: commandClass.applyFeatureDefaults === true,
       resolved,
     });
     return {

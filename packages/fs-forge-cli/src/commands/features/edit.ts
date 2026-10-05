@@ -10,7 +10,9 @@ import { runFeatureMutation } from '../../features/mutation.js';
 import { buildFeatureReference } from '../../utils/features.js';
 
 export default class FeaturesEdit extends FeatureSchemaCommand {
-  protected applyFeatureDefaults = false;
+  static get applyFeatureDefaults(): boolean {
+    return false;
+  }
 
   static args = COMPONENT_ARG;
   static description =

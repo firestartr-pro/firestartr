@@ -57,7 +57,14 @@ export const FEATURE_SCHEMA_FLAGS = {
 };
 
 export abstract class FeatureSchemaCommand extends Command {
-  protected applyFeatureDefaults = true;
+  /**
+   * A static getter rather than a field: oclif's manifest builder copies
+   * enumerable statics into the published oclif.manifest.json.
+   */
+  static get applyFeatureDefaults(): boolean {
+    return true;
+  }
+
   protected featureSchema: Record<string, unknown> | undefined;
   protected featureSpecs: FlagSpec[] = [];
 
@@ -70,7 +77,11 @@ export abstract class FeatureSchemaCommand extends Command {
     applyDynamicFeatureFlags(
       this.ctor as typeof Command & { FLAG_SPECS?: FlagSpec[] },
       this.argv,
-      { applyDefaults: this.applyFeatureDefaults, resolved },
+      {
+        applyDefaults: (this.ctor as typeof FeatureSchemaCommand)
+          .applyFeatureDefaults,
+        resolved,
+      },
     );
   }
 }
