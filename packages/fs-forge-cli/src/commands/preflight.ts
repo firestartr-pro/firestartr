@@ -1,8 +1,11 @@
 import { Command, Errors, Flags } from '@oclif/core';
 
 import { KIND_CAPABILITIES } from '../claims/kindRegistry.js';
-import { ClaimsClient } from '../claims/client.js';
-import { claimExists, loadClaimsMap } from '../claims/claimsMap.js';
+import { claimExists } from '../claims/claimsMap.js';
+import { claimsRepo, loadClaimsMap } from '../claims/claimsRepo.js';
+
+import type { ClaimsRepo } from '../claims/claimsRepo.js';
+import { createGitHubApi } from '../github/index.js';
 import { requireOrg } from '../mutations/support.js';
 
 import type { PreflightKindId } from '../claims/kindRegistry.js';
@@ -121,11 +124,11 @@ export default class Preflight extends Command {
     const name = flags.name;
     const scope = flags.scope;
     const org = requireOrg(flags.org);
-    const client = new ClaimsClient(org);
+    const repo = claimsRepo(createGitHubApi(), org);
 
     // --- DELETION ---
     if (subcommand === 'deletion') {
-      const map = await loadClaimsMap(client);
+      const map = await loadClaimsMap(repo);
       if (!claimExists(map, claimKind, name)) {
         if (flags.json) {
           jsonOutput(this, 3, {
@@ -149,7 +152,7 @@ export default class Preflight extends Command {
       if (!oldName) {
         this.error('--old-name is required for --edition');
       }
-      const map = await loadClaimsMap(client);
+      const map = await loadClaimsMap(repo);
       if (!claimExists(map, claimKind, oldName)) {
         if (flags.json) {
           jsonOutput(this, 3, {
@@ -187,13 +190,13 @@ export default class Preflight extends Command {
         return;
       }
 
-      await this.checkProvider(client, kindId, name, flags.json);
+      await this.checkProvider(repo, kindId, name, flags.json);
       return;
     }
 
     // --- CREATE ---
     if (scope === 'claims' || scope === 'all') {
-      const map = await loadClaimsMap(client);
+      const map = await loadClaimsMap(repo);
       if (claimExists(map, claimKind, name)) {
         if (flags.json) {
           jsonOutput(this, 1, {
@@ -215,12 +218,12 @@ export default class Preflight extends Command {
     }
 
     if (scope === 'provider' || scope === 'all') {
-      await this.checkProvider(client, kindId, name, flags.json);
+      await this.checkProvider(repo, kindId, name, flags.json);
     }
   }
 
   private async checkProvider(
-    client: ClaimsClient,
+    repo: ClaimsRepo,
     kindId: PreflightKindId,
     name: string,
     json: boolean,
@@ -240,13 +243,16 @@ export default class Preflight extends Command {
       let exists: boolean;
       switch (kindId) {
         case 'repo':
-          exists = await client.checkRepoExists(name);
+          exists = await repo.api.repoExists({
+            owner: repo.ref.owner,
+            repo: name,
+          });
           break;
         case 'team':
-          exists = await client.checkTeamExists(name);
+          exists = await repo.api.teamExists(repo.ref.owner, name);
           break;
         case 'user':
-          exists = await client.checkUserIsMember(name);
+          exists = await repo.api.userIsOrgMember(repo.ref.owner, name);
           break;
         default:
           return;

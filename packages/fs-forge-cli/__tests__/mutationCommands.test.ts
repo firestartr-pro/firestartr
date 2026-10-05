@@ -5,16 +5,17 @@ import { readFileSync } from 'fs';
 import { join } from 'path';
 import YAML from 'yaml';
 
-jest.mock('../src/claims/client', () => ({
-  ClaimsClient: jest.fn(),
+jest.mock('../src/github/index', () => ({
+  createGitHubApi: jest.fn(),
 }));
 
-import { ClaimsClient } from '../src/claims/client';
+import { createGitHubApi } from '../src/github/index';
 import CreateComponent from '../src/commands/create/component';
 import CreateGroup from '../src/commands/create/group';
 import CreateTfworkspace from '../src/commands/create/tfworkspace';
 import Edit from '../src/commands/edit';
 import { setSchemasDir, validateClaim } from '../src/utils/ajvValidation';
+import { MemoryGitHubApi } from './fixtures/memoryGitHubApi';
 
 const ROOT = process.cwd();
 const ORIGINAL_ORG = process.env.FSCRT_ORG;
@@ -34,75 +35,71 @@ const DEFAULTS_YAML = [
   '',
 ].join('\n');
 
-const MockClaimsClient = ClaimsClient as unknown as jest.Mock;
+const MockCreateGitHubApi = createGitHubApi as unknown as jest.Mock;
 
-const MATCHING_WET_PR = {
-  number: 42,
-  html_url: 'https://github.com/my-org/custom-state/pull/42',
-  state: 'open',
-  head: { ref: 'automated-component-my-component' },
-  base: { ref: 'main', sha: 'base-sha' },
-  updated_at: '2026-01-01T00:00:00Z',
-};
-
-const SUCCESS_CHECK_RUN = {
-  name: 'plan',
-  conclusion: 'success',
-  status: 'completed',
-  output: {
-    title: null,
-    summary: 'ComponentClaim/my-component: success',
-    text: null,
-  },
-  html_url: 'https://github.com/my-org/custom-state/checks/1',
-};
+function seedClaims(api: MemoryGitHubApi, ref: { owner: string; repo: string }) {
+  api.setDefaultBranch(ref, 'main');
+  api.setBranchHeadSha(ref, 'main', 'base-sha');
+  api.setFile(
+    ref,
+    'claims-map.json',
+    JSON.stringify({
+      headers: { sha: 'map-sha' },
+      claims: {
+        'ComponentClaim-my-component': {
+          filePath: 'components/my-component.yaml',
+        },
+      },
+    }),
+    'map-file-sha',
+  );
+  api.setFile(
+    ref,
+    'claims/components/my-component.yaml',
+    CLAIM_YAML,
+    'claim-sha',
+  );
+}
 
 function mockMutationClient(defaultsYaml: string | null, files: string[] = []) {
-  const client = {
-    owner: 'my-org',
-    getDefaultBranch: jest.fn(async () => 'main'),
-    hasInFlightClaimsMapWorkflow: jest.fn(async () => false),
-    listCheckRuns: jest.fn(async () => [SUCCESS_CHECK_RUN]),
-    listFilesInPr: jest.fn(async () => []),
-    listPullRequests: jest.fn(async () => [MATCHING_WET_PR]),
-    getFile: jest.fn(async (path: string) => {
-      if (path === 'claims-map.json') {
-        return {
-          content: JSON.stringify({
-            headers: { sha: 'map-sha' },
-            claims: {
-              'ComponentClaim-my-component': {
-                filePath: 'components/my-component.yaml',
-              },
-            },
-          }),
-          path,
-          sha: 'map-file-sha',
-        };
-      }
-      if (path === 'claims/components/my-component.yaml') {
-        return { content: CLAIM_YAML, path, sha: 'claim-sha' };
-      }
-      return null;
-    }),
-    getRawFile: jest.fn(async (path: string) =>
-      path === 'claims/claims_defaults.yaml' ? defaultsYaml : null,
-    ),
-    listFilesRecursive: jest.fn(async () => files),
-    publishClaim: jest.fn(async () => ({
-      url: 'https://example.test/workflow',
-      correlationId: 'corr-1',
-      workflowId: 'provision-claim.yaml',
-      branch: 'fs-forge/ComponentClaim-example',
-    })),
-    waitForWorkflow: jest.fn(async () => ({
-      runUrl: 'https://github.com/my-org/claims/actions/runs/1',
-      runId: 1,
+  const api = new MemoryGitHubApi();
+  api.autoCompleteDispatches = true;
+  for (const owner of ['my-org', 'env-org']) {
+    seedClaims(api, { owner, repo: 'claims' });
+  }
+  const ref = { owner: 'my-org', repo: 'claims' };
+  if (defaultsYaml) {
+    api.setFile(ref, 'claims/claims_defaults.yaml', defaultsYaml);
+  }
+  api.setBlobPaths(ref, files);
+
+  const state = { owner: 'my-org', repo: 'custom-state' };
+  api.setPullRequests(state, [
+    {
+      number: 42,
+      htmlUrl: 'https://github.com/my-org/custom-state/pull/42',
+      state: 'open',
+      headRef: 'automated-component-my-component',
+      baseSha: 'base-sha',
+      updatedAt: '2026-01-01T00:00:00Z',
+    },
+  ]);
+  api.setCheckRuns(state, 42, [
+    {
+      name: 'plan',
       conclusion: 'success',
-    })),
-  };
-  MockClaimsClient.mockImplementation(() => client);
-  return client;
+      status: 'completed',
+      output: {
+        title: null,
+        summary: 'ComponentClaim/my-component: success',
+        text: null,
+      },
+      htmlUrl: 'https://github.com/my-org/custom-state/checks/1',
+    },
+  ]);
+
+  MockCreateGitHubApi.mockReturnValue(api);
+  return api;
 }
 
 type CommandClass = typeof Command &
@@ -126,7 +123,7 @@ beforeAll(() => {
 });
 
 afterEach(() => {
-  MockClaimsClient.mockClear();
+  MockCreateGitHubApi.mockClear();
   process.exitCode = 0;
   if (ORIGINAL_ORG === undefined) {
     delete process.env.FSCRT_ORG;
@@ -177,7 +174,7 @@ describe('mutation command arguments', () => {
     expect(result.error?.message).toContain(
       '--org or FSCRT_ORG is required',
     );
-    expect(MockClaimsClient).not.toHaveBeenCalled();
+    expect(MockCreateGitHubApi).not.toHaveBeenCalled();
   });
 
   it('requires a path when committing a created TFWorkspaceClaim', async () => {
@@ -194,7 +191,7 @@ describe('mutation command arguments', () => {
     expect(result.error?.message).toContain(
       '--path is required when committing a TFWorkspaceClaim',
     );
-    expect(MockClaimsClient).not.toHaveBeenCalled();
+    expect(MockCreateGitHubApi).not.toHaveBeenCalled();
   });
 
   it('rejects an explicit path for a deterministic-path created claim', async () => {
@@ -210,11 +207,11 @@ describe('mutation command arguments', () => {
     expect(result.error?.message).toContain(
       '--path is only supported for TFWorkspaceClaim and SecretsClaim',
     );
-    expect(MockClaimsClient).not.toHaveBeenCalled();
+    expect(MockCreateGitHubApi).not.toHaveBeenCalled();
   });
 
   it('publishes a new claim and waits for provisioning', async () => {
-    const client = mockMutationClient(null);
+    const api = mockMutationClient(null);
     const args = CreateComponent.examples[0]
       .replace('<%= config.bin %> <%= command.id %> ', '')
       .split(' ');
@@ -225,17 +222,24 @@ describe('mutation command arguments', () => {
     expect(result.result).toBe(0);
     expect(result.stdout).toContain('kind: ComponentClaim');
     expect(result.stderr).toContain('Provisioning...');
-    expect(client.publishClaim).toHaveBeenCalledWith(
-      'ComponentClaim',
-      'example',
-      'claims/components/example.yaml',
-      expect.stringContaining('kind: ComponentClaim'),
+    expect(api.committed[0]).toEqual({
+      ref: { owner: 'my-org', repo: 'claims' },
+      path: 'claims/components/example.yaml',
+      branch: 'fs-forge/ComponentClaim-example',
+      message: 'ComponentClaim-example: update claim',
+      content: expect.stringContaining('kind: ComponentClaim'),
+    });
+    expect(api.dispatched[0].inputs).toEqual(
+      expect.objectContaining({
+        claimType: 'ComponentClaim',
+        claimName: 'example',
+      }),
     );
   });
 
   it('accepts FSCRT_ORG when committing a created claim', async () => {
     process.env.FSCRT_ORG = 'env-org';
-    mockMutationClient(null);
+    const api = mockMutationClient(null);
     const args = CreateComponent.examples[0]
       .replace('<%= config.bin %> <%= command.id %> ', '')
       .split(' ');
@@ -244,7 +248,10 @@ describe('mutation command arguments', () => {
     const result = await run(CreateComponent, ...args);
 
     expect(result.result).toBe(0);
-    expect(MockClaimsClient).toHaveBeenCalledWith('env-org');
+    expect(MockCreateGitHubApi).toHaveBeenCalledTimes(1);
+    expect(api.calls).toContain(
+      'readFile env-org/claims:claims-map.json@claims-index',
+    );
   });
 
   it('does not publish a created claim that fails validation', async () => {
@@ -260,7 +267,7 @@ describe('mutation command arguments', () => {
     );
 
     expect(result.error).toBeDefined();
-    expect(MockClaimsClient).not.toHaveBeenCalled();
+    expect(MockCreateGitHubApi).not.toHaveBeenCalled();
   });
 
   it('no longer accepts --diff on create commands', async () => {
@@ -306,7 +313,7 @@ describe('clone command removal', () => {
 
 describe('edit --wait-for-checks forwarding', () => {
   it('watches the wet PR checks with the bare repository name', async () => {
-    const client = mockMutationClient(null);
+    const api = mockMutationClient(null);
     const { result, stderr } = await run(
       Edit,
       'ComponentClaim-my-component',
@@ -319,15 +326,11 @@ describe('edit --wait-for-checks forwarding', () => {
     );
 
     expect(result).toBe(0);
-    expect(client.listPullRequests).toHaveBeenCalledWith(
-      'my-org',
-      'custom-state',
-      expect.objectContaining({ state: 'open' }),
+    expect(api.calls).toContain(
+      'listOpenPullRequests my-org/custom-state:automated',
     );
-    expect(client.listCheckRuns).toHaveBeenCalledWith(
-      'my-org',
-      'custom-state',
-      MATCHING_WET_PR.number,
+    expect(api.calls).toContain(
+      'listCheckRunsForPullRequest my-org/custom-state#42',
     );
     expect(stderr).toContain('Watching wet PR my-org/custom-state#42...');
     expect(stderr).toContain('All checks passed');
@@ -492,10 +495,10 @@ describe('edit defaults integration', () => {
   });
 
   it('fails hard when fetching defaults errors', async () => {
-    const client = mockMutationClient(null);
-    client.getRawFile = jest.fn(async () => {
+    const api = mockMutationClient(null);
+    api.readFile = async () => {
       throw new Error('GitHub API exploded');
-    });
+    };
     const { error } = await run(
       Edit,
       'ComponentClaim-my-component',

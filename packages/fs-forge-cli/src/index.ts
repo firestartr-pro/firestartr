@@ -3,12 +3,16 @@ export type { FlagSpec, FlagType, VariantGroup } from './utils/deriveFlags.js';
 export { buildClaimFromFlags } from './utils/buildClaim.js';
 export { validateClaim, registerValidator } from './utils/ajvValidation.js';
 export type { ValidationResult } from './utils/ajvValidation.js';
-export { ClaimsClient } from './claims/client.js';
+export { claimExists } from './claims/claimsMap.js';
 export {
-  claimExists,
+  claimsRepo,
+  dispatchUnprovision,
   loadClaimsMap,
+  publishClaim,
   resolveClaim,
-} from './claims/claimsMap.js';
+} from './claims/claimsRepo.js';
+export { createGitHubApi } from './github/index.js';
+export { pollDispatchedRun } from './claims/workflowRun.js';
 export {
   assertCreatePath,
   CLAIM_PATH_CAPABILITIES,

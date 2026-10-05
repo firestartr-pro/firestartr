@@ -1,0 +1,195 @@
+import { describe, expect, it } from '@jest/globals';
+
+import {
+  claimsRepo,
+  dispatchUnprovision,
+  publishClaim,
+  readClaimFile,
+  readDefaultsFile,
+} from '../src/claims/claimsRepo';
+import { MemoryGitHubApi } from './fixtures/memoryGitHubApi';
+
+class ExistingBranchApi extends MemoryGitHubApi {
+  override async createBranch(): Promise<void> {
+    throw Object.assign(new Error('Reference already exists'), {
+      status: 422,
+    });
+  }
+}
+
+function repo(api: MemoryGitHubApi) {
+  const claims = claimsRepo(api, 'example-org');
+  api.setDefaultBranch(claims.ref, 'main');
+  api.setBranchHeadSha(claims.ref, 'main', 'base-sha');
+  return claims;
+}
+
+describe('publishClaim', () => {
+  it('creates a branch, commits the claim and dispatches provisioning', async () => {
+    const api = new MemoryGitHubApi();
+    const claims = repo(api);
+
+    const dispatch = await publishClaim(claims, {
+      kind: 'ComponentClaim',
+      name: 'example',
+      path: 'claims/components/example.yaml',
+      yaml: 'kind: ComponentClaim\nname: example\n',
+      existingSha: 'file-sha',
+    });
+
+    expect(dispatch).toEqual({
+      url: 'https://github.com/example-org/claims/actions/workflows/provision-claim.yaml',
+      correlationId: expect.any(String),
+      workflowId: 'provision-claim.yaml',
+      branch: 'fs-forge/ComponentClaim-example',
+    });
+    expect(api.calls).toContain(
+      'createBranch example-org/claims@fs-forge/ComponentClaim-example:base-sha',
+    );
+    expect(api.committed[0]).toEqual({
+      ref: claims.ref,
+      path: 'claims/components/example.yaml',
+      branch: 'fs-forge/ComponentClaim-example',
+      message: 'ComponentClaim-example: update claim',
+      content: 'kind: ComponentClaim\nname: example\n',
+      sha: 'file-sha',
+    });
+    expect(api.dispatched[0]).toEqual({
+      ref: claims.ref,
+      workflowId: 'provision-claim.yaml',
+      gitRef: 'fs-forge/ComponentClaim-example',
+      inputs: {
+        claimType: 'ComponentClaim',
+        claimName: 'example',
+        correlationId: dispatch.correlationId,
+        skipHydration: false,
+      },
+    });
+  });
+
+  it.each(['SystemClaim', 'DomainClaim'])(
+    'passes skipHydration=true for catalog-only kind %s',
+    async (kind) => {
+      const api = new MemoryGitHubApi();
+      const claims = repo(api);
+
+      await publishClaim(claims, {
+        kind,
+        name: 'example',
+        path: `claims/${kind === 'SystemClaim' ? 'systems' : 'domains'}/example.yaml`,
+        yaml: `kind: ${kind}\nname: example\n`,
+      });
+
+      expect(api.dispatched[0].inputs).toEqual({
+        claimType: kind,
+        claimName: 'example',
+        correlationId: expect.any(String),
+        skipHydration: true,
+      });
+    },
+  );
+
+  it('reports an existing publish branch clearly', async () => {
+    const api = new ExistingBranchApi();
+    const claims = repo(api);
+
+    await expect(
+      publishClaim(claims, {
+        kind: 'ComponentClaim',
+        name: 'example',
+        path: 'claims/components/example.yaml',
+        yaml: 'kind: ComponentClaim\nname: example\n',
+      }),
+    ).rejects.toThrow(
+      'Branch already exists: fs-forge/ComponentClaim-example. Delete it before publishing again.',
+    );
+  });
+});
+
+describe('dispatchUnprovision', () => {
+  it('dispatches unprovision-claim with default options', async () => {
+    const api = new MemoryGitHubApi();
+    const claims = repo(api);
+
+    const dispatch = await dispatchUnprovision(claims, {
+      kind: 'ComponentClaim',
+      name: 'my-svc',
+    });
+
+    expect(dispatch.branch).toBe('main');
+    expect(api.dispatched[0]).toEqual({
+      ref: claims.ref,
+      workflowId: 'unprovision-claim.yaml',
+      gitRef: 'main',
+      inputs: {
+        claimType: 'ComponentClaim',
+        claimName: 'my-svc',
+        correlationId: expect.any(String),
+        includeVariants: true,
+        waitForClaimChecks: false,
+      },
+    });
+  });
+
+  it('dispatches unprovision-claim with explicit options', async () => {
+    const api = new MemoryGitHubApi();
+    const claims = claimsRepo(api, 'example-org');
+    api.setDefaultBranch(claims.ref, 'develop');
+
+    const dispatch = await dispatchUnprovision(claims, {
+      kind: 'TFWorkspaceClaim',
+      name: 'my-tf',
+      includeVariants: false,
+      waitForClaimChecks: true,
+    });
+
+    expect(dispatch.branch).toBe('develop');
+    expect(api.dispatched[0].gitRef).toBe('develop');
+    expect(api.dispatched[0].inputs).toEqual({
+      claimType: 'TFWorkspaceClaim',
+      claimName: 'my-tf',
+      correlationId: expect.any(String),
+      includeVariants: false,
+      waitForClaimChecks: true,
+    });
+  });
+});
+
+describe('claim files and defaults', () => {
+  it('reads a claim file at the requested ref', async () => {
+    const api = new MemoryGitHubApi();
+    const claims = repo(api);
+    api.setFile(
+      claims.ref,
+      'claims/claims_defaults.yaml',
+      'ComponentClaim:\n  a: 1\n',
+    );
+
+    const file = await readClaimFile(claims, 'claims/claims_defaults.yaml');
+
+    expect(file?.content).toBe('ComponentClaim:\n  a: 1\n');
+  });
+
+  it('returns null when the defaults file does not exist', async () => {
+    const api = new MemoryGitHubApi();
+    const claims = repo(api);
+
+    expect(await readDefaultsFile(claims)).toBeNull();
+  });
+
+  it('falls back to the single defaults file elsewhere in the repo', async () => {
+    const api = new MemoryGitHubApi();
+    const claims = repo(api);
+    api.setBlobPaths(claims.ref, [
+      'claims/components/a.yaml',
+      'nested/claims_defaults.yaml',
+    ]);
+    api.setFile(
+      claims.ref,
+      'nested/claims_defaults.yaml',
+      'ComponentClaim:\n  b: 2\n',
+    );
+
+    expect(await readDefaultsFile(claims)).toEqual({ ComponentClaim: { b: 2 } });
+  });
+});

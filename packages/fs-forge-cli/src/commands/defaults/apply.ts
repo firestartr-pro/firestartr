@@ -1,9 +1,13 @@
 import { Args, Command, Flags } from '@oclif/core';
 import { readFile } from 'fs/promises';
 
-import { ClaimsClient } from '../../claims/client.js';
-import { loadClaimsMap, resolveClaim } from '../../claims/claimsMap.js';
+import {
+  claimsRepo,
+  loadClaimsMap,
+  resolveClaim,
+} from '../../claims/claimsRepo.js';
 import { applyDefaultsFromRepo } from '../../claims/defaults.js';
+import { createGitHubApi } from '../../github/index.js';
 import { serializeClaim } from '../../claims/keyOrdering.js';
 import { isClaimKind } from '../../mutations/definitions.js';
 import { parseClaimYaml, requireOrg } from '../../mutations/support.js';
@@ -57,7 +61,7 @@ export default class DefaultsApply extends Command {
       this.error('Provide either a claim reference or -f <file>, not both');
     }
 
-    const client = new ClaimsClient(org);
+    const repo = claimsRepo(createGitHubApi(), org);
 
     let claim: Record<string, unknown>;
     if (flags.file) {
@@ -70,13 +74,13 @@ export default class DefaultsApply extends Command {
       if (separator < 1 || !name || !isClaimKind(kind)) {
         this.error(`Invalid claim reference: ${reference}`);
       }
-      const map = await loadClaimsMap(client);
-      const resolved = await resolveClaim(client, map, reference);
+      const map = await loadClaimsMap(repo);
+      const resolved = await resolveClaim(repo, map, reference);
       claim = parseClaimYaml(resolved.content);
     }
 
     claimKind(claim);
-    const filled = await applyDefaultsFromRepo(client, claim, 'strict');
+    const filled = await applyDefaultsFromRepo(repo, claim, 'strict');
 
     writeLine(serializeClaim(filled));
   }

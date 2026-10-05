@@ -1,7 +1,10 @@
 import { join } from 'path';
 
-import { loadClaimsMap, resolveClaim } from '../claims/claimsMap.js';
-import { ClaimsClient } from '../claims/client.js';
+import {
+  loadClaimsMap,
+  publishClaim,
+  resolveClaim,
+} from '../claims/claimsRepo.js';
 import { applyDefaultsFromRepo } from '../claims/defaults.js';
 import { serializeClaim } from '../claims/keyOrdering.js';
 import { watchCheckRuns } from '../claims/checkRuns.js';
@@ -20,6 +23,7 @@ import {
   mutateClaim,
 } from '../utils/mutateClaim.js';
 import { waitForDispatch } from '../utils/waitForDispatch.js';
+import type { ClaimsRepo } from '../claims/claimsRepo.js';
 import type { ClaimsMap } from '../claims/claimsMap.js';
 import type { ClaimKind } from './definitions.js';
 import type { ValidationResult } from '../utils/ajvValidation.js';
@@ -35,7 +39,7 @@ export interface ClaimMutationPresentationOptions {
 }
 
 export interface ClaimMutationOptions {
-  client: ClaimsClient;
+  repo: ClaimsRepo;
   root: string;
   kind: ClaimKind;
   sourceName: string;
@@ -120,7 +124,7 @@ export async function runClaimMutation(
 ): Promise<ClaimMutationResult> {
   try {
     const {
-      client,
+      repo,
       root,
       kind,
       sourceName,
@@ -131,13 +135,13 @@ export async function runClaimMutation(
       waitForChecks = false,
       stateRepos,
       transform,
-      defaults = (claim) => applyDefaultsFromRepo(client, claim, 'tolerant'),
+      defaults = (claim) => applyDefaultsFromRepo(repo, claim, 'tolerant'),
       presentation,
     } = options;
     validatePresentation(presentation);
 
-    const map = await loadClaimsMap(client);
-    const source = await resolveClaim(client, map, `${kind}-${sourceName}`);
+    const map = await loadClaimsMap(repo);
+    const source = await resolveClaim(repo, map, `${kind}-${sourceName}`);
     const base = parseClaimYaml(source.content);
     assertClaimIdentity(base, kind, sourceName);
 
@@ -172,25 +176,30 @@ export async function runClaimMutation(
       path: source.filePath,
       existingSha: source.sha,
     };
-    const dispatchResult = await client.publishClaim(
+    const dispatchResult = await publishClaim(repo, {
       kind,
-      target.name,
-      target.path,
-      output,
-      target.existingSha,
-    );
-
-    const publishUrl = await waitForDispatch(client, dispatchResult, {
-      noWait,
-      claimType: kind,
-      claimName: target.name,
-      label: 'Provisioning',
+      name: target.name,
+      path: target.path,
+      yaml: output,
+      existingSha: target.existingSha,
     });
 
+    const publishUrl = await waitForDispatch(
+      repo.api,
+      repo.ref,
+      dispatchResult,
+      {
+        noWait,
+        claimType: kind,
+        claimName: target.name,
+        label: 'Provisioning',
+      },
+    );
+
     if (waitForChecks && !noWait) {
-      const orgName = client.owner;
+      const orgName = repo.ref.owner;
       const repos = parseStateRepos(stateRepos, orgName);
-      const wetPr = await findWetPr(client, repos, kind, target.name);
+      const wetPr = await findWetPr(repo.api, repos, kind, target.name);
 
       if (wetPr) {
         process.stderr.write(
@@ -198,9 +207,8 @@ export async function runClaimMutation(
         );
         const watchRepoName = wetPr.repo.split('/')[1];
         const checkResult = await watchCheckRuns(
-          client,
-          wetPr.owner,
-          watchRepoName,
+          repo.api,
+          { owner: wetPr.owner, repo: watchRepoName },
           wetPr.number,
         );
         if (checkResult.overallConclusion !== 'success') {

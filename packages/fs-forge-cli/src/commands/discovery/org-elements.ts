@@ -1,7 +1,7 @@
 import { Command, Flags } from '@oclif/core';
 
-import { ClaimsClient } from '../../claims/client.js';
-import { loadClaimsMap } from '../../claims/claimsMap.js';
+import { claimsRepo, loadClaimsMap } from '../../claims/claimsRepo.js';
+import { createGitHubApi } from '../../github/index.js';
 import {
   CLAIM_KIND_OPTIONS,
   normalizeClaimKind,
@@ -50,8 +50,8 @@ export default class DiscoveryOrgElements extends Command {
 
     const kindFilter = flags.kind?.map((value) => normalizeClaimKind(value)!);
 
-    const client = new ClaimsClient(org, undefined, flags['claims-repo']);
-    const map = await loadClaimsMap(client);
+    const repo = claimsRepo(createGitHubApi(), org, flags['claims-repo']);
+    const map = await loadClaimsMap(repo);
 
     const entries: ClaimEntry[] = Object.entries(map.claims)
       .map(([reference, entry]) => {

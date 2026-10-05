@@ -1,6 +1,7 @@
 import { Args, Command, Flags } from '@oclif/core';
 
-import { ClaimsClient } from '../claims/client.js';
+import { claimsRepo } from '../claims/claimsRepo.js';
+import { createGitHubApi } from '../github/index.js';
 import {
   assertMutationFlags,
   isClaimKind,
@@ -59,9 +60,9 @@ export default class Edit extends Command {
     }
 
     const org = requireOrg(flags.org);
-    const client = new ClaimsClient(org);
+    const repo = claimsRepo(createGitHubApi(), org);
     await runClaimMutation({
-      client,
+      repo,
       root: this.config.root,
       kind,
       sourceName: name,

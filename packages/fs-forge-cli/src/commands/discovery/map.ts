@@ -1,7 +1,7 @@
 import { Command, Flags } from '@oclif/core';
 
 import { loadClaimsArchive } from '../../claims/archive.js';
-import { ClaimsClient } from '../../claims/client.js';
+import { createGitHubApi } from '../../github/index.js';
 import {
   CLAIM_KIND_OPTIONS,
   normalizeClaimKind,
@@ -41,7 +41,11 @@ export default class DiscoveryMap extends Command {
     const { flags } = await this.parse(DiscoveryMap);
     const org = requireOrg(flags.org);
     const kinds = flags.kind?.map((value) => normalizeClaimKind(value)!);
-    const claims = await loadClaimsArchive(new ClaimsClient(org), flags.ref);
+    const claims = await loadClaimsArchive(
+      createGitHubApi(),
+      { owner: org, repo: 'claims' },
+      flags.ref,
+    );
     const graph = buildRelationGraph(claims, org);
     if (flags.json) {
       process.stdout.write(

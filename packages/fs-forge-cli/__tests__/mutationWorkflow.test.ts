@@ -4,11 +4,12 @@ import { readFileSync } from 'fs';
 import { join } from 'path';
 import YAML from 'yaml';
 
-jest.mock('../src/claims/client', () => ({
-  ClaimsClient: jest.fn(),
+jest.mock('../src/github/index', () => ({
+  createGitHubApi: jest.fn(),
 }));
 
-import { ClaimsClient } from '../src/claims/client';
+import { createGitHubApi } from '../src/github/index';
+import { claimsRepo } from '../src/claims/claimsRepo';
 import { applyClaimDefaults } from '../src/defaults/applier';
 import { registerValidator } from '../src/utils/ajvValidation';
 import {
@@ -16,6 +17,7 @@ import {
   runClaimMutation,
 } from '../src/mutations/orchestrator';
 import { formatUnifiedDiff } from '../src/utils/mutateClaim';
+import { MemoryGitHubApi } from './fixtures/memoryGitHubApi';
 
 import type {
   ClaimMutationOptions,
@@ -24,7 +26,12 @@ import type {
 
 const ROOT = process.cwd();
 const emptyPresentation = {} as const;
-const MockClaimsClient = ClaimsClient as unknown as jest.Mock;
+const MockCreateGitHubApi = createGitHubApi as unknown as jest.Mock;
+
+const COMPONENT_YAML = readFileSync(
+  join(ROOT, '__tests__', 'fixtures', 'valid', 'component.yaml'),
+  'utf8',
+);
 
 function loadSchema(kind: string): Record<string, unknown> {
   return JSON.parse(
@@ -32,53 +39,45 @@ function loadSchema(kind: string): Record<string, unknown> {
   );
 }
 
-function createClient() {
-  const publishClaim = jest.fn(async () => ({
-    url: 'workflow-url',
-    correlationId: 'corr-1',
-    workflowId: 'provision-claim.yaml',
-    branch: 'fs-forge/ComponentClaim-example',
-  }));
-  const getFile = jest.fn(async (path: string) => {
-    if (path === 'claims-map.json') {
-      return {
-        content: JSON.stringify({
-          headers: { sha: 'map-sha' },
-          claims: {
+function createRepo(options: { existingReference?: string } = {}) {
+  const api = new MemoryGitHubApi();
+  api.autoCompleteDispatches = true;
+  const repo = claimsRepo(api, 'example');
+  api.setDefaultBranch(repo.ref, 'main');
+  api.setBranchHeadSha(repo.ref, 'main', 'base-sha');
+  api.setFile(
+    repo.ref,
+    'claims-map.json',
+    JSON.stringify({
+      headers: { sha: 'map-sha' },
+      claims: options.existingReference
+        ? {
+            [options.existingReference]: {
+              filePath: 'components/new-component.yaml',
+            },
+          }
+        : {
             'ComponentClaim-my-component': {
               filePath: 'components/my-component.yaml',
             },
           },
-        }),
-        path,
-        sha: 'map-file-sha',
-      };
-    }
-    return {
-      content: readFileSync(
-        join(ROOT, '__tests__', 'fixtures', 'valid', 'component.yaml'),
-        'utf8',
-      ),
-      path,
-      sha: 'claim-sha',
-    };
-  });
-  const client = {
-    hasInFlightClaimsMapWorkflow: jest.fn(async () => false),
-    getDefaultBranch: jest.fn(async () => 'main'),
-    getFile,
-    getRawFile: jest.fn(async () => null),
-    listFilesRecursive: jest.fn(async () => []),
-    owner: 'example',
-    publishClaim,
-    waitForWorkflow: jest.fn(async () => ({
-      runUrl: 'https://github.com/example/claims/actions/runs/1',
-      runId: 1,
-      conclusion: 'success',
-    })),
-  } as unknown as ClaimsClient;
-
-  return { client, getFile, publishClaim };
+    }),
+    'map-file-sha',
+  );
+  api.setFile(
+    repo.ref,
+    'claims/components/my-component.yaml',
+    COMPONENT_YAML,
+    'claim-sha',
+  );
+  api.setFile(
+    repo.ref,
+    'claims/components/new-component.yaml',
+    COMPONENT_YAML,
+    'claim-sha',
+  );
+  MockCreateGitHubApi.mockReturnValue(api);
+  return { api, repo };
 }
 
 beforeAll(() => {
@@ -86,47 +85,10 @@ beforeAll(() => {
 });
 
 beforeEach(() => {
-  MockClaimsClient.mockClear();
+  MockCreateGitHubApi.mockClear();
 });
 
 describe('runClaimCreation', () => {
-  function createCreationClient(existingReference?: string) {
-    const publishClaim = jest.fn(async () => ({
-      url: 'workflow-url',
-      correlationId: 'corr-1',
-      workflowId: 'provision-claim.yaml',
-      branch: 'fs-forge/ComponentClaim-new-component',
-    }));
-    const client = {
-      hasInFlightClaimsMapWorkflow: jest.fn(async () => false),
-      getFile: jest.fn(async (path: string) => {
-        if (path !== 'claims-map.json') return null;
-        return {
-          content: JSON.stringify({
-            headers: { sha: 'map-sha' },
-            claims: existingReference
-              ? {
-                  [existingReference]: {
-                    filePath: 'components/new-component.yaml',
-                  },
-                }
-              : {},
-          }),
-          path,
-          sha: 'map-file-sha',
-        };
-      }),
-      publishClaim,
-      waitForWorkflow: jest.fn(async () => ({
-        runUrl: 'https://github.com/example/claims/actions/runs/1',
-        runId: 1,
-        conclusion: 'success',
-      })),
-    } as unknown as ClaimsClient;
-    MockClaimsClient.mockImplementation(() => client);
-    return { client, publishClaim };
-  }
-
   const claim = {
     kind: 'ComponentClaim',
     name: 'new-component',
@@ -182,7 +144,7 @@ describe('runClaimCreation', () => {
   ] as const;
 
   it('keeps claim creation offline unless commit is requested', async () => {
-    const { client, publishClaim } = createCreationClient();
+    const { api } = createRepo();
 
     const result = await runClaimCreation({
       kind: 'ComponentClaim',
@@ -193,13 +155,12 @@ describe('runClaimCreation', () => {
     });
 
     expect(YAML.parse(result.output)).toEqual(claim);
-    expect(MockClaimsClient).not.toHaveBeenCalled();
-    expect(client.hasInFlightClaimsMapWorkflow).not.toHaveBeenCalled();
-    expect(publishClaim).not.toHaveBeenCalled();
+    expect(MockCreateGitHubApi).not.toHaveBeenCalled();
+    expect(api.calls).toEqual([]);
   });
 
   it('publishes a new claim to its deterministic path', async () => {
-    const { publishClaim } = createCreationClient();
+    const { api } = createRepo();
 
     const result = await runClaimCreation({
       org: 'example',
@@ -211,22 +172,25 @@ describe('runClaimCreation', () => {
       writeDiagnostic: jest.fn(),
     });
 
-    expect(MockClaimsClient).toHaveBeenCalledWith('example');
+    expect(MockCreateGitHubApi).toHaveBeenCalledTimes(1);
     expect(result.publishUrl).toBe(
       'https://github.com/example/claims/actions/runs/1',
     );
-    expect(publishClaim).toHaveBeenCalledWith(
-      'ComponentClaim',
-      'new-component',
-      'claims/components/new-component.yaml',
-      result.output,
+    expect(api.committed[0]).toEqual(
+      expect.objectContaining({
+        path: 'claims/components/new-component.yaml',
+        content: result.output,
+      }),
+    );
+    expect(api.dispatched[0].inputs).toEqual(
+      expect.objectContaining({ claimType: 'ComponentClaim' }),
     );
   });
 
   it('rejects an existing claim before publishing', async () => {
-    const { publishClaim } = createCreationClient(
-      'ComponentClaim-new-component',
-    );
+    const { api } = createRepo({
+      existingReference: 'ComponentClaim-new-component',
+    });
 
     await expect(
       runClaimCreation({
@@ -239,14 +203,15 @@ describe('runClaimCreation', () => {
         writeDiagnostic: jest.fn(),
       }),
     ).rejects.toThrow('Claim already exists: ComponentClaim-new-component');
-    expect(publishClaim).not.toHaveBeenCalled();
+    expect(api.committed).toEqual([]);
+    expect(api.dispatched).toEqual([]);
   });
 
   describe.each(CREATE_COMMIT_CASES)(
     'create --commit for $kind',
     ({ kind, path, expectedPath }) => {
       it('publishes a new claim to its deterministic path', async () => {
-        const { publishClaim } = createCreationClient();
+        const { api } = createRepo();
 
         const result = await runClaimCreation({
           org: 'example',
@@ -262,16 +227,13 @@ describe('runClaimCreation', () => {
         expect(result.publishUrl).toBe(
           'https://github.com/example/claims/actions/runs/1',
         );
-        expect(publishClaim).toHaveBeenCalledWith(
-          kind,
-          'new-claim',
-          expectedPath,
-          result.output,
+        expect(api.committed[0]).toEqual(
+          expect.objectContaining({ path: expectedPath, content: result.output }),
         );
       });
 
       it('rejects an existing claim before publishing', async () => {
-        const { publishClaim } = createCreationClient(`${kind}-new-claim`);
+        const { api } = createRepo({ existingReference: `${kind}-new-claim` });
 
         await expect(
           runClaimCreation({
@@ -285,7 +247,7 @@ describe('runClaimCreation', () => {
             writeDiagnostic: jest.fn(),
           }),
         ).rejects.toThrow(`Claim already exists: ${kind}-new-claim`);
-        expect(publishClaim).not.toHaveBeenCalled();
+        expect(api.committed).toEqual([]);
       });
     },
   );
@@ -305,9 +267,9 @@ async function runSilently(
 
 describe('formatUnifiedDiff', () => {
   it('compares the YAML representation used for the rendered diff', () => {
-    expect(
-      formatUnifiedDiff({ value: Number.NaN }, { value: null }),
-    ).toBe('- value: .nan\n+ value: null');
+    expect(formatUnifiedDiff({ value: Number.NaN }, { value: null })).toBe(
+      '- value: .nan\n+ value: null',
+    );
   });
 
   it('falls back without allocating a quadratic matrix for large changes', () => {
@@ -332,13 +294,13 @@ describe('formatUnifiedDiff', () => {
 
 describe('runClaimMutation', () => {
   it('presents an edit result as Claim YAML and diagnostics', async () => {
-    const { client, publishClaim } = createClient();
+    const { api, repo } = createRepo();
     const transform = jest.fn((claim: Record<string, unknown>) => claim);
     let result: ClaimMutationResult | undefined;
 
     const presented = await captureOutput(async () => {
       result = await runClaimMutation({
-        client,
+        repo,
         root: ROOT,
         kind: 'ComponentClaim',
         sourceName: 'my-component',
@@ -366,11 +328,11 @@ describe('runClaimMutation', () => {
         after: 'public',
       },
     ]);
-    expect(publishClaim).not.toHaveBeenCalled();
+    expect(api.committed).toEqual([]);
   });
 
   it('presents output before publishing and reports the workflow URL', async () => {
-    const { client, publishClaim } = createClient();
+    const { api, repo } = createRepo();
     const events: string[] = [];
     let report = '';
     const stdout = jest
@@ -386,18 +348,14 @@ describe('runClaimMutation', () => {
         report += String(chunk);
         return true;
       });
-    publishClaim.mockImplementation(async () => {
+    const commitFile = api.commitFile.bind(api);
+    api.commitFile = async (...args) => {
       events.push('publish');
-      return {
-        url: 'workflow-url',
-        correlationId: 'corr-1',
-        workflowId: 'provision-claim.yaml',
-        branch: 'fs-forge/ComponentClaim-my-component',
-      };
-    });
+      return commitFile(...args);
+    };
 
     const result = await runClaimMutation({
-      client,
+      repo,
       root: ROOT,
       kind: 'ComponentClaim',
       sourceName: 'my-component',
@@ -412,26 +370,26 @@ describe('runClaimMutation', () => {
     expect(result.publishUrl).toBe(
       'https://github.com/example/claims/actions/runs/1',
     );
-    expect(events).toEqual(['output', 'publish', 'report']);
+    expect(events).toEqual(['output', 'publish', 'report', 'output']);
     expect(report).toContain('Provisioning...');
     expect(YAML.parse(result.output)).toMatchObject({
       name: 'my-component',
     });
-    expect(publishClaim).toHaveBeenCalledWith(
-      'ComponentClaim',
-      'my-component',
-      'claims/components/my-component.yaml',
-      result.output,
-      'claim-sha',
+    expect(api.committed[0]).toEqual(
+      expect.objectContaining({
+        path: 'claims/components/my-component.yaml',
+        content: result.output,
+        sha: 'claim-sha',
+      }),
     );
   });
 
   it('presents provenance and does not publish an invalid mutation', async () => {
-    const { client, publishClaim } = createClient();
+    const { api, repo } = createRepo();
 
     const presented = await captureOutput(async () => {
       await runClaimMutation({
-        client,
+        repo,
         root: ROOT,
         kind: 'ComponentClaim',
         sourceName: 'my-component',
@@ -455,15 +413,15 @@ describe('runClaimMutation', () => {
     expect(presented.stderr).toContain('-     visibility: private');
     expect(presented.stderr).toContain('+     visibility: invalid');
     expect(presented.stderr).toContain('+ platformOwner: group:default');
-    expect(publishClaim).not.toHaveBeenCalled();
+    expect(api.committed).toEqual([]);
   });
 
   it('presents invalid text changes without exposing defaults by default', async () => {
-    const { client } = createClient();
+    const { repo } = createRepo();
 
     const presented = await captureOutput(async () => {
       await runClaimMutation({
-        client,
+        repo,
         root: ROOT,
         kind: 'ComponentClaim',
         sourceName: 'my-component',
@@ -486,11 +444,11 @@ describe('runClaimMutation', () => {
   });
 
   it('presents an invalid mutation diff as flat JSON without defaults visibility', async () => {
-    const { client } = createClient();
+    const { repo } = createRepo();
 
     const presented = await captureOutput(async () => {
       await runClaimMutation({
-        client,
+        repo,
         root: ROOT,
         kind: 'ComponentClaim',
         sourceName: 'my-component',
@@ -522,11 +480,11 @@ describe('runClaimMutation', () => {
   });
 
   it('presents invalid explicit and defaulted changes separately in JSON', async () => {
-    const { client } = createClient();
+    const { repo } = createRepo();
 
     const presented = await captureOutput(async () => {
       await runClaimMutation({
-        client,
+        repo,
         root: ROOT,
         kind: 'ComponentClaim',
         sourceName: 'my-component',
@@ -559,11 +517,11 @@ describe('runClaimMutation', () => {
   });
 
   it('reports no explicit changes and no defaults when both are empty', async () => {
-    const { client } = createClient();
+    const { repo } = createRepo();
 
     const presented = await captureOutput(async () => {
       await runClaimMutation({
-        client,
+        repo,
         root: ROOT,
         kind: 'ComponentClaim',
         sourceName: 'my-component',
@@ -585,11 +543,11 @@ describe('runClaimMutation', () => {
   });
 
   it('rejects unsupported JSON flags before loading the Claim', async () => {
-    const { client, getFile } = createClient();
+    const { api, repo } = createRepo();
 
     const presented = await captureOutput(async () => {
       await runClaimMutation({
-        client,
+        repo,
         root: ROOT,
         kind: 'ComponentClaim',
         sourceName: 'my-component',
@@ -602,14 +560,14 @@ describe('runClaimMutation', () => {
     expect(presented.error?.message).toBe(
       '--json requires --diff or --show-defaults',
     );
-    expect(getFile).not.toHaveBeenCalled();
+    expect(api.calls).toEqual([]);
   });
 
   it('applies defaults after user overrides and validates the defaulted document', async () => {
-    const { client, publishClaim } = createClient();
+    const { api, repo } = createRepo();
 
     const result = await runSilently({
-      client,
+      repo,
       root: ROOT,
       kind: 'ComponentClaim',
       sourceName: 'my-component',
@@ -661,14 +619,14 @@ describe('runClaimMutation', () => {
       ]),
     );
     expect(result.defaultsDiff).toHaveLength(2);
-    expect(publishClaim).not.toHaveBeenCalled();
+    expect(api.committed).toEqual([]);
   });
 
   it('skips defaults when the defaults hook leaves the claim unchanged', async () => {
-    const { client } = createClient();
+    const { repo } = createRepo();
 
     const result = await runSilently({
-      client,
+      repo,
       root: ROOT,
       kind: 'ComponentClaim',
       sourceName: 'my-component',
@@ -688,10 +646,10 @@ describe('runClaimMutation', () => {
   });
 
   it('keeps transform changes out of the defaults diff', async () => {
-    const { client } = createClient();
+    const { repo } = createRepo();
 
     const result = await runSilently({
-      client,
+      repo,
       root: ROOT,
       kind: 'ComponentClaim',
       sourceName: 'my-component',
@@ -706,7 +664,11 @@ describe('runClaimMutation', () => {
 
     expect(result.diff).toEqual(
       expect.arrayContaining([
-        { path: 'providers.github.visibility', before: 'private', after: 'public' },
+        {
+          path: 'providers.github.visibility',
+          before: 'private',
+          after: 'public',
+        },
         { path: 'description', before: undefined, after: 'touched' },
       ]),
     );
@@ -716,11 +678,11 @@ describe('runClaimMutation', () => {
   });
 
   it('fails hard when the defaults hook errors', async () => {
-    const { client } = createClient();
+    const { repo } = createRepo();
 
     await expect(
       runClaimMutation({
-        client,
+        repo,
         root: ROOT,
         kind: 'ComponentClaim',
         sourceName: 'my-component',

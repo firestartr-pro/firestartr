@@ -16,8 +16,6 @@ import {
 } from '../../utils/features.js';
 import { setSchemasDir, validateClaim } from '../../utils/ajvValidation.js';
 import { validateFeatureArgs } from '../../utils/featureSchema.js';
-import { ClaimsClient } from '../../claims/client.js';
-import { requireOrg } from '../../mutations/support.js';
 import { waitForDispatch } from '../../utils/waitForDispatch.js';
 
 export default class FeaturesAdd extends FeatureSchemaCommand {
@@ -71,12 +69,17 @@ export default class FeaturesAdd extends FeatureSchemaCommand {
     const result = await writeAndPublishClaim(target, claim, flags.json);
     if (result) {
       try {
-        await waitForDispatch(new ClaimsClient(requireOrg(flags.org)), result, {
-          noWait: flags['no-wait'],
-          claimType: 'ComponentClaim',
-          claimName: target.name,
-          label: 'Provisioning',
-        });
+        await waitForDispatch(
+          result.repo.api,
+          result.repo.ref,
+          result.dispatch,
+          {
+            noWait: flags['no-wait'],
+            claimType: 'ComponentClaim',
+            claimName: target.name,
+            label: 'Provisioning',
+          },
+        );
       } catch (error) {
         this.error(error instanceof Error ? error.message : String(error));
       }

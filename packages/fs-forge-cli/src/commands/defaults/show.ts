@@ -1,7 +1,8 @@
 import { Args, Command, Flags } from '@oclif/core';
 
 import { KIND_CAPABILITIES, kindById } from '../../claims/kindRegistry.js';
-import { ClaimsClient } from '../../claims/client.js';
+import { claimsRepo } from '../../claims/claimsRepo.js';
+import { createGitHubApi } from '../../github/index.js';
 import { resolveDefaultsFile } from '../../claims/defaults.js';
 import { serializeClaim } from '../../claims/keyOrdering.js';
 import { requireOrg } from '../../mutations/support.js';
@@ -46,8 +47,8 @@ export default class DefaultsShow extends Command {
     }
     const kind = capability.kind;
 
-    const client = new ClaimsClient(org);
-    const defaults = await resolveDefaultsFile(client);
+    const repo = claimsRepo(createGitHubApi(), org);
+    const defaults = await resolveDefaultsFile(repo);
     const entry = defaults?.[kind];
 
     writeLine(serializeClaim((entry ?? {}) as Record<string, unknown>));

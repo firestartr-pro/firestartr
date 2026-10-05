@@ -1,11 +1,20 @@
 import { describe, expect, it, jest } from '@jest/globals';
 import { captureOutput } from '@oclif/test';
 
-jest.mock('../src/claims/claimsMap', () => ({
+jest.mock('../src/claims/claimsRepo', () => ({
+  claimsRepo: jest.fn(
+    (_api: unknown, owner: string, repo = 'claims') => ({
+      api: {},
+      ref: { owner, repo },
+    }),
+  ),
   loadClaimsMap: jest.fn(),
 }));
+jest.mock('../src/github/index', () => ({
+  createGitHubApi: jest.fn(() => ({})),
+}));
 
-import { loadClaimsMap } from '../src/claims/claimsMap';
+import { loadClaimsMap } from '../src/claims/claimsRepo';
 import OrgElements from '../src/commands/discovery/org-elements';
 
 process.env.GITHUB_TOKEN = 'test-token';
@@ -115,7 +124,9 @@ describe('discovery org-elements', () => {
     await run('--claims-repo', 'staging-claims', '--json');
 
     expect(mockedLoadClaimsMap).toHaveBeenCalledWith(
-      expect.objectContaining({ repo: 'staging-claims' }),
+      expect.objectContaining({
+        ref: expect.objectContaining({ repo: 'staging-claims' }),
+      }),
     );
   });
 

@@ -1,6 +1,7 @@
 import { Command, Flags } from '@oclif/core';
 
-import { ClaimsClient } from '../../claims/client.js';
+import { claimsRepo } from '../../claims/claimsRepo.js';
+import { createGitHubApi } from '../../github/index.js';
 import { resolveDefaultsFile } from '../../claims/defaults.js';
 import { requireOrg } from '../../mutations/support.js';
 
@@ -29,8 +30,8 @@ export default class DefaultsList extends Command {
     const { flags } = await this.parse(DefaultsList);
     const org = requireOrg(flags.org);
 
-    const client = new ClaimsClient(org);
-    const defaults = await resolveDefaultsFile(client);
+    const repo = claimsRepo(createGitHubApi(), org);
+    const defaults = await resolveDefaultsFile(repo);
     const kinds = (defaults ? Object.keys(defaults) : [])
       .filter(
         (kind) =>

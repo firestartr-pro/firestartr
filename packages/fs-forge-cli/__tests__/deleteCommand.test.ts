@@ -1,17 +1,18 @@
 import { afterEach, beforeAll, describe, expect, it, jest } from '@jest/globals';
 import { captureOutput } from '@oclif/test';
 
-jest.mock('../src/claims/client', () => ({
-  ClaimsClient: jest.fn(),
+jest.mock('../src/github/index', () => ({
+  createGitHubApi: jest.fn(),
 }));
 
-import { ClaimsClient } from '../src/claims/client';
+import { createGitHubApi } from '../src/github/index';
 import Delete from '../src/commands/delete';
+import { MemoryGitHubApi } from './fixtures/memoryGitHubApi';
 
 const ROOT = process.cwd();
 const ORIGINAL_ORG = process.env.FSCRT_ORG;
 
-const MockClaimsClient = ClaimsClient as unknown as jest.Mock;
+const MockCreateGitHubApi = createGitHubApi as unknown as jest.Mock;
 
 const CLAIMS_MAP = {
   headers: { sha: 'map-sha' },
@@ -26,39 +27,20 @@ const CLAIMS_MAP = {
 };
 
 function mockClient(opts?: { dispatchError?: string }) {
-  const dispatchUnprovision = jest.fn(async () => ({
-    url: 'https://example.test/workflow',
-    correlationId: 'corr-1',
-    workflowId: 'unprovision-claim.yaml',
-    branch: 'main',
-  }));
-  if (opts?.dispatchError) {
-    dispatchUnprovision.mockRejectedValue(new Error(opts.dispatchError));
+  const api = new MemoryGitHubApi();
+  api.autoCompleteDispatches = true;
+  for (const owner of ['my-org', 'env-org']) {
+    const ref = { owner, repo: 'claims' };
+    api.setDefaultBranch(ref, 'main');
+    api.setFile(ref, 'claims-map.json', JSON.stringify(CLAIMS_MAP), 'map-file-sha');
   }
-
-  const client = {
-    hasInFlightClaimsMapWorkflow: jest.fn(async () => false),
-    getDefaultBranch: jest.fn(async () => 'main'),
-    getFile: jest.fn(async (path: string) => {
-      if (path === 'claims-map.json') {
-        return {
-          content: JSON.stringify(CLAIMS_MAP),
-          path,
-          sha: 'map-file-sha',
-        };
-      }
-      return null;
-    }),
-    dispatchUnprovision,
-    waitForWorkflow: jest.fn(async () => ({
-      runUrl: 'https://github.com/example/claims/actions/runs/1',
-      runId: 1,
-      conclusion: 'success',
-    })),
-    owner: 'example',
-  };
-  MockClaimsClient.mockImplementation(() => client);
-  return client;
+  if (opts?.dispatchError) {
+    api.dispatchWorkflow = async () => {
+      throw new Error(opts.dispatchError);
+    };
+  }
+  MockCreateGitHubApi.mockReturnValue(api);
+  return api;
 }
 
 beforeAll(() => {
@@ -66,7 +48,7 @@ beforeAll(() => {
 });
 
 afterEach(() => {
-  MockClaimsClient.mockClear();
+  MockCreateGitHubApi.mockClear();
   process.exitCode = 0;
   if (ORIGINAL_ORG === undefined) {
     delete process.env.FSCRT_ORG;
@@ -149,19 +131,21 @@ describe('fs-forge delete', () => {
       );
 
       expect(result.error?.message).toContain('--org or FSCRT_ORG is required');
-      expect(MockClaimsClient).not.toHaveBeenCalled();
+      expect(MockCreateGitHubApi).not.toHaveBeenCalled();
     });
 
     it('accepts FSCRT_ORG in dry-run mode', async () => {
       process.env.FSCRT_ORG = 'env-org';
-      mockClient();
+      const api = mockClient();
       const { result } = await captureOutput(async () => {
         await Delete.run(['component', 'my-component'], { root: ROOT });
         return 0;
       });
 
       expect(result).toBe(0);
-      expect(MockClaimsClient).toHaveBeenCalledWith('env-org');
+      expect(api.calls).toContain(
+        'readFile env-org/claims:claims-map.json@claims-index',
+      );
     });
 
     it('respects --no-include-variants in dry-run output', async () => {
@@ -205,7 +189,7 @@ describe('fs-forge delete', () => {
 
   describe('commit mode (with --commit)', () => {
     it('dispatches unprovision-claim.yaml and waits for completion', async () => {
-      const client = mockClient();
+      const api = mockClient();
       const { result, stderr } = await captureOutput(async () => {
         await Delete.run(
           ['component', 'my-component', '--org', 'my-org', '--commit'],
@@ -215,23 +199,24 @@ describe('fs-forge delete', () => {
       });
 
       expect(result).toBe(0);
-      expect(MockClaimsClient).toHaveBeenCalledWith('my-org');
-      expect(client.dispatchUnprovision).toHaveBeenCalledWith(
-        'ComponentClaim',
-        'my-component',
-        {
+      expect(api.calls).toContain(
+        'readFile my-org/claims:claims-map.json@claims-index',
+      );
+      expect(api.dispatched[0]).toEqual({
+        ref: { owner: 'my-org', repo: 'claims' },
+        workflowId: 'unprovision-claim.yaml',
+        gitRef: 'main',
+        inputs: {
+          claimType: 'ComponentClaim',
+          claimName: 'my-component',
+          correlationId: expect.any(String),
           includeVariants: true,
           waitForClaimChecks: false,
         },
-      );
+      });
       expect(stderr).toContain('Unprovisioning...');
-      expect(client.waitForWorkflow).toHaveBeenCalledWith(
-        'corr-1',
-        'unprovision-claim.yaml',
-        'ComponentClaim',
-        'my-component',
-        'main',
-        'Unprovisioning',
+      expect(api.calls).toContain(
+        'listWorkflowRuns my-org/claims:unprovision-claim.yaml@main',
       );
     });
 
@@ -260,7 +245,7 @@ describe('fs-forge delete', () => {
 
     it('accepts FSCRT_ORG when committing', async () => {
       process.env.FSCRT_ORG = 'env-org';
-      const client = mockClient();
+      const api = mockClient();
       const { result } = await captureOutput(async () => {
         await Delete.run(
           ['component', 'my-component', '--commit'],
@@ -270,12 +255,14 @@ describe('fs-forge delete', () => {
       });
 
       expect(result).toBe(0);
-      expect(MockClaimsClient).toHaveBeenCalledWith('env-org');
-      expect(client.dispatchUnprovision).toHaveBeenCalled();
+      expect(api.calls).toContain(
+        'readFile env-org/claims:claims-map.json@claims-index',
+      );
+      expect(api.dispatched).toHaveLength(1);
     });
 
     it('passes --no-include-variants to the dispatch', async () => {
-      const client = mockClient();
+      const api = mockClient();
       const { result } = await captureOutput(async () => {
         await Delete.run(
           [
@@ -292,15 +279,18 @@ describe('fs-forge delete', () => {
       });
 
       expect(result).toBe(0);
-      expect(client.dispatchUnprovision).toHaveBeenCalledWith(
-        'TFWorkspaceClaim',
-        'my-tf',
-        { includeVariants: false, waitForClaimChecks: false },
+      expect(api.dispatched[0].inputs).toEqual(
+        expect.objectContaining({
+          claimType: 'TFWorkspaceClaim',
+          claimName: 'my-tf',
+          includeVariants: false,
+          waitForClaimChecks: false,
+        }),
       );
     });
 
     it('passes --wait-for-checks to the dispatch', async () => {
-      const client = mockClient();
+      const api = mockClient();
       const { result } = await captureOutput(async () => {
         await Delete.run(
           [
@@ -317,10 +307,13 @@ describe('fs-forge delete', () => {
       });
 
       expect(result).toBe(0);
-      expect(client.dispatchUnprovision).toHaveBeenCalledWith(
-        'ComponentClaim',
-        'my-component',
-        { includeVariants: true, waitForClaimChecks: true },
+      expect(api.dispatched[0].inputs).toEqual(
+        expect.objectContaining({
+          claimType: 'ComponentClaim',
+          claimName: 'my-component',
+          includeVariants: true,
+          waitForClaimChecks: true,
+        }),
       );
     });
 
@@ -337,7 +330,7 @@ describe('fs-forge delete', () => {
     });
 
     it('skips waiting when --no-wait is passed', async () => {
-      const client = mockClient();
+      const api = mockClient();
       const { result, stderr } = await captureOutput(async () => {
         await Delete.run(
           [
@@ -355,16 +348,18 @@ describe('fs-forge delete', () => {
 
       expect(result).toBe(0);
       expect(stderr).toContain('(no-wait)');
-      expect(client.waitForWorkflow).not.toHaveBeenCalled();
+      expect(
+        api.calls.some((call) =>
+          call.startsWith(
+            'listWorkflowRuns my-org/claims:unprovision-claim.yaml',
+          ),
+        ),
+      ).toBe(false);
     });
 
     it('fails when the workflow concludes with failure', async () => {
-      const client = mockClient();
-      client.waitForWorkflow = jest.fn(async () => ({
-        runUrl: 'https://example.test/run/1',
-        runId: 1,
-        conclusion: 'failure',
-      }));
+      const api = mockClient();
+      api.autoCompleteConclusion = 'failure';
 
       const { error } = await captureOutput(() =>
         Delete.run(
