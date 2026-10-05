@@ -85,11 +85,7 @@ export async function generateAllCommands(
   }
 
   const kindsCmdPath = join(outDir, 'commands', 'kinds.ts');
-  await writeFile(
-    kindsCmdPath,
-    await prettify(emitKindsCommand(models)),
-    'utf8',
-  );
+  await writeFile(kindsCmdPath, await prettify(emitKindsCommand()), 'utf8');
   written.push(kindsCmdPath);
   console.log(`Generated: ${kindsCmdPath}`);
 

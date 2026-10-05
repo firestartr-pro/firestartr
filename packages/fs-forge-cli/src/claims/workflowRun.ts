@@ -14,8 +14,6 @@ export interface PollOptions {
   correlationId: string;
   workflowId: string;
   branch: string;
-  claimType: string;
-  claimName: string;
   timeoutMs?: number;
   pollIntervalMs?: number;
   notFoundGraceMs?: number;

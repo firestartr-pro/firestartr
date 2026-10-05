@@ -177,7 +177,6 @@ export async function runClaimMutation(
         output,
         path: target.path,
         existingSha: target.existingSha,
-        commit: true,
         noWait,
         waitForChecks,
         stateRepos,

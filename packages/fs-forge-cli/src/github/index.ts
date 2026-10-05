@@ -4,8 +4,6 @@ import { createOctokitApi } from './octokitApi.js';
 
 import type { GitHubApi } from './api.js';
 
-export type { GitHubApi, RepoFile, RepoRef } from './api.js';
-
 /** Production construction point for the GitHub port. */
 export function createGitHubApi(
   token: string | undefined = process.env.GITHUB_TOKEN,

@@ -5,7 +5,6 @@ import { watchCheckRuns } from '../claims/checkRuns.js';
 import { waitForDispatch } from '../utils/waitForDispatch.js';
 
 import type { ClaimsRepo } from '../claims/claimsRepo.js';
-import type { PollOptions } from '../claims/workflowRun.js';
 import type { ClaimKindName } from '../claims/kinds.js';
 
 export interface ClaimPublishRequest {
@@ -15,14 +14,11 @@ export interface ClaimPublishRequest {
   output: string;
   path?: string;
   existingSha?: string;
-  commit: boolean;
   noWait: boolean;
   waitForChecks: boolean;
   stateRepos?: string;
   /** Create only: reject a claim that already exists in the claims map. */
   rejectExistingClaim?: boolean;
-  /** Polling clock, interval and grace overrides (tests use a fake clock). */
-  pollOptions?: Partial<PollOptions>;
 }
 
 export interface Pulse {
@@ -31,7 +27,7 @@ export interface Pulse {
 }
 
 export interface ClaimPublishResult {
-  publishUrl?: string;
+  publishUrl: string;
 }
 
 /**
@@ -50,7 +46,6 @@ export async function publishClaimAndWait(
     output,
     path,
     existingSha,
-    commit,
     noWait,
     waitForChecks,
     stateRepos,
@@ -58,7 +53,6 @@ export async function publishClaimAndWait(
   } = request;
 
   pulse.output(output);
-  if (!commit) return {};
 
   if (rejectExistingClaim) {
     const map = await loadClaimsMap(repo);
@@ -85,7 +79,6 @@ export async function publishClaimAndWait(
     claimType: kind,
     claimName: name,
     label: 'Provisioning',
-    pollOptions: request.pollOptions,
   });
 
   if (waitForChecks && !noWait) {

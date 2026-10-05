@@ -1,8 +1,4 @@
-import {
-  KIND_CAPABILITIES,
-  KIND_REGISTRY,
-  normalizeKind,
-} from '../claims/kindRegistry.js';
+import { KIND_REGISTRY, normalizeKind } from '../claims/kindRegistry.js';
 
 export type RelationStatus = 'added' | 'removed' | 'changed';
 
@@ -43,12 +39,6 @@ const PARENT_RELATIONS = [
   'parent',
 ] as const;
 const CHILD_RELATIONS = ['children', 'members'] as const;
-const KIND_LOOKUP = new Map(
-  KIND_CAPABILITIES.flatMap((capability) => [
-    [capability.id, capability.kind],
-    [capability.kind.toLowerCase(), capability.kind],
-  ]),
-);
 
 function claimIdentity(claim: Claim): RelationNode | null {
   if (typeof claim.kind !== 'string' || typeof claim.name !== 'string') {
@@ -70,8 +60,7 @@ function referenceNode(reference: string, namespace?: string): RelationNode {
     namespace && namespacedName && referenceNamespace === namespace
       ? namespacedName
       : rawName;
-  const kind =
-    normalizeKind(prefix) ?? KIND_LOOKUP.get(prefix.toLowerCase()) ?? prefix;
+  const kind = normalizeKind(prefix) ?? prefix;
   return { id: `${kind}:${targetName}`, kind, name: rawName, dangling: true };
 }
 

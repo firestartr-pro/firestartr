@@ -64,8 +64,6 @@ export async function waitForDispatch(
       correlationId: dispatchResult.correlationId,
       workflowId: dispatchResult.workflowId,
       branch: dispatchResult.branch,
-      claimType: options.claimType,
-      claimName: options.claimName,
       ...options.pollOptions,
       onStatus: (status) => {
         if (presentation.isTty) {

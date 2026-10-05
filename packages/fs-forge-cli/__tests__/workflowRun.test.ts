@@ -27,8 +27,6 @@ function options(overrides: Record<string, unknown> = {}) {
     correlationId: 'corr-1',
     workflowId: WORKFLOW,
     branch: BRANCH,
-    claimType: 'ComponentClaim',
-    claimName: 'api',
     ...overrides,
   };
 }

@@ -142,7 +142,7 @@ ${hasFeatureReferences ? "    for (const value of flags.feature ?? []) {\n      
 `;
 }
 
-export function emitKindsCommand(models: ClaimCommandModel[]): string {
+export function emitKindsCommand(): string {
   return `import { Command, Flags } from '@oclif/core';
 
 import { KIND_CAPABILITIES } from '../claims/kindRegistry.js';

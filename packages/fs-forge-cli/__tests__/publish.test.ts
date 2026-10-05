@@ -1,4 +1,4 @@
-import { describe, expect, it } from '@jest/globals';
+import { describe, expect, it, jest } from '@jest/globals';
 import { captureOutput } from '@oclif/test';
 
 import { claimsRepo } from '../src/claims/claimsRepo';
@@ -69,7 +69,6 @@ function request(
     name: 'my-component',
     output: CLAIM_YAML,
     path: 'claims/components/my-component.yaml',
-    commit: true,
     noWait: false,
     waitForChecks: false,
     ...overrides,
@@ -152,7 +151,6 @@ describe('publishClaimAndWait', () => {
 
   it('reports a timed-out workflow run', async () => {
     const harness = createHarness();
-    let clock = 0;
     harness.api.listWorkflowRuns = async () => [
       {
         id: 1,
@@ -162,26 +160,20 @@ describe('publishClaimAndWait', () => {
         displayTitle: String(harness.api.dispatched[0].inputs.correlationId),
       },
     ];
+    jest.useFakeTimers();
+    try {
+      const pending = captureOutput(() =>
+        publishClaimAndWait(request(harness), harness.pulse),
+      );
+      await jest.advanceTimersByTimeAsync(1_200_000);
+      const outcome = await pending;
 
-    const outcome = await captureOutput(() =>
-      publishClaimAndWait(
-        request(harness, {
-          pollOptions: {
-            now: () => clock,
-            sleep: async (ms) => {
-              clock += ms;
-            },
-            timeoutMs: 1000,
-            pollIntervalMs: 500,
-          },
-        }),
-        harness.pulse,
-      ),
-    );
-
-    expect(outcome.error?.message).toBe(
-      'Provision wait failed: Workflow timed out after 1s',
-    );
+      expect(outcome.error?.message).toBe(
+        'Provision wait failed: Workflow timed out after 1200s',
+      );
+    } finally {
+      jest.useRealTimers();
+    }
   });
 
   it('fails fast on a missing dispatch workflow with the wrapped message', async () => {

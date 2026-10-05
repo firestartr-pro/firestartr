@@ -62,7 +62,6 @@ export async function runClaimCreation(
         name,
         output,
         path: destinationPath,
-        commit: true,
         noWait,
         waitForChecks,
         stateRepos,
