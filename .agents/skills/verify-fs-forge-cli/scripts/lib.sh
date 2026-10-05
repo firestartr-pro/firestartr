@@ -7,8 +7,14 @@ FSF_PKG="$FSF_REPO/packages/fs-forge-cli"
 FSF_BIN="$FSF_PKG/bin/run.js"
 FSF_CANARY_JS="$FSF_SKILL_DIR/scripts/net-canary.cjs"
 # Evidence lives outside the repo, so git never tracks it and cleanup keeps it.
-FSF_HOME="${FSF_HOME:-${TMPDIR:-/tmp}}"
-FSF_HOME="${FSF_HOME%/}/verify-fs-forge-cli"
+# The base is made absolute: launch.sh symlinks latest into FSF_HOME, and a
+# relative base would make that symlink target resolve against its own dir.
+fsf_home_base="${FSF_HOME:-${TMPDIR:-/tmp}}"
+case "$fsf_home_base" in
+  /*) ;;
+  *) fsf_home_base="$PWD/$fsf_home_base" ;;
+esac
+FSF_HOME="${fsf_home_base%/}/verify-fs-forge-cli"
 
 fsf_die() {
   echo "ERROR: $*" >&2
