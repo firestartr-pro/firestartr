@@ -116,7 +116,9 @@ describe('publishClaimAndWait', () => {
     expect((outcome.result as ClaimPublishResult | undefined)?.publishUrl).toBe(
       'https://github.com/my-org/claims/actions/workflows/provision-claim.yaml',
     );
-    expect(outcome.stderr).toContain('(no-wait)');
+    expect(outcome.stderr).toBe(
+      'Provision workflow dispatched (no-wait): https://github.com/my-org/claims/actions/workflows/provision-claim.yaml\n',
+    );
     expect(
       harness.api.calls.some((call) =>
         call.startsWith('listWorkflowRuns my-org/claims:provision-claim.yaml'),
@@ -124,7 +126,7 @@ describe('publishClaimAndWait', () => {
     ).toBe(false);
   });
 
-  it('reports a failing workflow run', async () => {
+  it('reports a failing workflow run with the exact wrapped message', async () => {
     const harness = createHarness();
     harness.api.autoCompleteConclusion = 'failure';
 
@@ -132,7 +134,54 @@ describe('publishClaimAndWait', () => {
       publishClaimAndWait(request(harness), harness.pulse),
     );
 
-    expect(outcome.error?.message).toContain('Provision failed (failure)');
+    expect(outcome.error?.message).toBe(
+      'Provision wait failed: Provision failed (failure): https://github.com/my-org/claims/actions/runs/1',
+    );
+    expect(outcome.stderr).toBe('Provisioning...\n');
+    expect(outcome.stdout).toBe(
+      `${JSON.stringify({
+        status: 'error',
+        runUrl: 'https://github.com/my-org/claims/actions/runs/1',
+        runId: 1,
+        claimType: 'ComponentClaim',
+        claimName: 'my-component',
+        conclusion: 'failure',
+      })}\n`,
+    );
+  });
+
+  it('reports a timed-out workflow run', async () => {
+    const harness = createHarness();
+    let clock = 0;
+    harness.api.listWorkflowRuns = async () => [
+      {
+        id: 1,
+        htmlUrl: 'https://github.com/my-org/claims/actions/runs/1',
+        status: 'in_progress',
+        conclusion: null,
+        displayTitle: String(harness.api.dispatched[0].inputs.correlationId),
+      },
+    ];
+
+    const outcome = await captureOutput(() =>
+      publishClaimAndWait(
+        request(harness, {
+          pollOptions: {
+            now: () => clock,
+            sleep: async (ms) => {
+              clock += ms;
+            },
+            timeoutMs: 1000,
+            pollIntervalMs: 500,
+          },
+        }),
+        harness.pulse,
+      ),
+    );
+
+    expect(outcome.error?.message).toBe(
+      'Provision wait failed: Workflow timed out after 1s',
+    );
   });
 
   it('fails fast on a missing dispatch workflow with the wrapped message', async () => {

@@ -172,18 +172,24 @@ describe('pollDispatchedRun', () => {
     const stdout = jest.spyOn(process.stdout, 'write');
     const stderr = jest.spyOn(process.stderr, 'write');
 
-    const outcome = await pollDispatchedRun(api, REF, {
-      ...options(),
-      onStatus,
-      sleep,
-    });
+    try {
+      const outcome = await pollDispatchedRun(api, REF, {
+        ...options(),
+        onStatus,
+        sleep,
+      });
 
-    stdout.mockRestore();
-    stderr.mockRestore();
-
-    expect(outcome.status).toBe('ok');
-    expect(onStatus.mock.calls).toEqual([['queued'], ['in_progress'], ['completed']]);
-    expect(stdout).not.toHaveBeenCalled();
-    expect(stderr).not.toHaveBeenCalled();
+      expect(outcome.status).toBe('ok');
+      expect(onStatus.mock.calls).toEqual([
+        ['queued'],
+        ['in_progress'],
+        ['completed'],
+      ]);
+      expect(stdout).not.toHaveBeenCalled();
+      expect(stderr).not.toHaveBeenCalled();
+    } finally {
+      stdout.mockRestore();
+      stderr.mockRestore();
+    }
   });
 });

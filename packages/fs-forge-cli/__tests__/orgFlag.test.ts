@@ -1,6 +1,9 @@
 import { afterEach, describe, expect, it, jest } from '@jest/globals';
 import { captureOutput } from '@oclif/test';
+import { mkdir, mkdtemp, readFile, rm, writeFile } from 'fs/promises';
+import { tmpdir } from 'os';
 import { join } from 'path';
+import { c as createArchive } from 'tar';
 
 jest.mock('../src/github/index', () => ({
   createGitHubApi: jest.fn(),
@@ -87,6 +90,27 @@ function mockApi(): MemoryGitHubApi {
   return api;
 }
 
+/** A claims archive shaped like GitHub's tarball (one wrapper directory). */
+async function claimsArchive(): Promise<Buffer> {
+  const directory = await mkdtemp(join(tmpdir(), 'fs-forge-org-flag-'));
+  try {
+    const components = join(directory, 'repo', 'claims', 'components');
+    await mkdir(components, { recursive: true });
+    await writeFile(
+      join(components, 'my-component.yaml'),
+      'kind: ComponentClaim\nname: my-component\n',
+      'utf8',
+    );
+    const archive = join(directory, 'claims.tar.gz');
+    await createArchive({ cwd: directory, file: archive, gzip: true }, [
+      'repo',
+    ]);
+    return await readFile(archive);
+  } finally {
+    await rm(directory, { recursive: true, force: true });
+  }
+}
+
 afterEach(() => {
   MockCreateGitHubApi.mockClear();
   process.exitCode = 0;
@@ -156,6 +180,20 @@ describe('FSCRT_ORG resolution', () => {
     expect(api.calls).toContain(
       'readFile env-org/claims:claims-map.json@claims-index',
     );
+  });
+
+  it('resolves the org for discovery map without --org', async () => {
+    process.env.FSCRT_ORG = 'env-org';
+    const api = mockApi();
+    api.tarball = await claimsArchive();
+
+    const outcome = await run(DiscoveryMap, '--json');
+
+    expect(outcome.result).toBe(0);
+    expect(api.calls).toContain('downloadTarball env-org/claims@HEAD');
+    expect(JSON.parse(outcome.stdout).nodes).toEqual([
+      expect.objectContaining({ kind: 'ComponentClaim', name: 'my-component' }),
+    ]);
   });
 
   it('resolves the org for watch-checks without --org', async () => {

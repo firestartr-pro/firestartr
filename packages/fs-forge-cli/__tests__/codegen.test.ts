@@ -26,6 +26,76 @@ jest.mock('prettier', () => ({
 const ROOT = process.cwd();
 const SCHEMAS_DIR = join(ROOT, 'schemas');
 
+type SchemaObject = Record<string, unknown>;
+
+function isRecord(value: unknown): value is SchemaObject {
+  return typeof value === 'object' && value !== null && !Array.isArray(value);
+}
+
+function schemaBranches(
+  schema: SchemaObject,
+  keyword: 'allOf' | 'oneOf' | 'anyOf',
+): SchemaObject[] {
+  const value = schema[keyword];
+  return Array.isArray(value) ? value.filter(isRecord) : [];
+}
+
+function schemaProperties(schema: SchemaObject): Record<string, SchemaObject> {
+  const result: Record<string, SchemaObject> = {};
+  if (isRecord(schema.properties)) {
+    for (const [name, value] of Object.entries(schema.properties)) {
+      if (isRecord(value)) result[name] = value;
+    }
+  }
+  for (const branch of schemaBranches(schema, 'allOf')) {
+    Object.assign(result, schemaProperties(branch));
+  }
+  return result;
+}
+
+/**
+ * Every property the flag walker must expose as a `.json` escape hatch
+ * (ADR 0001): unions and arrays whose items are not scalars. Read from the
+ * schema, so a new complex property cannot silently ship without a hatch.
+ */
+function jsonEscapeHatchPaths(schema: SchemaObject): string[] {
+  const paths = new Set<string>();
+  const walk = (node: SchemaObject, prefix: string): void => {
+    const union = [
+      ...schemaBranches(node, 'oneOf'),
+      ...schemaBranches(node, 'anyOf'),
+    ];
+    if (union.length > 0 && prefix !== '') paths.add(`${prefix}.json`);
+
+    for (const [key, child] of Object.entries(schemaProperties(node))) {
+      if (child.$ref) continue;
+      const path = prefix ? `${prefix}.${key}` : key;
+      if (child.type === 'array') {
+        const items = isRecord(child.items) ? child.items : undefined;
+        const scalarItems =
+          items !== undefined &&
+          typeof items.type === 'string' &&
+          ['string', 'number', 'boolean', 'integer'].includes(items.type);
+        if (!scalarItems) paths.add(`${path}.json`);
+        continue;
+      }
+      const isObject =
+        child.type === 'object' ||
+        schemaBranches(child, 'allOf').length > 0 ||
+        schemaBranches(child, 'oneOf').length > 0 ||
+        schemaBranches(child, 'anyOf').length > 0 ||
+        Object.keys(schemaProperties(child)).length > 0;
+      if (isObject) walk(child, path);
+    }
+
+    for (const keyword of ['allOf', 'oneOf', 'anyOf'] as const) {
+      for (const branch of schemaBranches(node, keyword)) walk(branch, prefix);
+    }
+  };
+  walk(schema, '');
+  return [...paths];
+}
+
 async function claimSchemas(): Promise<Array<{ kind: string; schema: Record<string, unknown> }>> {
   const files = (await readdir(SCHEMAS_DIR))
     .filter((file) => file.endsWith('Claim.json'))
@@ -89,6 +159,14 @@ describe('claim command model', () => {
     expect(secrets.flagSpecs.map((flag) => flag.path)).toContain(
       'providers.external_secrets.json',
     );
+
+    for (const { kind, schema } of schemas) {
+      const model = models.find((candidate) => candidate.kind === kind)!;
+      const paths = new Set(model.flagSpecs.map((flag) => flag.path));
+      for (const path of jsonEscapeHatchPaths(schema)) {
+        expect(paths).toContain(path);
+      }
+    }
   });
 });
 
