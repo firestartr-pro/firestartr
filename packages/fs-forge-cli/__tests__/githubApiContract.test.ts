@@ -96,19 +96,44 @@ function octokitScenario(): GitHubApi {
       },
       actions: {
         createWorkflowDispatch: jest.fn(async () => ({ data: {} })),
-        listWorkflowRuns: jest.fn(async () => ({
-          data: {
-            workflow_runs: [
+        listWorkflowRuns: jest.fn(
+          async ({
+            event,
+            per_page,
+          }: {
+            event?: string;
+            per_page?: number;
+          }) => {
+            octokitRequests.push(
+              `listWorkflowRuns event=${String(event)} per_page=${String(per_page)}`,
+            );
+            const runs = [
               {
                 id: 42,
                 html_url: 'https://github.com/example/claims/actions/runs/42',
                 status: 'completed',
                 conclusion: 'success',
                 display_title: 'corr-1',
+                event: 'workflow_dispatch',
               },
-            ],
+              {
+                id: 43,
+                html_url: 'https://github.com/example/claims/actions/runs/43',
+                status: 'queued',
+                conclusion: null,
+                display_title: 'generate',
+                event: 'push',
+              },
+            ];
+            return {
+              data: {
+                workflow_runs: event
+                  ? runs.filter((run) => run.event === event)
+                  : runs,
+              },
+            };
           },
-        })),
+        ),
       },
       pulls: {
         list: jest.fn(
@@ -201,6 +226,15 @@ function memoryScenario(): GitHubApi {
       status: 'completed',
       conclusion: 'success',
       displayTitle: 'corr-1',
+      event: 'workflow_dispatch',
+    },
+    {
+      id: 43,
+      htmlUrl: 'https://github.com/example/claims/actions/runs/43',
+      status: 'queued',
+      conclusion: null,
+      displayTitle: 'generate',
+      event: 'push',
     },
   ]);
   api.setPullRequests(REF, PULLS.map((pull) => ({
@@ -323,14 +357,31 @@ describe.each(ADAPTERS)('GitHubApi contract (%s)', (_name, makeApi) => {
     ]);
   });
 
-  it('lists workflow runs for a workflow dispatch', async () => {
+  it('lists workflow runs unfiltered and filtered by event', async () => {
     const api = makeApi();
+    const request = {
+      workflowId: 'provision-claim.yaml',
+      branch: 'main',
+    };
 
+    await expect(api.listWorkflowRuns(REF, request)).resolves.toEqual([
+      {
+        id: 42,
+        htmlUrl: 'https://github.com/example/claims/actions/runs/42',
+        status: 'completed',
+        conclusion: 'success',
+        displayTitle: 'corr-1',
+      },
+      {
+        id: 43,
+        htmlUrl: 'https://github.com/example/claims/actions/runs/43',
+        status: 'queued',
+        conclusion: null,
+        displayTitle: 'generate',
+      },
+    ]);
     await expect(
-      api.listWorkflowRuns(REF, {
-        workflowId: 'provision-claim.yaml',
-        branch: 'main',
-      }),
+      api.listWorkflowRuns(REF, { ...request, event: 'workflow_dispatch' }),
     ).resolves.toEqual([
       {
         id: 42,
@@ -380,6 +431,26 @@ describe('octokit adapter request shapes', () => {
     const api = octokitScenario();
     await api.readFile(REF, 'claims-map.json');
     expect(octokitRequests).toContain('repos.getContent claims-map.json');
+  });
+
+  it('forwards the caller workflow event filter and page size', async () => {
+    const api = octokitScenario();
+    await api.listWorkflowRuns(REF, {
+      workflowId: 'provision-claim.yaml',
+      branch: 'main',
+    });
+    await api.listWorkflowRuns(REF, {
+      workflowId: 'provision-claim.yaml',
+      branch: 'main',
+      event: 'workflow_dispatch',
+      perPage: 30,
+    });
+    expect(octokitRequests).toContain(
+      'listWorkflowRuns event=undefined per_page=20',
+    );
+    expect(octokitRequests).toContain(
+      'listWorkflowRuns event=workflow_dispatch per_page=30',
+    );
   });
 
   it('maps a missing repo to false', async () => {

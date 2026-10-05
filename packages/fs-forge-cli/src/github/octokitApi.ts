@@ -108,8 +108,8 @@ export function createOctokitApi(octokit: Octokit): GitHubApi {
         repo: ref.repo,
         workflow_id: input.workflowId,
         branch: input.branch,
-        event: 'workflow_dispatch',
-        per_page: 30,
+        event: input.event,
+        per_page: input.perPage ?? 20,
       });
       return data.workflow_runs.map((run) => ({
         id: run.id,

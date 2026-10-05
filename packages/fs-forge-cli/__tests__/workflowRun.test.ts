@@ -10,8 +10,8 @@ const WORKFLOW = 'provision-claim.yaml';
 const BRANCH = 'fs-forge/ComponentClaim-api';
 
 function run(
-  overrides: Partial<WorkflowRunSummary> = {},
-): WorkflowRunSummary {
+  overrides: Partial<WorkflowRunSummary> & { event?: string } = {},
+): WorkflowRunSummary & { event?: string } {
   return {
     id: 42,
     htmlUrl: 'https://example.test/run/42',
@@ -91,6 +91,39 @@ describe('pollDispatchedRun', () => {
     await expect(
       pollDispatchedRun(api, REF, { ...options(), sleep }),
     ).rejects.toThrow('Not Found');
+    expect(sleep).not.toHaveBeenCalled();
+  });
+
+  it('ignores runs triggered by other events', async () => {
+    const api = new MemoryGitHubApi();
+    let clock = 0;
+    const sleep = jest.fn(async (ms: number) => {
+      clock += ms;
+    });
+    api.setWorkflowRuns(REF, WORKFLOW, BRANCH, [
+      run({
+        id: 1,
+        status: 'in_progress',
+        conclusion: null,
+        event: 'push',
+      }),
+      run(),
+    ]);
+
+    await expect(
+      pollDispatchedRun(api, REF, {
+        ...options(),
+        now: () => clock,
+        sleep,
+        timeoutMs: 10_000,
+        pollIntervalMs: 1_000,
+      }),
+    ).resolves.toEqual({
+      status: 'ok',
+      runUrl: 'https://example.test/run/42',
+      runId: 42,
+      conclusion: 'success',
+    });
     expect(sleep).not.toHaveBeenCalled();
   });
 

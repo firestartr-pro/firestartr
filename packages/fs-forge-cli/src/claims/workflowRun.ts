@@ -58,6 +58,8 @@ export async function pollDispatchedRun(
     const runs = await api.listWorkflowRuns(ref, {
       workflowId: options.workflowId,
       branch: options.branch,
+      event: 'workflow_dispatch',
+      perPage: 30,
     });
     const run = runs.find(
       (candidate) => candidate.displayTitle === options.correlationId,

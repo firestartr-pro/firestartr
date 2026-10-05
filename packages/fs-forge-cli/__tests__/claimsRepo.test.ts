@@ -1,4 +1,4 @@
-import { describe, expect, it } from '@jest/globals';
+import { describe, expect, it, jest } from '@jest/globals';
 
 import {
   claimsRepo,
@@ -7,7 +7,10 @@ import {
   publishClaim,
   readDefaultsFile,
 } from '../src/claims/claimsRepo';
+import { createOctokitApi } from '../src/github/octokitApi';
 import { MemoryGitHubApi } from './fixtures/memoryGitHubApi';
+
+import type { Octokit } from '@octokit/rest';
 
 class ExistingBranchApi extends MemoryGitHubApi {
   override async createBranch(): Promise<void> {
@@ -156,6 +159,62 @@ describe('dispatchUnprovision', () => {
 });
 
 describe('loadClaimsMap', () => {
+  it('sees an in-progress push-triggered generation run as in flight', async () => {
+    const runs = [
+      {
+        id: 1,
+        html_url: 'https://github.com/example-org/claims/actions/runs/1',
+        status: 'in_progress',
+        conclusion: null,
+        display_title: 'generate',
+        event: 'push',
+      },
+    ];
+    const listWorkflowRuns = jest.fn(
+      async ({ event }: { event?: string }) => ({
+        data: {
+          workflow_runs: event
+            ? runs.filter((run) => run.event === event)
+            : runs,
+        },
+      }),
+    );
+    const octokit = {
+      rest: {
+        repos: {
+          get: jest.fn(async () => ({ data: { default_branch: 'main' } })),
+          getContent: jest.fn(async () => ({
+            data: {
+              type: 'file',
+              path: 'claims-map.json',
+              sha: 'map-file-sha',
+              content: Buffer.from(
+                JSON.stringify({ headers: { sha: 'map-sha' }, claims: {} }),
+              ).toString('base64'),
+            },
+          })),
+        },
+        actions: { listWorkflowRuns },
+      },
+    } as unknown as Octokit;
+    const claims = claimsRepo(createOctokitApi(octokit), 'example-org');
+    const wait = jest.fn(async () => {
+      runs.length = 0;
+    });
+
+    await expect(loadClaimsMap(claims, { wait })).resolves.toEqual({
+      headers: { sha: 'map-sha' },
+      claims: {},
+    });
+    expect(wait).toHaveBeenCalledTimes(1);
+    const request = listWorkflowRuns.mock.calls[0][0] as {
+      event?: string;
+      per_page?: number;
+    };
+    expect(request.event).toBeUndefined();
+    expect(request.per_page).toBe(20);
+  });
+
   it('treats a missing claims-map workflow as no run in flight', async () => {
     const api = new MemoryGitHubApi();
     const claims = repo(api);

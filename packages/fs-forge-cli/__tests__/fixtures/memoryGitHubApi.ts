@@ -43,7 +43,10 @@ export class MemoryGitHubApi implements GitHubApi {
   private readonly files = new Map<string, { content: string; sha: string }>();
   private readonly blobPaths = new Map<string, string[]>();
   private readonly branchShas = new Map<string, string>();
-  private readonly workflowRuns = new Map<string, WorkflowRunSummary[]>();
+  private readonly workflowRuns = new Map<
+    string,
+    Array<WorkflowRunSummary & { event: string }>
+  >();
   private readonly pulls = new Map<string, PullRequestSummary[]>();
   private readonly pullFiles = new Map<string, PullRequestFile[]>();
   private readonly checkRuns = new Map<string, CheckRunSummary[]>();
@@ -76,9 +79,12 @@ export class MemoryGitHubApi implements GitHubApi {
     ref: RepoRef,
     workflowId: string,
     branch: string,
-    runs: WorkflowRunSummary[],
+    runs: Array<WorkflowRunSummary & { event?: string }>,
   ): void {
-    this.workflowRuns.set(`${this.key(ref)}#${workflowId}#${branch}`, runs);
+    this.workflowRuns.set(
+      `${this.key(ref)}#${workflowId}#${branch}`,
+      runs.map((run) => ({ ...run, event: run.event ?? 'workflow_dispatch' })),
+    );
   }
 
   setPullRequests(ref: RepoRef, pulls: PullRequestSummary[]): void {
@@ -160,7 +166,12 @@ export class MemoryGitHubApi implements GitHubApi {
 
   async listWorkflowRuns(
     ref: RepoRef,
-    input: { workflowId: string; branch: string },
+    input: {
+      workflowId: string;
+      branch: string;
+      event?: string;
+      perPage?: number;
+    },
   ): Promise<WorkflowRunSummary[]> {
     this.calls.push(
       `listWorkflowRuns ${this.key(ref)}:${input.workflowId}@${input.branch}`,
@@ -168,14 +179,32 @@ export class MemoryGitHubApi implements GitHubApi {
     const configured = this.workflowRuns.get(
       `${this.key(ref)}#${input.workflowId}#${input.branch}`,
     );
-    if (configured) return configured;
+    const runs = configured
+      ? configured
+      : this.autoCompletedRuns(ref, input.workflowId, input.branch);
+    return runs
+      .filter((run) => input.event === undefined || run.event === input.event)
+      .map((run) => ({
+        id: run.id,
+        htmlUrl: run.htmlUrl,
+        status: run.status,
+        conclusion: run.conclusion,
+        displayTitle: run.displayTitle,
+      }));
+  }
+
+  private autoCompletedRuns(
+    ref: RepoRef,
+    workflowId: string,
+    branch: string,
+  ): Array<WorkflowRunSummary & { event: string }> {
     if (!this.autoCompleteDispatches) return [];
 
     const dispatch = this.dispatched.find(
       (candidate) =>
         this.key(candidate.ref) === this.key(ref) &&
-        candidate.workflowId === input.workflowId &&
-        candidate.gitRef === input.branch,
+        candidate.workflowId === workflowId &&
+        candidate.gitRef === branch,
     );
     if (!dispatch) return [];
     return [
@@ -185,6 +214,7 @@ export class MemoryGitHubApi implements GitHubApi {
         status: 'completed',
         conclusion: this.autoCompleteConclusion,
         displayTitle: String(dispatch.inputs.correlationId),
+        event: 'workflow_dispatch',
       },
     ];
   }

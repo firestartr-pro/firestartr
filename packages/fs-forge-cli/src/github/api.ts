@@ -88,7 +88,13 @@ export interface GitHubApi {
   ): Promise<void>;
   listWorkflowRuns(
     ref: RepoRef,
-    input: { workflowId: string; branch: string },
+    input: {
+      workflowId: string;
+      branch: string;
+      /** Trigger event to filter by; omitted lists every event. */
+      event?: string;
+      perPage?: number;
+    },
   ): Promise<WorkflowRunSummary[]>;
 
   listOpenPullRequests(
