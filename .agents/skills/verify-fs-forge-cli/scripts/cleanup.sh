@@ -10,8 +10,11 @@ source "$(dirname "${BASH_SOURCE[0]}")/lib.sh"
 run="$(fsf_run_dir)" || exit 2
 
 if [ "${1:-}" = "--purge-evidence" ]; then
+  # latest follows the most recent launch; drop it only when it is this run.
+  # Resolve before removing the run, and let cd handle a relative symlink.
+  latest_real="$(cd "$FSF_HOME/latest" 2>/dev/null && pwd -P)"
   rm -rf "$run"
-  rm -f "$FSF_HOME/latest"
+  [ -n "$latest_real" ] && [ "$latest_real" = "$run" ] && rm -f "$FSF_HOME/latest"
   echo "PURGED $run"
   exit 0
 fi
