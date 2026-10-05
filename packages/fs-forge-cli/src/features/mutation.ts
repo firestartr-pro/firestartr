@@ -188,28 +188,24 @@ export async function runFeatureMutation(
   } else {
     const feature = request.feature;
     if (!feature?.name) throw new Error('A Feature name is required');
-    if (request.featureSchema) {
-      const argsValidation = validateFeatureArgs(
-        request.featureSchema,
-        feature.args ?? {},
-      );
-      if (!argsValidation.valid) {
-        throw new Error(argsValidation.errors.join('\n'));
-      }
-    }
+    let resolved = feature;
     if (request.operation === 'edit') {
       const existing = getFeatureReferences(target.claim).find(
         (reference) => reference.name === feature.name,
       );
       if (!existing) throw new Error(`Feature not found: ${feature.name}`);
-      claim = mutateFeatureReference(
-        target.claim,
-        'edit',
-        mergeFeatureReference(existing, feature),
-      );
-    } else {
-      claim = mutateFeatureReference(target.claim, 'add', feature);
+      resolved = mergeFeatureReference(existing, feature);
     }
+    if (request.featureSchema) {
+      const argsValidation = validateFeatureArgs(
+        request.featureSchema,
+        resolved.args ?? {},
+      );
+      if (!argsValidation.valid) {
+        throw new Error(argsValidation.errors.join('\n'));
+      }
+    }
+    claim = mutateFeatureReference(target.claim, request.operation, resolved);
   }
 
   const validator = createClaimValidator({ schemasDir: deps.schemasDir });

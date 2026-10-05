@@ -35,6 +35,18 @@ const COMPONENT_WITH_NESTED_FEATURE_ARGS = readFileSync(
   ),
   'utf8',
 );
+const REQUIRED_ENABLED_SCHEMA = JSON.parse(
+  readFileSync(
+    join(
+      ROOT,
+      '__tests__',
+      'fixtures',
+      'feature-schemas',
+      'required-enabled.json',
+    ),
+    'utf8',
+  ),
+) as Record<string, unknown>;
 
 function createRepo(claimYaml = COMPONENT_YAML) {
   const api = new MemoryGitHubApi();
@@ -259,6 +271,49 @@ describe('runFeatureMutation', () => {
     );
 
     expect(error?.message).toContain('Feature not found: nope');
+  });
+
+  it('validates the merged Feature args when editing', async () => {
+    const { repo } = createRepo(COMPONENT_WITH_FEATURES);
+
+    const { result, error } = await run(
+      {
+        operation: 'edit',
+        component: 'my-component',
+        json: false,
+        feature: { name: 'feature_a' },
+        featureSchema: REQUIRED_ENABLED_SCHEMA,
+      },
+      repo,
+    );
+
+    expect(error).toBeUndefined();
+    expect(featuresOf(result!.claim)).toEqual(
+      expect.objectContaining({
+        features: [
+          { name: 'feature_a', version: '1.0.0', args: { enabled: true } },
+          { name: 'other', ref: 'main', args: {} },
+        ],
+      }),
+    );
+  });
+
+  it('rejects a merged Feature args result that fails the schema', async () => {
+    const { repo } = createRepo(COMPONENT_WITH_FEATURES);
+
+    const { error } = await run(
+      {
+        operation: 'edit',
+        component: 'my-component',
+        json: false,
+        feature: { name: 'other' },
+        featureSchema: REQUIRED_ENABLED_SCHEMA,
+      },
+      repo,
+    );
+
+    expect(error?.message).toContain('must have required property');
+    expect(error?.message).toContain('enabled');
   });
 
   it('rejects Feature args that fail the Feature schema', async () => {
