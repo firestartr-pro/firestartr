@@ -1,4 +1,5 @@
 import { describe, expect, it } from '@jest/globals';
+import { Errors } from '@oclif/core';
 import { captureOutput } from '@oclif/test';
 import { readFileSync } from 'fs';
 import { join } from 'path';
@@ -230,6 +231,7 @@ describe('runFeatureMutation', () => {
     );
 
     expect(error?.message).toContain('Feature not found: nope');
+    expect((error as Errors.CLIError).oclif.exit).toBe(2);
   });
 
   it('removes a Feature reference', async () => {
@@ -312,6 +314,7 @@ describe('runFeatureMutation', () => {
 
     expect(error?.message).toContain('must have required property');
     expect(error?.message).toContain('enabled');
+    expect((error as Errors.CLIError).oclif.exit).toBe(2);
   });
 
   it('rejects a mutated claim that fails the claim schema', async () => {
@@ -329,6 +332,7 @@ describe('runFeatureMutation', () => {
 
     expect(error).toBeDefined();
     expect(error?.message).toContain('owner');
+    expect((error as Errors.CLIError).oclif.exit).toBe(2);
   });
 
   it('publishes and waits when commit is requested', async () => {
@@ -359,6 +363,25 @@ describe('runFeatureMutation', () => {
     expect(api.dispatched[0].inputs).toEqual(
       expect.objectContaining({ claimType: 'ComponentClaim' }),
     );
+  });
+
+  it('reports a failed provisioning run as a CLI error', async () => {
+    const { api, repo } = createRepo();
+    api.autoCompleteConclusion = 'failure';
+
+    const { error } = await run(
+      {
+        operation: 'add',
+        component: 'my-component',
+        json: false,
+        commit: true,
+        feature: { name: 'feature_a', version: '1.0.0', args: {} },
+      },
+      repo,
+    );
+
+    expect(error).toBeDefined();
+    expect((error as Errors.CLIError).oclif.exit).toBe(2);
   });
 
   it('publishes a --file target to its deterministic path with the current SHA', async () => {
