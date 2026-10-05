@@ -1,15 +1,10 @@
 import { join } from 'path';
 
-import {
-  loadClaimsMap,
-  publishClaim,
-  resolveClaim,
-} from '../claims/claimsRepo.js';
+import { loadClaimsMap, resolveClaim } from '../claims/claimsRepo.js';
 import { applyDefaultsFromRepo } from '../claims/defaults.js';
 import { serializeClaim } from '../claims/keyOrdering.js';
-import { watchCheckRuns } from '../claims/checkRuns.js';
-import { findWetPr, parseStateRepos } from '../claims/wetPr.js';
 import { FLAG_SPECS_BY_KIND } from './definitions.js';
+import { publishClaimAndWait } from './publish.js';
 import {
   assertClaimIdentity,
   loadVariantGroups,
@@ -22,7 +17,6 @@ import {
   formatMutationDiff,
   mutateClaim,
 } from '../utils/mutateClaim.js';
-import { waitForDispatch } from '../utils/waitForDispatch.js';
 import type { ClaimsRepo } from '../claims/claimsRepo.js';
 import type { ClaimsMap } from '../claims/claimsMap.js';
 import type { ClaimKind } from './definitions.js';
@@ -176,53 +170,25 @@ export async function runClaimMutation(
       path: source.filePath,
       existingSha: source.sha,
     };
-    const dispatchResult = await publishClaim(repo, {
-      kind,
-      name: target.name,
-      path: target.path,
-      yaml: output,
-      existingSha: target.existingSha,
-    });
-
-    const publishUrl = await waitForDispatch(
-      repo.api,
-      repo.ref,
-      dispatchResult,
+    const { publishUrl } = await publishClaimAndWait(
       {
+        repo,
+        kind,
+        name: target.name,
+        output,
+        path: target.path,
+        existingSha: target.existingSha,
+        commit: true,
         noWait,
-        claimType: kind,
-        claimName: target.name,
-        label: 'Provisioning',
+        waitForChecks,
+        stateRepos,
+      },
+      {
+        // The mutation output was already presented above.
+        output: () => {},
+        diagnostic: (line) => process.stderr.write(line),
       },
     );
-
-    if (waitForChecks && !noWait) {
-      const orgName = repo.ref.owner;
-      const repos = parseStateRepos(stateRepos, orgName);
-      const wetPr = await findWetPr(repo.api, repos, kind, target.name);
-
-      if (wetPr) {
-        process.stderr.write(
-          `Watching wet PR ${wetPr.repo}#${wetPr.number}...\n`,
-        );
-        const watchRepoName = wetPr.repo.split('/')[1];
-        const checkResult = await watchCheckRuns(
-          repo.api,
-          { owner: wetPr.owner, repo: watchRepoName },
-          wetPr.number,
-        );
-        if (checkResult.overallConclusion !== 'success') {
-          throw new Error(
-            `Wet PR checks failed: ${checkResult.overallConclusion}`,
-          );
-        }
-        process.stderr.write('All checks passed ✓\n');
-      } else {
-        process.stderr.write(
-          'No wet PR found for this claim; skipping check watch.\n',
-        );
-      }
-    }
 
     return { ...result, publishUrl };
   } catch (error) {
