@@ -13,7 +13,7 @@ import common from 'catalog_common';
 import createCrdMonitor from './src/crdMonitor';
 import { acquireLease } from './src/leader_election';
 import { isKubernetesNotFoundError } from './src/status';
-import { processOperationPlan } from './src/tfworkspaceplans/processOperationPlan';
+// processOperationPlan (tfworkspaceplans) removed — deprecated
 export { execTfCommand } from './src/execTfCmd';
 export { pullRequestPlan } from './src/pull-request-plan';
 
@@ -211,7 +211,6 @@ export function runOperator(opts: any) {
 
 const provisionImplementations = {
   terraformworkspaces: processOperationTerraform,
-  terraformworkspaceplans: processOperationPlan,
   githubgroups: processOperationGH,
   githubrepositories: processOperationGH,
   githubrepositorysecretssections: processOperationGH,
