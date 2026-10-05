@@ -15,6 +15,13 @@ const VALID_COMPONENT = join(
   'valid',
   'component.yaml',
 );
+const VALID_GROUP = join(
+  process.cwd(),
+  '__tests__',
+  'fixtures',
+  'valid',
+  'group.yaml',
+);
 
 function loadYaml(path: string): Record<string, unknown> {
   return YAML.parse(readFileSync(path, 'utf8')) as Record<string, unknown>;
@@ -58,43 +65,34 @@ describe('createClaimValidator', () => {
     try {
       await writeFile(
         join(directoryA, 'FooClaim.json'),
-        JSON.stringify({
-          type: 'object',
-          required: ['a'],
-          properties: { a: { type: 'string' } },
-        }),
+        readFileSync(join(SCHEMAS_DIR, 'ComponentClaim.json'), 'utf8'),
         'utf8',
       );
       await writeFile(
         join(directoryB, 'FooClaim.json'),
-        JSON.stringify({
-          type: 'object',
-          required: ['b'],
-          properties: { b: { type: 'string' } },
-        }),
+        readFileSync(join(SCHEMAS_DIR, 'GroupClaim.json'), 'utf8'),
         'utf8',
       );
 
       const registryA = createClaimValidator({ schemasDir: directoryA });
       const registryB = createClaimValidator({ schemasDir: directoryB });
+      const component = loadYaml(VALID_COMPONENT);
+      const group = loadYaml(VALID_GROUP);
 
       await expect(
-        registryA.validate({ a: 'x' }, 'FooClaim'),
+        registryA.validate(component, 'FooClaim'),
       ).resolves.toEqual({ valid: true, errors: [] });
       await expect(
-        registryB.validate({ a: 'x' }, 'FooClaim'),
-      ).resolves.toEqual(
-        expect.objectContaining({ valid: false }),
-      );
+        registryB.validate(component, 'FooClaim'),
+      ).resolves.toEqual(expect.objectContaining({ valid: false }));
 
+      await expect(registryB.validate(group, 'FooClaim')).resolves.toEqual({
+        valid: true,
+        errors: [],
+      });
       await expect(
-        registryB.validate({ b: 'x' }, 'FooClaim'),
-      ).resolves.toEqual({ valid: true, errors: [] });
-      await expect(
-        registryA.validate({ b: 'x' }, 'FooClaim'),
-      ).resolves.toEqual(
-        expect.objectContaining({ valid: false }),
-      );
+        registryA.validate(group, 'FooClaim'),
+      ).resolves.toEqual(expect.objectContaining({ valid: false }));
     } finally {
       await rm(directoryA, { recursive: true, force: true });
       await rm(directoryB, { recursive: true, force: true });

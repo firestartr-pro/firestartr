@@ -1,8 +1,6 @@
 import { describe, expect, it } from '@jest/globals';
 import { captureOutput } from '@oclif/test';
-import { mkdtemp, rm, writeFile } from 'fs/promises';
 import { readFileSync } from 'fs';
-import { tmpdir } from 'os';
 import { join } from 'path';
 
 import { claimsRepo } from '../src/claims/claimsRepo';
@@ -324,17 +322,13 @@ describe('runFeatureMutation', () => {
         operation: 'add',
         component: 'my-component',
         json: false,
-        feature: { name: 'feature_a', version: '1.0.0', args: { mode: 'b' } },
-        featureSchema: {
-          type: 'object',
-          required: ['mode'],
-          properties: { mode: { type: 'string', enum: ['a'] } },
-        },
+        feature: { name: 'feature_a', version: '1.0.0', args: {} },
+        featureSchema: REQUIRED_ENABLED_SCHEMA,
       },
       repo,
     );
 
-    expect(error?.message).toContain('mode');
+    expect(error?.message).toContain("required property 'enabled'");
   });
 
   it('rejects a mutated claim that fails the claim schema', async () => {
@@ -385,42 +379,35 @@ describe('runFeatureMutation', () => {
   });
 
   it('publishes a --file target to its deterministic path with the current SHA', async () => {
-    const directory = await mkdtemp(join(tmpdir(), 'fs-forge-file-'));
-    try {
-      const file = join(directory, 'component.yaml');
-      await writeFile(file, COMPONENT_YAML, 'utf8');
-      const { api, repo } = createRepo();
-      api.setFile(
-        repo.ref,
-        'claims/components/my-component.yaml',
-        'old content',
-        'existing-sha',
-      );
+    const { api, repo } = createRepo();
+    api.setFile(
+      repo.ref,
+      'claims/components/my-component.yaml',
+      'old content',
+      'existing-sha',
+    );
 
-      const { result, error } = await run(
-        {
-          operation: 'add',
-          file,
-          json: false,
-          commit: true,
-          feature: { name: 'feature_a', version: '1.0.0', args: {} },
-        },
-        repo,
-      );
+    const { result, error } = await run(
+      {
+        operation: 'add',
+        file: join(ROOT, '__tests__', 'fixtures', 'valid', 'component.yaml'),
+        json: false,
+        commit: true,
+        feature: { name: 'feature_a', version: '1.0.0', args: {} },
+      },
+      repo,
+    );
 
-      expect(error).toBeUndefined();
-      expect(result!.publishUrl).toBeDefined();
-      expect(api.committed[0]).toEqual(
-        expect.objectContaining({
-          path: 'claims/components/my-component.yaml',
-          sha: 'existing-sha',
-        }),
-      );
-      expect(api.calls).toContain(
-        'readFile my-org/claims:claims/components/my-component.yaml@main',
-      );
-    } finally {
-      await rm(directory, { recursive: true, force: true });
-    }
+    expect(error).toBeUndefined();
+    expect(result!.publishUrl).toBeDefined();
+    expect(api.committed[0]).toEqual(
+      expect.objectContaining({
+        path: 'claims/components/my-component.yaml',
+        sha: 'existing-sha',
+      }),
+    );
+    expect(api.calls).toContain(
+      'readFile my-org/claims:claims/components/my-component.yaml@main',
+    );
   });
 });

@@ -96,6 +96,12 @@ function jsonEscapeHatchPaths(schema: SchemaObject): string[] {
   return [...paths];
 }
 
+async function readSchema(kind: string): Promise<Record<string, unknown>> {
+  return JSON.parse(
+    await readFile(join(SCHEMAS_DIR, `${kind}.json`), 'utf8'),
+  ) as Record<string, unknown>;
+}
+
 async function claimSchemas(): Promise<Array<{ kind: string; schema: Record<string, unknown> }>> {
   const files = (await readdir(SCHEMAS_DIR))
     .filter((file) => file.endsWith('Claim.json'))
@@ -127,16 +133,19 @@ describe('claim command model', () => {
     }
   });
 
-  it('rejects a schema without summary or icon metadata', () => {
-    expect(() => buildCommandModel({}, 'FooClaim')).toThrow(
-      'FooClaim schema is missing x-fs-forge-summary metadata',
+  it('rejects a schema without summary or icon metadata', async () => {
+    const schema = await readSchema('ComponentClaim');
+    delete schema['x-fs-forge-summary'];
+    delete schema['x-fs-forge-icon'];
+
+    expect(() => buildCommandModel(schema, 'ComponentClaim')).toThrow(
+      'ComponentClaim schema is missing x-fs-forge-summary metadata',
     );
-    expect(() =>
-      buildCommandModel(
-        { 'x-fs-forge-summary': 'A foo claim.' },
-        'FooClaim',
-      ),
-    ).toThrow('FooClaim schema is missing x-fs-forge-icon metadata');
+
+    schema['x-fs-forge-summary'] = 'A component claim.';
+    expect(() => buildCommandModel(schema, 'ComponentClaim')).toThrow(
+      'ComponentClaim schema is missing x-fs-forge-icon metadata',
+    );
   });
 
   it('derives unique flag paths and the JSON escape hatches for complex fields', async () => {
