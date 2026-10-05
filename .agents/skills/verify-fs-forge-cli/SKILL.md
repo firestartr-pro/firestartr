@@ -29,11 +29,12 @@ $V/launch.sh              # npm ci if node_modules is missing, npm run build, op
 $V/launch.sh --no-build   # reuse dist/ when nothing under packages/fs-forge-cli changed
 ```
 
-Ready when it prints `LAUNCH OK` with `CLI=`, `BUILD=` and `RUN_DIR=`. It
-records the repo's `git status` as a baseline. `npm run build` regenerates
-tracked files from `schemas/*.json`; a `WARN ... codegen drift` means the
-checkout was out of sync with its schemas. There is no server, so there is
-nothing to keep alive. Cleanup tears down.
+Ready when it prints `LAUNCH OK` with `CLI=`, `BUILD=` and `RUN_DIR=`. Each
+launch opens its own unique run directory, so concurrent launches never share
+evidence. It records the repo's `git status` as a baseline. `npm run build`
+regenerates tracked files from `schemas/*.json`; a `WARN ... codegen drift`
+means the checkout was out of sync with its schemas. There is no server, so
+there is nothing to keep alive. Cleanup tears down.
 
 ## Doctor
 

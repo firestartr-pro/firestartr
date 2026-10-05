@@ -10,7 +10,8 @@ build=1
 
 fsf_resolve_node || exit 2
 
-run="$FSF_HOME/$(date -u +%Y%m%dT%H%M%SZ)"
+mkdir -p "$FSF_HOME"
+run="$(mktemp -d "$FSF_HOME/$(date -u +%Y%m%dT%H%M%SZ)-XXXXXX")"
 mkdir -p "$run/evidence/launch" "$run/work"
 ln -sfn "$run" "$FSF_HOME/latest"
 
