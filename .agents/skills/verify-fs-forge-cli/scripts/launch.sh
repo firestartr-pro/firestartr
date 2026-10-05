@@ -1,7 +1,9 @@
 #!/usr/bin/env bash
 # Build fs-forge from the current checkout and open a run directory.
 # Usage: launch.sh [--no-build]
-# Prints RUN_DIR=<path>; later scripts find it again through $FSF_HOME/latest.
+# Prints RUN_DIR=<path> and the matching FSF_RUN=<path>. Later scripts default
+# to the newest run through $FSF_HOME/latest, so set FSF_RUN to the printed
+# value when more than one run is live.
 set -euo pipefail
 source "$(dirname "${BASH_SOURCE[0]}")/lib.sh"
 
@@ -39,4 +41,5 @@ echo "NODE=$(node -v)"
 echo "CLI=$version"
 echo "BUILD=$([ "$build" = 1 ] && echo ok || echo skipped)"
 echo "RUN_DIR=$run"
+echo "FSF_RUN=$run"
 echo "LAUNCH OK"

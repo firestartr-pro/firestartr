@@ -30,8 +30,11 @@ $V/launch.sh --no-build   # reuse dist/ when nothing under packages/fs-forge-cli
 ```
 
 Ready when it prints `LAUNCH OK` with `CLI=`, `BUILD=` and `RUN_DIR=`. Each
-launch opens its own unique run directory, so concurrent launches never share
-evidence. It records the repo's `git status` as a baseline. `npm run build`
+launch opens its own unique run directory and also prints the matching
+`FSF_RUN=`. Later scripts default to the newest run through
+`$FSF_HOME/latest`, so when more than one run is live, set `FSF_RUN` to the
+`RUN_DIR` your launch printed: `latest` follows the most recent launch, not
+yours. It records the repo's `git status` as a baseline. `npm run build`
 regenerates tracked files from `schemas/*.json`; a `WARN ... codegen drift`
 means the checkout was out of sync with its schemas. There is no server, so
 there is nothing to keep alive. Cleanup tears down.
@@ -102,7 +105,8 @@ Treat the first live drive as unproven and report anything surprising.
 ## Evidence
 
 Drives write to `${TMPDIR}/verify-fs-forge-cli/<RUN_ID>/evidence/<NN>-<label>/`
-(`$FSF_HOME/latest` points at the current run; set `FSF_RUN` to pick another).
+(`$FSF_HOME/latest` follows the most recent launch; set `FSF_RUN` to the
+`RUN_DIR` a launch printed when more than one run is live).
 That location is outside the repo, so git never tracks it, and cleanup leaves
 it alone. Per drive:
 
