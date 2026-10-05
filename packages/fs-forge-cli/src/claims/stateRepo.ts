@@ -1,3 +1,5 @@
+import { extractLastStatePrFromContent } from './wetPr.js';
+
 import type { GitHubApi } from '../github/api.js';
 
 export interface CrInfo {
@@ -18,7 +20,6 @@ export interface LastStatePrInfo {
 }
 
 const CLAIM_REF_ANNOTATION = 'firestartr.dev/claim-ref';
-const LAST_STATE_PR_ANNOTATION = 'firestartr.dev/last-state-pr';
 
 export async function findCrOnMainBranch(
   api: GitHubApi,
@@ -51,7 +52,7 @@ export async function findCrOnMainBranch(
     const kindMatch = content.match(/^kind\s*:\s*(.+)$/m);
     const nameMatch = content.match(/^ {2}name\s*:\s*(.+)$/m);
 
-    const lastStatePr = parseLastStatePrAnnotation(content, owner);
+    const lastStatePr = extractLastStatePrFromContent(content, owner);
     const prInfo = lastStatePr ? await enrichPrInfo(api, lastStatePr) : null;
 
     results.push({
@@ -66,29 +67,6 @@ export async function findCrOnMainBranch(
   }
 
   return results;
-}
-
-function parseLastStatePrAnnotation(
-  content: string,
-  defaultOwner: string,
-): { owner: string; repo: string; number: number } | null {
-  const escaped = LAST_STATE_PR_ANNOTATION.replace(/\./g, '\\.');
-  const annotationRegex = `${escaped}\\s*:\\s*(.+)`;
-  const match = content.match(new RegExp(annotationRegex));
-  if (!match) return null;
-
-  const value = match[1].trim();
-  const repoPrMatch = value.match(/^((?:[^/]+\/)?[^#]+)#(\d+)$/);
-  if (!repoPrMatch) return null;
-
-  const rawRepo = repoPrMatch[1];
-  const number = parseInt(repoPrMatch[2], 10);
-  const repoSlug = rawRepo.includes('/')
-    ? rawRepo
-    : `${defaultOwner}/${rawRepo}`;
-  const owner = repoSlug.split('/')[0]!;
-
-  return { owner, repo: repoSlug, number };
 }
 
 async function enrichPrInfo(
