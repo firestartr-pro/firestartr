@@ -35,7 +35,7 @@ beforeAll(() => {
   for (const kind of SCHEMA_KINDS) void loadSchema(kind);
 });
 
-describe('validateClaim', () => {
+describe('createClaimValidator', () => {
   describe('valid claims', () => {
     const fixtureDir = join(process.cwd(), '__tests__', 'fixtures', 'valid');
     const validCases: Array<[string, string]> = [
