@@ -9,7 +9,6 @@ import {
   assertClaimIdentity,
   loadVariantGroups,
   parseClaimYaml,
-  requireOrg,
 } from './support.js';
 import { createClaimValidator } from '../utils/ajvValidation.js';
 import {

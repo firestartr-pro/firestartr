@@ -93,11 +93,6 @@ export const KIND_REGISTRY = Object.fromEntries(
 export const KIND_CAPABILITIES: readonly KindCapability[] =
   Object.values(KIND_REGISTRY);
 
-/** Kind ids in registry (schema filename) order. */
-export const KIND_IDS: readonly string[] = KIND_CAPABILITIES.map(
-  (capability) => capability.id,
-);
-
 /** Values accepted by `--kind`-style options: short id and full kind. */
 export const CLAIM_KIND_OPTIONS: string[] = KIND_CAPABILITIES.flatMap(
   (capability) => [capability.id, capability.kind],
@@ -117,11 +112,6 @@ export function normalizeKind(value: string): ClaimKindName | undefined {
 
 export function isClaimKind(value: string): value is ClaimKindName {
   return value in KIND_REGISTRY;
-}
-
-/** Claims-map key for a claim. */
-export function claimReference(kind: string, name: string): string {
-  return `${kind}-${name}`;
 }
 
 export interface ClaimReference {

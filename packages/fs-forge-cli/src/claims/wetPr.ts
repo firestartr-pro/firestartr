@@ -45,7 +45,7 @@ function contentMatchesClaim(
   return content.includes(ref);
 }
 
-export function defaultStateRepos(org: string): string[] {
+function defaultStateRepos(org: string): string[] {
   return DEFAULT_STATE_REPOS.map((repo) => `${org}/${repo}`);
 }
 

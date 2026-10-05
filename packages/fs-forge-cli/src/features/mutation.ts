@@ -127,8 +127,7 @@ function formatClaim(claim: Record<string, unknown>, json: boolean): string {
 
 /**
  * Merges an edit payload over the stored reference, preserving its pin and
- * recursively merging `args`, exactly as the pre-refactor
- * `buildFeatureReference(flags, specs, existing)` did.
+ * recursively merging `args` (the same merge semantics `mutateClaim` uses).
  */
 function mergeFeatureReference(
   existing: FeatureReference,

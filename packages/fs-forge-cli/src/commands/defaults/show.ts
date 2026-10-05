@@ -1,4 +1,4 @@
-import { Args, Command, Flags } from '@oclif/core';
+import { Args, Command } from '@oclif/core';
 
 import { KIND_CAPABILITIES, kindById } from '../../claims/kindRegistry.js';
 import { claimsRepo } from '../../claims/claimsRepo.js';
