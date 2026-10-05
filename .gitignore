@@ -44,3 +44,4 @@ dagger/etoe/e2e-config.yaml
 !prepare-suite-matrix.js
 dagger/etoe/e2e-config.yaml
 .atl/
+!packages/features_renderer/bin/validate.js
