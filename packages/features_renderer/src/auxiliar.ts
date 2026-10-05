@@ -110,8 +110,14 @@ const renderTestsSchema: Record<string, unknown> = {
           args: { type: 'object' },
         },
         anyOf: [
-          { required: ['cr'], properties: { cr: { type: 'string', minLength: 1 } } },
-          { required: ['claim'], properties: { claim: { type: 'string', minLength: 1 } } },
+          {
+            required: ['cr'],
+            properties: { cr: { type: 'string', minLength: 1 } },
+          },
+          {
+            required: ['claim'],
+            properties: { claim: { type: 'string', minLength: 1 } },
+          },
         ],
       },
     },
