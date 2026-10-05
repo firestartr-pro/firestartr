@@ -35,20 +35,13 @@ function createApi(
 
 describe('stateRepo', () => {
   describe('formatPrState', () => {
-    it('formats merged state', () => {
-      expect(formatPrState('merged')).toBe('merged');
-    });
-
-    it('formats open state', () => {
-      expect(formatPrState('open')).toBe('open');
-    });
-
-    it('formats closed state', () => {
-      expect(formatPrState('closed')).toBe('closed (not merged)');
-    });
-
-    it('formats null state', () => {
-      expect(formatPrState(null)).toBe('unknown');
+    it.each<[string | null, string]>([
+      ['merged', 'merged'],
+      ['open', 'open'],
+      ['closed', 'closed (not merged)'],
+      [null, 'unknown'],
+    ])('formats %s state', (state, expected) => {
+      expect(formatPrState(state)).toBe(expected);
     });
   });
 

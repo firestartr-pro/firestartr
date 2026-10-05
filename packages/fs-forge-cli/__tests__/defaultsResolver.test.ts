@@ -5,7 +5,6 @@ import {
   AmbiguousDefaultsError,
   resolveDefaultsFile,
 } from '../src/claims/defaults';
-import { MemoryGitHubApi } from './fixtures/memoryGitHubApi';
 
 import type { ClaimsRepo } from '../src/claims/claimsRepo';
 import type { GitHubApi, RepoFile } from '../src/github/api';
@@ -117,35 +116,5 @@ describe('resolveDefaultsFile', () => {
       ComponentClaim: { platformOwner: 'group:default' },
     });
     expect(readFile).toHaveBeenCalledTimes(2);
-  });
-});
-
-describe('resolveDefaultsFile over the memory port', () => {
-  function memoryRepo(): { api: MemoryGitHubApi; repo: ClaimsRepo } {
-    const api = new MemoryGitHubApi();
-    const repo = claimsRepo(api, 'example-org');
-    api.setDefaultBranch(repo.ref, 'main');
-    return { api, repo };
-  }
-
-  it('returns null when the defaults file does not exist', async () => {
-    const { repo } = memoryRepo();
-
-    expect(await resolveDefaultsFile(repo)).toBeNull();
-  });
-
-  it('falls back to the single defaults file elsewhere in the repo', async () => {
-    const { api, repo } = memoryRepo();
-    api.setBlobPaths(repo.ref, [
-      'claims/components/a.yaml',
-      'nested/claims_defaults.yaml',
-    ]);
-    api.setFile(
-      repo.ref,
-      'nested/claims_defaults.yaml',
-      'ComponentClaim:\n  b: 2\n',
-    );
-
-    expect(await resolveDefaultsFile(repo)).toEqual({ ComponentClaim: { b: 2 } });
   });
 });

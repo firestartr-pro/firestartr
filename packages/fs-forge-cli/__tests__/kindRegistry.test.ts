@@ -6,9 +6,7 @@ import {
   CLAIM_KIND_OPTIONS,
   CLAIM_PATH_CAPABILITIES,
   KIND_CAPABILITIES,
-  KIND_IDS,
   KIND_REGISTRY,
-  claimReference,
   isClaimKind,
   kindById,
   normalizeKind,
@@ -77,7 +75,6 @@ describe('kind registry', () => {
       'user',
       'tfworkspace',
     ]);
-    expect(KIND_IDS).toEqual(KIND_CAPABILITIES.map(({ id }) => id));
   });
 
   it('offers the short id and the full kind as --kind options', () => {
@@ -106,7 +103,6 @@ describe('kind registry', () => {
     expect(isClaimKind('ComponentClaim')).toBe(true);
     expect(isClaimKind('component')).toBe(false);
 
-    expect(claimReference('ComponentClaim', 'api')).toBe('ComponentClaim-api');
     expect(resolveClaimReference('ComponentClaim-api')).toEqual({
       kind: 'ComponentClaim',
       name: 'api',

@@ -86,16 +86,8 @@ describe('discovery org-elements', () => {
     });
   });
 
-  it('filters by --kind, repeatable', async () => {
-    const { result, stdout } = await run('--kind', 'group');
-
-    expect(result).toBe(0);
-    expect(stdout).toContain('GroupClaim');
-    expect(stdout).not.toContain('ComponentClaim');
-  });
-
-  it('accepts full claim kind compatibility spellings', async () => {
-    const { result, stdout } = await run('--kind', 'GroupClaim');
+  it.each(['group', 'GroupClaim'])('filters by --kind %s', async (kind) => {
+    const { result, stdout } = await run('--kind', kind);
 
     expect(result).toBe(0);
     expect(stdout).toContain('GroupClaim');
@@ -144,23 +136,20 @@ describe('discovery org-elements', () => {
     }
   });
 
-  it('surfaces a stale claims map error', async () => {
-    mockedLoadClaimsMap.mockRejectedValue(
-      new Error('The claims map is stale; wait for generate-claims-map.yaml to recover'),
-    );
+  it.each([
+    [
+      'The claims map is stale; wait for generate-claims-map.yaml to recover',
+      'claims map is stale',
+    ],
+    [
+      'The claims repo does not have a claims map yet',
+      'does not have a claims map yet',
+    ],
+  ])('surfaces a claims map error: %s', async (message, expected) => {
+    mockedLoadClaimsMap.mockRejectedValue(new Error(message));
 
     const { error } = await run();
 
-    expect(error?.message).toContain('claims map is stale');
-  });
-
-  it('surfaces a missing claims map error', async () => {
-    mockedLoadClaimsMap.mockRejectedValue(
-      new Error('The claims repo does not have a claims map yet'),
-    );
-
-    const { error } = await run();
-
-    expect(error?.message).toContain('does not have a claims map yet');
+    expect(error?.message).toContain(expected);
   });
 });

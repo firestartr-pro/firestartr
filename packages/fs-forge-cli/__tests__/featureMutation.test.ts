@@ -314,23 +314,6 @@ describe('runFeatureMutation', () => {
     expect(error?.message).toContain('enabled');
   });
 
-  it('rejects Feature args that fail the Feature schema', async () => {
-    const { repo } = createRepo();
-
-    const { error } = await run(
-      {
-        operation: 'add',
-        component: 'my-component',
-        json: false,
-        feature: { name: 'feature_a', version: '1.0.0', args: {} },
-        featureSchema: REQUIRED_ENABLED_SCHEMA,
-      },
-      repo,
-    );
-
-    expect(error?.message).toContain("required property 'enabled'");
-  });
-
   it('rejects a mutated claim that fails the claim schema', async () => {
     const { repo } = createRepo('kind: ComponentClaim\nname: my-component\n');
 

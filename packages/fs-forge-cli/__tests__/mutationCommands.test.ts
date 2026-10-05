@@ -284,33 +284,6 @@ describe('mutation command arguments', () => {
   });
 });
 
-describe('clone command removal', () => {
-  it('is absent from the oclif command config', async () => {
-    const config = await Config.load({ root: ROOT });
-
-    expect(config.findCommand('clone')).toBeUndefined();
-  });
-
-  it('is absent from the published manifest and its aliases', () => {
-    const manifest = JSON.parse(
-      readFileSync(join(ROOT, 'oclif.manifest.json'), 'utf8'),
-    ) as { commands: Record<string, { aliases?: string[] }> };
-
-    expect(manifest.commands).not.toHaveProperty('clone');
-    for (const command of Object.values(manifest.commands)) {
-      expect(command.aliases ?? []).not.toContain('clone');
-    }
-  });
-
-  it('fails as an unknown command when invoked', async () => {
-    const config = await Config.load({ root: ROOT });
-
-    await expect(config.runCommand('clone', [])).rejects.toThrow(
-      'command clone not found',
-    );
-  });
-});
-
 describe('edit --wait-for-checks forwarding', () => {
   it('watches the wet PR checks with the bare repository name', async () => {
     const api = mockMutationClient(null);

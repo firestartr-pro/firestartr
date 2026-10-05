@@ -1,4 +1,4 @@
-import { describe, it, expect, beforeAll, jest } from '@jest/globals';
+import { describe, it, expect, beforeAll } from '@jest/globals';
 import { readFileSync } from 'fs';
 import { join } from 'path';
 import { createClaimValidator } from '../src/utils/ajvValidation';
@@ -82,27 +82,6 @@ describe('createClaimValidator', () => {
   });
 
   describe('edge cases', () => {
-    it('returns valid for a correct ComponentClaim', async () => {
-      const claim = {
-        name: 'my-component',
-        kind: 'ComponentClaim',
-        owner: 'group:my-team',
-        providers: {
-          github: {
-            name: 'my-repo',
-            org: 'my-org',
-            visibility: 'private',
-            branchStrategy: { name: 'gitflow' },
-            sync: { enabled: true },
-          },
-        },
-      };
-
-      const result = await validator.validate(claim, 'ComponentClaim');
-      expect(result.valid).toBe(true);
-      expect(result.errors).toEqual([]);
-    });
-
     it('returns invalid for a claim missing required fields', async () => {
       const claim = { name: 'my-component' };
 
@@ -140,14 +119,6 @@ describe('createClaimValidator', () => {
         expect(typeof err).toBe('string');
         expect(err.length).toBeGreaterThan(0);
       }
-    });
-
-    it('returns error for unknown claim kind', async () => {
-      const spy = jest.spyOn(console, 'error').mockImplementation(() => {});
-      const result = await validator.validate({}, 'UnknownKind');
-      spy.mockRestore();
-      expect(result.valid).toBe(false);
-      expect(result.errors[0]).toContain('No schema found');
     });
 
     it('validates enum constraints', async () => {

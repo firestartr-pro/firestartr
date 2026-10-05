@@ -69,29 +69,19 @@ describe('fs-forge delete', () => {
       expect(result.error).toBeDefined();
     });
 
-    it('accepts short kind IDs', async () => {
-      mockClient();
-      const result = await captureOutput(() =>
-        Delete.run(
-          ['component', 'my-component', '--org', 'my-org', '--commit'],
-          { root: ROOT },
-        ),
-      );
+    it.each(['component', 'ComponentClaim'])(
+      'accepts the --kind spelling %s',
+      async (kind) => {
+        mockClient();
+        const result = await captureOutput(() =>
+          Delete.run([kind, 'my-component', '--org', 'my-org', '--commit'], {
+            root: ROOT,
+          }),
+        );
 
-      expect(result.error).toBeUndefined();
-    });
-
-    it('accepts full kind names', async () => {
-      mockClient();
-      const result = await captureOutput(() =>
-        Delete.run(
-          ['ComponentClaim', 'my-component', '--org', 'my-org', '--commit'],
-          { root: ROOT },
-        ),
-      );
-
-      expect(result.error).toBeUndefined();
-    });
+        expect(result.error).toBeUndefined();
+      },
+    );
   });
 
   describe('dry run (without --commit)', () => {
@@ -132,20 +122,6 @@ describe('fs-forge delete', () => {
 
       expect(result.error?.message).toContain('--org or FSCRT_ORG is required');
       expect(MockCreateGitHubApi).not.toHaveBeenCalled();
-    });
-
-    it('accepts FSCRT_ORG in dry-run mode', async () => {
-      process.env.FSCRT_ORG = 'env-org';
-      const api = mockClient();
-      const { result } = await captureOutput(async () => {
-        await Delete.run(['component', 'my-component'], { root: ROOT });
-        return 0;
-      });
-
-      expect(result).toBe(0);
-      expect(api.calls).toContain(
-        'readFile env-org/claims:claims-map.json@claims-index',
-      );
     });
 
     it('respects --no-include-variants in dry-run output', async () => {

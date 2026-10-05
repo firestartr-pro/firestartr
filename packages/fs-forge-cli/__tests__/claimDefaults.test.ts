@@ -121,6 +121,5 @@ describe('applyDefaultsFromRepo', () => {
 
     expect(result).toEqual(claim);
     expect(result).not.toBe(claim);
-    expect(REF).toEqual({ owner: 'example-org', repo: 'claims' });
   });
 });

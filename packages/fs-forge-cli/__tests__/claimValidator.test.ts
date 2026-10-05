@@ -1,4 +1,4 @@
-import { describe, expect, it } from '@jest/globals';
+import { describe, expect, it, jest } from '@jest/globals';
 import { mkdtemp, rm, writeFile } from 'fs/promises';
 import { readFileSync } from 'fs';
 import { tmpdir } from 'os';
@@ -52,11 +52,18 @@ describe('createClaimValidator', () => {
 
   it('reports a missing schema with the pre-refactor message', async () => {
     const validator = createClaimValidator({ schemasDir: SCHEMAS_DIR });
+    const consoleError = jest
+      .spyOn(console, 'error')
+      .mockImplementation(() => {});
 
-    await expect(validator.validate({}, 'UnknownKind')).resolves.toEqual({
-      valid: false,
-      errors: ['No schema found for claim kind: UnknownKind'],
-    });
+    try {
+      await expect(validator.validate({}, 'UnknownKind')).resolves.toEqual({
+        valid: false,
+        errors: ['No schema found for claim kind: UnknownKind'],
+      });
+    } finally {
+      consoleError.mockRestore();
+    }
   });
 
   it('keeps two registries over different directories independent', async () => {

@@ -152,54 +152,6 @@ describe('runClaimCreation', () => {
     expect(api.calls).toEqual([]);
   });
 
-  it('publishes a new claim to its deterministic path', async () => {
-    const { api } = createRepo();
-
-    const result = await runClaimCreation({
-      org: 'example',
-      kind: 'ComponentClaim',
-      name: 'new-component',
-      claim,
-      commit: true,
-      writeOutput: jest.fn(),
-      writeDiagnostic: jest.fn(),
-    });
-
-    expect(MockCreateGitHubApi).toHaveBeenCalledTimes(1);
-    expect(result.publishUrl).toBe(
-      'https://github.com/example/claims/actions/runs/1',
-    );
-    expect(api.committed[0]).toEqual(
-      expect.objectContaining({
-        path: 'claims/components/new-component.yaml',
-        content: result.output,
-      }),
-    );
-    expect(api.dispatched[0].inputs).toEqual(
-      expect.objectContaining({ claimType: 'ComponentClaim' }),
-    );
-  });
-
-  it('rejects an existing claim before publishing', async () => {
-    const { api } = createRepo({
-      existingReference: 'ComponentClaim-new-component',
-    });
-
-    await expect(
-      runClaimCreation({
-        org: 'example',
-        kind: 'ComponentClaim',
-        name: 'new-component',
-        claim,
-        commit: true,
-        writeOutput: jest.fn(),
-        writeDiagnostic: jest.fn(),
-      }),
-    ).rejects.toThrow('Claim already exists: ComponentClaim-new-component');
-    expect(api.committed).toEqual([]);
-    expect(api.dispatched).toEqual([]);
-  });
-
   describe.each(CREATE_COMMIT_CASES)(
     'create --commit for $kind',
     ({ kind, path, expectedPath }) => {
@@ -217,11 +169,15 @@ describe('runClaimCreation', () => {
           writeDiagnostic: jest.fn(),
         });
 
+        expect(MockCreateGitHubApi).toHaveBeenCalledTimes(1);
         expect(result.publishUrl).toBe(
           'https://github.com/example/claims/actions/runs/1',
         );
         expect(api.committed[0]).toEqual(
           expect.objectContaining({ path: expectedPath, content: result.output }),
+        );
+        expect(api.dispatched[0].inputs).toEqual(
+          expect.objectContaining({ claimType: kind }),
         );
       });
 

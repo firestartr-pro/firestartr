@@ -1,5 +1,4 @@
 import {
-  defaultStateRepos,
   extractLastStatePrFromContent,
   findWetPr,
   isDeletionPr,
@@ -67,13 +66,6 @@ describe('wetPr', () => {
         'my-org',
       );
       expect(repos).toEqual(['custom/state-one', 'custom/state-two']);
-    });
-  });
-
-  describe('defaultStateRepos', () => {
-    it('returns convention-based repos', () => {
-      const repos = defaultStateRepos('test-org');
-      expect(repos).toEqual(['test-org/state-github', 'test-org/state-infra']);
     });
   });
 

@@ -64,7 +64,10 @@ describe('discovery map', () => {
     expect(loadClaimsArchiveMock).toHaveBeenCalledTimes(1);
   });
 
-  it('accepts full claim kind compatibility spellings', async () => {
+  it.each([
+    ['component', ['ComponentClaim']],
+    ['GroupClaim', ['GroupClaim']],
+  ])('filters structured JSON output by --kind %s', async (kind, expectedKinds) => {
     process.env.GITHUB_TOKEN = 'test-token';
     loadClaimsArchiveMock.mockResolvedValue(claims);
 
@@ -72,24 +75,7 @@ describe('discovery map', () => {
       '--org',
       'example',
       '--kind',
-      'GroupClaim',
-      '--json',
-    ]);
-
-    expect(JSON.parse(result.stdout).nodes).toEqual([
-      expect.objectContaining({ kind: 'GroupClaim' }),
-    ]);
-  });
-
-  it('filters structured JSON output', async () => {
-    process.env.GITHUB_TOKEN = 'test-token';
-    loadClaimsArchiveMock.mockResolvedValue(claims);
-
-    const result = await runMap([
-      '--org',
-      'example',
-      '--kind',
-      'component',
+      kind,
       '--json',
     ]);
     const graph = JSON.parse(result.stdout) as {
@@ -97,7 +83,7 @@ describe('discovery map', () => {
       edges: unknown[];
     };
 
-    expect(graph.nodes.map((node) => node.kind)).toEqual(['ComponentClaim']);
+    expect(graph.nodes.map((node) => node.kind)).toEqual(expectedKinds);
     expect(graph.edges).toEqual([]);
 
     const validator = createClaimValidator({

@@ -12,36 +12,11 @@ import {
   assertCreatePath,
   deterministicPath,
 } from '../src/claims/deterministicPath';
-import { CLAIM_PATH_CAPABILITIES } from '../src/claims/kindRegistry';
 import { MemoryGitHubApi } from './fixtures/memoryGitHubApi';
 
 import type { ClaimsRepo } from '../src/claims/claimsRepo';
 
 describe('claim path capabilities', () => {
-  it('declares the path capability for every claim kind', () => {
-    expect(CLAIM_PATH_CAPABILITIES).toEqual({
-      ComponentClaim: {
-        directory: 'components',
-        requiresExplicitPath: false,
-      },
-      GroupClaim: { directory: 'groups', requiresExplicitPath: false },
-      UserClaim: { directory: 'users', requiresExplicitPath: false },
-      SystemClaim: { directory: 'systems', requiresExplicitPath: false },
-      DomainClaim: { directory: 'domains', requiresExplicitPath: false },
-      OrgWebhookClaim: {
-        directory: 'orgWebhook',
-        requiresExplicitPath: false,
-      },
-      OrgSettingsClaim: {
-        directory: 'orgSettings',
-        requiresExplicitPath: false,
-      },
-      ArgoDeployClaim: { directory: 'argocd', requiresExplicitPath: false },
-      TFWorkspaceClaim: { requiresExplicitPath: true },
-      SecretsClaim: { requiresExplicitPath: true },
-    });
-  });
-
   it.each([
     'ComponentClaim',
     'GroupClaim',
@@ -220,21 +195,16 @@ describe('claims map', () => {
     await expect(loadClaimsMap(repo)).rejects.toThrow('claims map is stale');
   });
 
-  it('uses a custom repo name when provided', async () => {
+  it.each([
+    ['example-org', 'staging-claims'],
+    ['example-org', undefined],
+  ])('derives the claims repo ref for org %s and repo %s', (owner, repoName) => {
     const api = new MemoryGitHubApi();
-    const repo = claimsRepo(api, 'example-org', 'staging-claims');
-    api.setDefaultBranch(repo.ref, 'main');
+    const repo = claimsRepo(api, owner, repoName);
 
-    expect(repo.ref.repo).toBe('staging-claims');
-    await expect(api.getDefaultBranch(repo.ref)).resolves.toBe('main');
-    expect(api.calls).toContain('getDefaultBranch example-org/staging-claims');
-  });
-
-  it('defaults to the claims repo when no repo is given', () => {
-    const api = new MemoryGitHubApi();
-    expect(claimsRepo(api, 'example-org').ref).toEqual({
-      owner: 'example-org',
-      repo: 'claims',
+    expect(repo).toEqual({
+      api,
+      ref: { owner, repo: repoName ?? 'claims' },
     });
   });
 });
