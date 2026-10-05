@@ -7,10 +7,7 @@ import {
   loadClaimsMap,
 } from '../claims/claimsRepo.js';
 import { createGitHubApi } from '../github/index.js';
-import {
-  CLAIM_KIND_OPTIONS,
-  normalizeClaimKind,
-} from '../mutations/definitions.js';
+import { CLAIM_KIND_OPTIONS, normalizeKind } from '../claims/kindRegistry.js';
 import { ORG_FLAG, requireOrg } from '../mutations/support.js';
 import { waitForDispatch } from '../utils/waitForDispatch.js';
 
@@ -60,7 +57,7 @@ export default class Delete extends Command {
   async run(): Promise<void> {
     const { args, flags } = await this.parse(Delete);
 
-    const kind = normalizeClaimKind(args.kind);
+    const kind = normalizeKind(args.kind);
     if (!kind) this.error(`Unsupported claim kind: ${args.kind}`);
 
     const name = args.name;

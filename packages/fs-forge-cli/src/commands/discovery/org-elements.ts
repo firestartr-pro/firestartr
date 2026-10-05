@@ -2,11 +2,11 @@ import { Command, Flags } from '@oclif/core';
 
 import { claimsRepo, loadClaimsMap } from '../../claims/claimsRepo.js';
 import { createGitHubApi } from '../../github/index.js';
-import { resolveClaimReference } from '../../claims/kindRegistry.js';
 import {
   CLAIM_KIND_OPTIONS,
-  normalizeClaimKind,
-} from '../../mutations/definitions.js';
+  normalizeKind,
+  resolveClaimReference,
+} from '../../claims/kindRegistry.js';
 import { ORG_FLAG, requireOrg } from '../../mutations/support.js';
 
 interface ClaimEntry {
@@ -49,7 +49,7 @@ export default class DiscoveryOrgElements extends Command {
     const { flags } = await this.parse(DiscoveryOrgElements);
     const org = requireOrg(flags.org);
 
-    const kindFilter = flags.kind?.map((value) => normalizeClaimKind(value)!);
+    const kindFilter = flags.kind?.map((value) => normalizeKind(value)!);
 
     const repo = claimsRepo(createGitHubApi(), org, flags['claims-repo']);
     const map = await loadClaimsMap(repo);

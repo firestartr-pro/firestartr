@@ -3,8 +3,6 @@ import { AmbiguousDefaultsError, readDefaultsFile } from './claimsRepo.js';
 
 import type { ClaimsRepo } from './claimsRepo.js';
 
-export { AmbiguousDefaultsError };
-
 // Per-claims-repo in-memory cache: repeated calls within one CLI invocation
 // do not re-fetch the defaults file.
 const defaultsCache = new WeakMap<

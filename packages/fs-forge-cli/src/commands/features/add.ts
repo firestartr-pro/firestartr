@@ -1,11 +1,11 @@
 import {
   COMPONENT_ARG,
-  FEATURE_REFERENCE_SPECS,
   FEATURE_SCHEMA_FLAGS,
   FEATURE_TARGET_FLAGS,
   FEATURE_TARGET_RELATIONSHIP,
   FeatureSchemaCommand,
 } from '../../utils/featureCommand.js';
+import { FEATURE_REFERENCE_SPECS } from '../../features/dynamicFlags.js';
 import { runFeatureMutation } from '../../features/mutation.js';
 import { buildFeatureReference } from '../../utils/features.js';
 

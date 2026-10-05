@@ -9,12 +9,6 @@ import CreateSystem from '../commands/create/system.js';
 import CreateTfworkspace from '../commands/create/tfworkspace.js';
 import CreateUser from '../commands/create/user.js';
 
-import {
-  CLAIM_KIND_OPTIONS,
-  isClaimKind,
-  normalizeKind,
-} from '../claims/kindRegistry.js';
-
 import type { ClaimKindName } from '../claims/kinds.js';
 import type { FlagSpec } from '../utils/deriveFlags.js';
 
@@ -62,9 +56,6 @@ export function mutationFlagsWithout(...names: string[]) {
     Object.entries(MUTATION_FLAGS).filter(([name]) => !names.includes(name)),
   );
 }
-
-export { CLAIM_KIND_OPTIONS, isClaimKind };
-export const normalizeClaimKind = normalizeKind;
 
 export function assertMutationFlags(
   kind: ClaimKind,

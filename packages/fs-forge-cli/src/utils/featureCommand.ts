@@ -9,11 +9,6 @@ import { DEFAULT_FEATURE_SOURCE } from './featureSource.js';
 
 import type { FlagSpec } from './deriveFlags.js';
 
-export {
-  FEATURE_REFERENCE_SPECS,
-  resolveFeatureArgs as resolveFeatureFlagSpecs,
-} from '../features/dynamicFlags.js';
-
 export const COMPONENT_ARG = {
   component: Args.string({ description: 'ComponentClaim name' }),
 };

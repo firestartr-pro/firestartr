@@ -8,8 +8,6 @@ export type ClaimPathCapability =
   | { readonly requiresExplicitPath: true }
   | { readonly directory: string; readonly requiresExplicitPath: false };
 
-export { CLAIM_PATH_CAPABILITIES };
-
 function pathCapability(kind: string): ClaimPathCapability | undefined {
   return CLAIM_PATH_CAPABILITIES[kind as ClaimKindName];
 }

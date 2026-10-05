@@ -4,8 +4,8 @@ import { loadClaimsArchive } from '../../claims/archive.js';
 import { createGitHubApi } from '../../github/index.js';
 import {
   CLAIM_KIND_OPTIONS,
-  normalizeClaimKind,
-} from '../../mutations/definitions.js';
+  normalizeKind,
+} from '../../claims/kindRegistry.js';
 import {
   buildRelationGraph,
   filterRelationGraph,
@@ -37,7 +37,7 @@ export default class DiscoveryMap extends Command {
   async run(): Promise<void> {
     const { flags } = await this.parse(DiscoveryMap);
     const org = requireOrg(flags.org);
-    const kinds = flags.kind?.map((value) => normalizeClaimKind(value)!);
+    const kinds = flags.kind?.map((value) => normalizeKind(value)!);
     const claims = await loadClaimsArchive(
       createGitHubApi(),
       { owner: org, repo: 'claims' },

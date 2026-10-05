@@ -23,9 +23,6 @@ import type { ClaimKind } from './definitions.js';
 import type { ValidationResult } from '../utils/ajvValidation.js';
 import type { ClaimDiff } from '../utils/mutateClaim.js';
 
-export { runClaimCreation } from './creation.js';
-export type { ClaimCreationOptions, ClaimCreationResult } from './creation.js';
-
 export interface ClaimMutationPresentationOptions {
   diff?: boolean;
   showDefaults?: boolean;

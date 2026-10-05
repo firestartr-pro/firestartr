@@ -11,10 +11,8 @@ jest.mock('../src/github/index', () => ({
 import { createGitHubApi } from '../src/github/index';
 import { claimsRepo } from '../src/claims/claimsRepo';
 import { applyClaimDefaults } from '../src/defaults/applier';
-import {
-  runClaimCreation,
-  runClaimMutation,
-} from '../src/mutations/orchestrator';
+import { runClaimCreation } from '../src/mutations/creation';
+import { runClaimMutation } from '../src/mutations/orchestrator';
 import { formatUnifiedDiff } from '../src/utils/mutateClaim';
 import { MemoryGitHubApi } from './fixtures/memoryGitHubApi';
 

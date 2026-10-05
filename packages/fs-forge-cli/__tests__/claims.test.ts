@@ -10,9 +10,9 @@ import {
 } from '../src/claims/claimsRepo';
 import {
   assertCreatePath,
-  CLAIM_PATH_CAPABILITIES,
   deterministicPath,
 } from '../src/claims/deterministicPath';
+import { CLAIM_PATH_CAPABILITIES } from '../src/claims/kindRegistry';
 import { MemoryGitHubApi } from './fixtures/memoryGitHubApi';
 
 import type { ClaimsRepo } from '../src/claims/claimsRepo';

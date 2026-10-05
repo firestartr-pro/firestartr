@@ -1,10 +1,10 @@
 import { describe, expect, it, jest } from '@jest/globals';
 
-import { claimsRepo } from '../src/claims/claimsRepo';
 import {
   AmbiguousDefaultsError,
-  resolveDefaultsFile,
-} from '../src/claims/defaults';
+  claimsRepo,
+} from '../src/claims/claimsRepo';
+import { resolveDefaultsFile } from '../src/claims/defaults';
 
 import type { ClaimsRepo } from '../src/claims/claimsRepo';
 import type { GitHubApi, RepoFile } from '../src/github/api';
