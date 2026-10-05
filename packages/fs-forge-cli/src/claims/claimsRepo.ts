@@ -1,6 +1,5 @@
 import { randomUUID } from 'crypto';
 import { posix } from 'path';
-import YAML from 'yaml';
 
 import { parseClaimsMap } from './claimsMap.js';
 import { KIND_REGISTRY } from './kindRegistry.js';
@@ -21,9 +20,6 @@ export interface WorkflowDispatch {
   branch: string;
 }
 
-const DEFAULTS_FILE_NAME = 'claims_defaults.yaml';
-const PRIMARY_DEFAULTS_PATH = `claims/${DEFAULTS_FILE_NAME}`;
-
 function isBranchAlreadyExists(error: unknown): boolean {
   return (
     typeof error === 'object' &&
@@ -34,24 +30,6 @@ function isBranchAlreadyExists(error: unknown): boolean {
     typeof error.message === 'string' &&
     /reference already exists/i.test(error.message)
   );
-}
-
-/**
- * Raised when the primary defaults path is missing but several files named
- * `claims_defaults.yaml` exist elsewhere in the repo, so the file to use is
- * ambiguous.
- */
-export class AmbiguousDefaultsError extends Error {
-  readonly candidates: string[];
-
-  constructor(candidates: string[]) {
-    super(
-      `Multiple ${DEFAULTS_FILE_NAME} files found: ${candidates.join(', ')}; ` +
-        'cannot determine which to use',
-    );
-    this.name = 'AmbiguousDefaultsError';
-    this.candidates = candidates;
-  }
 }
 
 export function claimsRepo(
@@ -150,37 +128,6 @@ export async function resolveClaim(
     throw new Error(`Claim file is missing: claims/${normalized}`);
   }
   return { ...file, filePath: `claims/${normalized}` };
-}
-
-function parseDefaultsYaml(content: string): Record<string, unknown> {
-  const value: unknown = YAML.parse(content);
-  if (typeof value !== 'object' || value === null || Array.isArray(value)) {
-    throw new Error(`${DEFAULTS_FILE_NAME} does not contain a YAML object`);
-  }
-  return value as Record<string, unknown>;
-}
-
-export async function readDefaultsFile(
-  repo: ClaimsRepo,
-): Promise<Record<string, unknown> | null> {
-  const branch = await repo.api.getDefaultBranch(repo.ref);
-
-  const primary = await repo.api.readFile(
-    repo.ref,
-    PRIMARY_DEFAULTS_PATH,
-    branch,
-  );
-  if (primary !== null) return parseDefaultsYaml(primary.content);
-
-  const files = await repo.api.listBlobPaths(repo.ref, branch);
-  const matches = files
-    .filter((file) => posix.basename(file) === DEFAULTS_FILE_NAME)
-    .sort();
-  if (matches.length > 1) throw new AmbiguousDefaultsError(matches);
-  if (matches.length === 0) return null;
-
-  const content = await repo.api.readFile(repo.ref, matches[0], branch);
-  return content === null ? null : parseDefaultsYaml(content.content);
 }
 
 export async function publishClaim(

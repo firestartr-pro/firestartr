@@ -5,7 +5,6 @@ import {
   dispatchUnprovision,
   loadClaimsMap,
   publishClaim,
-  readDefaultsFile,
 } from '../src/claims/claimsRepo';
 import { createOctokitApi } from '../src/github/octokitApi';
 import { MemoryGitHubApi } from './fixtures/memoryGitHubApi';
@@ -234,30 +233,5 @@ describe('loadClaimsMap', () => {
       claims: {},
     });
     expect(wait).not.toHaveBeenCalled();
-  });
-});
-
-describe('claim files and defaults', () => {
-  it('returns null when the defaults file does not exist', async () => {
-    const api = new MemoryGitHubApi();
-    const claims = repo(api);
-
-    expect(await readDefaultsFile(claims)).toBeNull();
-  });
-
-  it('falls back to the single defaults file elsewhere in the repo', async () => {
-    const api = new MemoryGitHubApi();
-    const claims = repo(api);
-    api.setBlobPaths(claims.ref, [
-      'claims/components/a.yaml',
-      'nested/claims_defaults.yaml',
-    ]);
-    api.setFile(
-      claims.ref,
-      'nested/claims_defaults.yaml',
-      'ComponentClaim:\n  b: 2\n',
-    );
-
-    expect(await readDefaultsFile(claims)).toEqual({ ComponentClaim: { b: 2 } });
   });
 });

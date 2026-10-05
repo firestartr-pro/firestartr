@@ -5,7 +5,6 @@ export { createClaimValidator } from './utils/ajvValidation.js';
 export type { ValidationResult } from './utils/ajvValidation.js';
 export { claimExists } from './claims/claimsMap.js';
 export {
-  AmbiguousDefaultsError,
   claimsRepo,
   dispatchUnprovision,
   loadClaimsMap,
@@ -19,6 +18,7 @@ export {
 export { CLAIM_PATH_CAPABILITIES } from './claims/kindRegistry.js';
 export type { ClaimPathCapability } from './claims/deterministicPath.js';
 export {
+  AmbiguousDefaultsError,
   applyDefaultsFromRepo,
   resolveDefaultsFile,
 } from './claims/defaults.js';
