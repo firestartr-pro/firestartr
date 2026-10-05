@@ -112,12 +112,12 @@ env_args=(
   "FS_FORGE_FEATURE_CACHE_DIR=$work/.feature-cache"
   "XDG_CACHE_HOME=$work/.xdg/cache" "XDG_CONFIG_HOME=$work/.xdg/config" "XDG_DATA_HOME=$work/.xdg/data"
   "FSF_CANARY=$canary" "FSF_CANARY_LOG=$evid/net.log"
-  "NODE_OPTIONS=${NODE_OPTIONS:-} --require \"$FSF_CANARY_JS\""
+  "NODE_OPTIONS=--require \"$FSF_CANARY_JS\""
 )
 if [ "$mode" != offline ]; then
   env_args+=("GITHUB_TOKEN=$token" "FSCRT_ORG=$org")
 fi
-(cd "$work" && env "${env_args[@]}" node "$FSF_BIN" "$@") > "$evid/stdout.txt" 2> "$evid/stderr.txt"
+(cd "$work" && env "${env_args[@]}" node "$FSF_BIN" "$@" < /dev/null) > "$evid/stdout.txt" 2> "$evid/stderr.txt"
 code=$?
 echo "$code" > "$evid/exit-code.txt"
 
