@@ -18,10 +18,10 @@ fsf_resolve_node 2>/dev/null && pass node "$(node -v) at $(command -v node)" || 
 kinds_js="$FSF_PKG/dist/commands/kinds.js"
 if [ ! -f "$kinds_js" ]; then
   fail build "dist/ is missing; run scripts/launch.sh"
-elif [ -n "$(find "$FSF_PKG/src" -name '*.ts' -newer "$kinds_js" | head -n 1)" ]; then
-  fail build "src/ is newer than dist/; run scripts/launch.sh"
+elif [ -n "$(find "$FSF_PKG/src" "$FSF_PKG/schemas" \( -name '*.ts' -o -name '*.json' \) -newer "$kinds_js" | head -n 1)" ]; then
+  fail build "src/ or schemas/ is newer than dist/; run scripts/launch.sh"
 else
-  pass build "dist/ is newer than every src/*.ts"
+  pass build "dist/ is newer than every src/*.ts and schemas/*.json"
 fi
 
 if version="$(node "$FSF_BIN" --version 2>&1)"; then

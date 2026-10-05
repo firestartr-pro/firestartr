@@ -44,11 +44,11 @@ $V/doctor.sh --org <org>  # also checks token and gh for an org-bound drive
 
 Run it before the first drive and whenever a verdict surprises you. Ready when
 it prints `DOCTOR OK`; each `FAIL` line names its fix. It checks node >=22, a
-`dist/` newer than every `src/*.ts`, the version, the registered kinds, that
-the network canary blocks and logs a connect, that the refusal guards below
-fire, and that the evidence directory is writable and outside the repo. `WARN
-env` means your shell exports `GITHUB_TOKEN`, `FSCRT_ORG` or similar; drives
-scrub them.
+`dist/` newer than every `src/*.ts` and `schemas/*.json`, the version, the
+registered kinds, that the network canary blocks and logs a connect, that the
+refusal guards below fire, and that the evidence directory is writable and
+outside the repo. `WARN env` means your shell exports `GITHUB_TOKEN`, `FSCRT_ORG`
+or similar; drives scrub them.
 
 ## Drive
 
