@@ -1,5 +1,12 @@
 # Changelog
 
+## [2.0.2](https://github.com/firestartr-pro/firestartr/compare/features_renderer-v2.0.1...features_renderer-v2.0.2) (2026-10-05)
+
+
+### Bug Fixes
+
+* **features_renderer:** restore bin/validate.js ([#44](https://github.com/firestartr-pro/firestartr/issues/44)) ([80eb86f](https://github.com/firestartr-pro/firestartr/commit/80eb86f8a879cdebea75cfb47fc11022fbc602a2))
+
 ## [2.0.1](https://github.com/firestartr-pro/firestartr/compare/features_renderer-v2.0.0...features_renderer-v2.0.1) (2026-10-02)
 
 
