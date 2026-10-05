@@ -81,7 +81,7 @@ export async function waitForDispatch(
   if (outcome.status === 'run_not_found') {
     const message = `Workflow run not found. Check ${ref.owner}/${ref.repo}/actions`;
     if (presentation.isTty) {
-      presentation.stderr(message);
+      presentation.stderr(`${message}\n`);
     } else {
       presentation.stdout(
         `${JSON.stringify({
@@ -99,7 +99,7 @@ export async function waitForDispatch(
   if (outcome.status === 'timeout') {
     const message = `Workflow timed out after ${timeoutMs / 1000}s`;
     if (presentation.isTty) {
-      presentation.stderr(message);
+      presentation.stderr(`${message}\n`);
     } else {
       const payload: Record<string, unknown> = {
         status: 'timeout',
@@ -129,19 +129,30 @@ export async function waitForDispatch(
   }
 
   if (outcome.status !== 'ok') {
-    throw new Error(
-      `${action} failed (${outcome.conclusion}): ${outcome.runUrl}`,
+    throw waitFailure(
+      new Error(`${action} failed (${outcome.conclusion}): ${outcome.runUrl}`),
+      action,
+      presentation,
+      { extraNewline: false },
     );
   }
   return outcome.runUrl;
 }
 
+/**
+ * Wraps a failure in the caller's `wait failed` message. Failures that ended
+ * inside the poller kept an extra trailing newline on a TTY; a completed
+ * non-success run did not.
+ */
 function waitFailure(
   error: unknown,
   action: string,
   presentation: DispatchPresentation,
+  options: { extraNewline?: boolean } = {},
 ): unknown {
-  if (presentation.isTty) presentation.stderr('\n');
+  if ((options.extraNewline ?? true) && presentation.isTty) {
+    presentation.stderr('\n');
+  }
   if (error instanceof Error) {
     return new Error(`${action} wait failed: ${error.message}`);
   }
