@@ -78,7 +78,6 @@ export function mutateFeatureReference(
 export function buildFeatureReference(
   flags: Record<string, unknown>,
   specs: FlagSpec[],
-  existing?: FeatureReference,
 ): FeatureReference {
   for (const [name, value] of Object.entries(flags)) {
     if (!name.startsWith('args.') || !name.endsWith('.json')) continue;
@@ -97,11 +96,7 @@ export function buildFeatureReference(
     }
   }
 
-  const feature = mutateClaim(
-    existing ? (existing as Record<string, unknown>) : {},
-    flags,
-    specs,
-  ) as FeatureReference;
+  const feature = mutateClaim({}, flags, specs) as FeatureReference;
   feature.name = flags.name as string;
 
   if (flags.version !== undefined) delete feature.ref;

@@ -48,7 +48,12 @@ function deleteNestedValue(value: Record<string, unknown>, path: string): void {
   }
 }
 
-function mergeObjects(
+/**
+ * Recursively merges the overrides into the target, keeping the stored keys
+ * that the overrides do not name. Base's Feature edit used it through
+ * `mutateClaim`, so claim edits and Feature edits share one merge semantics.
+ */
+export function mergeObjects(
   target: Record<string, unknown>,
   overrides: Record<string, unknown>,
 ): void {

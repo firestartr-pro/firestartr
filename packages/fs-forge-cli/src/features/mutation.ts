@@ -10,6 +10,7 @@ import { deterministicPath } from '../claims/deterministicPath.js';
 import { serializeClaim } from '../claims/keyOrdering.js';
 import { createGitHubApi } from '../github/index.js';
 import { parseClaimYaml, requireOrg } from '../mutations/support.js';
+import { mergeObjects } from '../utils/mutateClaim.js';
 import { createClaimValidator } from '../utils/ajvValidation.js';
 import { validateFeatureArgs } from '../utils/featureSchema.js';
 import {
@@ -124,16 +125,21 @@ function formatClaim(claim: Record<string, unknown>, json: boolean): string {
   return json ? JSON.stringify(claim, null, 2) : serializeClaim(claim);
 }
 
-/** Merges an edit payload over the stored reference, preserving its pin. */
+/**
+ * Merges an edit payload over the stored reference, preserving its pin and
+ * recursively merging `args`, exactly as the pre-refactor
+ * `buildFeatureReference(flags, specs, existing)` did.
+ */
 function mergeFeatureReference(
   existing: FeatureReference,
   feature: FeatureReference,
 ): FeatureReference {
-  const merged: FeatureReference = {
-    ...existing,
-    ...feature,
-    args: { ...existing.args, ...(feature.args ?? {}) },
-  };
+  const merged: FeatureReference = { ...existing, ...feature };
+  if (existing.args !== undefined || feature.args !== undefined) {
+    const args = structuredClone(existing.args ?? {});
+    mergeObjects(args, feature.args ?? {});
+    merged.args = args;
+  }
   if (feature.version !== undefined) delete merged.ref;
   if (feature.ref !== undefined) delete merged.version;
   return merged;

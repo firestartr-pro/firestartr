@@ -25,6 +25,16 @@ const COMPONENT_WITH_FEATURES = readFileSync(
   join(ROOT, '__tests__', 'fixtures', 'valid', 'component-with-features.yaml'),
   'utf8',
 );
+const COMPONENT_WITH_NESTED_FEATURE_ARGS = readFileSync(
+  join(
+    ROOT,
+    '__tests__',
+    'fixtures',
+    'valid',
+    'component-with-nested-feature-args.yaml',
+  ),
+  'utf8',
+);
 
 function createRepo(claimYaml = COMPONENT_YAML) {
   const api = new MemoryGitHubApi();
@@ -135,6 +145,62 @@ describe('runFeatureMutation', () => {
         features: [
           { name: 'feature_a', version: '1.0.0', args: { enabled: true } },
           { name: 'other', ref: 'main', args: {} },
+        ],
+      }),
+    );
+  });
+
+  it('merges nested Feature args over the stored reference', async () => {
+    const { repo } = createRepo(COMPONENT_WITH_NESTED_FEATURE_ARGS);
+
+    const { result, error } = await run(
+      {
+        operation: 'edit',
+        component: 'my-component',
+        json: false,
+        feature: { name: 'feature_a', args: { config: { left: 3 } } },
+      },
+      repo,
+    );
+
+    expect(error).toBeUndefined();
+    expect(featuresOf(result!.claim)).toEqual(
+      expect.objectContaining({
+        features: [
+          {
+            name: 'feature_a',
+            version: '1.0.0',
+            args: { config: { left: 3, right: 2 } },
+          },
+          { name: 'plain', version: '1.0.0' },
+        ],
+      }),
+    );
+  });
+
+  it('leaves a Feature without args free of an empty args object on edit', async () => {
+    const { repo } = createRepo(COMPONENT_WITH_NESTED_FEATURE_ARGS);
+
+    const { result, error } = await run(
+      {
+        operation: 'edit',
+        component: 'my-component',
+        json: false,
+        feature: { name: 'plain', version: '1.0.0' },
+      },
+      repo,
+    );
+
+    expect(error).toBeUndefined();
+    expect(featuresOf(result!.claim)).toEqual(
+      expect.objectContaining({
+        features: [
+          {
+            name: 'feature_a',
+            version: '1.0.0',
+            args: { config: { left: 1, right: 2 } },
+          },
+          { name: 'plain', version: '1.0.0' },
         ],
       }),
     );
