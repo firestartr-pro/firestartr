@@ -1,10 +1,20 @@
-/**
- * The GitHub operations the CLI needs, expressed in its own data shapes.
+/** The GitHub operations the CLI needs, expressed in its own data shapes.
  *
  * `octokitApi.ts` implements this port for production and
  * `__tests__/fixtures/memoryGitHubApi.ts` implements it for tests, so callers
  * never depend on Octokit's response shapes.
  */
+
+/** True when a GitHub error reports a missing resource (HTTP 404). */
+export function isNotFoundError(error: unknown): boolean {
+  return (
+    typeof error === 'object' &&
+    error !== null &&
+    'status' in error &&
+    (error as { status?: unknown }).status === 404
+  );
+}
+
 export interface RepoRef {
   owner: string;
   repo: string;

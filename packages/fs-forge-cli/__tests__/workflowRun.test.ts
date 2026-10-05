@@ -81,6 +81,19 @@ describe('pollDispatchedRun', () => {
     expect(sleep).toHaveBeenCalledTimes(7);
   });
 
+  it('fails fast when the workflow itself is missing (404)', async () => {
+    const api = new MemoryGitHubApi();
+    api.listWorkflowRuns = async () => {
+      throw Object.assign(new Error('Not Found'), { status: 404 });
+    };
+    const sleep = jest.fn(async () => {});
+
+    await expect(
+      pollDispatchedRun(api, REF, { ...options(), sleep }),
+    ).rejects.toThrow('Not Found');
+    expect(sleep).not.toHaveBeenCalled();
+  });
+
   it('returns timeout with the last run URL', async () => {
     const api = new MemoryGitHubApi();
     api.setWorkflowRuns(REF, WORKFLOW, BRANCH, [

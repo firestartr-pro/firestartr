@@ -1,15 +1,8 @@
 import type { Octokit } from '@octokit/rest';
 
-import type { GitHubApi } from './api.js';
+import { isNotFoundError } from './api.js';
 
-function isNotFound(error: unknown): boolean {
-  return (
-    typeof error === 'object' &&
-    error !== null &&
-    'status' in error &&
-    error.status === 404
-  );
-}
+import type { GitHubApi } from './api.js';
 
 /** Production adapter: implements the port over Octokit's REST client. */
 export function createOctokitApi(octokit: Octokit): GitHubApi {
@@ -35,7 +28,7 @@ export function createOctokitApi(octokit: Octokit): GitHubApi {
           content: Buffer.from(data.content, 'base64').toString('utf8'),
         };
       } catch (error) {
-        if (isNotFound(error)) return null;
+        if (isNotFoundError(error)) return null;
         throw error;
       }
     },
@@ -110,27 +103,21 @@ export function createOctokitApi(octokit: Octokit): GitHubApi {
     },
 
     async listWorkflowRuns(ref, input) {
-      try {
-        const { data } = await octokit.rest.actions.listWorkflowRuns({
-          owner: ref.owner,
-          repo: ref.repo,
-          workflow_id: input.workflowId,
-          branch: input.branch,
-          event: 'workflow_dispatch',
-          per_page: 30,
-        });
-        return data.workflow_runs.map((run) => ({
-          id: run.id,
-          htmlUrl: run.html_url,
-          status: run.status ?? 'unknown',
-          conclusion: run.conclusion,
-          displayTitle: run.display_title ?? '',
-        }));
-      } catch (error) {
-        // A repo without the workflow has no runs; callers treat that as empty.
-        if (isNotFound(error)) return [];
-        throw error;
-      }
+      const { data } = await octokit.rest.actions.listWorkflowRuns({
+        owner: ref.owner,
+        repo: ref.repo,
+        workflow_id: input.workflowId,
+        branch: input.branch,
+        event: 'workflow_dispatch',
+        per_page: 30,
+      });
+      return data.workflow_runs.map((run) => ({
+        id: run.id,
+        htmlUrl: run.html_url,
+        status: run.status ?? 'unknown',
+        conclusion: run.conclusion,
+        displayTitle: run.display_title ?? '',
+      }));
     },
 
     async listOpenPullRequests(ref, headPrefix) {
@@ -243,7 +230,7 @@ export function createOctokitApi(octokit: Octokit): GitHubApi {
         await octokit.rest.repos.get({ owner: ref.owner, repo: ref.repo });
         return true;
       } catch (error) {
-        if (isNotFound(error)) return false;
+        if (isNotFoundError(error)) return false;
         throw error;
       }
     },
@@ -253,7 +240,7 @@ export function createOctokitApi(octokit: Octokit): GitHubApi {
         await octokit.rest.teams.getByName({ org, team_slug: teamSlug });
         return true;
       } catch (error) {
-        if (isNotFound(error)) return false;
+        if (isNotFoundError(error)) return false;
         throw error;
       }
     },
@@ -266,7 +253,7 @@ export function createOctokitApi(octokit: Octokit): GitHubApi {
         });
         return (status as number) === 204;
       } catch (error) {
-        if (isNotFound(error)) return false;
+        if (isNotFoundError(error)) return false;
         throw error;
       }
     },

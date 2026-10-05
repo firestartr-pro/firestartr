@@ -135,6 +135,20 @@ describe('publishClaimAndWait', () => {
     expect(outcome.error?.message).toContain('Provision failed (failure)');
   });
 
+  it('fails fast on a missing dispatch workflow with the wrapped message', async () => {
+    const harness = createHarness();
+    harness.api.listWorkflowRuns = async () => {
+      throw Object.assign(new Error('Not Found'), { status: 404 });
+    };
+
+    const outcome = await captureOutput(() =>
+      publishClaimAndWait(request(harness), harness.pulse),
+    );
+
+    expect(outcome.error?.message).toBe('Provision wait failed: Not Found');
+    expect(outcome.stderr).not.toContain('run_not_found');
+  });
+
   it('watches a passing wet PR', async () => {
     const harness = createHarness();
     harness.api.setPullRequests(STATE_REPO, [

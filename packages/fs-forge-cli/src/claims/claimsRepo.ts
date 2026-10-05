@@ -4,6 +4,7 @@ import YAML from 'yaml';
 
 import { parseClaimsMap } from './claimsMap.js';
 import { KIND_REGISTRY } from './kindRegistry.js';
+import { isNotFoundError } from '../github/api.js';
 
 import type { ClaimsMap, ResolvedClaim } from './claimsMap.js';
 import type { GitHubApi, RepoFile, RepoRef } from '../github/api.js';
@@ -73,13 +74,19 @@ async function hasInFlightClaimsMapWorkflow(
   repo: ClaimsRepo,
 ): Promise<boolean> {
   const branch = await repo.api.getDefaultBranch(repo.ref);
-  const runs = await repo.api.listWorkflowRuns(repo.ref, {
-    workflowId: 'generate-claims-map.yaml',
-    branch,
-  });
-  return runs.some(
-    (run) => run.status === 'queued' || run.status === 'in_progress',
-  );
+  try {
+    const runs = await repo.api.listWorkflowRuns(repo.ref, {
+      workflowId: 'generate-claims-map.yaml',
+      branch,
+    });
+    return runs.some(
+      (run) => run.status === 'queued' || run.status === 'in_progress',
+    );
+  } catch (error) {
+    // A repo without the generation workflow has no runs in flight.
+    if (isNotFoundError(error)) return false;
+    throw error;
+  }
 }
 
 export async function loadClaimsMap(

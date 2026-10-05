@@ -387,6 +387,26 @@ describe('octokit adapter request shapes', () => {
     await expect(api.repoExists(OTHER_REF)).resolves.toBe(true);
   });
 
+  it('propagates a missing workflow instead of masking it', async () => {
+    const octokit = {
+      rest: {
+        actions: {
+          listWorkflowRuns: jest.fn(async () => {
+            throw Object.assign(new Error('Not Found'), { status: 404 });
+          }),
+        },
+      },
+    } as unknown as Octokit;
+    const api = createOctokitApi(octokit);
+
+    await expect(
+      api.listWorkflowRuns(REF, {
+        workflowId: 'missing.yaml',
+        branch: 'main',
+      }),
+    ).rejects.toThrow('Not Found');
+  });
+
   it('maps a merged pull request to its merged state', async () => {
     const api = octokitScenario();
     await expect(api.getPullRequest(REF, 7)).resolves.toEqual({

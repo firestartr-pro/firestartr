@@ -3,6 +3,7 @@ import { describe, expect, it } from '@jest/globals';
 import {
   claimsRepo,
   dispatchUnprovision,
+  loadClaimsMap,
   publishClaim,
   readClaimFile,
   readDefaultsFile,
@@ -152,6 +153,29 @@ describe('dispatchUnprovision', () => {
       includeVariants: false,
       waitForClaimChecks: true,
     });
+  });
+});
+
+describe('loadClaimsMap', () => {
+  it('treats a missing claims-map workflow as no run in flight', async () => {
+    const api = new MemoryGitHubApi();
+    const claims = repo(api);
+    api.setFile(
+      claims.ref,
+      'claims-map.json',
+      JSON.stringify({ headers: { sha: 'map-sha' }, claims: {} }),
+      'map-file-sha',
+    );
+    api.listWorkflowRuns = async () => {
+      throw Object.assign(new Error('Not Found'), { status: 404 });
+    };
+    const wait = jest.fn(async () => {});
+
+    await expect(loadClaimsMap(claims, { wait })).resolves.toEqual({
+      headers: { sha: 'map-sha' },
+      claims: {},
+    });
+    expect(wait).not.toHaveBeenCalled();
   });
 });
 
