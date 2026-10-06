@@ -16,10 +16,11 @@ set -euo pipefail
 # of being truncated at the first page. Any failure aborts the snapshot, since
 # GitHub answers 404 for a private repo the token cannot read. Only a call
 # marked "optional" (a workflow the org may not have) reads a 404 as an empty
-# list.
+# list. Calls are pinned to github.com, the endpoint the CLI's Octokit uses,
+# so a GH_HOST pointing elsewhere cannot make the snapshots watch another server.
 get() {
   local path="$1" filter="$2" optional="${3:-}" out
-  if out="$(gh api --paginate "$path" 2>&1)"; then
+  if out="$(gh api --hostname github.com --paginate "$path" 2>&1)"; then
     printf '%s' "$out" | jq -s "$filter"
     return
   fi

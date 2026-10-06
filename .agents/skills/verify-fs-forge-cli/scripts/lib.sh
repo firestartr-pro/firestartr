@@ -69,10 +69,11 @@ fsf_packages_state() {
 
 # The GitHub token for org-bound drives, in gh's own precedence (GH_TOKEN,
 # GITHUB_TOKEN, stored auth), so the snapshots' gh calls and the CLI child act
-# as the same identity. Never printed.
+# as the same identity. Stored auth is read for github.com, the CLI's endpoint.
+# Never printed.
 fsf_token() {
   if [ -n "${GH_TOKEN:-}" ]; then printf '%s' "$GH_TOKEN"; return; fi
   if [ -n "${GITHUB_TOKEN:-}" ]; then printf '%s' "$GITHUB_TOKEN"; return; fi
   command -v gh >/dev/null 2>&1 || return 1
-  gh auth token 2>/dev/null
+  gh auth token --hostname github.com 2>/dev/null
 }

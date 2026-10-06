@@ -66,7 +66,7 @@ case "$mode" in
     token="$(fsf_token)" || fsf_die "no GH_TOKEN, GITHUB_TOKEN or 'gh auth token'"
     if [ "$mode" = write ]; then
       # Registered pre orgs live in firestartr-pre/app-firestartr (see smoke-test-renderer).
-      gh api "repos/firestartr-pre/app-firestartr/contents/kubernetes/firestartr-pre/$org" >/dev/null 2>&1 ||
+      gh api --hostname github.com "repos/firestartr-pre/app-firestartr/contents/kubernetes/firestartr-pre/$org" >/dev/null 2>&1 ||
         fsf_die "write mode refused: $org is not registered under firestartr-pre/app-firestartr kubernetes/firestartr-pre/"
     fi
     ;;
