@@ -3,7 +3,7 @@ import {
   getDefaultMassiveConfig,
   parseMassiveConfig,
   splitBatches,
-} from '../massive/massive-plan';
+} from '../../src/massive-plan';
 
 describe('massive e2e plan', () => {
   it('uses final default scale', () => {

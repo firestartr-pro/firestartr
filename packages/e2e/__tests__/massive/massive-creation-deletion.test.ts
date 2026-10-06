@@ -16,7 +16,7 @@ import {
   splitBatches,
   type MassiveGroupTemplate,
   type MassiveRepositoryTemplate,
-} from './massive-plan';
+} from '../../src/massive-plan';
 import {
   buildComponentClaimPatches,
   buildGroupClaimPatches,
