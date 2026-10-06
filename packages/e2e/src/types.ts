@@ -1,7 +1,4 @@
-import type {
-  JsonPatchOperation,
-  TestContext,
-} from 'render/src/utils/auxiliar';
+import type { JsonPatchOperation } from 'render/src/utils/auxiliar';
 import type { K8sResource } from './k8s/types';
 import type { TFResult } from './k8s/tfresult';
 
@@ -80,40 +77,11 @@ export type RenderedArtifact = {
   outputPath: string;
 };
 
-// Renderer configuration roots used by `renderClaims(...)`.
-// These are filesystem paths, not repository URLs.
-// If omitted, defaults resolve from `fixturesBasePath` (or repo defaults):
-// - `<fixturesBasePath>/initializers`
-// - `<fixturesBasePath>/globals`
-// - `defaults` falls back to `initializers`
-export interface ClaimsConfig {
-  // Directory with initializer YAML files.
-  initializers?: string;
-
-  // Directory with globals YAML files.
-  globals?: string;
-
-  // Claims-defaults path passed to renderer (`claimsDefaults`).
-  defaults?: string;
-}
-
 // Claims API surface used by e2e tests.
 // "Context" is the temporary render workspace created by
 // `createTestContext(...)` in `packages/e2e/src/test-context.ts`.
 // It contains copied fixture claim files, applied patches, and output folders.
 export interface ClaimsApi {
-  // Inject a prebuilt context (advanced use).
-  // Use when tests need custom fixture loading beyond `initE2e(..., { onlyFiles })`.
-  setContext: (context: TestContext) => void;
-
-  // Read the current context instance, or null before first render/setup.
-  getContext: () => TestContext | null;
-
-  // Override claims config directories used by subsequent renders.
-  // Call this before `renderLocally` when using custom
-  // initializer/global/default fixtures.
-  setConfig: (config: ClaimsConfig) => void;
-
   // Recreate the current context from original source fixtures.
   // Useful to discard previous file patches while keeping the same fixture set.
   restartContext: () => Promise<void>;

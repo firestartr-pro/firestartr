@@ -42,7 +42,6 @@ export {
 
 export type {
   ClaimsApi,
-  ClaimsConfig,
   E2EApi,
   E2EInitOptions,
   GhApi,
