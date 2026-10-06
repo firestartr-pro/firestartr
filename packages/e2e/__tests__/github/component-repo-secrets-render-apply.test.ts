@@ -12,9 +12,9 @@ import {
   type E2EApi,
   type FixtureResourceInput,
   type GhApi,
-  type JsonPatchOperation,
   type TempOpaqueSecret,
 } from '../..';
+import { buildComponentClaimPatches } from '../../src/claim-patches';
 import { readK8sResource } from '../../src/cr-finder';
 import { isNotFound, type GithubError } from '../../src/gh/errors';
 import { verifyValueViaWorkflow } from '../../src/gh/workflow-verification';
@@ -43,61 +43,6 @@ const REPO_SECRETS_TEST_TIMEOUT_MS =
 type SecretManifest = {
   stringData?: Record<string, string>;
 };
-
-function componentPatches(
-  ownerRef: string,
-  secretRef: string,
-): JsonPatchOperation[] {
-  return [
-    { op: 'remove', path: '/system' },
-    { op: 'replace', path: '/owner', value: ownerRef },
-    { op: 'replace', path: '/platformOwner', value: ownerRef },
-    { op: 'remove', path: '/maintainedBy' },
-    { op: 'replace', path: '/providers/github/additionalRules', value: [] },
-    {
-      op: 'replace',
-      path: '/providers/github/overrides/additionalAdmins',
-      value: [],
-    },
-    {
-      op: 'replace',
-      path: '/providers/github/overrides/additionalMaintainers',
-      value: [],
-    },
-    {
-      op: 'replace',
-      path: '/providers/github/overrides/additionalReaders',
-      value: [],
-    },
-    {
-      op: 'replace',
-      path: '/providers/github/overrides/additionalWriters',
-      value: [],
-    },
-    {
-      op: 'replace',
-      path: '/providers/github/overrides/additionalCodeownersRules',
-      value: [],
-    },
-    {
-      op: 'replace',
-      path: '/providers/github/overrides/spec/actions/oidc/useDefault',
-      value: true,
-    },
-    {
-      op: 'replace',
-      path: '/providers/github/overrides/spec/actions/oidc/includeClaimKeys',
-      value: [],
-    },
-    {
-      op: 'add',
-      path: '/providers/github/secrets',
-      value: {
-        actions: [{ name: REPO_SECRET_NAME, value: secretRef }],
-      },
-    },
-  ];
-}
 
 async function findRepoSecretsCrPath(crPaths: string[]): Promise<string> {
   for (const crPath of crPaths) {
@@ -331,7 +276,13 @@ describe('Claim Render Local Component Repository Secrets E2E', () => {
       ]);
 
       const rendered = await client.claims.renderLocally('component-a', {
-        patches: componentPatches(defaultGroup.ref, tempSecret.claimSecretRef),
+        patches: buildComponentClaimPatches({
+          name: componentName,
+          ownerRef: defaultGroup.ref,
+          secrets: [
+            { name: REPO_SECRET_NAME, value: tempSecret.claimSecretRef },
+          ],
+        }),
       });
       const secretsCrPath = await findRepoSecretsCrPath(rendered.crPaths);
       const repositoryCrPath = await findRepositoryCrPath(rendered.crPaths);

@@ -13,6 +13,7 @@ import {
   type GhOrgVariable,
   type JsonPatchOperation,
 } from '../..';
+import { buildComponentClaimPatches } from '../../src/claim-patches';
 import { readK8sResource } from '../../src/cr-finder';
 import { isNotFound, type GithubError } from '../../src/gh/errors';
 import { verifyValueViaWorkflow } from '../../src/gh/workflow-verification';
@@ -34,51 +35,6 @@ const ORG_VAR_READ_TIMEOUT_MS = 5 * 60 * 1000;
 const ORG_VAR_READ_INTERVAL_MS = 5000;
 const ORG_VARS_TEST_TIMEOUT_MS =
   LOCAL_RENDER_APPLY_TEST_TIMEOUT_MS + 3 * WORKFLOW_RUN_TIMEOUT_MS;
-
-function componentPatches(ownerRef: string): JsonPatchOperation[] {
-  return [
-    { op: 'remove', path: '/system' },
-    { op: 'replace', path: '/owner', value: ownerRef },
-    { op: 'replace', path: '/platformOwner', value: ownerRef },
-    { op: 'remove', path: '/maintainedBy' },
-    { op: 'replace', path: '/providers/github/additionalRules', value: [] },
-    {
-      op: 'replace',
-      path: '/providers/github/overrides/additionalAdmins',
-      value: [],
-    },
-    {
-      op: 'replace',
-      path: '/providers/github/overrides/additionalMaintainers',
-      value: [],
-    },
-    {
-      op: 'replace',
-      path: '/providers/github/overrides/additionalReaders',
-      value: [],
-    },
-    {
-      op: 'replace',
-      path: '/providers/github/overrides/additionalWriters',
-      value: [],
-    },
-    {
-      op: 'replace',
-      path: '/providers/github/overrides/additionalCodeownersRules',
-      value: [],
-    },
-    {
-      op: 'replace',
-      path: '/providers/github/overrides/spec/actions/oidc/useDefault',
-      value: true,
-    },
-    {
-      op: 'replace',
-      path: '/providers/github/overrides/spec/actions/oidc/includeClaimKeys',
-      value: [],
-    },
-  ];
-}
 
 function orgVariablesPatches(options: {
   allVariableName: string;
@@ -273,7 +229,10 @@ describe('Claim Render Local Org Variables E2E', () => {
       const renderedComponent = await client.claims.renderLocally(
         'component-a',
         {
-          patches: componentPatches(defaultGroup.ref),
+          patches: buildComponentClaimPatches({
+            name: componentName,
+            ownerRef: defaultGroup.ref,
+          }),
         },
       );
 

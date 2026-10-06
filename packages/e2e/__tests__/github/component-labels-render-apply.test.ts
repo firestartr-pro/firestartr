@@ -13,6 +13,7 @@ import {
   type GhRepoLabel,
   type JsonPatchOperation,
 } from '../..';
+import { buildComponentClaimPatches } from '../../src/claim-patches';
 import { readK8sResource } from '../../src/cr-finder';
 import { LOCAL_RENDER_APPLY_TEST_TIMEOUT_MS } from '../../src/test-constants';
 
@@ -57,56 +58,6 @@ function lookupLabel(
   name: string,
 ): GhRepoLabel | undefined {
   return labels.find((l) => l.name === name);
-}
-
-function componentPatches(ownerRef: string): JsonPatchOperation[] {
-  return [
-    { op: 'remove', path: '/system' },
-    { op: 'replace', path: '/owner', value: ownerRef },
-    { op: 'replace', path: '/platformOwner', value: ownerRef },
-    { op: 'remove', path: '/maintainedBy' },
-    { op: 'replace', path: '/providers/github/additionalRules', value: [] },
-    {
-      op: 'replace',
-      path: '/providers/github/overrides/additionalAdmins',
-      value: [],
-    },
-    {
-      op: 'replace',
-      path: '/providers/github/overrides/additionalMaintainers',
-      value: [],
-    },
-    {
-      op: 'replace',
-      path: '/providers/github/overrides/additionalReaders',
-      value: [],
-    },
-    {
-      op: 'replace',
-      path: '/providers/github/overrides/additionalWriters',
-      value: [],
-    },
-    {
-      op: 'replace',
-      path: '/providers/github/overrides/additionalCodeownersRules',
-      value: [],
-    },
-    {
-      op: 'replace',
-      path: '/providers/github/overrides/spec/actions/oidc/useDefault',
-      value: true,
-    },
-    {
-      op: 'replace',
-      path: '/providers/github/overrides/spec/actions/oidc/includeClaimKeys',
-      value: [],
-    },
-    {
-      op: 'add',
-      path: '/providers/github/overrides/spec/repo/hasIssues',
-      value: false,
-    },
-  ];
 }
 
 type LabelInput = {
@@ -175,7 +126,11 @@ describe('Claim Render Local Component Labels E2E', () => {
 
       // Leg 0: apply the component with no labels → repo created.
       const rendered0 = await client.claims.renderLocally('component-a', {
-        patches: componentPatches(defaultGroup.ref),
+        patches: buildComponentClaimPatches({
+          name: componentName,
+          ownerRef: defaultGroup.ref,
+          hasIssues: false,
+        }),
       });
       await applyAndWaitCrPaths(client, rendered0.crPaths);
 
@@ -207,7 +162,11 @@ describe('Claim Render Local Component Labels E2E', () => {
       // label is created.
       const renderedB = await client.claims.renderLocally('component-a', {
         patches: [
-          ...componentPatches(defaultGroup.ref),
+          ...buildComponentClaimPatches({
+            name: componentName,
+            ownerRef: defaultGroup.ref,
+            hasIssues: false,
+          }),
           labelsPatch([
             {
               name: MANUAL_LABEL_NAME,
@@ -246,7 +205,11 @@ describe('Claim Render Local Component Labels E2E', () => {
       // the label is updated on GitHub.
       const renderedC = await client.claims.renderLocally('component-a', {
         patches: [
-          ...componentPatches(defaultGroup.ref),
+          ...buildComponentClaimPatches({
+            name: componentName,
+            ownerRef: defaultGroup.ref,
+            hasIssues: false,
+          }),
           labelsPatch([
             {
               name: MANUAL_LABEL_NAME,

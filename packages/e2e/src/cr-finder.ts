@@ -10,7 +10,7 @@ import {
   type ClaimRef,
 } from './claim-taxonomy';
 
-import type { JsonPatchOperation, TestContext } from './types';
+import type { TestContext } from './types';
 import type { K8sResource } from './k8s/types';
 
 type YamlResource = {
@@ -31,73 +31,6 @@ const SUPPORTED_CLAIM_KINDS = Object.keys(CLAIM_KIND_TO_CR_KIND).join(', ');
 
 const CLAIM_REF_ANNOTATION =
   common.generic.getFirestartrAnnotation('claim-ref');
-
-const CLAIM_KIND_TO_GITHUB_ORG_FIELD = {
-  GroupClaim: 'org',
-  UserClaim: 'org',
-  ComponentClaim: 'org',
-  OrgWebhookClaim: 'orgName',
-  OrgSettingsClaim: 'org',
-} as const satisfies Partial<Record<ClaimKind, 'org' | 'orgName'>>;
-
-const CLAIM_KIND_TO_PROVIDER_NAME_FIELD = {
-  GroupClaim: '/providers/github/name',
-  UserClaim: '/providers/github/name',
-  ComponentClaim: '/providers/github/name',
-  TFWorkspaceClaim: '/providers/terraform/name',
-  OrgWebhookClaim: '/providers/github/name',
-  OrgSettingsClaim: '/providers/github/name',
-} as const satisfies Partial<Record<ClaimKind, string>>;
-
-function hasOwnKey<T extends object>(
-  record: T,
-  key: PropertyKey,
-): key is keyof T {
-  return Object.prototype.hasOwnProperty.call(record, key);
-}
-
-export function buildCommonClaimPatches(
-  name: string,
-  org: string,
-  claimKind: string,
-): JsonPatchOperation[] {
-  const patches: JsonPatchOperation[] = [
-    { op: 'replace', path: '/name', value: name },
-  ];
-
-  if (claimKind === 'ComponentClaim') {
-    patches.push({
-      op: 'add',
-      path: '/providers/github/archiveOnDestroy',
-      value: false,
-    });
-  }
-
-  const providerNameField = hasOwnKey(
-    CLAIM_KIND_TO_PROVIDER_NAME_FIELD,
-    claimKind,
-  )
-    ? CLAIM_KIND_TO_PROVIDER_NAME_FIELD[claimKind]
-    : undefined;
-
-  if (providerNameField) {
-    patches.push({ op: 'replace', path: providerNameField, value: name });
-  }
-
-  const githubOrgField = hasOwnKey(CLAIM_KIND_TO_GITHUB_ORG_FIELD, claimKind)
-    ? CLAIM_KIND_TO_GITHUB_ORG_FIELD[claimKind]
-    : undefined;
-
-  if (githubOrgField) {
-    patches.push({
-      op: 'replace',
-      path: `/providers/github/${githubOrgField}`,
-      value: org,
-    });
-  }
-
-  return patches;
-}
 
 type RenderedCrMatch = {
   filePath: string;

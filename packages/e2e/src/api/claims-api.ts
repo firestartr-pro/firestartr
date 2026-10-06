@@ -4,8 +4,8 @@ import path from 'node:path';
 import common from 'catalog_common';
 import { AllowedProviders } from 'render';
 import { buildClaimRef } from '../claim-taxonomy';
+import { buildCommonClaimPatches } from '../claim-patches';
 import {
-  buildCommonClaimPatches,
   findRenderedCrPaths,
   patchResourceSpecContext,
   readClaimResource,

@@ -17,6 +17,10 @@ import {
   type MassiveGroupTemplate,
   type MassiveRepositoryTemplate,
 } from './massive-plan';
+import {
+  buildComponentClaimPatches,
+  buildGroupClaimPatches,
+} from '../../src/claim-patches';
 import { readK8sResource } from '../../src/cr-finder';
 import { isRetryableGitHubError } from '../../src/gh/wait';
 import {
@@ -40,73 +44,52 @@ function groupPatches(
   template: MassiveGroupTemplate,
   org: string,
 ): JsonPatchOperation[] {
-  return [
-    { op: 'replace', path: '/description', value: template.description },
-    {
-      op: 'replace',
-      path: '/profile/displayName',
-      value: template.displayName,
-    },
-    { op: 'replace', path: '/members', value: [] },
-    {
-      op: 'replace',
-      path: '/providers/github/name',
-      value: template.providerName,
-    },
-    { op: 'replace', path: '/providers/github/org', value: org },
-  ];
+  return buildGroupClaimPatches({
+    name: template.claimName,
+    org,
+    description: template.description,
+    displayName: template.displayName,
+    members: [],
+    // The provider name is derived from the template, not the claim name.
+    extraPatches: [
+      {
+        op: 'replace',
+        path: '/providers/github/name',
+        value: template.providerName,
+      },
+    ],
+  });
 }
 
 function repositoryPatches(
   template: MassiveRepositoryTemplate,
   org: string,
 ): JsonPatchOperation[] {
-  return [
-    { op: 'remove', path: '/system' },
-    { op: 'replace', path: '/owner', value: template.ownerRef },
-    { op: 'replace', path: '/platformOwner', value: template.ownerRef },
-    { op: 'remove', path: '/maintainedBy' },
-    { op: 'replace', path: '/providers/github/org', value: org },
-    {
-      op: 'replace',
-      path: '/providers/github/name',
-      value: template.providerName,
-    },
-    {
-      op: 'replace',
-      path: '/providers/github/description',
-      value: template.description,
-    },
-    { op: 'replace', path: '/providers/github/additionalRules', value: [] },
-    {
-      op: 'replace',
-      path: '/providers/github/overrides/additionalAdmins',
-      value: [],
-    },
-    {
-      op: 'replace',
-      path: '/providers/github/overrides/additionalCodeownersRules',
-      value: [],
-    },
-    {
-      op: 'replace',
-      path: '/providers/github/overrides/spec/actions/oidc/useDefault',
-      value: true,
-    },
-    {
-      op: 'replace',
-      path: '/providers/github/overrides/spec/actions/oidc/includeClaimKeys',
-      value: [],
-    },
-    {
-      op: 'replace',
-      path: '/providers/github/overrides/spec/repo/topics',
-      value: template.topics,
-    },
-    { op: 'add', path: '/providers/github/features', value: template.features },
-  ];
+  return buildComponentClaimPatches({
+    name: template.claimName,
+    org,
+    ownerRef: template.ownerRef,
+    description: template.description,
+    extraPatches: [
+      // The provider name is derived from the template, not the claim name.
+      {
+        op: 'replace',
+        path: '/providers/github/name',
+        value: template.providerName,
+      },
+      {
+        op: 'replace',
+        path: '/providers/github/overrides/spec/repo/topics',
+        value: template.topics,
+      },
+      {
+        op: 'add',
+        path: '/providers/github/features',
+        value: template.features,
+      },
+    ],
+  });
 }
-
 async function rateGate(
   client: E2EApi,
   label: string,
