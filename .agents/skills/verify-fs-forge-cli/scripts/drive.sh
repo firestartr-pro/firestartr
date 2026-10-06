@@ -105,7 +105,7 @@ for seed in ${seeds[@]+"${seeds[@]}"}; do
     "$work_real"|"$work_real"/*) ;;
     *) fsf_die "seed destination escapes the work dir: $dest" ;;
   esac
-  cp -R "$src" "$work/$dest"
+  cp -R "$src" "$work/$dest" || fsf_die "could not copy seed $src to $dest"
 done
 
 # sha256 of every file in the work dir, minus the isolated cache and XDG dirs.
