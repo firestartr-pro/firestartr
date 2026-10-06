@@ -115,7 +115,7 @@ it alone. Per drive:
 | `cmd.txt` | mode, org, working dir and the exact command |
 | `stdout.txt`, `stderr.txt`, `exit-code.txt` | the transcript |
 | `net.log` | JSONL of every connect attempted: `host`, `port`, `blocked` |
-| `files-before.txt`, `files.txt`, `files-changed.txt` | sha256 of the work dir's files (seeds included) before and after the command, and their diff; an empty `files-changed.txt` means the command wrote nothing |
+| `files-before.txt`, `files.txt`, `files-changed.txt` | sha256 of the work dir's files (seeds included) before and after the command, and their diff, leaving out the drive's own `.feature-cache/` and `.xdg/` dirs; an empty `files-changed.txt` means the command wrote nothing else in the work dir |
 | `org-before.json`, `org-after.json`, `org-diff.txt` | claims-repo state around org-bound drives |
 | `verdict.txt` | `PASS` or `FAIL - <reason>` |
 

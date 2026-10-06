@@ -37,7 +37,7 @@ Preconditions:
   - `-- create tfworkspace --name ws --owner group:platform --providers.terraform.name ws --providers.terraform.source remote --providers.terraform.values.json '{}' --providers.terraform.context.providers.json '[]'` prints `kind: TFWorkspaceClaim`.
   - `-- create user --name alice --providers.github.name alice --providers.github.org my-org --providers.github.role member` prints `kind: UserClaim`.
 - **Create, then validate.** Run `$V/drive.sh --label validate-created --seed $R/<NN>-create-domain/stdout.txt=claim.yaml -- validate -f claim.yaml`. Exit 0; `stdout.txt` has `"kind": "DomainClaim"` and `"valid": true`.
-- **Proof.** Keep each `create-*` drive directory and its `validate-created` pair. `files-changed.txt` empty on every one shows `create` wrote nothing.
+- **Proof.** Keep each `create-*` drive directory and its `validate-created` pair. `files-changed.txt` empty on every one shows `create` wrote no file to the work dir.
 
 ## Gotchas
 

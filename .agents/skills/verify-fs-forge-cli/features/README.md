@@ -22,7 +22,7 @@ This directory is the maintained source for verifying the user-facing behavior o
 
 ## Proof and skip reporting
 
-- CLI proof includes the command (`cmd.txt`), stdout, stderr and the exit code, plus `files-changed.txt` (files written; empty means none) and `net.log` (connects attempted).
+- CLI proof includes the command (`cmd.txt`), stdout, stderr and the exit code, plus `files-changed.txt` (work-dir files written, not counting the isolated `.feature-cache/` and `.xdg/` dirs; empty means none) and `net.log` (connects attempted).
 - A mutation command proves its result with a second view: validate what `create` printed, list what `features add` printed.
 - Org-bound proof includes `org-diff.txt`; on an unchanged `read` drive it holds the line `no change in fs-forge branches, PRs or workflow runs`, so any `diff` output means the drive changed org state.
 - Record the feature ID and entry point beside every verdict.
