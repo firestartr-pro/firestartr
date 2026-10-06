@@ -23,8 +23,11 @@ fsf_die() {
 
 # fs-forge needs node >=22. A bare PATH may lack node (nvm loads lazily in
 # interactive shells), so fall back to the newest nvm install that qualifies.
+# Exported node/npm/npx functions (lazy nvm loaders) are dropped first: bash
+# runs a function before PATH, so it would shadow the binary picked here.
 fsf_resolve_node() {
   local node major dir
+  unset -f node npm npx 2>/dev/null || true
   node="$(command -v node || true)"
   major=0
   [ -n "$node" ] && major="$("$node" -p 'process.versions.node.split(".")[0]' 2>/dev/null || echo 0)"
