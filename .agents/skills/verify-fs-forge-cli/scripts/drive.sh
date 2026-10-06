@@ -166,24 +166,30 @@ if [ "$mode" != offline ] && [ -n "${token:-}" ]; then
   if [ -n "$token_files" ]; then
     # The token must not survive on disk or in the transcript printed below.
     printf '%s\n' "$token_files" | while IFS= read -r f; do
-      tmp="$(mktemp "$evid/redact.XXXXXX")"
-      awk -v s="$token" '{while (i=index($0,s)) $0=substr($0,1,i-1) "[REDACTED]" substr($0,i+length(s))} 1' "$f" > "$tmp" && mv "$tmp" "$f"
+      tmp="$(mktemp "$evid/redact.XXXXXX")" &&
+        awk -v s="$token" '{while (i=index($0,s)) $0=substr($0,1,i-1) "[REDACTED]" substr($0,i+length(s))} 1' "$f" > "$tmp" &&
+        mv "$tmp" "$f"
     done
-    verdict=FAIL reason="the GitHub token appears in the evidence (redacted)"; status=4
     # A failed rewrite leaves the token on disk: stop before the transcript prints it.
     if grep -rqF -- "$token" "$evid" 2>/dev/null; then
       echo "FAIL - the GitHub token appears in the evidence and could not be redacted" > "$evid/verdict.txt"
       echo "ERROR: the GitHub token is in $evid and could not be redacted; delete that dir" >&2
       exit 4
     fi
+    verdict=FAIL reason="the GitHub token appears in the evidence (redacted)"; status=4
   fi
 fi
 if [ "$status" = 0 ] && [ "$code" != "$expect" ]; then
   verdict=FAIL reason="exit code $code, expected $expect"; status=1
 fi
 
-list_files > "$evid/files.txt"
-diff "$evid/files-before.txt" "$evid/files.txt" > "$evid/files-changed.txt"
+# An incomplete fingerprint or a failed diff would read as "no files changed".
+if ! list_files > "$evid/files.txt"; then
+  verdict=FAIL reason="could not fingerprint the work dir after the drive"; status=4
+else
+  diff "$evid/files-before.txt" "$evid/files.txt" > "$evid/files-changed.txt"
+  [ $? -le 1 ] || { verdict=FAIL reason="could not diff the work dir fingerprints"; status=4; }
+fi
 echo "$verdict${reason:+ - $reason}" > "$evid/verdict.txt"
 
 echo "--- stdout (first 40 lines) ---"; head -n 40 "$evid/stdout.txt"
