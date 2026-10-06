@@ -59,6 +59,9 @@ case "$mode" in
     [ -n "$org" ] || fsf_die "$mode mode needs --org <org> named explicitly; there is no default"
     [ -z "$arg_org" ] || [ "$arg_org" = "$org" ] || fsf_die "the command targets --org $arg_org but the drive names $org"
     [ "$mode" = write ] || [ "$has_commit" = 0 ] || fsf_die "--commit needs --mode write"
+    # Without --commit the CLI takes its dry-run path and the org diff is empty,
+    # which would pass as a write proof.
+    [ "$mode" = read ] || [ "$has_commit" = 1 ] || fsf_die "--mode write needs --commit in the command; drive a dry run with --mode read"
     command -v gh >/dev/null 2>&1 || fsf_die "gh is required by org-snapshot.sh"
     token="$(fsf_token)" || fsf_die "no GH_TOKEN, GITHUB_TOKEN or 'gh auth token'"
     if [ "$mode" = write ]; then

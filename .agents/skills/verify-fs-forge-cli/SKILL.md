@@ -71,7 +71,7 @@ relative to it); a previous drive's `stdout.txt` makes a good seed for chaining
 |---|---|---|---|
 | `offline` (default) | local commands, no token, outbound connects blocked | `net.log` must stay empty | `--org`, `--commit` |
 | `read` | org-bound reads, token set, connects logged | `fs-forge/*` branches, PRs and workflow runs in `<org>/claims` unchanged | no `--org`, `--commit` |
-| `write` | `--commit`, `delete` without a dry run | claims-repo diff recorded in `org-diff.txt` | no `--org`, org not registered under `firestartr-pre/app-firestartr` `kubernetes/firestartr-pre/` |
+| `write` | `--commit` (required; `delete` and every other command write only with it) | claims-repo diff recorded in `org-diff.txt` | no `--org`, no `--commit` in the command, org not registered under `firestartr-pre/app-firestartr` `kubernetes/firestartr-pre/` |
 
 Org-bound drives need an org the user named in this conversation. Take it from
 nothing else: not `FSCRT_ORG`, not `gh`'s defaults, not a fixture. Get the
