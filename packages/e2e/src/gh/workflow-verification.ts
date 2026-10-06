@@ -29,7 +29,7 @@ const GITHUB_WRITE_RETRY_DELAY_MS = 5000;
 const DEFAULT_VALUE_READ_TIMEOUT_MS = 5 * 60 * 1000;
 const DEFAULT_POLL_INTERVAL_MS = 10000;
 
-type OrgOctokit = Awaited<ReturnType<typeof github.getOctokitForOrg>>;
+export type OrgOctokit = Awaited<ReturnType<typeof github.getOctokitForOrg>>;
 
 type WorkflowRunListItem = {
   id: number;
@@ -41,11 +41,38 @@ type WorkflowRunCompletion = Pick<
   'conclusion' | 'runId' | 'htmlUrl'
 >;
 
-export interface VerifyValueViaWorkflowOptions {
+export interface PrepareWorkflowVerificationOptions {
   org: string;
   repoName: string;
   /** File name under fixtures/workflows, e.g. 'verify-secret.yaml'. */
   workflowFixtureFileName: string;
+  /**
+   * Budget for workflow discovery, and the per-run budget shared by
+   * correlation and completion. Default: 5 min.
+   */
+  timeoutMs?: number;
+  /** Poll interval for workflow discovery, correlation and completion. */
+  pollIntervalMs?: number;
+}
+
+/**
+ * Handle returned by {@link prepareWorkflowVerification}: the workflow fixture
+ * is committed and registered, so every later verification only dispatches a
+ * fresh correlated run against it.
+ */
+export interface WorkflowVerification {
+  org: string;
+  repoName: string;
+  workflowFixtureFileName: string;
+  workflowId: number;
+  /** GitHub client used to poll the dispatched run and read its completion. */
+  octokit: OrgOctokit;
+  /** Per-run budget shared by correlation and completion. */
+  timeoutMs: number;
+  pollIntervalMs: number;
+}
+
+export interface VerifyValueViaWorkflowOptions {
   /** workflow_dispatch inputs, without the correlation input. */
   inputValues: Record<string, string>;
   /** Value kind reported in failure diagnostics, e.g. 'Repository secret'. */
@@ -54,10 +81,6 @@ export interface VerifyValueViaWorkflowOptions {
   valueName: string;
   /** Input name the fixture reads to set the run's display_title. */
   correlationInputName?: string;
-  /** Per-run budget shared by correlation and completion. Default: 5 min. */
-  timeoutMs?: number;
-  /** Poll interval for workflow discovery, correlation and completion. */
-  pollIntervalMs?: number;
 }
 
 export interface WorkflowVerificationResult {
@@ -114,7 +137,7 @@ async function retryTransientGitHubProbe<T>(
 }
 
 async function writeVerifyWorkflow(
-  options: VerifyValueViaWorkflowOptions,
+  options: PrepareWorkflowVerificationOptions,
   repoPath: string,
 ): Promise<void> {
   const fixturePath = path.join(
@@ -143,9 +166,9 @@ async function writeVerifyWorkflow(
 }
 
 async function waitForRegisteredWorkflowId(
-  octokit: OrgOctokit,
-  options: VerifyValueViaWorkflowOptions,
+  options: PrepareWorkflowVerificationOptions,
   repoPath: string,
+  octokit: OrgOctokit,
   timeoutMs: number,
   pollIntervalMs: number,
 ): Promise<number> {
@@ -187,23 +210,20 @@ async function waitForRegisteredWorkflowId(
 }
 
 async function waitForCorrelatedWorkflowRun(
-  octokit: OrgOctokit,
-  options: VerifyValueViaWorkflowOptions,
-  repoPath: string,
-  workflowId: number,
+  verification: WorkflowVerification,
   correlationId: string,
   timeoutMs: number,
-  pollIntervalMs: number,
 ): Promise<WorkflowRunListItem> {
   const run = await pollUntil(
     () =>
       retryTransientGitHubProbe(async () => {
-        const response = await octokit.rest.actions.listWorkflowRuns({
-          owner: options.org,
-          repo: options.repoName,
-          workflow_id: workflowId,
-          per_page: 100,
-        });
+        const response =
+          await verification.octokit.rest.actions.listWorkflowRuns({
+            owner: verification.org,
+            repo: verification.repoName,
+            workflow_id: verification.workflowId,
+            per_page: 100,
+          });
         return selectCorrelatedWorkflowRun(
           response.data.workflow_runs as WorkflowRunListItem[],
           correlationId,
@@ -211,21 +231,21 @@ async function waitForCorrelatedWorkflowRun(
       }),
     {
       timeoutMs,
-      intervalMs: pollIntervalMs,
+      intervalMs: verification.pollIntervalMs,
       isDone: (value) => value !== null,
       shouldRetryError: isRetryableError,
       createTimeoutError: () =>
         new Error(
-          `Timed out waiting for a ${options.workflowFixtureFileName} run ` +
-            `with display_title '${correlationId}' in ${options.org}/${options.repoName}`,
+          `Timed out waiting for a ${verification.workflowFixtureFileName} run ` +
+            `with display_title '${correlationId}' in ${verification.org}/${verification.repoName}`,
         ),
     },
   );
 
   if (run === null) {
     throw new Error(
-      `Expected a ${options.workflowFixtureFileName} run with ` +
-        `display_title '${correlationId}' in ${options.org}/${options.repoName}`,
+      `Expected a ${verification.workflowFixtureFileName} run with ` +
+        `display_title '${correlationId}' in ${verification.org}/${verification.repoName}`,
     );
   }
 
@@ -233,13 +253,13 @@ async function waitForCorrelatedWorkflowRun(
 }
 
 /**
- * Commits the verification workflow fixture, dispatches it exactly once with a
- * fresh correlation id, waits for the correlated run and asserts its
- * conclusion. Correlation and completion share the per-run budget.
+ * Commits the verification workflow fixture and waits until GitHub registers
+ * it, once per repository (ADR-0003). Every later
+ * {@link verifyValueViaWorkflow} call reuses the returned handle.
  */
-export async function verifyValueViaWorkflow(
-  options: VerifyValueViaWorkflowOptions,
-): Promise<WorkflowVerificationResult> {
+export async function prepareWorkflowVerification(
+  options: PrepareWorkflowVerificationOptions,
+): Promise<WorkflowVerification> {
   const timeoutMs = options.timeoutMs ?? DEFAULT_VALUE_READ_TIMEOUT_MS;
   const pollIntervalMs = options.pollIntervalMs ?? DEFAULT_POLL_INTERVAL_MS;
   const repoPath = workflowRepoPath(options.workflowFixtureFileName);
@@ -247,52 +267,68 @@ export async function verifyValueViaWorkflow(
 
   await writeVerifyWorkflow(options, repoPath);
   const workflowId = await waitForRegisteredWorkflowId(
-    octokit,
     options,
     repoPath,
+    octokit,
     timeoutMs,
     pollIntervalMs,
   );
 
+  return {
+    org: options.org,
+    repoName: options.repoName,
+    workflowFixtureFileName: options.workflowFixtureFileName,
+    workflowId,
+    octokit,
+    timeoutMs,
+    pollIntervalMs,
+  };
+}
+
+/**
+ * Dispatches the prepared workflow exactly once with a fresh correlation id,
+ * waits for the correlated run and asserts its conclusion. Correlation and
+ * completion share the per-run budget.
+ */
+export async function verifyValueViaWorkflow(
+  verification: WorkflowVerification,
+  options: VerifyValueViaWorkflowOptions,
+): Promise<WorkflowVerificationResult> {
   const correlationId = randomUUID();
 
   // Dispatched exactly once: failed or timed-out runs surface as test failures
   // rather than being redispatched automatically.
   await github.workflow.triggerWorkflow(
-    options.org,
-    options.repoName,
-    workflowId,
+    verification.org,
+    verification.repoName,
+    verification.workflowId,
     'main',
     {
       ...options.inputValues,
       [options.correlationInputName ?? 'correlation_id']: correlationId,
     },
-    octokit,
+    verification.octokit,
   );
 
-  const deadlineMs = Date.now() + timeoutMs;
+  const deadlineMs = Date.now() + verification.timeoutMs;
   const run = await waitForCorrelatedWorkflowRun(
-    octokit,
-    options,
-    repoPath,
-    workflowId,
+    verification,
     correlationId,
     Math.max(deadlineMs - Date.now(), 1),
-    pollIntervalMs,
   );
   const completion = await github.workflow.waitForWorkflowCompletion(
-    options.org,
-    options.repoName,
+    verification.org,
+    verification.repoName,
     run.id,
     Math.max(deadlineMs - Date.now(), 1),
-    pollIntervalMs,
-    octokit,
+    verification.pollIntervalMs,
+    verification.octokit,
   );
 
   assertWorkflowRunSucceeded(completion, {
     failureLabel: options.failureLabel,
     valueName: options.valueName,
-    repoName: options.repoName,
+    repoName: verification.repoName,
     correlationId,
   });
 

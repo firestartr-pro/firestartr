@@ -16,7 +16,10 @@ import {
 import { buildComponentClaimPatches } from '../../src/claim-patches';
 import { pickRenderedCr } from '../../src/render-artifacts';
 import { isNotFound, type GithubError } from '../../src/gh/errors';
-import { verifyValueViaWorkflow } from '../../src/gh/workflow-verification';
+import {
+  prepareWorkflowVerification,
+  verifyValueViaWorkflow,
+} from '../../src/gh/workflow-verification';
 import { isRetryableGitHubError } from '../../src/gh/wait';
 import { disableRepositoryAdminEnforcementInManifest } from '../../src/repository-admin-enforcement';
 import {
@@ -224,9 +227,9 @@ describe('Claim Render Local Org Variables E2E', () => {
       await applyAndWaitCrPaths(client, renderedComponent.crPaths);
       expect(await client.gh.repoExists(componentName)).toBe(true);
 
-      // The shared helper commits the verification workflow, dispatches it
-      // exactly once and correlates the run by display_title. Teardown deletes
-      // the whole repository, so the file needs no cleanup.
+      // The verification workflow is committed once below, before the first
+      // value check. Teardown deletes the whole repository, so the file needs
+      // no cleanup.
       const org = client.getOrg();
 
       console.log('[test] STEP 3: render orgsettings-vars-a');
@@ -279,14 +282,17 @@ describe('Claim Render Local Org Variables E2E', () => {
         ]),
       );
 
-      // Value assertions via in-repo workflow.
-      console.log(
-        `[test] STEP 8: verify value of '${allVariableName}' via workflow`,
-      );
-      await verifyValueViaWorkflow({
+      // Value assertions via in-repo workflow: commit the verification
+      // workflow once, then dispatch it once per variable.
+      const verification = await prepareWorkflowVerification({
         org,
         repoName: componentName,
         workflowFixtureFileName: VERIFY_VARIABLE_WORKFLOW_FILE_NAME,
+      });
+      console.log(
+        `[test] STEP 8: verify value of '${allVariableName}' via workflow`,
+      );
+      await verifyValueViaWorkflow(verification, {
         failureLabel: 'Organization variable',
         valueName: allVariableName,
         inputValues: {
@@ -298,10 +304,7 @@ describe('Claim Render Local Org Variables E2E', () => {
       console.log(
         `[test] STEP 9: verify value of '${selectedVariableName}' via workflow`,
       );
-      await verifyValueViaWorkflow({
-        org,
-        repoName: componentName,
-        workflowFixtureFileName: VERIFY_VARIABLE_WORKFLOW_FILE_NAME,
+      await verifyValueViaWorkflow(verification, {
         failureLabel: 'Organization variable',
         valueName: selectedVariableName,
         inputValues: {
@@ -350,10 +353,7 @@ describe('Claim Render Local Org Variables E2E', () => {
       await applyAndWaitCrPaths(client, renderedVarsWithAdoption.crPaths);
 
       console.log('[test] STEP 13: verify adopted variable value via workflow');
-      await verifyValueViaWorkflow({
-        org,
-        repoName: componentName,
-        workflowFixtureFileName: VERIFY_VARIABLE_WORKFLOW_FILE_NAME,
+      await verifyValueViaWorkflow(verification, {
         failureLabel: 'Organization variable',
         valueName: adoptVariableName,
         inputValues: {

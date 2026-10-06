@@ -16,7 +16,10 @@ import {
 } from '../..';
 import { buildComponentClaimPatches } from '../../src/claim-patches';
 import { isNotFound, type GithubError } from '../../src/gh/errors';
-import { verifyValueViaWorkflow } from '../../src/gh/workflow-verification';
+import {
+  prepareWorkflowVerification,
+  verifyValueViaWorkflow,
+} from '../../src/gh/workflow-verification';
 import { isRetryableGitHubError } from '../../src/gh/wait';
 import { disableRepositoryAdminEnforcementInManifest } from '../../src/repository-admin-enforcement';
 import { pickRenderedCr, setReconcileAt } from '../../src/render-artifacts';
@@ -261,14 +264,17 @@ describe('Claim Render Local Component Repository Secrets E2E', () => {
       const initialSecret = await waitForRepoSecret(client.gh, componentName);
       expect(initialSecret.name).toBe(REPO_SECRET_NAME);
 
-      // The shared helper commits the verification workflow, dispatches it
-      // exactly once and correlates the run by display_title. Teardown deletes
-      // the whole repository, so the file needs no cleanup.
+      // Commit the verification workflow once, before the first value check,
+      // then dispatch it once per value. Teardown deletes the whole repository,
+      // so the file needs no cleanup. The handle correlates each run by
+      // display_title; the newest run is never assumed to be this test's.
       const org = client.getOrg();
-      await verifyValueViaWorkflow({
+      const verification = await prepareWorkflowVerification({
         org,
         repoName: componentName,
         workflowFixtureFileName: VERIFY_SECRET_WORKFLOW_FILE_NAME,
+      });
+      await verifyValueViaWorkflow(verification, {
         failureLabel: 'Repository secret',
         valueName: REPO_SECRET_NAME,
         inputValues: {
@@ -293,10 +299,7 @@ describe('Claim Render Local Component Repository Secrets E2E', () => {
         Date.parse(initialSecret.updatedAt),
       );
 
-      await verifyValueViaWorkflow({
-        org,
-        repoName: componentName,
-        workflowFixtureFileName: VERIFY_SECRET_WORKFLOW_FILE_NAME,
+      await verifyValueViaWorkflow(verification, {
         failureLabel: 'Repository secret',
         valueName: REPO_SECRET_NAME,
         inputValues: {
