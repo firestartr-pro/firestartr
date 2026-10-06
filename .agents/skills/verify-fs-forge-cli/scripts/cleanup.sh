@@ -14,6 +14,7 @@ if [ "${1:-}" = "--purge-evidence" ]; then
   # Resolve before removing the run, and let cd handle a relative symlink.
   latest_real="$(cd "$FSF_HOME/latest" 2>/dev/null && pwd -P)"
   rm -rf "$run"
+  [ ! -e "$run" ] || fsf_die "could not remove $run"
   [ -n "$latest_real" ] && [ "$latest_real" = "$run" ] && rm -f "$FSF_HOME/latest"
   echo "PURGED $run"
   exit 0
