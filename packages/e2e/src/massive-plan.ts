@@ -24,7 +24,6 @@ type MassiveIntegerConfigKey = Exclude<
 
 export interface MassiveGroupTemplate {
   claimName: string;
-  providerName: string;
   displayName: string;
   description: string;
   fixtureName: 'group-a';
@@ -32,7 +31,6 @@ export interface MassiveGroupTemplate {
 
 export interface MassiveRepositoryTemplate {
   claimName: string;
-  providerName: string;
   ownerRef: string;
   description: string;
   topics: string[];
@@ -232,7 +230,6 @@ export function buildMassivePlan(
     const name = `${prefix}-${suffix}`;
     return {
       claimName: name,
-      providerName: name,
       displayName: `Massive ${suffix}`,
       description: `Massive e2e generated group ${padded(index + 1)}`,
       fixtureName: 'group-a' as const,
@@ -245,7 +242,6 @@ export function buildMassivePlan(
     const owner = groups[index % groups.length];
     return {
       claimName: name,
-      providerName: name,
       ownerRef: `group:${owner.claimName}`,
       description: `Massive e2e generated repository ${padded(index + 1)}`,
       topics: [prefix, suffix],
@@ -257,7 +253,6 @@ export function buildMassivePlan(
   const canaryName = `${prefix}-canary`;
   const canaryCreate: MassiveRepositoryTemplate = {
     claimName: canaryName,
-    providerName: canaryName,
     ownerRef: `group:${groups[0].claimName}`,
     description: 'Massive e2e canary repository',
     topics: [prefix, 'canary'],

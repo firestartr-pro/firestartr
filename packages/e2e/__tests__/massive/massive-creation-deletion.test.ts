@@ -50,14 +50,6 @@ function groupPatches(
     description: template.description,
     displayName: template.displayName,
     members: [],
-    // The provider name is derived from the template, not the claim name.
-    extraPatches: [
-      {
-        op: 'replace',
-        path: '/providers/github/name',
-        value: template.providerName,
-      },
-    ],
   });
 }
 
@@ -71,12 +63,6 @@ function repositoryPatches(
     ownerRef: template.ownerRef,
     description: template.description,
     extraPatches: [
-      // The provider name is derived from the template, not the claim name.
-      {
-        op: 'replace',
-        path: '/providers/github/name',
-        value: template.providerName,
-      },
       {
         op: 'replace',
         path: '/providers/github/overrides/spec/repo/topics',
@@ -216,7 +202,7 @@ async function expectRepositoryMetadata(
   const repoInfo = await pollUntil(
     () =>
       retryTransientGitHubProbe(() =>
-        client.gh.getRepoInfo(template.providerName),
+        client.gh.getRepoInfo(template.claimName),
       ),
     {
       timeoutMs: 5 * 60 * 1000,
@@ -227,7 +213,7 @@ async function expectRepositoryMetadata(
       onRetryError: logRetryableGitHubPollError,
       createTimeoutError: (lastRepoInfo) =>
         new Error(
-          `[massive] repository ${template.providerName} metadata did not ` +
+          `[massive] repository ${template.claimName} metadata did not ` +
             `match expected description/topics. Expected ${JSON.stringify({
               description: template.description,
               topics: sortedTopics(template.topics),
@@ -532,9 +518,9 @@ describeMassiveE2e('Massive creation/deletion GitHub E2E', () => {
 
     const cleanup = new CleanupRunner();
     const orgResourceNames = [
-      ...plan.groups.map((group) => group.providerName),
-      plan.canary.create.providerName,
-      ...plan.repositories.map((repository) => repository.providerName),
+      ...plan.groups.map((group) => group.claimName),
+      plan.canary.create.claimName,
+      ...plan.repositories.map((repository) => repository.claimName),
     ];
 
     await cleanup.run(
@@ -660,7 +646,7 @@ describeMassiveE2e('Massive creation/deletion GitHub E2E', () => {
         config.disableSleepGuards,
       );
       await expect(
-        client.gh.repoExists(plan.canary.create.providerName),
+        client.gh.repoExists(plan.canary.create.claimName),
       ).resolves.toBe(true);
 
       renderedCanary = await renderRepository(client, plan.canary.modified);
@@ -683,7 +669,7 @@ describeMassiveE2e('Massive creation/deletion GitHub E2E', () => {
       );
       await waitForCanaryRepositoryDeletion(
         client,
-        plan.canary.create.providerName,
+        plan.canary.create.claimName,
       );
 
       for (const [batchIndex, batch] of remainingDeleteBatches.entries()) {
