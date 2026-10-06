@@ -84,7 +84,9 @@ mkdir -p "$work" "$evid"
 work_real="$(cd "$work" && pwd -P)"
 for seed in ${seeds[@]+"${seeds[@]}"}; do
   src="${seed%%=*}" dest="${seed#*=}"
-  [ "$src" != "$seed" ] || dest="$(basename "$src")"
+  # Absolute, so a source like -delete never reaches find, cp or basename as an option.
+  case "$src" in /*) ;; *) src="$PWD/$src" ;; esac
+  [ "${seed%%=*}" != "$seed" ] || dest="$(basename -- "$src")"
   [ -e "$src" ] || fsf_die "seed not found: $src"
   # cp -R keeps symlinks, which would let the CLI read outside the work dir and
   # hide the linked files from files-before.txt.
@@ -98,7 +100,7 @@ for seed in ${seeds[@]+"${seeds[@]}"}; do
   [ -L "$work/$dest" ] && fsf_die "seed destination must not be a symlink: $dest"
   # A previous seed can plant a symlink, so resolve the deepest existing
   # ancestor before mkdir: neither mkdir nor cp may leave the canonical work dir.
-  parent="$work/$(dirname "$dest")"
+  parent="$work/$(dirname -- "$dest")"
   probe="$parent"
   while [ ! -d "$probe" ]; do probe="$(dirname "$probe")"; done
   case "$(cd "$probe" && pwd -P)" in
