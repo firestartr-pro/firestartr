@@ -4,7 +4,7 @@
 #
 # Usage:
 #   org-snapshot.sh snap <org> <out.json>
-#   org-snapshot.sh diff <before.json> <after.json>   (exit 1 when they differ)
+#   org-snapshot.sh diff <before.json> <after.json>   (exit 1 when they differ, 2 when unreadable)
 #
 # A snapshot holds the fs-forge/* branches, the claims PRs from fs-forge/*
 # heads, the provision/unprovision workflow runs, and the newest PR numbers of
@@ -49,6 +49,8 @@ case "${1:-}" in
   snap) [ $# = 3 ] || { echo "usage: $0 snap <org> <out.json>" >&2; exit 2; }; snap "$2" "$3" ;;
   diff)
     [ $# = 3 ] || { echo "usage: $0 diff <before.json> <after.json>" >&2; exit 2; }
+    # An unreadable snapshot would compare as empty and fake a change or a no-op.
+    jq empty "$2" "$3" || { echo "unreadable snapshot: $2 or $3" >&2; exit 2; }
     if diff -u --label before --label after <(jq -S 'del(.takenAt)' "$2") <(jq -S 'del(.takenAt)' "$3"); then
       echo "no change in fs-forge branches, PRs or workflow runs"
     else

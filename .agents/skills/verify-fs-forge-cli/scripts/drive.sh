@@ -155,8 +155,12 @@ if [ "$mode" != offline ]; then
   if [ -f "$evid/org-after.json" ]; then
     "$snap" diff "$evid/org-before.json" "$evid/org-after.json" > "$evid/org-diff.txt"
     diff_status=$?
-    if [ "$diff_status" != 0 ] && [ "$mode" = read ]; then
+    if [ "$diff_status" -gt 1 ]; then
+      verdict=FAIL reason="could not compare the $org/claims snapshots"; status=4
+    elif [ "$diff_status" != 0 ] && [ "$mode" = read ]; then
       verdict=FAIL reason="read drive changed fs-forge state in $org/claims (see org-diff.txt)"; status=4
+    elif [ "$diff_status" = 0 ] && [ "$mode" = write ]; then
+      verdict=FAIL reason="write drive changed nothing in $org/claims (see org-diff.txt)"; status=4
     fi
   fi
 fi
