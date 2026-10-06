@@ -77,7 +77,10 @@ export async function resolveFixtureMetadata(
   client: E2EApi,
   resolvedFixtures: ResolvedFixtureResource[],
 ): Promise<ResolvedFixtureMetadata[]> {
-  const baseClaimsPath = resolveBaseClaimsPath(client);
+  const baseClaimsPath = path.join(
+    client.claims.getFixturesBasePath(),
+    'base_claims',
+  );
   const claimKindByFixtureName = new Map<string, ClaimKind>();
 
   for (const { fixtureName } of resolvedFixtures) {
@@ -105,8 +108,4 @@ export async function resolveFixtureMetadata(
       claimKind,
     };
   });
-}
-
-function resolveBaseClaimsPath(client: E2EApi): string {
-  return path.join(client.claims.getFixturesBasePath(), 'base_claims');
 }
