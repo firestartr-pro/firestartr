@@ -15,11 +15,11 @@ import {
   type TempOpaqueSecret,
 } from '../..';
 import { buildComponentClaimPatches } from '../../src/claim-patches';
-import { readK8sResource } from '../../src/cr-finder';
 import { isNotFound, type GithubError } from '../../src/gh/errors';
 import { verifyValueViaWorkflow } from '../../src/gh/workflow-verification';
 import { isRetryableGitHubError } from '../../src/gh/wait';
 import { disableRepositoryAdminEnforcementInManifest } from '../../src/repository-admin-enforcement';
+import { pickRenderedCr, setReconcileAt } from '../../src/render-artifacts';
 import { LOCAL_RENDER_APPLY_TEST_TIMEOUT_MS } from '../../src/test-constants';
 import {
   createRetryableError,
@@ -31,8 +31,6 @@ const REPO_SECRET_NAME = 'E2E_ACTIONS_SECRET';
 const REPO_SECRET_KEY = 'repo-secret-key';
 const INITIAL_SECRET_VALUE = 'initial-repo-secret';
 const ROTATED_SECRET_VALUE = 'rotated-repo-secret';
-const RECONCILE_AT_ANNOTATION =
-  common.generic.getFirestartrAnnotation('reconcile-at');
 const REPO_SECRET_READ_TIMEOUT_MS = 5 * 60 * 1000;
 const REPO_SECRET_READ_INTERVAL_MS = 5000;
 const VERIFY_SECRET_WORKFLOW_FILE_NAME = 'verify-secret.yaml';
@@ -43,30 +41,6 @@ const REPO_SECRETS_TEST_TIMEOUT_MS =
 type SecretManifest = {
   stringData?: Record<string, string>;
 };
-
-async function findRepoSecretsCrPath(crPaths: string[]): Promise<string> {
-  for (const crPath of crPaths) {
-    const resource = await readK8sResource(crPath);
-    if (resource.kind === 'FirestartrGithubRepositorySecretsSection') {
-      return crPath;
-    }
-  }
-
-  throw new Error(
-    'Expected rendered component to include a repository secrets section CR',
-  );
-}
-
-async function findRepositoryCrPath(crPaths: string[]): Promise<string> {
-  for (const crPath of crPaths) {
-    const resource = await readK8sResource(crPath);
-    if (resource.kind === 'FirestartrGithubRepository') {
-      return crPath;
-    }
-  }
-
-  throw new Error('Expected rendered component to include a repository CR');
-}
 
 async function updatePlainSecret(
   tempSecret: TempOpaqueSecret,
@@ -85,21 +59,6 @@ async function updatePlainSecret(
     'utf-8',
   );
   await tempSecret.apply();
-}
-
-async function setReconcileAt(crPath: string): Promise<void> {
-  const content = await fs.readFile(crPath, 'utf-8');
-  const resource = common.io.fromYaml(content) as {
-    metadata?: {
-      annotations?: Record<string, string>;
-    };
-  };
-  resource.metadata = resource.metadata ?? {};
-  resource.metadata.annotations = {
-    ...(resource.metadata.annotations ?? {}),
-    [RECONCILE_AT_ANNOTATION]: new Date().toISOString(),
-  };
-  await fs.writeFile(crPath, common.io.toYaml(resource), 'utf-8');
 }
 
 async function readRepoSecretIfAvailable(
@@ -284,8 +243,14 @@ describe('Claim Render Local Component Repository Secrets E2E', () => {
           ],
         }),
       });
-      const secretsCrPath = await findRepoSecretsCrPath(rendered.crPaths);
-      const repositoryCrPath = await findRepositoryCrPath(rendered.crPaths);
+      const secretsCrPath = await pickRenderedCr(
+        rendered.crPaths,
+        'FirestartrGithubRepositorySecretsSection',
+      );
+      const repositoryCrPath = await pickRenderedCr(
+        rendered.crPaths,
+        'FirestartrGithubRepository',
+      );
 
       // The verification workflow is committed directly to the protected main
       // branch, so this disposable test repository must not enforce admins.

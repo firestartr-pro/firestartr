@@ -1,5 +1,3 @@
-import fs from 'node:fs/promises';
-import common from 'catalog_common';
 import {
   CleanupRunner,
   applyAndWaitCrPaths,
@@ -14,44 +12,13 @@ import {
   type JsonPatchOperation,
 } from '../..';
 import { buildComponentClaimPatches } from '../../src/claim-patches';
-import { readK8sResource } from '../../src/cr-finder';
+import { pickRenderedCr, setReconcileAt } from '../../src/render-artifacts';
 import { LOCAL_RENDER_APPLY_TEST_TIMEOUT_MS } from '../../src/test-constants';
-
-const RECONCILE_AT_ANNOTATION =
-  common.generic.getFirestartrAnnotation('reconcile-at');
 
 const LABEL_TIMEOUT_MS = LOCAL_RENDER_APPLY_TEST_TIMEOUT_MS * 2;
 
 const MANUAL_LABEL_NAME = 'manual-label';
 const NEW_LABEL_NAME = 'new-label';
-
-async function setReconcileAt(crPath: string): Promise<void> {
-  const content = await fs.readFile(crPath, 'utf-8');
-  const resource = common.io.fromYaml(content) as {
-    metadata?: {
-      annotations?: Record<string, string>;
-    };
-  };
-  resource.metadata = resource.metadata ?? {};
-  resource.metadata.annotations = {
-    ...(resource.metadata.annotations ?? {}),
-    [RECONCILE_AT_ANNOTATION]: new Date().toISOString(),
-  };
-  await fs.writeFile(crPath, common.io.toYaml(resource), 'utf-8');
-}
-
-async function findRepositoryCrPath(crPaths: string[]): Promise<string> {
-  for (const crPath of crPaths) {
-    const resource = await readK8sResource(crPath);
-    if (resource.kind === 'FirestartrGithubRepository') {
-      return crPath;
-    }
-  }
-
-  throw new Error(
-    'Expected rendered component to include a FirestartrGithubRepository CR',
-  );
-}
 
 function lookupLabel(
   labels: GhRepoLabel[],
@@ -238,7 +205,10 @@ describe('Claim Render Local Component Labels E2E', () => {
 
       // Leg D: force-reconcile with unchanged spec → assert no-op: labels
       // still match, CR stays PROVISIONED.
-      const repositoryCrPathD = await findRepositoryCrPath(renderedC.crPaths);
+      const repositoryCrPathD = await pickRenderedCr(
+        renderedC.crPaths,
+        'FirestartrGithubRepository',
+      );
       await setReconcileAt(repositoryCrPathD);
       await applyAndWaitCrPaths(client, [repositoryCrPathD]);
 

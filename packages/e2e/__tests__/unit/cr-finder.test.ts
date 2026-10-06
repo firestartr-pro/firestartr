@@ -4,6 +4,7 @@ import path from 'node:path';
 import common from 'catalog_common';
 import {
   buildClaimRef,
+  getFirestartrAnnotation,
   getRelatedCrKindsForClaimKind,
 } from '../../src/claim-taxonomy';
 import { findRenderedCrPaths, readClaimResource } from '../../src/cr-finder';
@@ -89,7 +90,7 @@ describe('cr-finder org webhook support', () => {
           metadata: {
             name: 'demo-hook',
             annotations: {
-              [common.generic.getFirestartrAnnotation('claim-ref')]:
+              [getFirestartrAnnotation('claimRef')]:
                 'OrgWebhookClaim/demo-hook',
             },
           },
@@ -105,7 +106,7 @@ describe('cr-finder org webhook support', () => {
           metadata: {
             name: 'other-hook',
             annotations: {
-              [common.generic.getFirestartrAnnotation('claim-ref')]:
+              [getFirestartrAnnotation('claimRef')]:
                 'OrgWebhookClaim/other-hook',
             },
           },
@@ -139,7 +140,7 @@ describe('cr-finder org webhook support', () => {
           metadata: {
             name: 'demo-workspace',
             annotations: {
-              [common.generic.getFirestartrAnnotation('claim-ref')]:
+              [getFirestartrAnnotation('claimRef')]:
                 'TFWorkspaceClaim/demo-workspace',
             },
           },
@@ -155,7 +156,7 @@ describe('cr-finder org webhook support', () => {
           metadata: {
             name: 'other-workspace',
             annotations: {
-              [common.generic.getFirestartrAnnotation('claim-ref')]:
+              [getFirestartrAnnotation('claimRef')]:
                 'TFWorkspaceClaim/other-workspace',
             },
           },

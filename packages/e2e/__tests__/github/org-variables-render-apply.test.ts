@@ -14,7 +14,7 @@ import {
   type JsonPatchOperation,
 } from '../..';
 import { buildComponentClaimPatches } from '../../src/claim-patches';
-import { readK8sResource } from '../../src/cr-finder';
+import { pickRenderedCr } from '../../src/render-artifacts';
 import { isNotFound, type GithubError } from '../../src/gh/errors';
 import { verifyValueViaWorkflow } from '../../src/gh/workflow-verification';
 import { isRetryableGitHubError } from '../../src/gh/wait';
@@ -70,32 +70,6 @@ function addAdoptVariablePatch(adoptVariableName: string): JsonPatchOperation {
       visibility: 'all',
     },
   };
-}
-
-async function findVariableSectionCrPath(crPaths: string[]): Promise<string> {
-  for (const crPath of crPaths) {
-    const resource = await readK8sResource(crPath);
-    if (resource.kind === 'FirestartrGithubOrganizationVariableSection') {
-      return crPath;
-    }
-  }
-
-  throw new Error(
-    'Expected rendered claim to include a FirestartrGithubOrganizationVariableSection CR',
-  );
-}
-
-async function findRepositoryCrPath(crPaths: string[]): Promise<string> {
-  for (const crPath of crPaths) {
-    const resource = await readK8sResource(crPath);
-    if (resource.kind === 'FirestartrGithubRepository') {
-      return crPath;
-    }
-  }
-
-  throw new Error(
-    'Expected rendered component to include a FirestartrGithubRepository CR',
-  );
 }
 
 async function readOrgVariableIfAvailable(
@@ -238,8 +212,9 @@ describe('Claim Render Local Org Variables E2E', () => {
 
       // The verification workflow is committed directly to the protected main
       // branch, so this disposable test repository must not enforce admins.
-      const repositoryCrPath = await findRepositoryCrPath(
+      const repositoryCrPath = await pickRenderedCr(
         renderedComponent.crPaths,
+        'FirestartrGithubRepository',
       );
       await disableRepositoryAdminEnforcementInManifest(repositoryCrPath);
 
@@ -364,8 +339,9 @@ describe('Claim Render Local Org Variables E2E', () => {
         },
       );
 
-      const variableSectionCrPath = await findVariableSectionCrPath(
+      const variableSectionCrPath = await pickRenderedCr(
         renderedVarsWithAdoption.crPaths,
+        'FirestartrGithubOrganizationVariableSection',
       );
 
       console.log(

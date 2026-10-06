@@ -10,28 +10,11 @@ import {
   type FixtureResourceInput,
 } from '../..';
 import { buildComponentClaimPatches } from '../../src/claim-patches';
-import { readK8sResource } from '../../src/cr-finder';
+import { pickRenderedCrs } from '../../src/render-artifacts';
 import { LOCAL_RENDER_APPLY_TEST_TIMEOUT_MS } from '../../src/test-constants';
 
 const FEATURE_NAME = 'charts_repo';
 const FEATURE_REF = 'charts_repo-v1';
-
-async function findFeatureCrPaths(crPaths: string[]): Promise<string[]> {
-  const featureCrPaths: string[] = [];
-
-  for (const crPath of crPaths) {
-    const resource = await readK8sResource(crPath);
-    if (resource.kind === 'FirestartrGithubRepositoryFeature') {
-      featureCrPaths.push(crPath);
-    }
-  }
-
-  if (featureCrPaths.length === 0) {
-    throw new Error('Expected rendered component to include a feature CR');
-  }
-
-  return featureCrPaths;
-}
 
 describe('Feature CR git traceability annotations E2E', () => {
   let client: E2EApi;
@@ -114,7 +97,10 @@ describe('Feature CR git traceability annotations E2E', () => {
         }),
       });
 
-      featureCrPaths = await findFeatureCrPaths(rendered.crPaths);
+      featureCrPaths = await pickRenderedCrs(
+        rendered.crPaths,
+        'FirestartrGithubRepositoryFeature',
+      );
       await applyAndWaitCrPaths(client, rendered.crPaths);
 
       for (const featureCrPath of featureCrPaths) {

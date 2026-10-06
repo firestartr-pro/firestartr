@@ -21,6 +21,7 @@ import { getE2EState } from '../../src/api/internal-state';
 import {
   buildClaimRef,
   FIRESTARTR_API_VERSION,
+  getFirestartrAnnotation,
   getRelatedCrKindsForClaimKind,
 } from '../../src/claim-taxonomy';
 import { resolveFixtureMetadata } from '../../src/cleanup/fixture-metadata';
@@ -71,8 +72,7 @@ type ReapplyManifest = Pick<K8sResource, 'apiVersion' | 'kind' | 'spec'> & {
   };
 };
 
-const CLAIM_REF_ANNOTATION =
-  common.generic.getFirestartrAnnotation('claim-ref');
+const CLAIM_REF_ANNOTATION = getFirestartrAnnotation('claimRef');
 const REVISION_ANNOTATION = 'firestartr.dev/revision';
 
 function getCrdUpgradePhase(): CrdUpgradePhase {

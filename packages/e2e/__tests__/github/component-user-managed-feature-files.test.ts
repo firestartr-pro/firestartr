@@ -12,6 +12,7 @@ import {
   type FixtureResourceInput,
 } from '../..';
 import { buildComponentClaimPatches } from '../../src/claim-patches';
+import { pickRenderedCrs } from '../../src/render-artifacts';
 import { readK8sResource } from '../../src/cr-finder';
 import { isRetryableGitHubError } from '../../src/gh/wait';
 import { LOCAL_RENDER_APPLY_TEST_TIMEOUT_MS } from '../../src/test-constants';
@@ -214,23 +215,6 @@ async function expectReleasePleaseSnapshot(
   }
 }
 
-async function findFeatureCrPaths(crPaths: string[]): Promise<string[]> {
-  const featureCrPaths: string[] = [];
-
-  for (const crPath of crPaths) {
-    const resource = await readK8sResource(crPath);
-    if (resource.kind === 'FirestartrGithubRepositoryFeature') {
-      featureCrPaths.push(crPath);
-    }
-  }
-
-  if (featureCrPaths.length === 0) {
-    throw new Error('Expected rendered component to include a feature CR');
-  }
-
-  return featureCrPaths;
-}
-
 async function getUserManagedFeatureFilePaths(
   featureCrPaths: string[],
 ): Promise<string[]> {
@@ -357,7 +341,10 @@ describe('Component user-managed feature files E2E', () => {
         platformGroupRef,
         CHARTS_REPO_V1_FEATURES,
       );
-      const initialFeatureCrPaths = await findFeatureCrPaths(initialCrPaths);
+      const initialFeatureCrPaths = await pickRenderedCrs(
+        initialCrPaths,
+        'FirestartrGithubRepositoryFeature',
+      );
       await expect(
         getUserManagedFeatureFilePaths(initialFeatureCrPaths),
       ).resolves.toEqual(expect.arrayContaining(RELEASE_PLEASE_FILE_PATHS));

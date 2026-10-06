@@ -5,6 +5,7 @@ import { isTransientError } from '../utils/transient-errors';
 import {
   buildClaimRef,
   FIRESTARTR_API_VERSION,
+  getFirestartrAnnotation,
   getRelatedCrKindsForClaimKind,
   isOrgResourceClaimKind,
 } from '../claim-taxonomy';
@@ -21,8 +22,7 @@ import type {
   FixtureResourceInput,
 } from './types';
 
-const CLAIM_REF_ANNOTATION =
-  common.generic.getFirestartrAnnotation('claim-ref');
+const CLAIM_REF_ANNOTATION = getFirestartrAnnotation('claimRef');
 const CLEANUP_STEP_RETRY_ATTEMPTS = 3;
 const CLEANUP_STEP_RETRY_BACKOFF_MS = 1500;
 

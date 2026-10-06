@@ -4,6 +4,7 @@ import { deepMerge } from './utils/deep-merge';
 import {
   buildClaimRef,
   CLAIM_KIND_TO_CR_KIND,
+  getFirestartrAnnotation,
   getRelatedCrKindsForClaimKind,
   isClaimKind,
   type ClaimKind,
@@ -29,8 +30,7 @@ export type ClaimResource = {
 
 const SUPPORTED_CLAIM_KINDS = Object.keys(CLAIM_KIND_TO_CR_KIND).join(', ');
 
-const CLAIM_REF_ANNOTATION =
-  common.generic.getFirestartrAnnotation('claim-ref');
+const CLAIM_REF_ANNOTATION = getFirestartrAnnotation('claimRef');
 
 type RenderedCrMatch = {
   filePath: string;

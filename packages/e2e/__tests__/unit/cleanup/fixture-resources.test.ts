@@ -1,4 +1,5 @@
 import common from 'catalog_common';
+import { getFirestartrAnnotation } from '../../../src/claim-taxonomy';
 import { destroyFixtureResources } from '../../../src/cleanup/fixture-resources';
 
 import type { E2EApi } from '../../../src/types';
@@ -42,7 +43,7 @@ describe('destroyFixtureResources', () => {
     expect(deleteCustomResourcesByAnnotation).toHaveBeenCalledWith({
       kind: 'FirestartrGithubGroup',
       apiVersion: 'firestartr.dev/v1',
-      annotationKey: common.generic.getFirestartrAnnotation('claim-ref'),
+      annotationKey: getFirestartrAnnotation('claimRef'),
       annotationValues: ['GroupClaim/demo-e2e-group-a'],
       timeout: 600,
       forceFinalizers: true,
@@ -73,7 +74,7 @@ describe('destroyFixtureResources', () => {
     expect(deleteCustomResourcesByAnnotation).toHaveBeenCalledWith({
       kind: 'FirestartrGithubOrgWebhook',
       apiVersion: 'firestartr.dev/v1',
-      annotationKey: common.generic.getFirestartrAnnotation('claim-ref'),
+      annotationKey: getFirestartrAnnotation('claimRef'),
       annotationValues: ['OrgWebhookClaim/demo-e2e-orgwebhook-a'],
       timeout: 600,
       forceFinalizers: true,
@@ -96,7 +97,7 @@ describe('destroyFixtureResources', () => {
     expect(deleteCustomResourcesByAnnotation).toHaveBeenCalledWith({
       kind: 'FirestartrTerraformWorkspace',
       apiVersion: 'firestartr.dev/v1',
-      annotationKey: common.generic.getFirestartrAnnotation('claim-ref'),
+      annotationKey: getFirestartrAnnotation('claimRef'),
       annotationValues: ['TFWorkspaceClaim/demo-e2e-tfworkspace-a'],
       timeout: 600,
       forceFinalizers: true,
@@ -119,7 +120,7 @@ describe('destroyFixtureResources', () => {
     expect(deleteCustomResourcesByAnnotation).toHaveBeenCalledWith({
       kind: 'FirestartrTerraformWorkspace',
       apiVersion: 'firestartr.dev/v1',
-      annotationKey: common.generic.getFirestartrAnnotation('claim-ref'),
+      annotationKey: getFirestartrAnnotation('claimRef'),
       annotationValues: ['TFWorkspaceClaim/demo-e2e-workspace_a'],
       timeout: 600,
       forceFinalizers: true,
@@ -149,7 +150,7 @@ describe('destroyFixtureResources', () => {
     expect(deleteCustomResourcesByAnnotation).toHaveBeenCalledWith({
       kind: 'FirestartrGithubGroup',
       apiVersion: 'firestartr.dev/v1',
-      annotationKey: common.generic.getFirestartrAnnotation('claim-ref'),
+      annotationKey: getFirestartrAnnotation('claimRef'),
       annotationValues: ['GroupClaim/demo-e2e-firestartr'],
       timeout: 600,
       forceFinalizers: true,
