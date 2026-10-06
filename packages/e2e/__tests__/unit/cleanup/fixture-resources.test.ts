@@ -1,6 +1,7 @@
 import common from 'catalog_common';
 import { getFirestartrAnnotation } from '../../../src/claim-taxonomy';
 import { destroyFixtureResources } from '../../../src/cleanup/fixture-resources';
+import { CleanupRunner } from '../../../src/cleanup/runner';
 import { resolveE2eFixturesPath } from '../../../src/fixtures-path';
 
 import type { E2EApi } from '../../../src/types';
@@ -158,6 +159,57 @@ describe('destroyFixtureResources', () => {
     ).rejects.toThrow(
       /deleting stale cluster fixture resources: cluster down[\s\S]*deleting stale org fixture resources: org down/,
     );
+  });
+
+  it('keeps later directory and context teardown running after failing resource cleanup steps', async () => {
+    const deleteCustomResourcesByAnnotation = jest
+      .fn()
+      .mockRejectedValue(new Error('cluster down'));
+    const destroyGroup = jest.fn().mockRejectedValue(new Error('org down'));
+    const client = {
+      claims: { getFixturesBasePath: () => resolveE2eFixturesPath() },
+      k8s: {
+        deleteCustomResourcesByAnnotation,
+      },
+      gh: {
+        destroyGroup,
+        destroyRepo: jest.fn().mockResolvedValue(undefined),
+        destroyOrgWebhookByUrl: jest.fn().mockResolvedValue(undefined),
+      },
+    } as unknown as E2EApi;
+
+    // Mirrors a suite's afterAll: resource cleanup first, then the directory
+    // and render-context teardown steps.
+    const cleanup = new CleanupRunner();
+    const disposePlainSecret = jest.fn().mockResolvedValue(undefined);
+    const cleanupRenderedArtifacts = jest.fn().mockResolvedValue(undefined);
+
+    await cleanup.run(
+      'destroy repository secrets fixture resources',
+      async () => {
+        await destroyFixtureResources(client, 'demo', ['group-a'], {
+          logPrefix: 'fixture-cleanup',
+        });
+      },
+    );
+    await cleanup.run('dispose plain repository secret', disposePlainSecret);
+    await cleanup.run('cleanup rendered artifacts', cleanupRenderedArtifacts);
+
+    expect(disposePlainSecret).toHaveBeenCalledTimes(1);
+    expect(cleanupRenderedArtifacts).toHaveBeenCalledTimes(1);
+
+    let failure: Error | undefined;
+    try {
+      cleanup.throwOnErrors('fixture teardown');
+    } catch (error) {
+      failure = error as Error;
+    }
+
+    expect(failure?.message.split('\n')).toEqual([
+      'Cleanup failed for fixture teardown:',
+      'destroy repository secrets fixture resources: deleting stale cluster fixture resources: cluster down',
+      'deleting stale org fixture resources: org down',
+    ]);
   });
 
   it('deletes firestartr group CRs by group claim-ref', async () => {
