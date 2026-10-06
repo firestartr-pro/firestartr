@@ -294,7 +294,8 @@ export function buildGroupClaimPatches(
   }
 
   if (options.parent !== undefined) {
-    patches.push({ op: 'replace', path: '/parent', value: options.parent });
+    // `add` sets the member whether or not the base fixture already has one.
+    patches.push({ op: 'add', path: '/parent', value: options.parent });
   }
 
   if (options.org !== undefined) {

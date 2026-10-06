@@ -227,7 +227,7 @@ describe('buildGroupClaimPatches', () => {
       buildGroupClaimPatches({ members: [], parent: 'group:g-a' }),
     ).toEqual([
       { op: 'replace', path: '/members', value: [] },
-      { op: 'replace', path: '/parent', value: 'group:g-a' },
+      { op: 'add', path: '/parent', value: 'group:g-a' },
     ]);
   });
 
