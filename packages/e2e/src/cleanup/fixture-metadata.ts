@@ -1,10 +1,8 @@
 import fs from 'node:fs/promises';
 import path from 'node:path';
 import common from 'catalog_common';
-import { getE2EState } from '../api/internal-state';
 import { isClaimKind, type ClaimKind } from '../claim-taxonomy';
 import { parseClaimResource } from '../cr-finder';
-import { resolveE2eBaseClaimsPath } from '../fixtures-path';
 
 import type { E2EApi } from '../types';
 import type { ResolvedFixtureResource } from './fixture-plan';
@@ -110,12 +108,5 @@ export async function resolveFixtureMetadata(
 }
 
 function resolveBaseClaimsPath(client: E2EApi): string {
-  try {
-    const state = getE2EState(client);
-    return state.fixturesBasePath
-      ? path.join(state.fixturesBasePath, 'base_claims')
-      : resolveE2eBaseClaimsPath();
-  } catch {
-    return resolveE2eBaseClaimsPath();
-  }
+  return path.join(client.claims.getFixturesBasePath(), 'base_claims');
 }

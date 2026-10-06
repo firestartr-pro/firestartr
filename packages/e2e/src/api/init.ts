@@ -3,7 +3,6 @@ import { createKubeConfigProvider } from '../k8s/config';
 import { normalizeNamePrefix } from '../names';
 import { createClaimsApi } from './claims-api';
 import { createGhApi } from './gh-api';
-import { registerE2EState } from './internal-state';
 import { createK8sApi } from './k8s-api';
 import { E2EState } from './state';
 
@@ -77,8 +76,6 @@ export async function initE2e(
     k8s,
     gh,
   };
-
-  registerE2EState(client, state);
 
   return client;
 }

@@ -143,6 +143,14 @@ export interface ClaimsApi {
     name: string,
     options?: RenderLocallyOptions,
   ) => Promise<RenderLocallyResult>;
+
+  // Snapshot of the artifacts produced by renderLocally calls so far.
+  // Mutating the returned array does not affect cleanup behaviour.
+  getRenderArtifacts: () => RenderedArtifact[];
+
+  // Fixtures root for this session, defaulted to the repo fixtures directory.
+  // Never throws.
+  getFixturesBasePath: () => string;
 }
 
 // Shared base for bulk custom-resource deletion options.

@@ -1,6 +1,7 @@
 import common from 'catalog_common';
 import { getFirestartrAnnotation } from '../../../src/claim-taxonomy';
 import { destroyFixtureResources } from '../../../src/cleanup/fixture-resources';
+import { resolveE2eFixturesPath } from '../../../src/fixtures-path';
 
 import type { E2EApi } from '../../../src/types';
 
@@ -29,6 +30,7 @@ describe('destroyFixtureResources', () => {
       .mockRejectedValueOnce({ status: 429, message: 'rate limited' })
       .mockResolvedValue(1);
     const client = {
+      claims: { getFixturesBasePath: () => resolveE2eFixturesPath() },
       k8s: {
         deleteCustomResourcesByAnnotation,
       },
@@ -58,6 +60,7 @@ describe('destroyFixtureResources', () => {
     const deleteCustomResourcesByAnnotation = jest.fn().mockResolvedValue(1);
     const destroyOrgWebhookByUrl = jest.fn().mockResolvedValue(undefined);
     const client = {
+      claims: { getFixturesBasePath: () => resolveE2eFixturesPath() },
       k8s: {
         deleteCustomResourcesByAnnotation,
       },
@@ -84,6 +87,7 @@ describe('destroyFixtureResources', () => {
   it('deletes tfworkspace CRs by terraform workspace claim-ref', async () => {
     const deleteCustomResourcesByAnnotation = jest.fn().mockResolvedValue(1);
     const client = {
+      claims: { getFixturesBasePath: () => resolveE2eFixturesPath() },
       k8s: {
         deleteCustomResourcesByAnnotation,
       },
@@ -107,6 +111,7 @@ describe('destroyFixtureResources', () => {
   it('deletes workspace_a tfworkspace CRs by terraform workspace claim-ref', async () => {
     const deleteCustomResourcesByAnnotation = jest.fn().mockResolvedValue(1);
     const client = {
+      claims: { getFixturesBasePath: () => resolveE2eFixturesPath() },
       k8s: {
         deleteCustomResourcesByAnnotation,
       },
@@ -133,6 +138,7 @@ describe('destroyFixtureResources', () => {
     const destroyRepo = jest.fn().mockResolvedValue(undefined);
     const destroyOrgWebhookByUrl = jest.fn().mockResolvedValue(undefined);
     const client = {
+      claims: { getFixturesBasePath: () => resolveE2eFixturesPath() },
       k8s: {
         deleteCustomResourcesByAnnotation,
       },
@@ -165,6 +171,7 @@ describe('destroyFixtureResources', () => {
     const destroyRepo = jest.fn().mockResolvedValue(undefined);
     const destroyOrgWebhookByUrl = jest.fn().mockResolvedValue(undefined);
     const client = {
+      claims: { getFixturesBasePath: () => resolveE2eFixturesPath() },
       k8s: {
         deleteCustomResourcesByAnnotation,
       },

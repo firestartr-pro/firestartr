@@ -28,6 +28,7 @@ import type {
   JsonPatchOperation,
   RenderLocallyOptions,
   RenderLocallyResult,
+  RenderedArtifact,
   TestContext,
 } from '../types';
 
@@ -172,6 +173,14 @@ export function createClaimsApi(state: E2EState): ClaimsApi {
       const fixtureName = normalizeFixtureName(name);
       const context = await ensureContext(state, fixtureName);
       await context.applyPatches(fixtureName, patches);
+    },
+
+    getRenderArtifacts(): RenderedArtifact[] {
+      return [...state.renderedArtifacts];
+    },
+
+    getFixturesBasePath(): string {
+      return state.fixturesBasePath ?? resolveE2eFixturesPath();
     },
 
     async renderLocally(
