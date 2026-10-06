@@ -98,13 +98,27 @@ const renderTestsSchema: Record<string, unknown> = {
         type: 'object',
         additionalProperties: false,
         required: ['name'],
-        anyOf: [{ required: ['cr'] }, { required: ['claim'] }],
+        // `properties` stays on this schema: the `additionalProperties: false`
+        // above takes its allowed-key set from here, so emptying it would make
+        // every real test entry an "additional property". Each `anyOf` branch
+        // repeats only the key it requires, which is what Ajv's `strictRequired`
+        // checks for when the validator is compiled with `strict: true`.
         properties: {
           name: { type: 'string', minLength: 1 },
           cr: { type: 'string', minLength: 1 },
           claim: { type: 'string', minLength: 1 },
           args: { type: 'object' },
         },
+        anyOf: [
+          {
+            required: ['cr'],
+            properties: { cr: { type: 'string', minLength: 1 } },
+          },
+          {
+            required: ['claim'],
+            properties: { claim: { type: 'string', minLength: 1 } },
+          },
+        ],
       },
     },
   },
