@@ -8,10 +8,7 @@ import {
 } from '../utils/async-control';
 import { isTransientError } from '../utils/transient-errors';
 import { formatK8sError, shouldRetryRead } from './errors';
-import {
-  getStatusCode,
-  type StatusCodeError,
-} from '../errors/status-code';
+import { getStatusCode, type StatusCodeError } from '../errors/status-code';
 import { isCustomResource } from './crd';
 import { resolveCrHandle } from './cr-handle';
 import type { CrHandle } from './cr-handle';
