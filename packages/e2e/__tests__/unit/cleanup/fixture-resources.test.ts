@@ -132,6 +132,34 @@ describe('destroyFixtureResources', () => {
     });
   });
 
+  it('aggregates one error line per failing cleanup step, in order', async () => {
+    const deleteCustomResourcesByAnnotation = jest
+      .fn()
+      .mockRejectedValue(new Error('cluster down'));
+    const destroyGroup = jest.fn().mockRejectedValue(new Error('org down'));
+    const destroyRepo = jest.fn().mockResolvedValue(undefined);
+    const destroyOrgWebhookByUrl = jest.fn().mockResolvedValue(undefined);
+    const client = {
+      claims: { getFixturesBasePath: () => resolveE2eFixturesPath() },
+      k8s: {
+        deleteCustomResourcesByAnnotation,
+      },
+      gh: {
+        destroyGroup,
+        destroyRepo,
+        destroyOrgWebhookByUrl,
+      },
+    } as unknown as E2EApi;
+
+    await expect(
+      destroyFixtureResources(client, 'demo', ['group-a'], {
+        logPrefix: 'fixture-cleanup',
+      }),
+    ).rejects.toThrow(
+      /deleting stale cluster fixture resources: cluster down[\s\S]*deleting stale org fixture resources: org down/,
+    );
+  });
+
   it('deletes firestartr group CRs by group claim-ref', async () => {
     const deleteCustomResourcesByAnnotation = jest.fn().mockResolvedValue(1);
     const destroyGroup = jest.fn().mockResolvedValue(undefined);

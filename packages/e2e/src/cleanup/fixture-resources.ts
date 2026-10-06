@@ -10,6 +10,7 @@ import {
   isOrgResourceClaimKind,
 } from '../claim-taxonomy';
 import { DELETE_TIMEOUT_SECONDS } from './constants';
+import { CleanupRunner } from './runner';
 import { resolveFixtureMetadata } from './fixture-metadata';
 import {
   getDeletionOrder,
@@ -150,26 +151,20 @@ export async function destroyFixtureResources(
     `[${logPrefix}] cleanup start (prefix=${prefix || '<empty>'}, fixtures=${resolvedFixtures.length})`,
   );
 
-  const errors: string[] = [];
+  const cleanup = new CleanupRunner();
 
   if (deleteCluster) {
-    try {
-      await runLoggedDeletionStepWithRetry(
+    await cleanup.run('deleting stale cluster fixture resources', () =>
+      runLoggedDeletionStepWithRetry(
         logPrefix,
         'deleting stale cluster fixture resources',
         () => destroyClusterResolvedFixtureResources(client, resolvedFixtures),
-      );
-    } catch (err) {
-      errors.push(
-        `deleting stale cluster fixture resources: ${
-          err instanceof Error ? err.message : String(err)
-        }`,
-      );
-    }
+      ),
+    );
   }
 
   if (deleteOrg) {
-    try {
+    await cleanup.run('deleting stale org fixture resources', async () => {
       const orgResourceNames = resolvedMetadata
         .filter(({ claimKind }) => isOrgResourceClaimKind(claimKind))
         .map(({ claimName }) => claimName);
@@ -184,16 +179,8 @@ export async function destroyFixtureResources(
             strict: options.strict,
           }),
       );
-    } catch (err) {
-      errors.push(
-        `deleting stale org fixture resources: ${
-          err instanceof Error ? err.message : String(err)
-        }`,
-      );
-    }
+    });
   }
 
-  if (errors.length > 0) {
-    throw new Error(errors.join('\n'));
-  }
+  cleanup.throwOnErrors();
 }
