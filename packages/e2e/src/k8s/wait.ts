@@ -11,7 +11,7 @@ import { formatK8sError, getStatusCode, shouldRetryRead } from './errors';
 import { isCustomResource } from './crd';
 import { resolveCrHandle } from './cr-handle';
 import type { CrHandle } from './cr-handle';
-import { createLazyK8sClients } from './lazy-clients';
+import { createLazyClients } from './lazy-clients';
 import { findTFResultsByReference } from './tfresult';
 import {
   assertNamespacedKind,
@@ -153,7 +153,7 @@ export function createWaitFunction(
   getKubeConfig: KubeConfigProvider,
   defaultNamespace: string,
 ) {
-  const clients = createLazyK8sClients(getKubeConfig);
+  const clients = createLazyClients(getKubeConfig);
 
   return async function waitFor(
     kind: string,

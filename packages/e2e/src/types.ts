@@ -163,6 +163,19 @@ export type DeleteByLabelOptions = DeleteByOptions & {
   labelSelector: string;
 };
 
+// Options object for listCustomResourcesByAnnotation.
+export type ListByAnnotationOptions = {
+  // Custom resource kind to list.
+  kind: string;
+  // Custom resource apiVersion (must be a custom resource).
+  apiVersion: string;
+  // Annotation key to match (for example the claim-ref annotation).
+  annotationKey: string;
+  // Allowed annotation values; resources whose annotation value is in this
+  // list are returned.
+  annotationValues: string[];
+};
+
 // Options object for deleteCustomResourcesByAnnotation.
 export type DeleteByAnnotationOptions = DeleteByOptions & {
   // Annotation key to match (for example the claim-ref annotation).
@@ -204,6 +217,13 @@ export interface K8sApi {
   deleteCustomResourcesByAnnotation: (
     options: DeleteByAnnotationOptions,
   ) => Promise<number>;
+
+  // List namespaced custom resources whose annotation value matches.
+  // Example: annotationKey 'firestartr.dev/claim-ref',
+  // annotationValues ['GroupClaim/firestartr'].
+  listCustomResourcesByAnnotation: (
+    options: ListByAnnotationOptions,
+  ) => Promise<K8sResource[]>;
 
   // Wait for the resource in `crPath` to reach `status`.
   // `status` defaults to 'PROVISIONED'.

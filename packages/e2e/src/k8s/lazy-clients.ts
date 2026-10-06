@@ -1,15 +1,15 @@
 import * as k8s from '@kubernetes/client-node';
 import type { KubeConfigProvider } from './types';
 
-type LazyK8sClients = {
+type LazyClients = {
   getApi: () => k8s.KubernetesObjectApi;
   getCustomApi: () => k8s.CustomObjectsApi;
   reset: () => void;
 };
 
-export function createLazyK8sClients(
+export function createLazyClients(
   getKubeConfig: KubeConfigProvider,
-): LazyK8sClients {
+): LazyClients {
   let k8sApi: k8s.KubernetesObjectApi | null = null;
   let customObjectsApi: k8s.CustomObjectsApi | null = null;
 

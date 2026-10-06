@@ -12,27 +12,50 @@ type CleanupContext = {
   namespace?: string;
 };
 
+type MatchedCustomResources = {
+  handle: CrHandle;
+  items: K8sResource[];
+};
+
 export type DeleteCustomResourcesOptions = {
   forceFinalizers?: boolean;
 };
 
-async function deleteCustomResourcesMatching(
+function filterByAnnotation(
+  items: K8sResource[],
+  annotationKey: string,
+  annotationValues: string[],
+): K8sResource[] {
+  const normalizedKey = annotationKey.trim();
+  if (!normalizedKey) return [];
+
+  const normalizedValues = annotationValues
+    .map((value) => value.trim())
+    .filter((value) => value.length > 0);
+  if (normalizedValues.length < 1) return [];
+
+  const allowedValues = new Set(normalizedValues);
+  return items.filter((item) => {
+    const value = item.metadata?.annotations?.[normalizedKey];
+    return Boolean(value && allowedValues.has(value));
+  });
+}
+
+async function listCustomResourcesMatching(
   context: CleanupContext,
   kind: string,
   apiVersion: string,
-  timeoutSeconds: number,
-  options: DeleteCustomResourcesOptions,
   getItems: (handle: CrHandle, namespace: string) => Promise<K8sResource[]>,
-): Promise<number> {
+): Promise<MatchedCustomResources | null> {
   if (!isCustomResource(apiVersion)) {
     throw new Error(
-      `deleteCustomResourcesMatching requires a custom resource apiVersion, received: ${apiVersion}`,
+      `Custom resource cleanup requires a custom resource apiVersion, received: ${apiVersion}`,
     );
   }
 
   const { namespace, kubeConfigProvider } = context;
   if (!namespace) {
-    throw new Error('Namespace is required to delete namespaced resources');
+    throw new Error('Namespace is required for namespaced resources');
   }
 
   let handle: CrHandle;
@@ -41,7 +64,7 @@ async function deleteCustomResourcesMatching(
   } catch (err) {
     const message = err instanceof Error ? err.message : String(err);
     if (message.includes('CRD not found')) {
-      return 0;
+      return null;
     }
     throw err;
   }
@@ -51,15 +74,34 @@ async function deleteCustomResourcesMatching(
     );
   }
 
-  let items: K8sResource[];
   try {
-    items = await getItems(handle, namespace);
+    return { handle, items: await getItems(handle, namespace) };
   } catch (err) {
     const statusCode = getStatusCode(err as K8sApiError);
-    if (statusCode === 404 || statusCode === 410) return 0;
+    if (statusCode === 404 || statusCode === 410) return null;
     throw err;
   }
+}
 
+async function deleteCustomResourcesMatching(
+  context: CleanupContext,
+  kind: string,
+  apiVersion: string,
+  timeoutSeconds: number,
+  options: DeleteCustomResourcesOptions,
+  getItems: (handle: CrHandle, namespace: string) => Promise<K8sResource[]>,
+): Promise<number> {
+  const matched = await listCustomResourcesMatching(
+    context,
+    kind,
+    apiVersion,
+    getItems,
+  );
+  if (matched === null) return 0;
+
+  const { handle, items } = matched;
+  const { namespace, kubeConfigProvider } = context;
+  const resolvedNamespace = namespace as string;
   const forceFinalizers = options.forceFinalizers ?? false;
   let deleted = 0;
 
@@ -68,15 +110,15 @@ async function deleteCustomResourcesMatching(
     if (!name) continue;
 
     if (forceFinalizers) {
-      await forceDeleteCr(handle, namespace, name, timeoutSeconds);
+      await forceDeleteCr(handle, resolvedNamespace, name, timeoutSeconds);
     } else {
       try {
-        await handle.delete(namespace, name);
+        await handle.delete(resolvedNamespace, name);
       } catch (err) {
         const statusCode = getStatusCode(err as K8sApiError);
         if (statusCode !== 404 && statusCode !== 410) {
           throw new Error(
-            `Failed to delete ${namespace}/${kind}/${name}: ${
+            `Failed to delete ${resolvedNamespace}/${kind}/${name}: ${
               err instanceof Error ? err.message : String(err)
             }`,
           );
@@ -85,8 +127,8 @@ async function deleteCustomResourcesMatching(
 
       await waitForResourceDeletion(
         kubeConfigProvider,
-        namespace,
-        { apiVersion, kind, metadata: { namespace, name } },
+        resolvedNamespace,
+        { apiVersion, kind, metadata: { namespace: resolvedNamespace, name } },
         timeoutSeconds,
       );
     }
@@ -128,15 +170,8 @@ export async function deleteCustomResourcesByAnnotation(
   timeoutSeconds: number,
   options: DeleteCustomResourcesOptions = {},
 ): Promise<number> {
-  const normalizedKey = annotationKey.trim();
-  if (!normalizedKey) return 0;
-
-  const normalizedValues = annotationValues
-    .map((v) => v.trim())
-    .filter((v) => v.length > 0);
-  if (normalizedValues.length < 1) return 0;
-
-  const allowedValues = new Set(normalizedValues);
+  if (!annotationKey.trim()) return 0;
+  if (annotationValues.every((value) => value.trim().length === 0)) return 0;
 
   return deleteCustomResourcesMatching(
     { kubeConfigProvider, namespace },
@@ -144,12 +179,41 @@ export async function deleteCustomResourcesByAnnotation(
     apiVersion,
     timeoutSeconds,
     options,
-    async (handle, ns) => {
-      const allItems = await handle.list(ns);
-      return allItems.filter((item) => {
-        const value = item.metadata?.annotations?.[normalizedKey];
-        return Boolean(value && allowedValues.has(value));
-      });
-    },
+    async (handle, ns) =>
+      filterByAnnotation(
+        await handle.list(ns),
+        annotationKey,
+        annotationValues,
+      ),
   );
+}
+
+/**
+ * Lists namespaced custom resources whose annotation value matches one of
+ * `annotationValues`. Returns [] when the CRD or namespace is absent.
+ */
+export async function listCustomResourcesByAnnotation(
+  kubeConfigProvider: KubeConfigProvider,
+  namespace: string | undefined,
+  kind: string,
+  apiVersion: string,
+  annotationKey: string,
+  annotationValues: string[],
+): Promise<K8sResource[]> {
+  if (!annotationKey.trim()) return [];
+  if (annotationValues.every((value) => value.trim().length === 0)) return [];
+
+  const matched = await listCustomResourcesMatching(
+    { kubeConfigProvider, namespace },
+    kind,
+    apiVersion,
+    async (handle, ns) =>
+      filterByAnnotation(
+        await handle.list(ns),
+        annotationKey,
+        annotationValues,
+      ),
+  );
+
+  return matched?.items ?? [];
 }

@@ -1,25 +1,29 @@
+import { createApplyFunction } from '../k8s/apply';
 import {
   applyInBranchFirestartrCrds,
   applyVersionedFirestartrCrds,
 } from '../k8s/crd-lifecycle';
 import { CRD_KIND } from '../k8s/constants';
+import { createDeleteFunction } from '../k8s/delete';
 import {
   deleteCustomResourcesByAnnotation as deleteCustomResourcesByAnnotationInternal,
   deleteCustomResourcesByLabel as deleteCustomResourcesByLabelInternal,
+  listCustomResourcesByAnnotation as listCustomResourcesByAnnotationInternal,
 } from '../k8s/custom-resource-cleanup';
 import { logCrDiagnostics } from '../k8s/diagnostics';
 import { getGroupTfStateKey as getGroupTfStateKeyInternal } from '../k8s/group-tfstate';
 import { removeAnnotationFromManifestResource } from '../k8s/annotations';
 import { getPrimaryManifestResource } from '../k8s/manifests';
 import { findTFResultsByReference as findTFResultsByReferenceInternal } from '../k8s/tfresult';
-import { waitForResourceDeletion } from '../k8s/wait';
+import { createWaitFunction, waitForResourceDeletion } from '../k8s/wait';
 import { E2EState } from './state';
 
-import type { K8sClient, K8sResource } from '../k8s/types';
+import type { K8sResource } from '../k8s/types';
 import type {
   DeleteByAnnotationOptions,
   DeleteByLabelOptions,
   K8sApi,
+  ListByAnnotationOptions,
 } from '../types';
 import type { TFResult } from '../k8s/tfresult';
 
@@ -58,11 +62,15 @@ async function withLifecycle<T>(
   }
 }
 
-export function createK8sApi(state: E2EState, k8sClient: K8sClient): K8sApi {
+export function createK8sApi(state: E2EState): K8sApi {
   log.info(`Creating K8s API with namespace: ${state.namespace}`);
 
+  const apply = createApplyFunction(state.kubeConfigProvider, state.namespace);
+  const del = createDeleteFunction(state.kubeConfigProvider, state.namespace);
+  const wait = createWaitFunction(state.kubeConfigProvider, state.namespace);
+
   const applyCrPath = async (crPath: string): Promise<void> => {
-    await k8sClient.apply(crPath, state.namespace);
+    await apply(crPath, state.namespace);
   };
 
   const logDiagnostics = async (
@@ -150,6 +158,22 @@ export function createK8sApi(state: E2EState, k8sClient: K8sClient): K8sApi {
       );
     },
 
+    async listCustomResourcesByAnnotation({
+      kind,
+      apiVersion,
+      annotationKey,
+      annotationValues,
+    }: ListByAnnotationOptions): Promise<K8sResource[]> {
+      return listCustomResourcesByAnnotationInternal(
+        state.kubeConfigProvider,
+        state.namespace,
+        kind,
+        apiVersion,
+        annotationKey,
+        annotationValues,
+      );
+    },
+
     async waitForCr(
       crPath: string,
       timeout = DEFAULT_WAIT_TIMEOUT_SECONDS,
@@ -172,16 +196,10 @@ export function createK8sApi(state: E2EState, k8sClient: K8sClient): K8sApi {
             );
           }
 
-          return k8sClient.waitFor(
-            resource.kind,
-            resourceName,
-            status,
-            timeoutMs,
-            {
-              namespace: state.namespace,
-              apiVersion: resource.apiVersion,
-            },
-          );
+          return wait(resource.kind, resourceName, status, timeoutMs, {
+            namespace: state.namespace,
+            apiVersion: resource.apiVersion,
+          });
         },
       );
     },
@@ -201,7 +219,7 @@ export function createK8sApi(state: E2EState, k8sClient: K8sClient): K8sApi {
             );
           }
 
-          await k8sClient.delete(crPath, {
+          await del(crPath, {
             namespace: state.namespace,
             force: false,
             ignoreNotFound: true,

@@ -11,10 +11,10 @@ import {
   formatResourceLabel,
   readManifestFile,
 } from './manifests';
-import { createLazyK8sClients } from './lazy-clients';
+import { createLazyClients } from './lazy-clients';
 import {
   assertNamespacedKind,
-  isClusterScopedKind,
+  resolveResourceNamespace,
   type K8sResource,
   type KubeConfigProvider,
 } from './types';
@@ -23,12 +23,9 @@ export function createApplyFunction(
   getKubeConfig: KubeConfigProvider,
   defaultNamespace: string,
 ) {
-  const clients = createLazyK8sClients(getKubeConfig);
+  const clients = createLazyClients(getKubeConfig);
 
-  async function applyCustomResource(
-    obj: K8sResource,
-    namespace: string | undefined,
-  ): Promise<void> {
+  async function applyCustomResource(obj: K8sResource): Promise<void> {
     const { group, version } = parseApiVersion(obj.apiVersion);
     const { plural, namespaced } = await resolveCustomResourceInfo(
       getKubeConfig,
@@ -45,15 +42,12 @@ export function createApplyFunction(
       );
     }
 
-    const ns = obj.metadata?.namespace || namespace;
+    const ns = obj.metadata?.namespace;
     if (!ns) {
       throw new Error(
         `Namespace is required for ${obj.kind}/${name} (apiVersion ${obj.apiVersion})`,
       );
     }
-
-    obj.metadata = obj.metadata ?? {};
-    obj.metadata.namespace = ns;
 
     const customApi = clients.getCustomApi();
 
@@ -157,16 +151,6 @@ export function createApplyFunction(
   }
 
   async function applyStandardResource(obj: K8sResource): Promise<void> {
-    if (!isClusterScopedKind(obj.kind)) {
-      const namespace = obj.metadata?.namespace;
-      if (!namespace) {
-        const name = obj.metadata?.name ?? 'unknown';
-        throw new Error(`Namespace is required for ${obj.kind}/${name}`);
-      }
-    } else if (obj.metadata?.namespace) {
-      delete obj.metadata.namespace;
-    }
-
     const api = clients.getApi();
 
     try {
@@ -213,20 +197,7 @@ export function createApplyFunction(
 
     obj.metadata = obj.metadata ?? {};
 
-    const isClusterScoped = isClusterScopedKind(obj.kind);
-    if (!isClusterScoped) {
-      const resolvedNamespace = obj.metadata.namespace || namespace;
-      if (resolvedNamespace) {
-        obj.metadata.namespace = resolvedNamespace;
-      }
-
-      if (!obj.metadata.namespace) {
-        const name = obj.metadata.name ?? 'unknown';
-        throw new Error(`Namespace is required for ${obj.kind}/${name}`);
-      }
-    } else if (obj.metadata.namespace) {
-      delete obj.metadata.namespace;
-    }
+    resolveResourceNamespace(obj, namespace);
 
     if (obj.metadata?.name) {
       const label = formatResourceLabel(
@@ -238,7 +209,7 @@ export function createApplyFunction(
     }
 
     if (isCustomResource(obj.apiVersion)) {
-      await applyCustomResource(obj, namespace);
+      await applyCustomResource(obj);
     } else {
       await applyStandardResource(obj);
     }

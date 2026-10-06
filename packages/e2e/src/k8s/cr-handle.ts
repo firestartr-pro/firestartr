@@ -8,7 +8,7 @@ import {
 } from './constants';
 import { parseApiVersion, resolveCustomResourceInfo } from './crd';
 import { getStatusCode } from './errors';
-import { createLazyK8sClients } from './lazy-clients';
+import { createLazyClients } from './lazy-clients';
 
 import type {
   CrdInfo,
@@ -70,7 +70,7 @@ export async function resolveCrHandle(
 ): Promise<CrHandle> {
   const { group, version } = parseApiVersion(apiVersion);
   const info: CrdInfo = await resolveCustomResourceInfo(provider, group, kind);
-  const clients = createLazyK8sClients(provider);
+  const clients = createLazyClients(provider);
 
   const withRetry = <T>(label: string, op: () => Promise<T>): Promise<T> =>
     retryAsync(op, {
