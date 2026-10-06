@@ -86,6 +86,9 @@ for seed in ${seeds[@]+"${seeds[@]}"}; do
   src="${seed%%=*}" dest="${seed#*=}"
   [ "$src" != "$seed" ] || dest="$(basename "$src")"
   [ -e "$src" ] || fsf_die "seed not found: $src"
+  # cp -R keeps symlinks, which would let the CLI read outside the work dir and
+  # hide the linked files from files-before.txt.
+  [ -z "$(find "$src" -type l -print -quit)" ] || fsf_die "seed must not be or contain a symlink: $src"
   case "$dest" in
     /*) fsf_die "seed destination must be relative to the work dir: $dest" ;;
   esac

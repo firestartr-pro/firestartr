@@ -62,7 +62,7 @@ $V/drive.sh [--label L] [--mode offline|read|write] [--org ORG] [--expect-exit N
 ```
 
 `--seed` copies a file or directory into the drive's work dir (`DEST` is
-relative to it); a previous drive's `stdout.txt` makes a good seed for chaining
+relative to it; a seed that is or holds a symlink is refused); a previous drive's `stdout.txt` makes a good seed for chaining
 `create` into `validate`. `--expect-exit` is for commands that should fail
 (`validate` exits 1 on an invalid claim). Pick the feature in
 `features/README.md`, then follow its file.
