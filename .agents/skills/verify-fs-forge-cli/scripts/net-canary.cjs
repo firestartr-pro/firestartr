@@ -16,6 +16,8 @@ const original = net.Socket.prototype.connect;
 function target(args) {
   const first = Array.isArray(args[0]) ? args[0][0] : args[0];
   if (first !== null && typeof first === 'object') return first;
+  // Same rule as node's net: a string that is not a port number is a Unix socket path.
+  if (typeof first === 'string' && !(Number(first) >= 0)) return { path: first };
   return { port: first, host: args[1] };
 }
 
