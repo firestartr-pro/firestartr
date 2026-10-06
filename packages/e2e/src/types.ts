@@ -113,11 +113,12 @@ export interface ClaimsApi {
   ) => Promise<RenderLocallyResult>;
 
   // Snapshot of the artifacts produced by renderLocally calls so far.
-  // Mutating the returned array does not affect cleanup behaviour.
+  // Mutating the returned array or its artifacts does not affect cleanup behaviour.
   getRenderArtifacts: () => RenderedArtifact[];
 
   // Fixtures root for this session, defaulted to the repo fixtures directory.
-  // Never throws.
+  // Throws when no init override is set and the repo fixtures directory
+  // cannot be resolved.
   getFixturesBasePath: () => string;
 }
 

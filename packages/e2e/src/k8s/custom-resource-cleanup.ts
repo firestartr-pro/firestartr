@@ -190,7 +190,8 @@ export async function deleteCustomResourcesByAnnotation(
 
 /**
  * Lists namespaced custom resources whose annotation value matches one of
- * `annotationValues`. Returns [] when the CRD or namespace is absent.
+ * `annotationValues`. Returns [] when the CRD is not installed or the
+ * namespace does not exist; throws when `namespace` is undefined.
  */
 export async function listCustomResourcesByAnnotation(
   kubeConfigProvider: KubeConfigProvider,
