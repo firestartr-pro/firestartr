@@ -2,7 +2,7 @@ import { isCustomResource } from './crd';
 import { resolveCrHandle } from './cr-handle';
 import type { CrHandle } from './cr-handle';
 import { forceDeleteCr } from './force-delete';
-import { getStatusCode } from './errors';
+import { getStatusCode } from '../errors/status-code';
 import { waitForResourceDeletion } from './wait';
 
 import type { K8sApiError, K8sResource, KubeConfigProvider } from './types';

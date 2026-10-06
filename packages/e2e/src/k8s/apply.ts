@@ -1,4 +1,5 @@
-import { formatK8sError, getStatusCode } from './errors';
+import { formatK8sError } from './errors';
+import { getStatusCode, type StatusCodeError } from '../errors/status-code';
 import {
   isCustomResource,
   parseApiVersion,
@@ -65,7 +66,7 @@ export function createApplyFunction(
       common.logger.error(
         `K8s API create error for ${obj.kind}/${name} in namespace ${ns}: ${createErrMsg}`,
       );
-      if (getStatusCode(err as Error) !== 409) {
+      if (getStatusCode(err as StatusCodeError) !== 409) {
         throw new Error(
           `Failed to create ${obj.kind}/${name}: ${createErrMsg}`,
         );
@@ -83,7 +84,7 @@ export function createApplyFunction(
       });
       currentResource = response as K8sResource;
     } catch (err) {
-      if (getStatusCode(err as Error) === 404) {
+      if (getStatusCode(err as StatusCodeError) === 404) {
         common.logger.info(
           `CR ${obj.kind}/${name} in namespace ${ns} disappeared after 409; retrying create`,
         );
@@ -97,7 +98,7 @@ export function createApplyFunction(
           });
           return;
         } catch (retryErr) {
-          if (getStatusCode(retryErr as Error) === 409) {
+          if (getStatusCode(retryErr as StatusCodeError) === 409) {
             const response2 = await customApi.getNamespacedCustomObject({
               group,
               version,
@@ -156,7 +157,7 @@ export function createApplyFunction(
     try {
       await api.create(obj);
     } catch (err) {
-      if (getStatusCode(err as Error) !== 409) {
+      if (getStatusCode(err as StatusCodeError) !== 409) {
         throw err;
       }
 

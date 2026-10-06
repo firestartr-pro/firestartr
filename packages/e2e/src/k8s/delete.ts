@@ -1,5 +1,6 @@
 import * as k8s from '@kubernetes/client-node';
-import { formatK8sError, getStatusCode } from './errors';
+import { formatK8sError } from './errors';
+import { getStatusCode, type StatusCodeError } from '../errors/status-code';
 import { isCustomResource } from './crd';
 import { resolveCrHandle } from './cr-handle';
 import { forceDeleteCr } from './force-delete';
@@ -56,7 +57,7 @@ function shouldIgnoreDeleteError(
   ignoreNotFound: boolean,
 ): boolean {
   if (!ignoreNotFound) return false;
-  const status = getStatusCode(err as Error);
+  const status = getStatusCode(err as StatusCodeError);
   return status === 404 || status === 410;
 }
 
@@ -73,7 +74,7 @@ export function createDeleteFunction(
     return retryAsync(operation, {
       attempts: UNAUTHORIZED_RETRY_ATTEMPTS + 1,
       shouldRetry: (err) => {
-        const statusCode = getStatusCode(err as Error);
+        const statusCode = getStatusCode(err as StatusCodeError);
         return statusCode === UNAUTHORIZED_STATUS_CODE;
       },
       onRetry: (_err, attempt) => {

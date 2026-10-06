@@ -7,7 +7,7 @@ import {
   MERGE_PATCH_HEADERS,
 } from './constants';
 import { parseApiVersion, resolveCustomResourceInfo } from './crd';
-import { getStatusCode } from './errors';
+import { getStatusCode, type StatusCodeError } from '../errors/status-code';
 import { createLazyClients } from './lazy-clients';
 
 import type {
@@ -76,7 +76,7 @@ export async function resolveCrHandle(
     retryAsync(op, {
       attempts: UNAUTHORIZED_RETRY_ATTEMPTS + 1,
       shouldRetry: (err) =>
-        getStatusCode(err as Error) === UNAUTHORIZED_STATUS_CODE,
+        getStatusCode(err as StatusCodeError) === UNAUTHORIZED_STATUS_CODE,
       onRetry: (_err, attempt) => {
         common.logger.warn(
           `Unauthorized while ${label}; refreshing Kubernetes client and retrying (${attempt}/${UNAUTHORIZED_RETRY_ATTEMPTS}).`,

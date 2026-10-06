@@ -1,6 +1,10 @@
 import common from 'catalog_common';
 import { formatResourceLabel } from './manifests';
-import { formatK8sError, getStatusCode } from './errors';
+import { formatK8sError } from './errors';
+import {
+  getStatusCode,
+  type StatusCodeError,
+} from '../errors/status-code';
 import { waitForResourceDeletion } from './wait';
 
 import type { CrHandle } from './cr-handle';
@@ -28,7 +32,7 @@ export async function forceDeleteCr(
     try {
       await op();
     } catch (err) {
-      const code = getStatusCode(err as Error);
+      const code = getStatusCode(err as StatusCodeError);
       if (code !== 404 && code !== 410) {
         common.logger.warn(
           `Failed to ${verb} ${label}: ${formatK8sError(err as Error)}`,
