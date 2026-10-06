@@ -1,5 +1,6 @@
 import type { K8sApiError } from './types';
 import { getStatusCode } from '../errors/status-code';
+
 // Format a Kubernetes API error into a readable string.
 export function formatK8sError(error: K8sApiError): string {
   const status = getStatusCode(error);
