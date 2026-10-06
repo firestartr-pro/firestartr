@@ -116,7 +116,7 @@ done
 
 # sha256 of every file in the work dir, minus the isolated cache and XDG dirs.
 list_files() { (cd "$work" && find . -type f -not -path './.feature-cache/*' -not -path './.xdg/*' -exec shasum -a 256 {} + | sort -k2); }
-list_files > "$evid/files-before.txt"
+list_files > "$evid/files-before.txt" || fsf_die "could not fingerprint the work dir before the drive"
 
 {
   echo "mode=$mode org=${org:-<none>} expect-exit=$expect"
@@ -170,6 +170,12 @@ if [ "$mode" != offline ] && [ -n "${token:-}" ]; then
       awk -v s="$token" '{while (i=index($0,s)) $0=substr($0,1,i-1) "[REDACTED]" substr($0,i+length(s))} 1' "$f" > "$tmp" && mv "$tmp" "$f"
     done
     verdict=FAIL reason="the GitHub token appears in the evidence (redacted)"; status=4
+    # A failed rewrite leaves the token on disk: stop before the transcript prints it.
+    if grep -rqF -- "$token" "$evid" 2>/dev/null; then
+      echo "FAIL - the GitHub token appears in the evidence and could not be redacted" > "$evid/verdict.txt"
+      echo "ERROR: the GitHub token is in $evid and could not be redacted; delete that dir" >&2
+      exit 4
+    fi
   fi
 fi
 if [ "$status" = 0 ] && [ "$code" != "$expect" ]; then
