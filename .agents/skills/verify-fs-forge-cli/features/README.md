@@ -8,7 +8,7 @@ This directory is the maintained source for verifying the user-facing behavior o
 - Fixtures live under `packages/fs-forge-cli/__tests__/fixtures/` (`$F` below). Seed copies of them into a drive; never point a drive at the originals.
 - `$F/valid/*.yaml` are valid claims. `$F/invalid/*.yaml` each break one rule. `$F/feature-sources/` is a local Feature source (`index.json` plus `feature_a`). `$F/relation-graphs/{valid,invalid}.json` feed `diagram print`.
 - The drive supplies its own `FS_FORGE_FEATURE_CACHE_DIR`, `XDG_*` dirs and a scrubbed environment. Set none of `GITHUB_TOKEN`, `FSCRT_ORG` or `FS_FORGE_FEATURE_CACHE_DIR` by hand.
-- Org-bound features need an org the user named, whose OK you hold, and a token (`GITHUB_TOKEN` or `gh auth token`). Write recipes need a pre org registered under `firestartr-pre/app-firestartr` `kubernetes/firestartr-pre/`.
+- Org-bound features need an org the user named, whose OK you hold, and a token (`GH_TOKEN`, `GITHUB_TOKEN` or `gh auth token`). Write recipes need a pre org registered under `firestartr-pre/app-firestartr` `kubernetes/firestartr-pre/`.
 - Drive only through `drive.sh`; a run started outside it has no isolation and no evidence.
 
 ## Driving conventions

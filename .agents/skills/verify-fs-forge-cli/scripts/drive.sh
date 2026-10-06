@@ -60,7 +60,7 @@ case "$mode" in
     [ -z "$arg_org" ] || [ "$arg_org" = "$org" ] || fsf_die "the command targets --org $arg_org but the drive names $org"
     [ "$mode" = write ] || [ "$has_commit" = 0 ] || fsf_die "--commit needs --mode write"
     command -v gh >/dev/null 2>&1 || fsf_die "gh is required by org-snapshot.sh"
-    token="$(fsf_token)" || fsf_die "no GITHUB_TOKEN and 'gh auth token' failed"
+    token="$(fsf_token)" || fsf_die "no GH_TOKEN, GITHUB_TOKEN or 'gh auth token'"
     if [ "$mode" = write ]; then
       # Registered pre orgs live in firestartr-pre/app-firestartr (see smoke-test-renderer).
       gh api "repos/firestartr-pre/app-firestartr/contents/kubernetes/firestartr-pre/$org" >/dev/null 2>&1 ||

@@ -67,8 +67,11 @@ fsf_packages_state() {
     shasum | cut -d' ' -f1
 }
 
-# The GitHub token for org-bound drives: the caller's, else gh's. Never printed.
+# The GitHub token for org-bound drives, in gh's own precedence (GH_TOKEN,
+# GITHUB_TOKEN, stored auth), so the snapshots' gh calls and the CLI child act
+# as the same identity. Never printed.
 fsf_token() {
+  if [ -n "${GH_TOKEN:-}" ]; then printf '%s' "$GH_TOKEN"; return; fi
   if [ -n "${GITHUB_TOKEN:-}" ]; then printf '%s' "$GITHUB_TOKEN"; return; fi
   command -v gh >/dev/null 2>&1 || return 1
   gh auth token 2>/dev/null

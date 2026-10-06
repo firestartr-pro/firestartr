@@ -82,7 +82,7 @@ for var in GITHUB_TOKEN GH_TOKEN FSCRT_ORG FS_FORGE_FEATURE_CACHE_DIR; do
 done
 
 if [ -n "$org" ]; then
-  if fsf_token >/dev/null; then pass token "GITHUB_TOKEN or 'gh auth token' yields a token"; else fail token "no GITHUB_TOKEN and 'gh auth token' failed"; fi
+  if fsf_token >/dev/null; then pass token "GH_TOKEN, GITHUB_TOKEN or 'gh auth token' yields a token"; else fail token "no GH_TOKEN, GITHUB_TOKEN or 'gh auth token'"; fi
   command -v gh >/dev/null 2>&1 && pass gh "$(command -v gh)" || fail gh "gh is required by org-snapshot.sh and write mode"
   pass org "named explicitly: $org (not contacted)"
 fi
