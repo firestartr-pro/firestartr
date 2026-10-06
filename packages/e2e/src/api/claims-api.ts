@@ -162,7 +162,7 @@ export function createClaimsApi(state: E2EState): ClaimsApi {
     },
 
     getRenderArtifacts(): RenderedArtifact[] {
-      return [...state.renderedArtifacts];
+      return state.renderedArtifacts.map((artifact) => ({ ...artifact }));
     },
 
     getFixturesBasePath(): string {

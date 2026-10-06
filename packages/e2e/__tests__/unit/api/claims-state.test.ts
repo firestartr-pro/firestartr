@@ -34,6 +34,7 @@ describe('claims state accessors', () => {
 
     const artifacts = claims.getRenderArtifacts();
     artifacts.push({ crPath: '/tmp/b.yaml', outputPath: '/tmp/out' });
+    artifacts[0].crPath = '/tmp/changed.yaml';
 
     expect(claims.getRenderArtifacts()).toEqual([
       { crPath: '/tmp/a.yaml', outputPath: '/tmp/out' },
