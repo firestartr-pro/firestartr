@@ -116,10 +116,6 @@ function padded(index: number): string {
   return String(index).padStart(3, '0');
 }
 
-export function getDefaultMassiveConfig(): MassiveConfig {
-  return { ...DEFAULT_CONFIG };
-}
-
 export function parseMassiveConfig(
   env: MassiveEnv = process.env,
 ): MassiveConfig {

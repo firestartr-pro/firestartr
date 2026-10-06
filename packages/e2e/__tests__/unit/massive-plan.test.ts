@@ -1,16 +1,11 @@
 import {
   buildMassivePlan,
-  getDefaultMassiveConfig,
   parseMassiveConfig,
   splitBatches,
 } from '../../src/massive-plan';
 
 describe('massive e2e plan', () => {
   it('uses final default scale', () => {
-    expect(getDefaultMassiveConfig()).toMatchObject({
-      repoCount: 50,
-      groupCount: 10,
-    });
     expect(parseMassiveConfig({})).toMatchObject({
       repoCount: 50,
       groupCount: 10,
