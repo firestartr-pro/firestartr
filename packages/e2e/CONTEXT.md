@@ -60,6 +60,15 @@ byte-for-byte equality. Runs are correlated by a unique id surfaced as the
 run's `display_title`; the newest run is never assumed to be the test's run.
 _Avoid_: log scraping, latest-run assumption
 
+**Claim-patch policy**:
+The shared patch set that makes a `base_claims` fixture valid for e2e — empty
+user-reference fields, the owner/platformOwner refs, the OIDC knobs — owned by
+`src/claim-patches.ts` (`buildComponentClaimPatches`,
+`buildGroupClaimPatches`) and applied on top of the kind-aware common patches.
+Suites only add the fields their scenario sets, through the builder options or
+an `extraPatches` tail.
+_Avoid_: per-suite patch lists, fixture-specific copy-paste
+
 **Force-reconcile**:
 Setting the `firestartr.dev/reconcile-at` annotation to make the operator
 re-provision a CR whose spec is unchanged. e2e uses it to push a rotated secret,
