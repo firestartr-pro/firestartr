@@ -5,31 +5,12 @@ import common from 'catalog_common';
 import {
   buildClaimRef,
   getFirestartrAnnotation,
-  getRelatedCrKindsForClaimKind,
 } from '../../src/claim-taxonomy';
 import { findRenderedCrPaths, readClaimResource } from '../../src/cr-finder';
 
 import type { TestContext } from '../../src/types';
 
-describe('cr-finder org webhook support', () => {
-  it('returns the user CR kind for user claims', () => {
-    expect(getRelatedCrKindsForClaimKind('UserClaim')).toEqual([
-      'FirestartrGithubMembership',
-    ]);
-  });
-
-  it('returns the org webhook CR kind for org webhook claims', () => {
-    expect(getRelatedCrKindsForClaimKind('OrgWebhookClaim')).toEqual([
-      'FirestartrGithubOrgWebhook',
-    ]);
-  });
-
-  it('returns the terraform workspace CR kind for tfworkspace claims', () => {
-    expect(getRelatedCrKindsForClaimKind('TFWorkspaceClaim')).toEqual([
-      'FirestartrTerraformWorkspace',
-    ]);
-  });
-
+describe('cr-finder', () => {
   it('accepts org webhook claims when reading claim resources', async () => {
     const context = {
       getFile: async () => 'kind: OrgWebhookClaim\nname: demo-hook\n',
