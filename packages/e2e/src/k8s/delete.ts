@@ -13,7 +13,7 @@ import {
   formatResourceLabel,
   readManifestFile,
 } from './manifests';
-import { createLazyClients } from './lazy-clients';
+import { createLazyK8sClients } from './lazy-clients';
 import {
   assertNamespacedKind,
   type DeleteOptions,
@@ -65,7 +65,7 @@ export function createDeleteFunction(
   getKubeConfig: KubeConfigProvider,
   defaultNamespace: string,
 ) {
-  const clients = createLazyClients(getKubeConfig);
+  const clients = createLazyK8sClients(getKubeConfig);
 
   const callWithUnauthorizedRetry = async <T>(
     operationLabel: string,

@@ -12,7 +12,7 @@ import {
   formatResourceLabel,
   readManifestFile,
 } from './manifests';
-import { createLazyClients } from './lazy-clients';
+import { createLazyK8sClients } from './lazy-clients';
 import {
   assertNamespacedKind,
   resolveResourceNamespace,
@@ -24,7 +24,7 @@ export function createApplyFunction(
   getKubeConfig: KubeConfigProvider,
   defaultNamespace: string,
 ) {
-  const clients = createLazyClients(getKubeConfig);
+  const clients = createLazyK8sClients(getKubeConfig);
 
   async function applyCustomResource(obj: K8sResource): Promise<void> {
     const { group, version } = parseApiVersion(obj.apiVersion);
