@@ -1,4 +1,4 @@
-import { getStatusCode as getHttpStatusCode } from '../errors/status-code';
+import { getStatusCode } from '../errors/status-code';
 
 export type GithubError = {
   status?: number;
@@ -9,10 +9,6 @@ export type GithubError = {
   };
   message?: string;
 };
-
-export function getStatusCode(error: GithubError): number | undefined {
-  return getHttpStatusCode(error);
-}
 
 export function isNotFound(error: GithubError): boolean {
   if (getStatusCode(error) === 404) return true;

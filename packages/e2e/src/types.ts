@@ -1,7 +1,4 @@
-import type {
-  JsonPatchOperation,
-  TestContext,
-} from 'render/src/utils/auxiliar';
+import type { JsonPatchOperation } from 'render/src/utils/auxiliar';
 import type { K8sResource } from './k8s/types';
 import type { TFResult } from './k8s/tfresult';
 
@@ -80,40 +77,11 @@ export type RenderedArtifact = {
   outputPath: string;
 };
 
-// Renderer configuration roots used by `renderClaims(...)`.
-// These are filesystem paths, not repository URLs.
-// If omitted, defaults resolve from `fixturesBasePath` (or repo defaults):
-// - `<fixturesBasePath>/initializers`
-// - `<fixturesBasePath>/globals`
-// - `defaults` falls back to `initializers`
-export interface ClaimsConfig {
-  // Directory with initializer YAML files.
-  initializers?: string;
-
-  // Directory with globals YAML files.
-  globals?: string;
-
-  // Claims-defaults path passed to renderer (`claimsDefaults`).
-  defaults?: string;
-}
-
 // Claims API surface used by e2e tests.
 // "Context" is the temporary render workspace created by
 // `createTestContext(...)` in `packages/e2e/src/test-context.ts`.
 // It contains copied fixture claim files, applied patches, and output folders.
 export interface ClaimsApi {
-  // Inject a prebuilt context (advanced use).
-  // Use when tests need custom fixture loading beyond `initE2e(..., { onlyFiles })`.
-  setContext: (context: TestContext) => void;
-
-  // Read the current context instance, or null before first render/setup.
-  getContext: () => TestContext | null;
-
-  // Override claims config directories used by subsequent renders.
-  // Call this before `renderLocally` when using custom
-  // initializer/global/default fixtures.
-  setConfig: (config: ClaimsConfig) => void;
-
   // Recreate the current context from original source fixtures.
   // Useful to discard previous file patches while keeping the same fixture set.
   restartContext: () => Promise<void>;
@@ -143,6 +111,15 @@ export interface ClaimsApi {
     name: string,
     options?: RenderLocallyOptions,
   ) => Promise<RenderLocallyResult>;
+
+  // Snapshot of the artifacts produced by renderLocally calls so far.
+  // Mutating the returned array or its artifacts does not affect cleanup behaviour.
+  getRenderArtifacts: () => RenderedArtifact[];
+
+  // Fixtures root for this session, defaulted to the repo fixtures directory.
+  // Throws when no init override is set and the repo fixtures directory
+  // cannot be resolved.
+  getFixturesBasePath: () => string;
 }
 
 // Shared base for bulk custom-resource deletion options.
@@ -161,6 +138,19 @@ type DeleteByOptions = {
 export type DeleteByLabelOptions = DeleteByOptions & {
   // Kubernetes label selector string.
   labelSelector: string;
+};
+
+// Options object for listCustomResourcesByAnnotation.
+export type ListByAnnotationOptions = {
+  // Custom resource kind to list.
+  kind: string;
+  // Custom resource apiVersion (must be a custom resource).
+  apiVersion: string;
+  // Annotation key to match (for example the claim-ref annotation).
+  annotationKey: string;
+  // Allowed annotation values; resources whose annotation value is in this
+  // list are returned.
+  annotationValues: string[];
 };
 
 // Options object for deleteCustomResourcesByAnnotation.
@@ -204,6 +194,13 @@ export interface K8sApi {
   deleteCustomResourcesByAnnotation: (
     options: DeleteByAnnotationOptions,
   ) => Promise<number>;
+
+  // List namespaced custom resources whose annotation value matches.
+  // Example: annotationKey 'firestartr.dev/claim-ref',
+  // annotationValues ['GroupClaim/firestartr'].
+  listCustomResourcesByAnnotation: (
+    options: ListByAnnotationOptions,
+  ) => Promise<K8sResource[]>;
 
   // Wait for the resource in `crPath` to reach `status`.
   // `status` defaults to 'PROVISIONED'.
