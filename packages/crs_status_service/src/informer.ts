@@ -46,7 +46,6 @@ function buildProjection(item: any, namespace: string): StatusProjection {
 function pluralToKind(plural: string): string {
   const map: Record<string, string> = {
     terraformworkspaces: 'FirestartrTerraformWorkspace',
-    
     githubgroups: 'FirestartrGithubGroup',
     githubrepositories: 'FirestartrGithubRepository',
     githubrepositorysecretssections: 'FirestartrGithubRepositorySecretsSection',
