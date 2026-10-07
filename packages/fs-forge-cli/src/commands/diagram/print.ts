@@ -2,7 +2,7 @@ import { Command, Flags } from '@oclif/core';
 import { readFile } from 'fs/promises';
 import { join } from 'path';
 
-import { setSchemasDir, validateClaim } from '../../utils/ajvValidation.js';
+import { createClaimValidator } from '../../utils/ajvValidation.js';
 import { renderRelationGraph } from '../../lib/relationMap.js';
 
 import type { RelationGraph } from '../../lib/relationMap.js';
@@ -51,8 +51,10 @@ export default class DiagramPrint extends Command {
       this.error(`Invalid JSON input: ${(err as Error).message}`);
     }
 
-    setSchemasDir(join(this.config.root, 'schemas'));
-    const result = await validateClaim(
+    const validator = createClaimValidator({
+      schemasDir: join(this.config.root, 'schemas'),
+    });
+    const result = await validator.validate(
       graph as Record<string, unknown>,
       'RelationGraph',
     );

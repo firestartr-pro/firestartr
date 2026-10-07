@@ -6,7 +6,7 @@ import { join } from 'path';
 
 import CreateComponent from '../src/commands/create/component';
 import CustomHelp from '../src/help';
-import { setSchemasDir, validateClaim } from '../src/utils/ajvValidation';
+import { createClaimValidator } from '../src/utils/ajvValidation';
 
 const ROOT = process.cwd();
 
@@ -38,8 +38,8 @@ describe('command help JSON contract', () => {
       }>;
     };
 
-    setSchemasDir(join(ROOT, 'schemas'));
-    const validation = await validateClaim(help, 'CommandHelpJson');
+    const validator = createClaimValidator({ schemasDir: join(ROOT, 'schemas') });
+    const validation = await validator.validate(help, 'CommandHelpJson');
     expect(validation).toEqual({ valid: true, errors: [] });
 
     expect(help.description).toBe('Create a new ComponentClaim.');

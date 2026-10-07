@@ -8,11 +8,13 @@ import { deriveVariantGroups } from '../utils/deriveFlags.js';
 import type { ClaimKind } from './definitions.js';
 import type { VariantGroup } from '../utils/deriveFlags.js';
 
+export const ORG_FLAG = Flags.string({
+  description: 'GitHub organization containing the claims repo',
+  env: 'FSCRT_ORG',
+});
+
 export const MUTATION_CONTROL_FLAGS = {
-  org: Flags.string({
-    description: 'GitHub organization containing the claims repo',
-    env: 'FSCRT_ORG',
-  }),
+  org: ORG_FLAG,
   unset: Flags.string({
     description: 'Remove a dotted field path',
     multiple: true,

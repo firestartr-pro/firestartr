@@ -1,11 +1,20 @@
 import { describe, expect, it, jest } from '@jest/globals';
 import { captureOutput } from '@oclif/test';
 
-jest.mock('../src/claims/claimsMap', () => ({
+jest.mock('../src/claims/claimsRepo', () => ({
+  claimsRepo: jest.fn(
+    (_api: unknown, owner: string, repo = 'claims') => ({
+      api: {},
+      ref: { owner, repo },
+    }),
+  ),
   loadClaimsMap: jest.fn(),
 }));
+jest.mock('../src/github/index', () => ({
+  createGitHubApi: jest.fn(() => ({})),
+}));
 
-import { loadClaimsMap } from '../src/claims/claimsMap';
+import { loadClaimsMap } from '../src/claims/claimsRepo';
 import OrgElements from '../src/commands/discovery/org-elements';
 
 process.env.GITHUB_TOKEN = 'test-token';
@@ -77,16 +86,8 @@ describe('discovery org-elements', () => {
     });
   });
 
-  it('filters by --kind, repeatable', async () => {
-    const { result, stdout } = await run('--kind', 'group');
-
-    expect(result).toBe(0);
-    expect(stdout).toContain('GroupClaim');
-    expect(stdout).not.toContain('ComponentClaim');
-  });
-
-  it('accepts full claim kind compatibility spellings', async () => {
-    const { result, stdout } = await run('--kind', 'GroupClaim');
+  it.each(['group', 'GroupClaim'])('filters by --kind %s', async (kind) => {
+    const { result, stdout } = await run('--kind', kind);
 
     expect(result).toBe(0);
     expect(stdout).toContain('GroupClaim');
@@ -115,7 +116,9 @@ describe('discovery org-elements', () => {
     await run('--claims-repo', 'staging-claims', '--json');
 
     expect(mockedLoadClaimsMap).toHaveBeenCalledWith(
-      expect.objectContaining({ repo: 'staging-claims' }),
+      expect.objectContaining({
+        ref: expect.objectContaining({ repo: 'staging-claims' }),
+      }),
     );
   });
 
@@ -133,23 +136,20 @@ describe('discovery org-elements', () => {
     }
   });
 
-  it('surfaces a stale claims map error', async () => {
-    mockedLoadClaimsMap.mockRejectedValue(
-      new Error('The claims map is stale; wait for generate-claims-map.yaml to recover'),
-    );
+  it.each([
+    [
+      'The claims map is stale; wait for generate-claims-map.yaml to recover',
+      'claims map is stale',
+    ],
+    [
+      'The claims repo does not have a claims map yet',
+      'does not have a claims map yet',
+    ],
+  ])('surfaces a claims map error: %s', async (message, expected) => {
+    mockedLoadClaimsMap.mockRejectedValue(new Error(message));
 
     const { error } = await run();
 
-    expect(error?.message).toContain('claims map is stale');
-  });
-
-  it('surfaces a missing claims map error', async () => {
-    mockedLoadClaimsMap.mockRejectedValue(
-      new Error('The claims repo does not have a claims map yet'),
-    );
-
-    const { error } = await run();
-
-    expect(error?.message).toContain('does not have a claims map yet');
+    expect(error?.message).toContain(expected);
   });
 });

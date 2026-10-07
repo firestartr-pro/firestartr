@@ -5,15 +5,7 @@ import {
   FEATURE_TARGET_FLAGS,
   FEATURE_TARGET_RELATIONSHIP,
 } from '../../utils/featureCommand.js';
-import {
-  loadComponentTarget,
-  writeAndPublishClaim,
-} from '../../utils/featureClaims.js';
-import { mutateFeatureReference } from '../../utils/features.js';
-import { setSchemasDir, validateClaim } from '../../utils/ajvValidation.js';
-import { ClaimsClient } from '../../claims/client.js';
-import { requireOrg } from '../../mutations/support.js';
-import { waitForDispatch } from '../../utils/waitForDispatch.js';
+import { runFeatureMutation } from '../../features/mutation.js';
 
 export default class FeaturesRemove extends Command {
   static args = COMPONENT_ARG;
@@ -31,31 +23,18 @@ export default class FeaturesRemove extends Command {
 
   async run(): Promise<void> {
     const { args, flags } = await this.parse(FeaturesRemove);
-    const target = await loadComponentTarget({
-      component: args.component,
-      file: flags.file,
-      org: flags.org,
-      commit: flags.commit,
-    });
-    const claim = mutateFeatureReference(target.claim, 'remove', {
-      name: flags.name,
-    });
-    setSchemasDir(`${this.config.root}/schemas`);
-    const validation = await validateClaim(claim, 'ComponentClaim');
-    if (!validation.valid) this.error(validation.errors.join('\n'));
-
-    const result = await writeAndPublishClaim(target, claim, flags.json);
-    if (result) {
-      try {
-        await waitForDispatch(new ClaimsClient(requireOrg(flags.org)), result, {
-          noWait: flags['no-wait'],
-          claimType: 'ComponentClaim',
-          claimName: target.name,
-          label: 'Provisioning',
-        });
-      } catch (error) {
-        this.error(error instanceof Error ? error.message : String(error));
-      }
-    }
+    await runFeatureMutation(
+      {
+        operation: 'remove',
+        component: args.component,
+        file: flags.file,
+        org: flags.org,
+        commit: flags.commit,
+        noWait: flags['no-wait'],
+        json: flags.json,
+        feature: { name: flags.name },
+      },
+      { schemasDir: `${this.config.root}/schemas` },
+    );
   }
 }
