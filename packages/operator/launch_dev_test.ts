@@ -87,7 +87,7 @@ async function main() {
   const namespace = process.env.OPERATOR_NAMESPACE || 'default';
   const kindList = (
     process.env.OPERATOR_KIND_LIST ||
-    'fsdummiesa,fsdummiesb,fsdummiesc,terraformworkspaceplans,terraformworkspaces'
+    'fsdummiesa,fsdummiesb,fsdummiesc,terraformworkspaces'
   )
     .split(',')
     .map((s) => s.trim())

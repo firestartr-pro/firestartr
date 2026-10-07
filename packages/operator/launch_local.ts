@@ -24,7 +24,6 @@ runOperator({
     'githubmemberships',
     'githubgroups',
     'terraformworkspaces',
-    'terraformworkspaceplans',
     'githuborgwebhooks',
     'githuborganizationsettings',
   ],

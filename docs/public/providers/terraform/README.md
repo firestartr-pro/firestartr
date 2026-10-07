@@ -190,8 +190,7 @@ namespace, owned by the workspace CR. Outputs are stored as a base64-encoded JSO
 blob under the `outputs` key.
 
 `TFResult` (`firestartr.dev/v1`, short name `tfresult`) records command output
-and the exit code. `FirestartrTerraformWorkspace` and
-`FirestartrTerraformWorkspacePlan` both expose `/status`.
+and the exit code. `FirestartrTerraformWorkspace` exposes `/status`.
 
 > **Output behavior:** the CRDs expose `spec.writeConnectionSecretToRef`, but the
 > workspace flow does not honor a custom name or output list. Outputs always land
@@ -223,10 +222,7 @@ reconciliation.
 - **Raw CRs can be looser than the claim schema.** A hand-written
   `FirestartrTerraformWorkspace` can pass Kubernetes admission and still fail in
   reconciliation if `values`, `context`, or references are missing.
-- **A separate plan kind exists.** `FirestartrTerraformWorkspacePlan`
-  (`tfwpl`) mirrors the workspace spec without `files`, uses its own legacy
-  processor, and recognizes only the `observe`, `apply`, and `destroy` policy
-  values.
+ 
 
 ## Features
 

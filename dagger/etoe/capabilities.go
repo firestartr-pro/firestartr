@@ -10,7 +10,6 @@ func legacyBaselineCapabilities(imageTag string) ([]string, bool) {
 
 	return []string{
 		"terraformworkspaces",
-		"terraformworkspaceplans",
 		"githubgroups",
 		"githubrepositories",
 		"githubrepositorysecretssections",
