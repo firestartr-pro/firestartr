@@ -1,17 +1,17 @@
 import { Command, Flags } from '@oclif/core';
 
 import { loadClaimsArchive } from '../../claims/archive.js';
-import { ClaimsClient } from '../../claims/client.js';
+import { createGitHubApi } from '../../github/index.js';
 import {
   CLAIM_KIND_OPTIONS,
-  normalizeClaimKind,
-} from '../../mutations/definitions.js';
+  normalizeKind,
+} from '../../claims/kindRegistry.js';
 import {
   buildRelationGraph,
   filterRelationGraph,
   renderRelationGraph,
 } from '../../lib/relationMap.js';
-import { requireOrg } from '../../mutations/support.js';
+import { ORG_FLAG, requireOrg } from '../../mutations/support.js';
 
 export default class DiscoveryMap extends Command {
   static description = 'Show the relation tree for every claim in an org';
@@ -23,10 +23,7 @@ export default class DiscoveryMap extends Command {
   ];
 
   static flags = {
-    org: Flags.string({
-      description: 'GitHub organization containing the claims repo',
-      env: 'FSCRT_ORG',
-    }),
+    org: ORG_FLAG,
     ref: Flags.string({ description: 'Claims repo branch, tag, or commit' }),
     kind: Flags.string({
       description: 'Only show this claim kind by short ID (repeatable)',
@@ -40,8 +37,12 @@ export default class DiscoveryMap extends Command {
   async run(): Promise<void> {
     const { flags } = await this.parse(DiscoveryMap);
     const org = requireOrg(flags.org);
-    const kinds = flags.kind?.map((value) => normalizeClaimKind(value)!);
-    const claims = await loadClaimsArchive(new ClaimsClient(org), flags.ref);
+    const kinds = flags.kind?.map((value) => normalizeKind(value)!);
+    const claims = await loadClaimsArchive(
+      createGitHubApi(),
+      { owner: org, repo: 'claims' },
+      flags.ref,
+    );
     const graph = buildRelationGraph(claims, org);
     if (flags.json) {
       process.stdout.write(

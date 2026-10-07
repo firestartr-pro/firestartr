@@ -1,8 +1,9 @@
 import { Command, Flags } from '@oclif/core';
 
-import { ClaimsClient } from '../../claims/client.js';
+import { claimsRepo } from '../../claims/claimsRepo.js';
+import { createGitHubApi } from '../../github/index.js';
 import { resolveDefaultsFile } from '../../claims/defaults.js';
-import { requireOrg } from '../../mutations/support.js';
+import { ORG_FLAG, requireOrg } from '../../mutations/support.js';
 
 function writeLine(value: string): void {
   process.stdout.write(`${value}\n`);
@@ -18,10 +19,7 @@ export default class DefaultsList extends Command {
   ];
 
   static flags = {
-    org: Flags.string({
-      description: 'GitHub organization containing the claims repo',
-      default: async () => process.env.FSCRT_ORG,
-    }),
+    org: ORG_FLAG,
     json: Flags.boolean({ description: 'Output as JSON', default: false }),
   };
 
@@ -29,8 +27,8 @@ export default class DefaultsList extends Command {
     const { flags } = await this.parse(DefaultsList);
     const org = requireOrg(flags.org);
 
-    const client = new ClaimsClient(org);
-    const defaults = await resolveDefaultsFile(client);
+    const repo = claimsRepo(createGitHubApi(), org);
+    const defaults = await resolveDefaultsFile(repo);
     const kinds = (defaults ? Object.keys(defaults) : [])
       .filter(
         (kind) =>

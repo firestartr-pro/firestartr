@@ -5360,6 +5360,7 @@
       "flags": {
         "org": {
           "description": "GitHub organization containing the claims repo",
+          "env": "FSCRT_ORG",
           "name": "org",
           "hasDynamicHelp": false,
           "multiple": false,
@@ -5401,6 +5402,7 @@
       "flags": {
         "org": {
           "description": "GitHub organization containing the claims repo",
+          "env": "FSCRT_ORG",
           "name": "org",
           "hasDynamicHelp": false,
           "multiple": false,
@@ -5445,6 +5447,7 @@
       "flags": {
         "org": {
           "description": "GitHub organization containing the claims repo",
+          "env": "FSCRT_ORG",
           "name": "org",
           "hasDynamicHelp": false,
           "multiple": false,

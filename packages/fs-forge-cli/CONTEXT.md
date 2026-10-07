@@ -31,9 +31,9 @@ A JSON Schema (draft 2020-12) file under `schemas/` that defines the structure
 and constraints of a claim kind.
 
 **Kind**:
-The type of a claim — `ComponentClaim`, `GroupClaim`, `UserClaim`,
-`SystemClaim`, `DomainClaim`, `TFWorkspaceClaim`, `SecretsClaim`,
-`OrgWebhookClaim`, `ArgoDeployClaim`.
+The type of a claim — `ArgoDeployClaim`, `ComponentClaim`, `DomainClaim`,
+`GroupClaim`, `OrgSettingsClaim`, `OrgWebhookClaim`, `SecretsClaim`,
+`SystemClaim`, `TFWorkspaceClaim`, `UserClaim`.
 
 **Codegen**:
 The metadata-driven code generation process
@@ -127,11 +127,14 @@ The mechanisms by which fs-forge reads from and writes to a claims repo:
 **get claim** (read claims-map → download claim file), **create claim**
 (create branch → commit claim → dispatch provision workflow), and
 **get defaults** (fetch `claims_defaults.yaml` for additive default application).
+Implemented by `src/claims/claimsRepo.ts` over the GitHub port.
 
-**Claims client**:
-The `src/claims/client.ts` module that wraps all GitHub API interactions for
-fs-forge. Uses a single raw `@octokit/rest` Octokit instance authenticated via
-`GITHUB_TOKEN`. Does not use `packages/github`. See ADR 0003.
+**GitHub port**:
+The `src/github/api.ts` interface describing the GitHub operations fs-forge
+needs in its own data shapes. `src/github/octokitApi.ts` implements it over a
+single raw `@octokit/rest` Octokit instance authenticated via `GITHUB_TOKEN`,
+built by `createGitHubApi`; tests use an in-memory implementation. Does not use
+`packages/github`. See ADR 0003.
 
 **Defaults** / **Claim defaults**:
 Per-kind default values sourced from the claims repo's `claims_defaults.yaml`.

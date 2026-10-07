@@ -4,14 +4,15 @@ import { captureOutput } from '@oclif/test';
 import { join } from 'path';
 import YAML from 'yaml';
 
-jest.mock('../src/claims/client', () => ({
-  ClaimsClient: jest.fn(),
+jest.mock('../src/github/index', () => ({
+  createGitHubApi: jest.fn(),
 }));
 
-import { ClaimsClient } from '../src/claims/client';
+import { createGitHubApi } from '../src/github/index';
 import DefaultsApply from '../src/commands/defaults/apply';
 import DefaultsShow from '../src/commands/defaults/show';
 import DefaultsList from '../src/commands/defaults/list';
+import { MemoryGitHubApi } from './fixtures/memoryGitHubApi';
 
 const ROOT = process.cwd();
 const ORIGINAL_ORG = process.env.FSCRT_ORG;
@@ -31,47 +32,47 @@ const DEFAULTS_YAML = [
 
 const CLAIM_YAML = 'name: my-component\nkind: ComponentClaim\nowner: group:my-team\n';
 
-const MockClaimsClient = ClaimsClient as unknown as jest.Mock;
+const MockCreateGitHubApi = createGitHubApi as unknown as jest.Mock;
 
-function mockClient(overrides: Record<string, unknown> = {}) {
-  const client = {
-    getDefaultBranch: jest.fn(async () => 'main'),
-    hasInFlightClaimsMapWorkflow: jest.fn(async () => false),
-    getFile: jest.fn(async () => null),
-    getRawFile: jest.fn(async () => null),
-    listFilesRecursive: jest.fn(async () => []),
-    ...overrides,
-  };
-  MockClaimsClient.mockImplementation(() => client);
-  return client;
-}
-
-function mockRepoClient(defaultsYaml: string | null) {
-  return mockClient({
-    getFile: jest.fn(async (path: string) => {
-      if (path === 'claims-map.json') {
-        return {
-          content: JSON.stringify({
-            headers: { sha: 'map-sha' },
-            claims: {
-              'ComponentClaim-my-component': {
-                filePath: 'components/my-component.yaml',
-              },
-            },
-          }),
-          path,
-          sha: 'map-file-sha',
-        };
-      }
-      if (path === 'claims/components/my-component.yaml') {
-        return { content: CLAIM_YAML, path, sha: 'claim-sha' };
-      }
-      return null;
-    }),
-    getRawFile: jest.fn(async (path: string) =>
-      path === 'claims/claims_defaults.yaml' ? defaultsYaml : null,
-    ),
-  });
+function mockApi(
+  options: {
+    defaultsYaml?: string;
+    blobPaths?: string[];
+    repoFiles?: boolean;
+  } = {},
+) {
+  const api = new MemoryGitHubApi();
+  const ref = { owner: 'my-org', repo: 'claims' };
+  api.setDefaultBranch(ref, 'main');
+  if (options.defaultsYaml) {
+    api.setFile(ref, 'claims/claims_defaults.yaml', options.defaultsYaml);
+  }
+  if (options.blobPaths) {
+    api.setBlobPaths(ref, options.blobPaths);
+  }
+  if (options.repoFiles !== false) {
+    api.setFile(
+      ref,
+      'claims-map.json',
+      JSON.stringify({
+        headers: { sha: 'map-sha' },
+        claims: {
+          'ComponentClaim-my-component': {
+            filePath: 'components/my-component.yaml',
+          },
+        },
+      }),
+      'map-file-sha',
+    );
+    api.setFile(
+      ref,
+      'claims/components/my-component.yaml',
+      CLAIM_YAML,
+      'claim-sha',
+    );
+  }
+  MockCreateGitHubApi.mockReturnValue(api);
+  return api;
 }
 
 type CommandClass = typeof Command &
@@ -92,7 +93,7 @@ async function run(command: CommandClass, ...flags: string[]) {
 
 beforeEach(() => {
   delete process.env.FSCRT_ORG;
-  MockClaimsClient.mockReset();
+  MockCreateGitHubApi.mockReset();
 });
 
 afterEach(() => {
@@ -105,7 +106,7 @@ afterEach(() => {
 
 describe('defaults apply', () => {
   it('fetches a claim by reference and outputs the defaults-filled YAML', async () => {
-    mockRepoClient(DEFAULTS_YAML);
+    mockApi({ defaultsYaml: DEFAULTS_YAML });
     const { result, stdout } = await run(
       DefaultsApply,
       'ComponentClaim-my-component',
@@ -125,11 +126,7 @@ describe('defaults apply', () => {
   });
 
   it('applies defaults to a local file with -f', async () => {
-    mockClient({
-      getRawFile: jest.fn(async (path: string) =>
-        path === 'claims/claims_defaults.yaml' ? DEFAULTS_YAML : null,
-      ),
-    });
+    mockApi({ defaultsYaml: DEFAULTS_YAML });
     const { result, stdout } = await run(
       DefaultsApply,
       '-f',
@@ -150,7 +147,7 @@ describe('defaults apply', () => {
   });
 
   it('rejects a -f file without a kind field', async () => {
-    mockClient();
+    mockApi();
     const { error } = await run(
       DefaultsApply,
       '-f',
@@ -163,9 +160,7 @@ describe('defaults apply', () => {
   });
 
   it('outputs the claim unchanged when its kind has no defaults', async () => {
-    mockClient({
-      getRawFile: jest.fn(async () => 'GroupClaim:\n  privacy: closed\n'),
-    });
+    mockApi({ defaultsYaml: 'GroupClaim:\n  privacy: closed\n' });
     const { result, stdout } = await run(
       DefaultsApply,
       '-f',
@@ -179,7 +174,7 @@ describe('defaults apply', () => {
   });
 
   it('outputs the claim unchanged when no defaults file exists', async () => {
-    mockRepoClient(null);
+    mockApi();
     const { result, stdout } = await run(
       DefaultsApply,
       'ComponentClaim-my-component',
@@ -196,11 +191,8 @@ describe('defaults apply', () => {
   });
 
   it('fails hard when the defaults location is ambiguous', async () => {
-    mockClient({
-      listFilesRecursive: jest.fn(async () => [
-        'a/claims_defaults.yaml',
-        'b/claims_defaults.yaml',
-      ]),
+    mockApi({
+      blobPaths: ['a/claims_defaults.yaml', 'b/claims_defaults.yaml'],
     });
     const { error } = await run(DefaultsApply, '-f', CLAIM_FILE, '--org', 'my-org');
 
@@ -232,11 +224,7 @@ describe('defaults apply', () => {
 
 describe('defaults show', () => {
   it('prints the defaults for a kind as YAML', async () => {
-    mockClient({
-      getRawFile: jest.fn(async (path: string) =>
-        path === 'claims/claims_defaults.yaml' ? DEFAULTS_YAML : null,
-      ),
-    });
+    mockApi({ defaultsYaml: DEFAULTS_YAML });
     const { result, stdout } = await run(DefaultsShow, 'component', '--org', 'my-org');
 
     expect(result).toBe(0);
@@ -247,9 +235,7 @@ describe('defaults show', () => {
   });
 
   it('prints {} when the kind has no defaults', async () => {
-    mockClient({
-      getRawFile: jest.fn(async () => 'GroupClaim:\n  privacy: closed\n'),
-    });
+    mockApi({ defaultsYaml: 'GroupClaim:\n  privacy: closed\n' });
     const { result, stdout } = await run(DefaultsShow, 'component', '--org', 'my-org');
 
     expect(result).toBe(0);
@@ -272,16 +258,14 @@ describe('defaults show', () => {
 
 describe('defaults list', () => {
   it('prints a table of kinds with defaults', async () => {
-    mockClient({
-      getRawFile: jest.fn(async () =>
-        [
-          'GroupClaim:',
-          '  privacy: closed',
-          'ComponentClaim:',
-          '  platformOwner: group:default',
-          '',
-        ].join('\n'),
-      ),
+    mockApi({
+      defaultsYaml: [
+        'GroupClaim:',
+        '  privacy: closed',
+        'ComponentClaim:',
+        '  platformOwner: group:default',
+        '',
+      ].join('\n'),
     });
     const { result, stdout } = await run(DefaultsList, '--org', 'my-org');
 
@@ -293,9 +277,7 @@ describe('defaults list', () => {
   });
 
   it('prints JSON with org and kinds', async () => {
-    mockClient({
-      getRawFile: jest.fn(async () => 'GroupClaim:\n  privacy: closed\n'),
-    });
+    mockApi({ defaultsYaml: 'GroupClaim:\n  privacy: closed\n' });
     const { result, stdout } = await run(
       DefaultsList,
       '--org',
@@ -308,7 +290,7 @@ describe('defaults list', () => {
   });
 
   it('prints nothing when no defaults file exists', async () => {
-    mockClient();
+    mockApi();
     const { result, stdout } = await run(DefaultsList, '--org', 'my-org');
 
     expect(result).toBe(0);

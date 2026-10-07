@@ -1,12 +1,13 @@
 import { Command, Flags } from '@oclif/core';
 
-import { ClaimsClient } from '../../claims/client.js';
-import { loadClaimsMap } from '../../claims/claimsMap.js';
+import { claimsRepo, loadClaimsMap } from '../../claims/claimsRepo.js';
+import { createGitHubApi } from '../../github/index.js';
 import {
   CLAIM_KIND_OPTIONS,
-  normalizeClaimKind,
-} from '../../mutations/definitions.js';
-import { requireOrg } from '../../mutations/support.js';
+  normalizeKind,
+  resolveClaimReference,
+} from '../../claims/kindRegistry.js';
+import { ORG_FLAG, requireOrg } from '../../mutations/support.js';
 
 interface ClaimEntry {
   kind: string;
@@ -28,10 +29,10 @@ export default class DiscoveryOrgElements extends Command {
   ];
 
   static flags = {
-    org: Flags.string({
+    org: {
+      ...ORG_FLAG,
       description: 'GitHub organization owning the claims repo',
-      env: 'FSCRT_ORG',
-    }),
+    },
     'claims-repo': Flags.string({
       description: 'Repository name for the claims repo',
       default: 'claims',
@@ -48,17 +49,18 @@ export default class DiscoveryOrgElements extends Command {
     const { flags } = await this.parse(DiscoveryOrgElements);
     const org = requireOrg(flags.org);
 
-    const kindFilter = flags.kind?.map((value) => normalizeClaimKind(value)!);
+    const kindFilter = flags.kind?.map((value) => normalizeKind(value)!);
 
-    const client = new ClaimsClient(org, undefined, flags['claims-repo']);
-    const map = await loadClaimsMap(client);
+    const repo = claimsRepo(createGitHubApi(), org, flags['claims-repo']);
+    const map = await loadClaimsMap(repo);
 
     const entries: ClaimEntry[] = Object.entries(map.claims)
       .map(([reference, entry]) => {
+        const resolved = resolveClaimReference(reference);
         const separator = reference.indexOf('-');
         return {
-          kind: reference.slice(0, separator),
-          name: reference.slice(separator + 1),
+          kind: resolved?.kind ?? reference.slice(0, separator),
+          name: resolved?.name ?? reference.slice(separator + 1),
           filePath: entry.filePath,
         };
       })
