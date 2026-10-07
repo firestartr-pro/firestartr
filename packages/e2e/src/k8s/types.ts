@@ -138,20 +138,27 @@ export interface K8sApiError {
   message?: string;
 }
 
-// K8s client contract used by the higher-level e2e API.
-export interface K8sClient {
-  // Apply manifest file to the cluster.
-  apply: (inputPath: string, namespace?: string) => Promise<void>;
+// Resolves the namespace a manifest object must use: the object's own
+// metadata.namespace wins over the caller default, and cluster-scoped kinds
+// never carry one. Throws when a namespaced object has no namespace.
+export function resolveResourceNamespace(
+  obj: K8sResource,
+  fallbackNamespace?: string,
+): string | undefined {
+  if (isClusterScopedKind(obj.kind)) {
+    if (obj.metadata?.namespace) {
+      delete obj.metadata.namespace;
+    }
+    return undefined;
+  }
 
-  // Delete manifest file resource from the cluster.
-  delete: (inputPath: string, options?: DeleteOptions) => Promise<void>;
+  const namespace = obj.metadata?.namespace || fallbackNamespace;
+  if (!namespace) {
+    const name = obj.metadata?.name ?? 'unknown';
+    throw new Error(`Namespace is required for ${obj.kind}/${name}`);
+  }
 
-  // Wait for resource status to match expected value.
-  waitFor: (
-    kind: string,
-    name: string,
-    status: string,
-    timeoutMs: number,
-    options?: WaitForOptions,
-  ) => Promise<K8sResource>;
+  obj.metadata = obj.metadata ?? {};
+  obj.metadata.namespace = namespace;
+  return namespace;
 }
