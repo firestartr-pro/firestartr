@@ -1,9 +1,9 @@
 ---
 # FEATURE_NAME: build_and_dispatch_docker_images
-# FEATURE_VERSION: build_and_dispatch_docker_images-v5
-# FEATURE_URL: https://github.com/prefapp/features/tree/build_and_dispatch_docker_images-v5/packages/build_and_dispatch_docker_images
-# FEATURE_GIT_SHA: "b4db429cdc80af8e1a72cfef34762348f83adb37"
-# FEATURE_GIT_TAGS: ["build_and_dispatch_docker_images-v5.7.2","build_and_dispatch_docker_images-v5"]
+# FEATURE_VERSION: build_and_dispatch_docker_images-v6
+# FEATURE_URL: https://github.com/prefapp/features/tree/build_and_dispatch_docker_images-v6/packages/build_and_dispatch_docker_images
+# FEATURE_GIT_SHA: "2cf4c2292479e548ab620cf168bbe11567cc62fb"
+# FEATURE_GIT_TAGS: ["build_and_dispatch_docker_images-v6.0.0","build_and_dispatch_docker_images-v6"]
 
 name: Make dispatches
 
