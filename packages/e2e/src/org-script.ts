@@ -1,5 +1,10 @@
 import { DEFAULT_E2E_ORG } from './constants';
 import {
+  buildComponentClaimPatches,
+  buildGroupClaimPatches,
+  type ComponentActionsVars,
+} from './claim-patches';
+import {
   buildE2ePrefix,
   createNameBuilder,
   normalizeNamePrefix,
@@ -81,8 +86,9 @@ type ComponentVariantDefinition = {
   fixtureSuffix: 'frontend' | 'backend';
   monikerKey: 'repo-a' | 'repo-b';
   description: string;
-  claimGithubExtras: Record<string, unknown>;
-  fixtureGithubPatches: JsonPatchOperation[];
+  features?: Array<Record<string, unknown>>;
+  vars?: ComponentActionsVars;
+  topics?: string[];
 };
 
 type ComponentRelationships = {
@@ -112,43 +118,10 @@ const CATEGORY_MONIKERS: Record<MonikerCategory, ReadonlyArray<MonikerKey>> = {
   components: ['repo-a', 'repo-b'],
 };
 
-// Static patches required per fixture. Groups need an empty members list so
-// the operator does not attempt to resolve user references from the fixture.
-const MEMBERS_PATCH: JsonPatchOperation[] = [
-  { op: 'replace', path: '/members', value: [] },
-];
-
-// Shared patches applied to every component fixture.
-const BASE_COMPONENT_FIXTURE_PATCHES: JsonPatchOperation[] = [
-  // Remove user refs from fixture-only fields so this E2E does not require
-  // creating UserClaim resources.
-  { op: 'replace', path: '/providers/github/additionalRules', value: [] },
-  {
-    op: 'replace',
-    path: '/providers/github/overrides/additionalAdmins',
-    value: [],
-  },
-  {
-    op: 'replace',
-    path: '/providers/github/overrides/additionalCodeownersRules',
-    value: [],
-  },
-  // Keep OIDC customization valid for GitHub provider apply in e2e.
-  {
-    op: 'replace',
-    path: '/providers/github/overrides/spec/actions/oidc/useDefault',
-    value: true,
-  },
-  {
-    op: 'replace',
-    path: '/providers/github/overrides/spec/actions/oidc/includeClaimKeys',
-    value: [],
-  },
-];
-
 const DEFAULT_GROUP_OWNER_REF = 'group:firestartr';
 
-const FRONTEND_ACTIONS_VARS = {
+// Shared patches applied to every component fixture.
+const FRONTEND_ACTIONS_VARS: ComponentActionsVars = {
   actions: [{ name: 'VAR_A', value: 'VALUE_A' }],
 };
 
@@ -166,37 +139,14 @@ const COMPONENT_VARIANTS: ReadonlyArray<ComponentVariantDefinition> = [
     fixtureSuffix: 'frontend',
     monikerKey: 'repo-a',
     description: 'Org script frontend repository',
-    claimGithubExtras: {
-      features: FRONTEND_FEATURES,
-      vars: FRONTEND_ACTIONS_VARS,
-    },
-    fixtureGithubPatches: [
-      {
-        op: 'add',
-        path: '/providers/github/vars',
-        value: FRONTEND_ACTIONS_VARS,
-      },
-      {
-        op: 'add',
-        path: '/providers/github/features',
-        value: FRONTEND_FEATURES,
-      },
-    ],
+    features: FRONTEND_FEATURES,
+    vars: FRONTEND_ACTIONS_VARS,
   },
   {
     fixtureSuffix: 'backend',
     monikerKey: 'repo-b',
     description: 'Org script backend repository',
-    claimGithubExtras: {
-      topics: BACKEND_TOPICS,
-    },
-    fixtureGithubPatches: [
-      {
-        op: 'add',
-        path: '/providers/github/topics',
-        value: BACKEND_TOPICS,
-      },
-    ],
+    topics: BACKEND_TOPICS,
   },
 ];
 
@@ -271,7 +221,7 @@ function buildFixtureClaimNames(prefix: string): FixtureClaimNames {
   };
 }
 
-function buildGroupRef(name: string): string {
+function buildGroupRef(name: string): `group:${string}` {
   return `group:${name}`;
 }
 
@@ -279,8 +229,8 @@ function buildGroupParentRefs(
   groupAName: string,
   groupBName: string,
 ): {
-  groupBParent: string;
-  groupCParent: string;
+  groupBParent: `group:${string}`;
+  groupCParent: `group:${string}`;
 } {
   return {
     groupBParent: buildGroupRef(groupAName),
@@ -311,6 +261,16 @@ function buildComponentRelationships(
   };
 }
 
+function buildComponentGithubExtras(
+  variant: ComponentVariantDefinition,
+): Record<string, unknown> {
+  return {
+    ...(variant.features ? { features: variant.features } : {}),
+    ...(variant.vars ? { vars: variant.vars } : {}),
+    ...(variant.topics ? { topics: variant.topics } : {}),
+  };
+}
+
 function applyComponentRelationships(
   claim: OrgScriptClaim,
   relationships: ComponentRelationships,
@@ -321,35 +281,6 @@ function applyComponentRelationships(
   if (relationships.maintainedBy) {
     claim.maintainedBy = relationships.maintainedBy;
   }
-}
-
-function buildComponentRelationshipPatches(
-  relationships: ComponentRelationships,
-): JsonPatchOperation[] {
-  const patches: JsonPatchOperation[] = [];
-
-  patches.push({ op: 'remove', path: '/system' });
-
-  patches.push(
-    { op: 'replace', path: '/owner', value: relationships.owner },
-    {
-      op: 'replace',
-      path: '/platformOwner',
-      value: relationships.platformOwner,
-    },
-  );
-
-  if (relationships.maintainedBy) {
-    patches.push({
-      op: 'replace',
-      path: '/maintainedBy',
-      value: relationships.maintainedBy,
-    });
-  } else {
-    patches.push({ op: 'remove', path: '/maintainedBy' });
-  }
-
-  return patches;
 }
 
 function resolveComponentsDefaultGroupRef(
@@ -372,14 +303,12 @@ function resolveComponentsDefaultGroupRef(
 function buildGroupFixture(
   fixtureName: 'group-a' | 'group-b' | 'group-c',
   claimName: string,
-  parent?: string,
+  parent?: `group:${string}`,
 ): OrgScriptFixture {
   return {
     fixtureName,
     claimName,
-    patches: parent
-      ? [...MEMBERS_PATCH, { op: 'replace', path: '/parent', value: parent }]
-      : MEMBERS_PATCH,
+    patches: buildGroupClaimPatches({ members: [], parent }),
   };
 }
 
@@ -407,7 +336,7 @@ function buildComponentClaim(
         branchStrategy: {
           name: 'trunkBasedDevelopment',
         },
-        ...variant.claimGithubExtras,
+        ...buildComponentGithubExtras(variant),
       },
     },
   };
@@ -508,21 +437,20 @@ function buildComponents(
 function buildComponentFixture(
   claimName: string,
   variant: ComponentVariantDefinition,
-  commonPatches: JsonPatchOperation[],
+  relationships: ComponentRelationships,
 ): OrgScriptFixture {
   return {
     fixtureName: 'component-a',
     claimName,
-    patches: [
-      { op: 'replace', path: '/name', value: claimName },
-      {
-        op: 'replace',
-        path: '/providers/github/name',
-        value: claimName,
-      },
-      ...variant.fixtureGithubPatches,
-      ...commonPatches,
-    ],
+    patches: buildComponentClaimPatches({
+      name: claimName,
+      ownerRef: relationships.owner,
+      platformOwnerRef: relationships.platformOwner,
+      maintainedBy: relationships.maintainedBy,
+      features: variant.features,
+      vars: variant.vars,
+      topics: variant.topics,
+    }),
   };
 }
 
@@ -547,11 +475,6 @@ function buildFixtures(
     },
   );
 
-  const commonComponentFixturePatches: JsonPatchOperation[] = [
-    ...BASE_COMPONENT_FIXTURE_PATCHES,
-    ...buildComponentRelationshipPatches(componentRelationships),
-  ];
-
   if (include.groups) {
     fixtures.push(
       buildGroupFixture('group-a', claimNames.groupA),
@@ -567,11 +490,7 @@ function buildFixtures(
           ? claimNames.frontend
           : claimNames.backend;
       fixtures.push(
-        buildComponentFixture(
-          claimName,
-          variant,
-          commonComponentFixturePatches,
-        ),
+        buildComponentFixture(claimName, variant, componentRelationships),
       );
     }
   }

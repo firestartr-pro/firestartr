@@ -1,7 +1,7 @@
-import common from 'catalog_common';
 import {
   CLAIM_KIND_TO_CR_KIND,
   FIRESTARTR_API_VERSION,
+  getFirestartrAnnotation,
 } from '../claim-taxonomy';
 import { resolveCrHandle } from './cr-handle';
 
@@ -23,8 +23,7 @@ export async function getGroupTfStateKey(
   );
 
   const claimRef = `GroupClaim/${claimName}`;
-  const claimRefAnnotation =
-    common.generic.getFirestartrAnnotation('claim-ref');
+  const claimRefAnnotation = getFirestartrAnnotation('claimRef');
 
   const items = await handle.list(namespace);
 

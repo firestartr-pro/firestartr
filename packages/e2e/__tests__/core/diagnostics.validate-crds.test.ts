@@ -22,9 +22,12 @@ describe('e2e diagnostics parser', () => {
   });
 
   it('parses the latest crds block from appended YAML snapshots', () => {
-    const doc1 = `# header\n timestamp: "2026-01-01T00:00:00Z"\n env:\n   OPERATOR_KIND_LIST: githubgroups\n`;
-    const doc2 = `---\n# collected at later\ncrds:\n  observed:\n    - FirestartrDummyA\n  missing:\n    - default/fsdummiesa\n`;
-    const doc3 = `---\n# collected at final\ncrds:\n  observed:\n    - FirestartrDummyA\n    - FirestartrDummyB\n  missing:\n    - default/otherplural\n`;
+    const doc1 =
+      '# header\n timestamp: "2026-01-01T00:00:00Z"\n env:\n   OPERATOR_KIND_LIST: githubgroups\n';
+    const doc2 =
+      '---\n# collected at later\ncrds:\n  observed:\n    - FirestartrDummyA\n  missing:\n    - default/fsdummiesa\n';
+    const doc3 =
+      '---\n# collected at final\ncrds:\n  observed:\n    - FirestartrDummyA\n    - FirestartrDummyB\n  missing:\n    - default/otherplural\n';
 
     const file = writeTempDiagnosis(doc1 + '\n' + doc2 + '\n' + doc3 + '\n');
 

@@ -4,8 +4,8 @@ import path from 'node:path';
 import common from 'catalog_common';
 import { AllowedProviders } from 'render';
 import { buildClaimRef } from '../claim-taxonomy';
+import { buildCommonClaimPatches } from '../claim-patches';
 import {
-  buildCommonClaimPatches,
   findRenderedCrPaths,
   patchResourceSpecContext,
   readClaimResource,
@@ -24,10 +24,10 @@ import { E2EState } from './state';
 
 import type {
   ClaimsApi,
-  ClaimsConfig,
   JsonPatchOperation,
   RenderLocallyOptions,
   RenderLocallyResult,
+  RenderedArtifact,
   TestContext,
 } from '../types';
 
@@ -111,36 +111,23 @@ async function applyMergeIfNeeded(
   await fs.writeFile(claimFilePath, common.io.toYaml(merged), 'utf-8');
 }
 
-function resolveClaimsConfig(state: E2EState): Required<ClaimsConfig> {
-  const fixturesBasePath = state.fixturesBasePath ?? resolveE2eFixturesPath();
-  const initializers =
-    state.claimsConfig.initializers ??
-    path.join(fixturesBasePath, 'initializers');
-  const globals =
-    state.claimsConfig.globals ?? path.join(fixturesBasePath, 'globals');
+function resolveClaimsConfig(fixturesBasePath?: string): {
+  initializers: string;
+  globals: string;
+  defaults: string;
+} {
+  const base = fixturesBasePath ?? resolveE2eFixturesPath();
+  const initializers = path.join(base, 'initializers');
 
   return {
     initializers,
-    globals,
-    defaults: state.claimsConfig.defaults ?? initializers,
+    globals: path.join(base, 'globals'),
+    defaults: initializers,
   };
 }
 
 export function createClaimsApi(state: E2EState): ClaimsApi {
   return {
-    setContext(context: TestContext): void {
-      state.context = context;
-      state.lastRenderedCrsPath = undefined;
-    },
-
-    getContext(): TestContext | null {
-      return state.context;
-    },
-
-    setConfig(config: ClaimsConfig): void {
-      state.claimsConfig = { ...config };
-    },
-
     async restartContext(): Promise<void> {
       if (!state.context) {
         throw new Error('Cannot restart context before it is created');
@@ -172,6 +159,14 @@ export function createClaimsApi(state: E2EState): ClaimsApi {
       const fixtureName = normalizeFixtureName(name);
       const context = await ensureContext(state, fixtureName);
       await context.applyPatches(fixtureName, patches);
+    },
+
+    getRenderArtifacts(): RenderedArtifact[] {
+      return state.renderedArtifacts.map((artifact) => ({ ...artifact }));
+    },
+
+    getFixturesBasePath(): string {
+      return state.fixturesBasePath ?? resolveE2eFixturesPath();
     },
 
     async renderLocally(
@@ -211,7 +206,7 @@ export function createClaimsApi(state: E2EState): ClaimsApi {
       try {
         const claimsPath = context.getClaimsDir();
         const claimPath = await context.getFilePath(claimName);
-        const config = resolveClaimsConfig(state);
+        const config = resolveClaimsConfig(state.fixturesBasePath);
 
         // Render only the requested claim entry while keeping the full temp
         // claims directory available for the renderer's lazy-loaded refs.

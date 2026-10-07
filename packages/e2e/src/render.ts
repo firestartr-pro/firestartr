@@ -8,7 +8,6 @@ import {
   AllowedProviders,
   configureProvider,
   reconfigureProvider,
-  setExcludedPaths,
   setPath,
 } from 'render/src/config';
 import { emptyRenderedClaims } from 'render/src/refresolver';
@@ -20,13 +19,11 @@ export interface RenderClaimsOptions {
   claims: string;
   claimsDefaults: string;
   claimEntries?: string[];
-  excludedPaths?: string[];
   provider?: AllowedProviders;
   previousCrsPath?: string;
 }
 
 export interface RenderClaimsResult {
-  catalogPath: string;
   crsPath: string;
 }
 
@@ -89,10 +86,6 @@ export async function renderClaims(
   setPath('claimsDefaults', options.claimsDefaults);
   setPath('crs', crsPath);
 
-  if (options.excludedPaths && options.excludedPaths.length > 0) {
-    setExcludedPaths(options.excludedPaths);
-  }
-
   const catalogApp = new App({
     outdir: catalogPath,
     outputFileExtension: '.yaml',
@@ -114,5 +107,5 @@ export async function renderClaims(
   catalogApp.synth();
   firestartrApp.synth();
 
-  return { catalogPath, crsPath };
+  return { crsPath };
 }
