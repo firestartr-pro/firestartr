@@ -66,14 +66,14 @@ describe('orgScript', () => {
     const groupB = findFixtureByClaimName(script.fixtures, 'demo-e2e-group-b');
     expect(groupB?.patches).toEqual([
       { op: 'replace', path: '/members', value: [] },
-      { op: 'replace', path: '/parent', value: 'group:demo-e2e-group-a' },
+      { op: 'add', path: '/parent', value: 'group:demo-e2e-group-a' },
     ]);
 
     // group-c: members patch + parent patch pointing to the prefixed group-b claim name.
     const groupC = findFixtureByClaimName(script.fixtures, 'demo-e2e-group-c');
     expect(groupC?.patches).toEqual([
       { op: 'replace', path: '/members', value: [] },
-      { op: 'replace', path: '/parent', value: 'group:demo-e2e-group-b' },
+      { op: 'add', path: '/parent', value: 'group:demo-e2e-group-b' },
     ]);
 
     const frontend = findFixtureByClaimName(

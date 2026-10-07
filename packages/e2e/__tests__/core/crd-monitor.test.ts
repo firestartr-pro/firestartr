@@ -5,7 +5,7 @@ import common from 'catalog_common';
 
 import { initE2e } from '../../';
 import { createKubeConfigProvider } from '../../src/k8s/config';
-import { getStatusCode } from '../../src/k8s/errors';
+import { getStatusCode } from '../../src/errors/status-code';
 import { pollUntil } from '../../src/utils/async-control';
 
 const TIMEOUT = 60_000;

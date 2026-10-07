@@ -1,30 +1,23 @@
-import common from 'catalog_common';
 import {
   CLAIM_KIND_TO_CR_KIND,
   FIRESTARTR_API_VERSION,
+  getFirestartrAnnotation,
 } from './claim-taxonomy';
+import { buildGroupClaimPatches } from './claim-patches';
 import { destroyOrgResources } from './cleanup/org-resources';
 import { createNameBuilder } from './names';
+import { pickRenderedCr } from './render-artifacts';
 import { WAIT_FOR_CR_TIMEOUT_SECONDS } from './test-constants';
-import type { E2EApi, JsonPatchOperation } from './types';
+import type { E2EApi } from './types';
 
 const DEFAULT_GROUP_SUFFIX = 'default-group';
-const CLAIM_REF_ANNOTATION =
-  common.generic.getFirestartrAnnotation('claim-ref');
+const CLAIM_REF_ANNOTATION = getFirestartrAnnotation('claimRef');
 
 export type DefaultGroup = {
   name: string;
   ref: `group:${string}`;
   tfStateKey: string;
 };
-
-function buildGroupClaimPatches(name: string): JsonPatchOperation[] {
-  return [
-    { op: 'replace', path: '/name', value: name },
-    { op: 'replace', path: '/providers/github/name', value: name },
-    { op: 'replace', path: '/members', value: [] },
-  ];
-}
 
 async function cleanupExistingDefaultGroup(
   client: E2EApi,
@@ -51,13 +44,13 @@ export async function ensureDefaultGroup(
   await cleanupExistingDefaultGroup(client, name);
 
   const renderedGroup = await client.claims.renderLocally('firestartr', {
-    patches: buildGroupClaimPatches(name),
+    patches: buildGroupClaimPatches({ name, members: [] }),
   });
 
-  const primaryCrPath = renderedGroup.crPaths[0];
-  if (!primaryCrPath) {
-    throw new Error('No rendered CR path found for default group claim');
-  }
+  const primaryCrPath = await pickRenderedCr(
+    renderedGroup.crPaths,
+    'FirestartrGithubGroup',
+  );
 
   await client.k8s.applyCr(primaryCrPath);
   await client.k8s.waitForCr(primaryCrPath, WAIT_FOR_CR_TIMEOUT_SECONDS);
@@ -70,7 +63,7 @@ export async function ensureDefaultGroup(
   await client.claims.restartContext();
 
   await client.claims.patchContextFile('firestartr', [
-    ...buildGroupClaimPatches(name),
+    ...buildGroupClaimPatches({ name, members: [] }),
     {
       op: 'add',
       path: '/providers/github/tfStateKey',

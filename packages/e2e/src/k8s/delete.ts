@@ -1,5 +1,6 @@
 import * as k8s from '@kubernetes/client-node';
-import { formatK8sError, getStatusCode } from './errors';
+import { formatK8sError } from './errors';
+import { getStatusCode, type StatusCodeError } from '../errors/status-code';
 import { isCustomResource } from './crd';
 import { resolveCrHandle } from './cr-handle';
 import { forceDeleteCr } from './force-delete';
@@ -16,7 +17,7 @@ import { createLazyK8sClients } from './lazy-clients';
 import {
   assertNamespacedKind,
   type DeleteOptions,
-  isClusterScopedKind,
+  resolveResourceNamespace,
   type K8sResource,
   type KubeConfigProvider,
 } from './types';
@@ -56,7 +57,7 @@ function shouldIgnoreDeleteError(
   ignoreNotFound: boolean,
 ): boolean {
   if (!ignoreNotFound) return false;
-  const status = getStatusCode(err as Error);
+  const status = getStatusCode(err as StatusCodeError);
   return status === 404 || status === 410;
 }
 
@@ -73,7 +74,7 @@ export function createDeleteFunction(
     return retryAsync(operation, {
       attempts: UNAUTHORIZED_RETRY_ATTEMPTS + 1,
       shouldRetry: (err) => {
-        const statusCode = getStatusCode(err as Error);
+        const statusCode = getStatusCode(err as StatusCodeError);
         return statusCode === UNAUTHORIZED_STATUS_CODE;
       },
       onRetry: (_err, attempt) => {
@@ -104,7 +105,7 @@ export function createDeleteFunction(
       );
     }
 
-    const namespace = obj.metadata?.namespace || options.namespace;
+    const namespace = obj.metadata?.namespace;
     if (!namespace) {
       throw new Error(
         `Namespace is required for ${obj.kind}/${name} (apiVersion ${obj.apiVersion})`,
@@ -142,18 +143,7 @@ export function createDeleteFunction(
     const name = obj.metadata?.name;
     if (!name) return;
 
-    const isClusterScoped = isClusterScopedKind(obj.kind);
-    const namespace = isClusterScoped
-      ? undefined
-      : obj.metadata?.namespace || options.namespace;
-
-    if (!isClusterScoped && !namespace) {
-      throw new Error(`Namespace is required for ${obj.kind}/${name}`);
-    }
-
-    if (isClusterScoped && obj.metadata?.namespace) {
-      delete obj.metadata.namespace;
-    }
+    const namespace = obj.metadata?.namespace;
 
     const deleteObj: k8s.KubernetesObject = {
       apiVersion: obj.apiVersion,
@@ -253,20 +243,7 @@ export function createDeleteFunction(
 
     obj.metadata = obj.metadata ?? {};
 
-    const isClusterScoped = isClusterScopedKind(obj.kind);
-    if (!isClusterScoped) {
-      const resolvedNamespace = obj.metadata.namespace || options.namespace;
-      if (resolvedNamespace) {
-        obj.metadata.namespace = resolvedNamespace;
-      }
-
-      if (!obj.metadata.namespace) {
-        const name = obj.metadata.name ?? 'unknown';
-        throw new Error(`Namespace is required for ${obj.kind}/${name}`);
-      }
-    } else if (obj.metadata.namespace) {
-      delete obj.metadata.namespace;
-    }
+    resolveResourceNamespace(obj, options.namespace);
 
     if (obj.metadata?.name) {
       const label = formatResourceLabel(

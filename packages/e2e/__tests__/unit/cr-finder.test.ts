@@ -4,115 +4,13 @@ import path from 'node:path';
 import common from 'catalog_common';
 import {
   buildClaimRef,
-  getRelatedCrKindsForClaimKind,
+  getFirestartrAnnotation,
 } from '../../src/claim-taxonomy';
-import {
-  buildCommonClaimPatches,
-  findRenderedCrPaths,
-  readClaimResource,
-} from '../../src/cr-finder';
+import { findRenderedCrPaths, readClaimResource } from '../../src/cr-finder';
 
 import type { TestContext } from '../../src/types';
 
-describe('cr-finder org webhook support', () => {
-  it('keeps group GitHub org patches unchanged', () => {
-    expect(
-      buildCommonClaimPatches('demo-group', 'demo-org', 'GroupClaim'),
-    ).toEqual([
-      { op: 'replace', path: '/name', value: 'demo-group' },
-      {
-        op: 'replace',
-        path: '/providers/github/name',
-        value: 'demo-group',
-      },
-      { op: 'replace', path: '/providers/github/org', value: 'demo-org' },
-    ]);
-  });
-
-  it('patches org webhook claims with providers.github.orgName', () => {
-    expect(
-      buildCommonClaimPatches('demo-hook', 'demo-org', 'OrgWebhookClaim'),
-    ).toEqual([
-      { op: 'replace', path: '/name', value: 'demo-hook' },
-      {
-        op: 'replace',
-        path: '/providers/github/name',
-        value: 'demo-hook',
-      },
-      { op: 'replace', path: '/providers/github/orgName', value: 'demo-org' },
-    ]);
-  });
-
-  it('patches org settings claims with providers.github org and name', () => {
-    expect(
-      buildCommonClaimPatches('demo-settings', 'demo-org', 'OrgSettingsClaim'),
-    ).toEqual([
-      { op: 'replace', path: '/name', value: 'demo-settings' },
-      {
-        op: 'replace',
-        path: '/providers/github/name',
-        value: 'demo-settings',
-      },
-      { op: 'replace', path: '/providers/github/org', value: 'demo-org' },
-    ]);
-  });
-
-  it('patches component claims to hard-delete repositories in e2e', () => {
-    expect(
-      buildCommonClaimPatches('demo-repo', 'demo-org', 'ComponentClaim'),
-    ).toEqual([
-      { op: 'replace', path: '/name', value: 'demo-repo' },
-      {
-        op: 'add',
-        path: '/providers/github/archiveOnDestroy',
-        value: false,
-      },
-      {
-        op: 'replace',
-        path: '/providers/github/name',
-        value: 'demo-repo',
-      },
-      { op: 'replace', path: '/providers/github/org', value: 'demo-org' },
-    ]);
-  });
-
-  it('patches tfworkspace claims with providers.terraform.name only', () => {
-    expect(
-      buildCommonClaimPatches('demo-workspace', 'demo-org', 'TFWorkspaceClaim'),
-    ).toEqual([
-      { op: 'replace', path: '/name', value: 'demo-workspace' },
-      {
-        op: 'replace',
-        path: '/providers/terraform/name',
-        value: 'demo-workspace',
-      },
-    ]);
-  });
-
-  it('does not treat prototype properties as supported claim kinds', () => {
-    expect(
-      buildCommonClaimPatches('demo-hook', 'demo-org', 'constructor'),
-    ).toEqual([{ op: 'replace', path: '/name', value: 'demo-hook' }]);
-  });
-
-  it('returns the user CR kind for user claims', () => {
-    expect(getRelatedCrKindsForClaimKind('UserClaim')).toEqual([
-      'FirestartrGithubMembership',
-    ]);
-  });
-
-  it('returns the org webhook CR kind for org webhook claims', () => {
-    expect(getRelatedCrKindsForClaimKind('OrgWebhookClaim')).toEqual([
-      'FirestartrGithubOrgWebhook',
-    ]);
-  });
-
-  it('returns the terraform workspace CR kind for tfworkspace claims', () => {
-    expect(getRelatedCrKindsForClaimKind('TFWorkspaceClaim')).toEqual([
-      'FirestartrTerraformWorkspace',
-    ]);
-  });
-
+describe('cr-finder', () => {
   it('accepts org webhook claims when reading claim resources', async () => {
     const context = {
       getFile: async () => 'kind: OrgWebhookClaim\nname: demo-hook\n',
@@ -173,7 +71,7 @@ describe('cr-finder org webhook support', () => {
           metadata: {
             name: 'demo-hook',
             annotations: {
-              [common.generic.getFirestartrAnnotation('claim-ref')]:
+              [getFirestartrAnnotation('claimRef')]:
                 'OrgWebhookClaim/demo-hook',
             },
           },
@@ -189,7 +87,7 @@ describe('cr-finder org webhook support', () => {
           metadata: {
             name: 'other-hook',
             annotations: {
-              [common.generic.getFirestartrAnnotation('claim-ref')]:
+              [getFirestartrAnnotation('claimRef')]:
                 'OrgWebhookClaim/other-hook',
             },
           },
@@ -223,7 +121,7 @@ describe('cr-finder org webhook support', () => {
           metadata: {
             name: 'demo-workspace',
             annotations: {
-              [common.generic.getFirestartrAnnotation('claim-ref')]:
+              [getFirestartrAnnotation('claimRef')]:
                 'TFWorkspaceClaim/demo-workspace',
             },
           },
@@ -239,7 +137,7 @@ describe('cr-finder org webhook support', () => {
           metadata: {
             name: 'other-workspace',
             annotations: {
-              [common.generic.getFirestartrAnnotation('claim-ref')]:
+              [getFirestartrAnnotation('claimRef')]:
                 'TFWorkspaceClaim/other-workspace',
             },
           },
