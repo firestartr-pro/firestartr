@@ -139,9 +139,10 @@ function octokitScenario(): GitHubApi {
         list: jest.fn(
           async ({ head, page }: { head?: string; page?: number }) => {
             octokitRequests.push(`pulls.list head=${head} page=${page}`);
-            const prefix = head?.split(':')[1];
-            const filtered = prefix
-              ? PULLS.filter((pull) => pull.head.ref.startsWith(prefix))
+            // GitHub matches `head` exactly as `owner:branch`.
+            const branch = head?.split(':')[1];
+            const filtered = branch
+              ? PULLS.filter((pull) => pull.head.ref === branch)
               : PULLS;
             return { data: filtered };
           },
@@ -419,12 +420,10 @@ describe('octokit adapter request shapes', () => {
     expect(octokitRequests).toContain('checks.listForRef refs/pull/7/head');
   });
 
-  it('filters pull requests with the owner-qualified head', async () => {
+  it('lists every open pull request and filters the head prefix locally', async () => {
     const api = octokitScenario();
     await api.listOpenPullRequests(REF, 'automated');
-    expect(octokitRequests).toContain(
-      'pulls.list head=example:automated page=1',
-    );
+    expect(octokitRequests).toContain('pulls.list head=undefined page=1');
   });
 
   it('reads a file through repos.getContent', async () => {

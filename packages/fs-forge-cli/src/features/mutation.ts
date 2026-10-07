@@ -1,3 +1,4 @@
+import { Errors } from '@oclif/core';
 import { readFile } from 'fs/promises';
 
 import {
@@ -192,7 +193,7 @@ export async function runFeatureMutation(
       const existing = getFeatureReferences(target.claim).find(
         (reference) => reference.name === feature.name,
       );
-      if (!existing) throw new Error(`Feature not found: ${feature.name}`);
+      if (!existing) Errors.error(`Feature not found: ${feature.name}`);
       resolved = mergeFeatureReference(existing, feature);
     }
     if (request.featureSchema) {
@@ -201,7 +202,7 @@ export async function runFeatureMutation(
         resolved.args ?? {},
       );
       if (!argsValidation.valid) {
-        throw new Error(argsValidation.errors.join('\n'));
+        Errors.error(argsValidation.errors.join('\n'));
       }
     }
     claim = mutateFeatureReference(target.claim, request.operation, resolved);
@@ -210,7 +211,7 @@ export async function runFeatureMutation(
   const validator = createClaimValidator({ schemasDir: deps.schemasDir });
   const claimValidation = await validator.validate(claim, 'ComponentClaim');
   if (!claimValidation.valid) {
-    throw new Error(claimValidation.errors.join('\n'));
+    Errors.error(claimValidation.errors.join('\n'));
   }
 
   const output = serializeClaim(claim);
@@ -219,16 +220,20 @@ export async function runFeatureMutation(
   const published = await target.publish(output);
   if (!published) return { claim, output };
 
-  const publishUrl = await waitForDispatch(
-    published.repo.api,
-    published.repo.ref,
-    published.dispatch,
-    {
-      noWait: request.noWait,
-      claimType: 'ComponentClaim',
-      claimName: target.name,
-      label: 'Provisioning',
-    },
-  );
-  return { claim, output, publishUrl };
+  try {
+    const publishUrl = await waitForDispatch(
+      published.repo.api,
+      published.repo.ref,
+      published.dispatch,
+      {
+        noWait: request.noWait,
+        claimType: 'ComponentClaim',
+        claimName: target.name,
+        label: 'Provisioning',
+      },
+    );
+    return { claim, output, publishUrl };
+  } catch (error) {
+    Errors.error(error instanceof Error ? error.message : String(error));
+  }
 }

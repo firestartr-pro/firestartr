@@ -128,12 +128,15 @@ export function createOctokitApi(octokit: Octokit): GitHubApi {
           owner: ref.owner,
           repo: ref.repo,
           state: 'open',
-          head: headPrefix ? `${ref.owner}:${headPrefix}` : undefined,
           per_page: 100,
           page,
         });
+        // GitHub's `head` filter matches `owner:branch` exactly, not a prefix.
+        const matching = headPrefix
+          ? data.filter((pr) => pr.head.ref.startsWith(headPrefix))
+          : data;
         pulls.push(
-          ...data.map((pr) => ({
+          ...matching.map((pr) => ({
             number: pr.number,
             htmlUrl: pr.html_url,
             state: pr.state,

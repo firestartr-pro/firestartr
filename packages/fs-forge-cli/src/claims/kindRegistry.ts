@@ -111,7 +111,7 @@ export function normalizeKind(value: string): ClaimKindName | undefined {
 }
 
 export function isClaimKind(value: string): value is ClaimKindName {
-  return value in KIND_REGISTRY;
+  return Object.prototype.hasOwnProperty.call(KIND_REGISTRY, value);
 }
 
 export interface ClaimReference {

@@ -4,7 +4,7 @@ import render, { getClaimPatches, isFeatureArgsValidationEnabled } from "../src/
 
 import * as path from "path"
 
-import { createRenderContext } from "../src/auxiliar"
+import auxiliar, { createRenderContext } from "../src/auxiliar"
 
 async function buildFeatureWithSchema(flag: string[], withSchema: boolean) {
   const feature = await createRenderContext('feature-args-gate-')
@@ -458,6 +458,194 @@ describe("Path traversal validation with allow_non_anchored_paths", function(){
     expect(() => validate(feature.getContextPath())).not.toThrow()
 
     await feature.remove()
+
+  })
+
+})
+
+describe("The render_tests.yaml schema", function(){
+
+  const { loadAndValidateRenderTests } = auxiliar
+
+  async function featureWithTests(tests: string) {
+    const feature = await createRenderContext('render-tests-')
+    await feature.setFile('render_tests.yaml', tests)
+    return feature
+  }
+
+  it("Accepts a test that declares only cr, the shape every real feature uses", async function(){
+
+    const feature = await featureWithTests([
+      'tests:',
+      '  - name: test1',
+      '    cr: "../../generic-fixtures/cr.yaml"',
+    ].join('\n'))
+
+    try {
+      expect(loadAndValidateRenderTests(feature.getContextPath())).toEqual({
+        tests: [{ name: 'test1', cr: '../../generic-fixtures/cr.yaml' }],
+      })
+    } finally {
+      await feature.remove()
+    }
+
+  })
+
+  it("Accepts a test that declares only claim", async function(){
+
+    const feature = await featureWithTests([
+      'tests:',
+      '  - name: test1',
+      '    claim: "../../generic-fixtures/claim.yaml"',
+    ].join('\n'))
+
+    try {
+      expect(
+        loadAndValidateRenderTests(feature.getContextPath()).tests[0].claim,
+      ).toEqual('../../generic-fixtures/claim.yaml')
+    } finally {
+      await feature.remove()
+    }
+
+  })
+
+  it("Accepts a test that declares both cr and claim", async function(){
+
+    const feature = await featureWithTests([
+      'tests:',
+      '  - name: test1',
+      '    cr: "../../generic-fixtures/cr.yaml"',
+      '    claim: "../../generic-fixtures/claim.yaml"',
+    ].join('\n'))
+
+    try {
+      expect(() =>
+        loadAndValidateRenderTests(feature.getContextPath()),
+      ).not.toThrow()
+    } finally {
+      await feature.remove()
+    }
+
+  })
+
+  it("Accepts args alongside the claim path", async function(){
+
+    const feature = await featureWithTests([
+      'tests:',
+      '  - name: test1',
+      '    cr: "../../generic-fixtures/cr.yaml"',
+      '    args:',
+      '      use_private_modules: "always()"',
+    ].join('\n'))
+
+    try {
+      expect(
+        loadAndValidateRenderTests(feature.getContextPath()).tests[0].args,
+      ).toEqual({ use_private_modules: 'always()' })
+    } finally {
+      await feature.remove()
+    }
+
+  })
+
+  it("Rejects a test that declares neither cr nor claim", async function(){
+
+    const feature = await featureWithTests([
+      'tests:',
+      '  - name: test1',
+    ].join('\n'))
+
+    try {
+      expect(() =>
+        loadAndValidateRenderTests(feature.getContextPath()),
+      ).toThrow(/cr/)
+    } finally {
+      await feature.remove()
+    }
+
+  })
+
+  it("Rejects an unknown key on a test entry", async function(){
+
+    const feature = await featureWithTests([
+      'tests:',
+      '  - name: test1',
+      '    cr: "../../generic-fixtures/cr.yaml"',
+      '    bogus: nope',
+    ].join('\n'))
+
+    try {
+      expect(() =>
+        loadAndValidateRenderTests(feature.getContextPath()),
+      ).toThrow(/additional propert/)
+    } finally {
+      await feature.remove()
+    }
+
+  })
+
+  it("Rejects a test entry with no name", async function(){
+
+    const feature = await featureWithTests([
+      'tests:',
+      '  - cr: "../../generic-fixtures/cr.yaml"',
+    ].join('\n'))
+
+    try {
+      expect(() =>
+        loadAndValidateRenderTests(feature.getContextPath()),
+      ).toThrow(/name/)
+    } finally {
+      await feature.remove()
+    }
+
+  })
+
+  it("Rejects an empty tests array", async function(){
+
+    const feature = await featureWithTests('tests: []')
+
+    try {
+      expect(() =>
+        loadAndValidateRenderTests(feature.getContextPath()),
+      ).toThrow()
+    } finally {
+      await feature.remove()
+    }
+
+  })
+
+  it("Rejects duplicate test names", async function(){
+
+    const feature = await featureWithTests([
+      'tests:',
+      '  - name: test1',
+      '    cr: "../../generic-fixtures/cr.yaml"',
+      '  - name: test1',
+      '    cr: "../../generic-fixtures/other.yaml"',
+    ].join('\n'))
+
+    try {
+      expect(() =>
+        loadAndValidateRenderTests(feature.getContextPath()),
+      ).toThrow(/Duplicate test name/)
+    } finally {
+      await feature.remove()
+    }
+
+  })
+
+  it("Rejects a feature with no render_tests.yaml", async function(){
+
+    const feature = await createRenderContext('render-tests-')
+
+    try {
+      expect(() =>
+        loadAndValidateRenderTests(feature.getContextPath()),
+      ).toThrow(/render_tests.yaml is required but not found/)
+    } finally {
+      await feature.remove()
+    }
 
   })
 

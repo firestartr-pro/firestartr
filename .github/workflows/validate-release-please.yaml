@@ -1,9 +1,9 @@
 ---
 # FEATURE_NAME: release_please
-# FEATURE_VERSION: release_please-v1
-# FEATURE_URL: https://github.com/prefapp/features/tree/release_please-v1/packages/release_please
-# FEATURE_GIT_SHA: "8bea7303fc2d38b005beb85ccbbe95e4076cd0a2"
-# FEATURE_GIT_TAGS: ["release_please-v1.8.1","release_please-v1"]
+# FEATURE_VERSION: release_please-v2
+# FEATURE_URL: https://github.com/prefapp/features/tree/release_please-v2/packages/release_please
+# FEATURE_GIT_SHA: "74a34b61de0625058600a2cc8cbd78765d983124"
+# FEATURE_GIT_TAGS: ["release_please-v2.0.0","release_please-v2"]
 
 name: Validate Release Please Configuration
 
