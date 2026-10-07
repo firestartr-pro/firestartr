@@ -9,6 +9,7 @@ import {
   type E2EApi,
   type FixtureResourceInput,
 } from '../..';
+import { buildComponentClaimPatches } from '../../src/claim-patches';
 import { LOCAL_RENDER_APPLY_TEST_TIMEOUT_MS } from '../../src/test-constants';
 
 const CODEOWNERS_FILE_PATH = '.github/CODEOWNERS';
@@ -124,58 +125,33 @@ describe('Claim Render Local Component CODEOWNERS E2E', () => {
       const renderedComponent = await client.claims.renderLocally(
         'component-a',
         {
-          patches: [
-            { op: 'remove', path: '/system' },
-            { op: 'replace', path: '/owner', value: defaultGroup.ref },
-            { op: 'replace', path: '/platformOwner', value: platformGroupRef },
-            { op: 'remove', path: '/maintainedBy' },
-            {
-              op: 'replace',
-              path: '/providers/github/additionalRules',
-              value: [],
-            },
-            {
-              op: 'replace',
-              path: '/providers/github/overrides/additionalAdmins',
-              value: [],
-            },
-            {
-              op: 'replace',
-              path: '/providers/github/overrides/additionalCodeownersRules',
-              value: [
-                {
-                  path: '*',
-                  owners: [defaultGroup.ref, platformGroupRef],
-                },
-                {
-                  path: '/.github/',
-                  owners: [defaultGroup.ref],
-                },
-                {
-                  path: 'custom/**',
-                  owners: [platformGroupRef],
-                },
-                {
-                  path: 'custom/**',
-                  owners: [defaultGroup.ref],
-                },
-                {
-                  path: 'custom/**',
-                  owners: [defaultGroup.ref],
-                },
-              ],
-            },
-            {
-              op: 'replace',
-              path: '/providers/github/overrides/spec/actions/oidc/useDefault',
-              value: true,
-            },
-            {
-              op: 'replace',
-              path: '/providers/github/overrides/spec/actions/oidc/includeClaimKeys',
-              value: [],
-            },
-          ],
+          patches: buildComponentClaimPatches({
+            name: componentName,
+            ownerRef: defaultGroup.ref,
+            platformOwnerRef: platformGroupRef,
+            additionalCodeownersRules: [
+              {
+                path: '*',
+                owners: [defaultGroup.ref, platformGroupRef],
+              },
+              {
+                path: '/.github/',
+                owners: [defaultGroup.ref],
+              },
+              {
+                path: 'custom/**',
+                owners: [platformGroupRef],
+              },
+              {
+                path: 'custom/**',
+                owners: [defaultGroup.ref],
+              },
+              {
+                path: 'custom/**',
+                owners: [defaultGroup.ref],
+              },
+            ],
+          }),
         },
       );
 

@@ -1,10 +1,8 @@
 import { DEFAULT_E2E_ORG } from '../constants';
-import { createK8sClient } from '../k8s/client';
 import { createKubeConfigProvider } from '../k8s/config';
 import { normalizeNamePrefix } from '../names';
 import { createClaimsApi } from './claims-api';
 import { createGhApi } from './gh-api';
-import { registerE2EState } from './internal-state';
 import { createK8sApi } from './k8s-api';
 import { E2EState } from './state';
 
@@ -51,9 +49,8 @@ export async function initE2e(
     onlyFiles: options.onlyFiles,
   });
 
-  const k8sClient = createK8sClient(kubeConfigProvider, resolvedNamespace);
   const claims = createClaimsApi(state);
-  const k8s = createK8sApi(state, k8sClient);
+  const k8s = createK8sApi(state);
   const gh = createGhApi(state);
 
   const client: E2EApi = {
@@ -79,8 +76,6 @@ export async function initE2e(
     k8s,
     gh,
   };
-
-  registerE2EState(client, state);
 
   return client;
 }

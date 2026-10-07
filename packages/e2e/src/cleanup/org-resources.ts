@@ -1,5 +1,5 @@
 import common from 'catalog_common';
-import { getStatusCode as getHttpStatusCode } from '../errors/status-code';
+import { getStatusCode } from '../errors/status-code';
 import { isNotFound, type GithubError } from '../gh/errors';
 import type { E2EApi } from '../types';
 import { retryAsync } from '../utils/async-control';
@@ -72,7 +72,7 @@ async function listResourceNames(
 
 function isRetryableDeleteError(err: unknown): boolean {
   if (isTransientError(err)) return true;
-  const statusCode = getHttpStatusCode(err as { status?: number });
+  const statusCode = getStatusCode(err as { status?: number });
   return (
     statusCode !== undefined && EXTRA_RETRYABLE_STATUS_CODES.has(statusCode)
   );
