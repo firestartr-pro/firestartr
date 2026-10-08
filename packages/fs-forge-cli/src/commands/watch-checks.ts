@@ -1,12 +1,17 @@
 import { Args, Command, Flags } from '@oclif/core';
 
-import { ClaimsClient } from '../claims/client.js';
+import { claimsRepo } from '../claims/claimsRepo.js';
+
+import type { ClaimsRepo } from '../claims/claimsRepo.js';
+import { createGitHubApi } from '../github/index.js';
 import {
   pointInTimeCheck,
   watchCheckRuns,
   type AggregatedCheckResult,
 } from '../claims/checkRuns.js';
 import { parseStateRepos, findWetPr, type WetPrInfo } from '../claims/wetPr.js';
+import { ORG_FLAG } from '../mutations/support.js';
+import { resolveClaimReference } from '../claims/kindRegistry.js';
 import {
   findCrOnMainBranch,
   formatPrState,
@@ -63,10 +68,7 @@ export default class WatchChecks extends Command {
   ];
 
   static flags = {
-    org: Flags.string({
-      description: 'GitHub organization containing the claims repo',
-      env: 'FSCRT_ORG',
-    }),
+    org: ORG_FLAG,
     current: Flags.boolean({
       description:
         'Read CR from state repo main branch and show its last PR status',
@@ -95,33 +97,25 @@ export default class WatchChecks extends Command {
       this.error('--org or FSCRT_ORG is required');
     }
 
-    const separator = args.reference.indexOf('-');
-    const kind = args.reference.slice(0, separator);
-    const name = args.reference.slice(separator + 1);
-    if (separator < 1 || !name || !kind) {
+    const reference = resolveClaimReference(args.reference);
+    if (!reference) {
       this.error(`Invalid claim reference: ${args.reference}`);
     }
+    const { kind, name } = reference;
 
-    const client = new ClaimsClient(flags.org);
+    const repo = claimsRepo(createGitHubApi(), flags.org);
     const stateRepos = parseStateRepos(flags['state-repos'], flags.org);
     const claimRef = `${kind}-${name}`;
 
     if (flags.current) {
-      await this.runCurrentMode(
-        client,
-        stateRepos,
-        kind,
-        name,
-        claimRef,
-        flags,
-      );
+      await this.runCurrentMode(repo, stateRepos, kind, name, claimRef, flags);
     } else {
-      await this.runWatchMode(client, stateRepos, kind, name, claimRef, flags);
+      await this.runWatchMode(repo, stateRepos, kind, name, claimRef, flags);
     }
   }
 
   private async runWatchMode(
-    client: ClaimsClient,
+    repo: ClaimsRepo,
     stateRepos: string[],
     kind: string,
     name: string,
@@ -135,7 +129,7 @@ export default class WatchChecks extends Command {
       'cr-name'?: string;
     },
   ): Promise<void> {
-    const wetPr = await findWetPr(client, stateRepos, kind, name);
+    const wetPr = await findWetPr(repo.api, stateRepos, kind, name);
 
     if (!wetPr) {
       if (flags.json) {
@@ -180,9 +174,8 @@ export default class WatchChecks extends Command {
 
     const watchRepoName = watchTarget.repo.split('/')[1];
     const result = await watchCheckRuns(
-      client,
-      watchTarget.owner,
-      watchRepoName,
+      repo.api,
+      { owner: watchTarget.owner, repo: watchRepoName },
       watchTarget.number,
       { timeoutMs },
     );
@@ -271,7 +264,7 @@ export default class WatchChecks extends Command {
   }
 
   private async runCurrentMode(
-    client: ClaimsClient,
+    repo: ClaimsRepo,
     stateRepos: string[],
     kind: string,
     name: string,
@@ -288,7 +281,7 @@ export default class WatchChecks extends Command {
     const allCrInfo: CrInfo[] = [];
 
     for (const stateRepo of stateRepos) {
-      const crs = await findCrOnMainBranch(client, stateRepo, kind, name);
+      const crs = await findCrOnMainBranch(repo.api, stateRepo, kind, name);
       allCrInfo.push(...crs);
     }
 
@@ -316,7 +309,7 @@ export default class WatchChecks extends Command {
     }
 
     const output = await this.buildCurrentModeOutput(
-      client,
+      repo,
       filteredCrs,
       flags,
       claimRef,
@@ -336,7 +329,7 @@ export default class WatchChecks extends Command {
   }
 
   private async buildCurrentModeOutput(
-    client: ClaimsClient,
+    repo: ClaimsRepo,
     crs: CrInfo[],
     flags: {
       org?: string;
@@ -357,9 +350,11 @@ export default class WatchChecks extends Command {
       if (cr.lastStatePr) {
         try {
           const result = await pointInTimeCheck(
-            client,
-            cr.lastStatePr.repo.split('/')[0]!,
-            cr.lastStatePr.repo.split('/')[1]!,
+            repo.api,
+            {
+              owner: cr.lastStatePr.repo.split('/')[0]!,
+              repo: cr.lastStatePr.repo.split('/')[1]!,
+            },
             cr.lastStatePr.number,
           );
           checks = result.checkRuns.map((cr) => ({

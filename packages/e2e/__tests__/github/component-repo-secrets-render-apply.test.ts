@@ -1,9 +1,5 @@
-import { randomUUID } from 'node:crypto';
 import fs from 'node:fs/promises';
-import path from 'node:path';
 import common from 'catalog_common';
-import github from 'github';
-import type { WorkflowCompletionResult } from 'github';
 import {
   CleanupRunner,
   applyAndWaitCrPaths,
@@ -16,121 +12,38 @@ import {
   type E2EApi,
   type FixtureResourceInput,
   type GhApi,
-  type JsonPatchOperation,
   type TempOpaqueSecret,
 } from '../..';
-import { readK8sResource } from '../../src/cr-finder';
-import { resolveE2eFixturesPath } from '../../src/fixtures-path';
+import { buildComponentClaimPatches } from '../../src/claim-patches';
 import { isNotFound, type GithubError } from '../../src/gh/errors';
+import {
+  prepareWorkflowVerification,
+  verifyValueViaWorkflow,
+} from '../../src/gh/workflow-verification';
 import { isRetryableGitHubError } from '../../src/gh/wait';
 import { disableRepositoryAdminEnforcementInManifest } from '../../src/repository-admin-enforcement';
+import { pickRenderedCr, setReconcileAt } from '../../src/render-artifacts';
 import { LOCAL_RENDER_APPLY_TEST_TIMEOUT_MS } from '../../src/test-constants';
 import {
   createRetryableError,
   isRetryableError,
   pollUntil,
-  retryAsync,
 } from '../../src/utils/async-control';
 
 const REPO_SECRET_NAME = 'E2E_ACTIONS_SECRET';
 const REPO_SECRET_KEY = 'repo-secret-key';
 const INITIAL_SECRET_VALUE = 'initial-repo-secret';
 const ROTATED_SECRET_VALUE = 'rotated-repo-secret';
-const RECONCILE_AT_ANNOTATION =
-  common.generic.getFirestartrAnnotation('reconcile-at');
 const REPO_SECRET_READ_TIMEOUT_MS = 5 * 60 * 1000;
 const REPO_SECRET_READ_INTERVAL_MS = 5000;
 const VERIFY_SECRET_WORKFLOW_FILE_NAME = 'verify-secret.yaml';
-const VERIFY_SECRET_WORKFLOW_REPO_PATH = `.github/workflows/${VERIFY_SECRET_WORKFLOW_FILE_NAME}`;
 const WORKFLOW_RUN_TIMEOUT_MS = 5 * 60 * 1000;
-const WORKFLOW_RUN_POLL_INTERVAL_MS = 10000;
-const GITHUB_WRITE_RETRY_ATTEMPTS = 5;
-const GITHUB_WRITE_RETRY_DELAY_MS = 5000;
 const REPO_SECRETS_TEST_TIMEOUT_MS =
   LOCAL_RENDER_APPLY_TEST_TIMEOUT_MS + 2 * WORKFLOW_RUN_TIMEOUT_MS;
 
 type SecretManifest = {
   stringData?: Record<string, string>;
 };
-
-function componentPatches(
-  ownerRef: string,
-  secretRef: string,
-): JsonPatchOperation[] {
-  return [
-    { op: 'remove', path: '/system' },
-    { op: 'replace', path: '/owner', value: ownerRef },
-    { op: 'replace', path: '/platformOwner', value: ownerRef },
-    { op: 'remove', path: '/maintainedBy' },
-    { op: 'replace', path: '/providers/github/additionalRules', value: [] },
-    {
-      op: 'replace',
-      path: '/providers/github/overrides/additionalAdmins',
-      value: [],
-    },
-    {
-      op: 'replace',
-      path: '/providers/github/overrides/additionalMaintainers',
-      value: [],
-    },
-    {
-      op: 'replace',
-      path: '/providers/github/overrides/additionalReaders',
-      value: [],
-    },
-    {
-      op: 'replace',
-      path: '/providers/github/overrides/additionalWriters',
-      value: [],
-    },
-    {
-      op: 'replace',
-      path: '/providers/github/overrides/additionalCodeownersRules',
-      value: [],
-    },
-    {
-      op: 'replace',
-      path: '/providers/github/overrides/spec/actions/oidc/useDefault',
-      value: true,
-    },
-    {
-      op: 'replace',
-      path: '/providers/github/overrides/spec/actions/oidc/includeClaimKeys',
-      value: [],
-    },
-    {
-      op: 'add',
-      path: '/providers/github/secrets',
-      value: {
-        actions: [{ name: REPO_SECRET_NAME, value: secretRef }],
-      },
-    },
-  ];
-}
-
-async function findRepoSecretsCrPath(crPaths: string[]): Promise<string> {
-  for (const crPath of crPaths) {
-    const resource = await readK8sResource(crPath);
-    if (resource.kind === 'FirestartrGithubRepositorySecretsSection') {
-      return crPath;
-    }
-  }
-
-  throw new Error(
-    'Expected rendered component to include a repository secrets section CR',
-  );
-}
-
-async function findRepositoryCrPath(crPaths: string[]): Promise<string> {
-  for (const crPath of crPaths) {
-    const resource = await readK8sResource(crPath);
-    if (resource.kind === 'FirestartrGithubRepository') {
-      return crPath;
-    }
-  }
-
-  throw new Error('Expected rendered component to include a repository CR');
-}
 
 async function updatePlainSecret(
   tempSecret: TempOpaqueSecret,
@@ -149,21 +62,6 @@ async function updatePlainSecret(
     'utf-8',
   );
   await tempSecret.apply();
-}
-
-async function setReconcileAt(crPath: string): Promise<void> {
-  const content = await fs.readFile(crPath, 'utf-8');
-  const resource = common.io.fromYaml(content) as {
-    metadata?: {
-      annotations?: Record<string, string>;
-    };
-  };
-  resource.metadata = resource.metadata ?? {};
-  resource.metadata.annotations = {
-    ...(resource.metadata.annotations ?? {}),
-    [RECONCILE_AT_ANNOTATION]: new Date().toISOString(),
-  };
-  await fs.writeFile(crPath, common.io.toYaml(resource), 'utf-8');
 }
 
 async function readRepoSecretIfAvailable(
@@ -256,236 +154,6 @@ async function waitForRepoSecretUpdate(
   return secret;
 }
 
-// =============================================================================
-// Workflow-based secret value verification
-//
-// GitHub never returns a repository secret's value, so exact equality is
-// asserted inside the disposable repository itself: a workflow_dispatch
-// workflow compares the provisioned secret with the expected value and the
-// run's conclusion becomes the authoritative value assertion. Runs are
-// correlated by a unique id surfaced as the run's display_title; the newest
-// run is never assumed to belong to this test.
-// =============================================================================
-
-type OrgOctokit = Awaited<ReturnType<typeof github.getOctokitForOrg>>;
-
-type WorkflowRunListItem = {
-  id: number;
-  display_title?: string | null;
-};
-
-type WorkflowRunCompletion = Pick<
-  WorkflowCompletionResult,
-  'conclusion' | 'runId' | 'htmlUrl'
->;
-
-function selectCorrelatedWorkflowRun<Run extends WorkflowRunListItem>(
-  runs: Run[],
-  correlationId: string,
-): Run | null {
-  return runs.find((run) => run.display_title === correlationId) ?? null;
-}
-
-function assertWorkflowRunSucceeded(
-  completion: WorkflowRunCompletion,
-  context: { repoName: string; secretName: string; correlationId: string },
-): void {
-  if (completion.conclusion === 'success') {
-    return;
-  }
-
-  throw new Error(
-    'Repository secret value verification failed for ' +
-      `${context.repoName}/${context.secretName} ` +
-      `(correlation ${context.correlationId}): workflow run ` +
-      `${completion.runId} concluded with ` +
-      `'${completion.conclusion ?? 'none'}'. Run URL: ${completion.htmlUrl}`,
-  );
-}
-
-async function retryTransientGitHubProbe<T>(
-  probe: () => Promise<T>,
-): Promise<T> {
-  try {
-    return await probe();
-  } catch (error) {
-    if (isRetryableGitHubError(error)) {
-      throw createRetryableError(error);
-    }
-
-    throw error;
-  }
-}
-
-async function writeVerifySecretWorkflow(
-  repoName: string,
-  org: string,
-): Promise<void> {
-  const fixturePath = path.join(
-    resolveE2eFixturesPath(),
-    'workflows',
-    VERIFY_SECRET_WORKFLOW_FILE_NAME,
-  );
-  const workflowContent = await fs.readFile(fixturePath, 'utf-8');
-
-  await retryAsync(
-    () =>
-      github.repo.setContent(
-        VERIFY_SECRET_WORKFLOW_REPO_PATH,
-        workflowContent,
-        repoName,
-        org,
-        'main',
-        'test: add repository secret verification workflow',
-      ),
-    {
-      attempts: GITHUB_WRITE_RETRY_ATTEMPTS,
-      shouldRetry: (error) => isRetryableGitHubError(error),
-      getDelayMs: () => GITHUB_WRITE_RETRY_DELAY_MS,
-    },
-  );
-}
-
-async function waitForRegisteredWorkflowId(
-  octokit: OrgOctokit,
-  org: string,
-  repoName: string,
-): Promise<number> {
-  const workflow = await pollUntil(
-    () =>
-      retryTransientGitHubProbe(async () => {
-        const response = await octokit.rest.actions.listRepoWorkflows({
-          owner: org,
-          repo: repoName,
-          per_page: 100,
-        });
-        const workflows = response.data.workflows as {
-          id: number;
-          path: string;
-        }[];
-        return (
-          workflows.find(
-            (candidate) => candidate.path === VERIFY_SECRET_WORKFLOW_REPO_PATH,
-          ) ?? null
-        );
-      }),
-    {
-      timeoutMs: REPO_SECRET_READ_TIMEOUT_MS,
-      intervalMs: REPO_SECRET_READ_INTERVAL_MS,
-      isDone: (value) => value !== null,
-      shouldRetryError: isRetryableError,
-      createTimeoutError: () =>
-        new Error(
-          `Timed out waiting for ${VERIFY_SECRET_WORKFLOW_REPO_PATH} to be discoverable in ${org}/${repoName}`,
-        ),
-    },
-  );
-
-  if (workflow === null) {
-    throw new Error(
-      `Expected ${VERIFY_SECRET_WORKFLOW_REPO_PATH} to be discoverable in ${org}/${repoName}`,
-    );
-  }
-
-  return workflow.id;
-}
-
-async function waitForCorrelatedWorkflowRun(
-  octokit: OrgOctokit,
-  org: string,
-  repoName: string,
-  workflowId: number,
-  correlationId: string,
-  timeoutMs: number,
-): Promise<WorkflowRunListItem> {
-  const run = await pollUntil(
-    () =>
-      retryTransientGitHubProbe(async () => {
-        const response = await octokit.rest.actions.listWorkflowRuns({
-          owner: org,
-          repo: repoName,
-          workflow_id: workflowId,
-          per_page: 100,
-        });
-        return selectCorrelatedWorkflowRun(
-          response.data.workflow_runs as WorkflowRunListItem[],
-          correlationId,
-        );
-      }),
-    {
-      timeoutMs,
-      intervalMs: REPO_SECRET_READ_INTERVAL_MS,
-      isDone: (value) => value !== null,
-      shouldRetryError: isRetryableError,
-      createTimeoutError: () =>
-        new Error(
-          `Timed out waiting for a ${VERIFY_SECRET_WORKFLOW_FILE_NAME} run ` +
-            `with display_title '${correlationId}' in ${org}/${repoName}`,
-        ),
-    },
-  );
-
-  if (run === null) {
-    throw new Error(
-      `Expected a ${VERIFY_SECRET_WORKFLOW_FILE_NAME} run with ` +
-        `display_title '${correlationId}' in ${org}/${repoName}`,
-    );
-  }
-
-  return run;
-}
-
-async function verifyRepoSecretValue(options: {
-  octokit: OrgOctokit;
-  org: string;
-  repoName: string;
-  workflowId: number;
-  expectedValue: string;
-}): Promise<void> {
-  const { octokit, org, repoName, workflowId, expectedValue } = options;
-  const correlationId = randomUUID();
-
-  // Dispatched exactly once: failed or timed-out runs surface as test
-  // failures rather than being redispatched automatically.
-  await github.workflow.triggerWorkflow(
-    org,
-    repoName,
-    workflowId,
-    'main',
-    {
-      secret_name: REPO_SECRET_NAME,
-      expected_value: expectedValue,
-      correlation_id: correlationId,
-    },
-    octokit,
-  );
-
-  // Correlation and completion share the five-minute per-run budget.
-  const deadlineMs = Date.now() + WORKFLOW_RUN_TIMEOUT_MS;
-  const run = await waitForCorrelatedWorkflowRun(
-    octokit,
-    org,
-    repoName,
-    workflowId,
-    correlationId,
-    Math.max(deadlineMs - Date.now(), 1),
-  );
-  const completion = await github.workflow.waitForWorkflowCompletion(
-    org,
-    repoName,
-    run.id,
-    Math.max(deadlineMs - Date.now(), 1),
-    WORKFLOW_RUN_POLL_INTERVAL_MS,
-    octokit,
-  );
-
-  assertWorkflowRunSucceeded(completion, {
-    repoName,
-    secretName: REPO_SECRET_NAME,
-    correlationId,
-  });
-}
-
 describe('Claim Render Local Component Repository Secrets E2E', () => {
   let client: E2EApi;
   let tempSecret: TempOpaqueSecret | null = null;
@@ -570,10 +238,22 @@ describe('Claim Render Local Component Repository Secrets E2E', () => {
       ]);
 
       const rendered = await client.claims.renderLocally('component-a', {
-        patches: componentPatches(defaultGroup.ref, tempSecret.claimSecretRef),
+        patches: buildComponentClaimPatches({
+          name: componentName,
+          ownerRef: defaultGroup.ref,
+          secrets: [
+            { name: REPO_SECRET_NAME, value: tempSecret.claimSecretRef },
+          ],
+        }),
       });
-      const secretsCrPath = await findRepoSecretsCrPath(rendered.crPaths);
-      const repositoryCrPath = await findRepositoryCrPath(rendered.crPaths);
+      const secretsCrPath = await pickRenderedCr(
+        rendered.crPaths,
+        'FirestartrGithubRepositorySecretsSection',
+      );
+      const repositoryCrPath = await pickRenderedCr(
+        rendered.crPaths,
+        'FirestartrGithubRepository',
+      );
 
       // The verification workflow is committed directly to the protected main
       // branch, so this disposable test repository must not enforce admins.
@@ -584,22 +264,23 @@ describe('Claim Render Local Component Repository Secrets E2E', () => {
       const initialSecret = await waitForRepoSecret(client.gh, componentName);
       expect(initialSecret.name).toBe(REPO_SECRET_NAME);
 
-      // Commit the verification workflow once, before the first value check.
-      // Teardown deletes the whole repository, so the file needs no cleanup.
+      // Commit the verification workflow once, before the first value check,
+      // then dispatch it once per value. Teardown deletes the whole repository,
+      // so the file needs no cleanup. The handle correlates each run by
+      // display_title; the newest run is never assumed to be this test's.
       const org = client.getOrg();
-      const octokit = await github.getOctokitForOrg(org);
-      await writeVerifySecretWorkflow(componentName, org);
-      const workflowId = await waitForRegisteredWorkflowId(
-        octokit,
-        org,
-        componentName,
-      );
-      await verifyRepoSecretValue({
-        octokit,
+      const verification = await prepareWorkflowVerification({
         org,
         repoName: componentName,
-        workflowId,
-        expectedValue: INITIAL_SECRET_VALUE,
+        workflowFixtureFileName: VERIFY_SECRET_WORKFLOW_FILE_NAME,
+      });
+      await verifyValueViaWorkflow(verification, {
+        failureLabel: 'Repository secret',
+        valueName: REPO_SECRET_NAME,
+        inputValues: {
+          secret_name: REPO_SECRET_NAME,
+          expected_value: INITIAL_SECRET_VALUE,
+        },
       });
 
       await updatePlainSecret(tempSecret, ROTATED_SECRET_VALUE);
@@ -618,12 +299,13 @@ describe('Claim Render Local Component Repository Secrets E2E', () => {
         Date.parse(initialSecret.updatedAt),
       );
 
-      await verifyRepoSecretValue({
-        octokit,
-        org,
-        repoName: componentName,
-        workflowId,
-        expectedValue: ROTATED_SECRET_VALUE,
+      await verifyValueViaWorkflow(verification, {
+        failureLabel: 'Repository secret',
+        valueName: REPO_SECRET_NAME,
+        inputValues: {
+          secret_name: REPO_SECRET_NAME,
+          expected_value: ROTATED_SECRET_VALUE,
+        },
       });
     },
     REPO_SECRETS_TEST_TIMEOUT_MS,
@@ -652,67 +334,4 @@ describe('Repository secret update polling', () => {
       waitForRepoSecretUpdate(gh, 'repo-a', '2026-07-17T09:00:00Z'),
     ).rejects.toThrow('Invalid updatedAt');
   });
-});
-
-describe('Correlated workflow run selection', () => {
-  const runs = [
-    { id: 3, display_title: 'unrelated-run' },
-    { id: 2, display_title: 'correlation-id-b' },
-    { id: 1, display_title: 'correlation-id-a' },
-  ];
-
-  it('returns the run whose display title matches the correlation id', () => {
-    expect(selectCorrelatedWorkflowRun(runs, 'correlation-id-a')).toEqual({
-      id: 1,
-      display_title: 'correlation-id-a',
-    });
-  });
-
-  it('does not assume the newest run belongs to this test', () => {
-    expect(selectCorrelatedWorkflowRun(runs, 'correlation-id-b')?.id).toBe(2);
-  });
-
-  it('returns null when no run carries the correlation id', () => {
-    expect(selectCorrelatedWorkflowRun(runs, 'missing-id')).toBeNull();
-    expect(selectCorrelatedWorkflowRun([], 'correlation-id-a')).toBeNull();
-  });
-});
-
-describe('Workflow run conclusion assertion', () => {
-  const context = {
-    repoName: 'repo-a',
-    secretName: REPO_SECRET_NAME,
-    correlationId: 'correlation-id-a',
-  };
-
-  it('does not throw when the run concluded successfully', () => {
-    expect(() =>
-      assertWorkflowRunSucceeded(
-        {
-          conclusion: 'success',
-          runId: 123,
-          htmlUrl: 'https://example.test/runs/123',
-        },
-        context,
-      ),
-    ).not.toThrow();
-  });
-
-  it.each(['failure', 'cancelled', 'timed_out', null])(
-    'throws with run id and URL when the conclusion is %s',
-    (conclusion) => {
-      expect(() =>
-        assertWorkflowRunSucceeded(
-          {
-            conclusion,
-            runId: 456,
-            htmlUrl: 'https://example.test/runs/456',
-          },
-          context,
-        ),
-      ).toThrow(
-        /repo-a\/E2E_ACTIONS_SECRET.*run 456.*https:\/\/example\.test\/runs\/456/,
-      );
-    },
-  );
 });

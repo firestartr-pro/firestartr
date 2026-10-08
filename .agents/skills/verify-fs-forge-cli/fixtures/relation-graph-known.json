@@ -1,0 +1,9 @@
+{
+  "nodes": [
+    { "id": "DomainClaim:payments", "kind": "DomainClaim", "name": "payments" },
+    { "id": "ComponentClaim:api", "kind": "ComponentClaim", "name": "api" }
+  ],
+  "edges": [
+    { "from": "DomainClaim:payments", "to": "ComponentClaim:api", "relation": "contains" }
+  ]
+}

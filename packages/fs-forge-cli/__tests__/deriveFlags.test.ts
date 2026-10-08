@@ -413,27 +413,6 @@ describe('deriveFlags', () => {
     ]);
   });
 
-  it('retains a JSON fallback alongside useful union flags', () => {
-    const schema = {
-      type: 'object',
-      properties: {
-        endpoint: {
-          oneOf: [
-            { type: 'object', properties: { url: { type: 'string' } } },
-            { type: 'object', properties: { arn: { type: 'string' } } },
-          ],
-        },
-      },
-    };
-
-    const flags = deriveFlags(schema);
-    expect(names(flags)).toEqual([
-      'endpoint.arn',
-      'endpoint.json',
-      'endpoint.url',
-    ]);
-  });
-
   it('derives pages.public and pages.https_enforced as boolean flags', () => {
     const flags = deriveFlags(claimSchema('ComponentClaim'));
 

@@ -30,7 +30,7 @@
   "dependencies": {
     "@types/jest": "^30.0.0",
     "catalog_common": "file:../catalog_common",
-    "cdk8s": "^2.70.105",
+    "cdk8s": "^2.70.108",
     "constructs": "^10.8.1",
     "features_preparer": "file:../features_preparer",
     "github": "file:../github",
@@ -39,8 +39,8 @@
     "yaml": "^2.9.1"
   },
   "devDependencies": {
-    "ajv": "^8.17.1",
-    "cdk8s-cli": "2.207.58",
+    "ajv": "^8.20.0",
+    "cdk8s-cli": "2.207.63",
     "fast-json-patch": "^3.1.1",
     "lodash": "4.18.1",
     "uuid": "^9.0.0"

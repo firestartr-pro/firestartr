@@ -31,7 +31,7 @@ The defaults-application logic is vendored as a pure function in the CLI package
 
 - Three new commands are added under `src/commands/defaults/`: `apply`, `show`, `list`.
 - A new pure-function module `src/defaults/applier.ts` implements the additive-only defaults merge (same semantics as `cdk8s_renderer`'s `applyBlockAwareDefaults`).
-- The Claim defaults module (`src/claims/defaults.ts`) owns Defaults-file resolution, parsing, caching, ambiguity policy, and composition with the pure applier. `ClaimsClient` remains limited to raw repo operations.
+- The Claim defaults module (`src/claims/defaults.ts`) owns Defaults-file resolution, parsing, caching, ambiguity policy, and composition with the pure applier. The claims-repo module (`src/claims/claimsRepo.ts`) remains limited to raw repo operations.
 - `edit` gains automatic defaults application after user overrides.
 - A new `--show-defaults` flag on `edit` controls whether defaults-filled fields appear in `--diff` output (default: hidden).
 - The `Deterministic` definition in CONTEXT.md is updated to clarify that repo defaults are intentionally excluded from `create`.
@@ -41,7 +41,7 @@ The defaults-application logic is vendored as a pure function in the CLI package
 
 - **Make `create` network-bound (rejected).** Would have required adding `--org` to all codegen'd `create` commands, breaking every existing caller that relies on the deterministic guarantee. Two-phase workflows (create, then defaults-apply) achieve the same result without breaking existing contracts.
 - **Import `cdk8s_renderer`'s `applyBlockAwareDefaults` directly (rejected).** Would add the full cdk8s toolchain as a runtime dependency. The logic is a pure function with a single dependency (`fast-json-patch` + `lodash`, both already in the CLI). Vendoring is simpler and keeps the bundle small.
-- **Server-side defaults resolution (rejected).** Would require a new API endpoint in the claims repo or renderer. The CLI already has `ClaimsClient` wired to the claims repo — a file fetch is the simplest, lowest-latency path.
+- **Server-side defaults resolution (rejected).** Would require a new API endpoint in the claims repo or renderer. The CLI already has a claims-repo client (`src/claims/claimsRepo.ts`) wired to the claims repo — a file fetch is the simplest, lowest-latency path.
 
 ## Amendment: explicit create publishing
 
@@ -58,4 +58,4 @@ described by this ADR.
 - Issue [#2465](https://github.com/prefapp/gitops-k8s/issues/2465)
 - `cdk8s_renderer/src/loader/claimsDefaulter.ts`
 - `src/defaults/applier.ts`
-- `src/claims/client.ts`
+- `src/claims/claimsRepo.ts`

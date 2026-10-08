@@ -5,7 +5,7 @@ import {
   FEATURE_READ_FLAGS,
   FEATURE_TARGET_RELATIONSHIP,
 } from '../../utils/featureCommand.js';
-import { loadComponentTarget } from '../../utils/featureClaims.js';
+import { loadComponentTarget } from '../../features/mutation.js';
 import { getFeatureReferences } from '../../utils/features.js';
 
 export default class FeaturesList extends Command {

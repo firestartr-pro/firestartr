@@ -1,6 +1,6 @@
 {
   "name": "@firestartr/firestartr-features_renderer",
-  "version": "2.0.1",
+  "version": "2.0.3",
   "description": "A renderer for firestartr features",
   "main": "dist/index.js",
   "private": false,
@@ -28,7 +28,7 @@
   "author": "Firestartr contributors",
   "license": "Apache-2.0",
   "devDependencies": {
-    "ajv": "^8.12.0",
+    "ajv": "^8.20.0",
     "catalog_common": "file:../catalog_common",
     "debug": "^4.3.4",
     "fast-json-patch": "^3.1.1",

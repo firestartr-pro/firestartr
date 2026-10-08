@@ -1,5 +1,19 @@
 # Changelog
 
+## [2.0.3](https://github.com/firestartr-pro/firestartr/compare/features_renderer-v2.0.2...features_renderer-v2.0.3) (2026-10-05)
+
+
+### Bug Fixes
+
+* **`features_renderer`:** schema error ([#52](https://github.com/firestartr-pro/firestartr/issues/52)) ([b9cde5c](https://github.com/firestartr-pro/firestartr/commit/b9cde5c2c64ab2f73015820796c8370608441fc6))
+
+## [2.0.2](https://github.com/firestartr-pro/firestartr/compare/features_renderer-v2.0.1...features_renderer-v2.0.2) (2026-10-05)
+
+
+### Bug Fixes
+
+* **features_renderer:** restore bin/validate.js ([#44](https://github.com/firestartr-pro/firestartr/issues/44)) ([80eb86f](https://github.com/firestartr-pro/firestartr/commit/80eb86f8a879cdebea75cfb47fc11022fbc602a2))
+
 ## [2.0.1](https://github.com/firestartr-pro/firestartr/compare/features_renderer-v2.0.0...features_renderer-v2.0.1) (2026-10-02)
 
 

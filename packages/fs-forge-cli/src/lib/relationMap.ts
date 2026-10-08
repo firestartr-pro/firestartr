@@ -1,4 +1,4 @@
-import { CLAIM_KINDS } from '../claims/kinds.js';
+import { KIND_REGISTRY, normalizeKind } from '../claims/kindRegistry.js';
 
 export type RelationStatus = 'added' | 'removed' | 'changed';
 
@@ -39,12 +39,6 @@ const PARENT_RELATIONS = [
   'parent',
 ] as const;
 const CHILD_RELATIONS = ['children', 'members'] as const;
-const KIND_LOOKUP = new Map(
-  Object.keys(CLAIM_KINDS).flatMap((kind) => [
-    [kind.toLowerCase(), kind],
-    [kind.replace(/Claim$/, '').toLowerCase(), kind],
-  ]),
-);
 
 function claimIdentity(claim: Claim): RelationNode | null {
   if (typeof claim.kind !== 'string' || typeof claim.name !== 'string') {
@@ -66,7 +60,7 @@ function referenceNode(reference: string, namespace?: string): RelationNode {
     namespace && namespacedName && referenceNamespace === namespace
       ? namespacedName
       : rawName;
-  const kind = KIND_LOOKUP.get(prefix.toLowerCase()) ?? prefix;
+  const kind = normalizeKind(prefix) ?? prefix;
   return { id: `${kind}:${targetName}`, kind, name: rawName, dangling: true };
 }
 
@@ -142,8 +136,8 @@ export function buildRelationGraph(
 }
 
 function icon(node: RelationNode, ascii: boolean): string {
-  const entry = CLAIM_KINDS[node.kind as keyof typeof CLAIM_KINDS];
-  if (entry) return ascii ? entry.ascii : entry.emoji;
+  const entry = KIND_REGISTRY[node.kind as keyof typeof KIND_REGISTRY];
+  if (entry) return ascii ? entry.icon.ascii : entry.icon.emoji;
   return ascii ? '[???]' : '❓';
 }
 

@@ -1,10 +1,5 @@
 import type { K8sApiError } from './types';
-import { getStatusCode as getHttpStatusCode } from '../errors/status-code';
-
-// Extract HTTP status code from a Kubernetes API error.
-export function getStatusCode(error: K8sApiError): number | undefined {
-  return getHttpStatusCode(error);
-}
+import { getStatusCode } from '../errors/status-code';
 
 // Format a Kubernetes API error into a readable string.
 export function formatK8sError(error: K8sApiError): string {
