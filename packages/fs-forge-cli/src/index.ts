@@ -1,19 +1,21 @@
 export { deriveFlags, deriveVariantGroups } from './utils/deriveFlags.js';
 export type { FlagSpec, FlagType, VariantGroup } from './utils/deriveFlags.js';
 export { buildClaimFromFlags } from './utils/buildClaim.js';
-export { validateClaim, registerValidator } from './utils/ajvValidation.js';
+export { createClaimValidator } from './utils/ajvValidation.js';
 export type { ValidationResult } from './utils/ajvValidation.js';
-export { ClaimsClient } from './claims/client.js';
+export { claimExists } from './claims/claimsMap.js';
 export {
-  claimExists,
+  claimsRepo,
+  dispatchUnprovision,
   loadClaimsMap,
+  publishClaim,
   resolveClaim,
-} from './claims/claimsMap.js';
+} from './claims/claimsRepo.js';
 export {
   assertCreatePath,
-  CLAIM_PATH_CAPABILITIES,
   deterministicPath,
 } from './claims/deterministicPath.js';
+export { CLAIM_PATH_CAPABILITIES } from './claims/kindRegistry.js';
 export type { ClaimPathCapability } from './claims/deterministicPath.js';
 export {
   AmbiguousDefaultsError,

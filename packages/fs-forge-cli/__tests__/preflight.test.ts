@@ -1,24 +1,25 @@
 import { afterEach, beforeAll, describe, expect, it, jest } from '@jest/globals';
 import { captureOutput } from '@oclif/test';
 
-jest.mock('../src/claims/client', () => ({
-  ClaimsClient: jest.fn(),
+jest.mock('../src/github/index', () => ({
+  createGitHubApi: jest.fn(),
 }));
 
-import { ClaimsClient } from '../src/claims/client';
+import { createGitHubApi } from '../src/github/index';
 import Preflight from '../src/commands/preflight';
+import { MemoryGitHubApi } from './fixtures/memoryGitHubApi';
 
 const ROOT = process.cwd();
 const ORIGINAL_ORG = process.env.FSCRT_ORG;
 
-const MockClaimsClient = ClaimsClient as unknown as jest.Mock;
+const MockCreateGitHubApi = createGitHubApi as unknown as jest.Mock;
 
 beforeAll(() => {
   delete process.env.FSCRT_ORG;
 });
 
 afterEach(() => {
-  MockClaimsClient.mockClear();
+  MockCreateGitHubApi.mockClear();
   process.exitCode = 0;
   if (ORIGINAL_ORG === undefined) {
     delete process.env.FSCRT_ORG;
@@ -42,45 +43,46 @@ const CLAIMS_MAP = {
   },
 };
 
-function mockClient(opts?: {
+function mockApi(opts?: {
   repoExists?: boolean;
   teamExists?: boolean;
   userIsMember?: boolean;
   providerError?: Error;
 }) {
-  const checkRepoExists = jest.fn(async () => {
-    if (opts?.providerError) throw opts.providerError;
-    return opts?.repoExists ?? false;
-  });
-  const checkTeamExists = jest.fn(async () => {
-    if (opts?.providerError) throw opts.providerError;
-    return opts?.teamExists ?? false;
-  });
-  const checkUserIsMember = jest.fn(async () => {
-    if (opts?.providerError) throw opts.providerError;
-    return opts?.userIsMember ?? false;
-  });
-
-  const client = {
-    hasInFlightClaimsMapWorkflow: jest.fn(async () => false),
-    getDefaultBranch: jest.fn(async () => 'main'),
-    getFile: jest.fn(async (path: string) => {
-      if (path === 'claims-map.json') {
-        return {
-          content: JSON.stringify(CLAIMS_MAP),
-          path,
-          sha: 'map-file-sha',
-        };
-      }
-      return null;
-    }),
-    checkRepoExists,
-    checkTeamExists,
-    checkUserIsMember,
-    owner: 'my-org',
-  };
-  MockClaimsClient.mockImplementation(() => client);
-  return client;
+  const api = new MemoryGitHubApi();
+  for (const owner of ['my-org', 'env-org']) {
+    const ref = { owner, repo: 'claims' };
+    api.setDefaultBranch(ref, 'main');
+    api.setFile(
+      ref,
+      'claims-map.json',
+      JSON.stringify(CLAIMS_MAP),
+      'map-file-sha',
+    );
+  }
+  if (opts?.repoExists) {
+    api.repoExists = async () => true;
+  }
+  if (opts?.teamExists) {
+    api.teamExists = async () => true;
+  }
+  if (opts?.userIsMember) {
+    api.userIsOrgMember = async () => true;
+  }
+  if (opts?.providerError) {
+    const error = opts.providerError;
+    api.repoExists = async () => {
+      throw error;
+    };
+    api.teamExists = async () => {
+      throw error;
+    };
+    api.userIsOrgMember = async () => {
+      throw error;
+    };
+  }
+  MockCreateGitHubApi.mockReturnValue(api);
+  return api;
 }
 
 describe('fs-forge preflight', () => {
@@ -146,7 +148,7 @@ describe('fs-forge preflight', () => {
 
     it('accepts FSCRT_ORG fallback', async () => {
       process.env.FSCRT_ORG = 'env-org';
-      mockClient();
+      const api = mockApi();
       const { result } = await captureOutput(async () => {
         await Preflight.run(
           ['--create', '--kind', 'repo', '--name', 'my-svc'],
@@ -155,13 +157,15 @@ describe('fs-forge preflight', () => {
         return 0;
       });
       expect(result).toBe(0);
-      expect(MockClaimsClient).toHaveBeenCalledWith('env-org');
+      expect(api.calls).toContain(
+        'readFile env-org/claims:claims-map.json@claims-index',
+      );
     });
   });
 
   describe('--create', () => {
     it('passes when claim and provider are available', async () => {
-      mockClient();
+      mockApi();
       const { result, stdout } = await captureOutput(async () => {
         await Preflight.run(
           [
@@ -182,7 +186,7 @@ describe('fs-forge preflight', () => {
     });
 
     it('detects claim conflict (exit 1)', async () => {
-      mockClient();
+      mockApi();
       const { error } = await captureOutput(() =>
         Preflight.run(
           [
@@ -202,7 +206,7 @@ describe('fs-forge preflight', () => {
     });
 
     it('detects claim conflict with --json (exit 1)', async () => {
-      mockClient();
+      mockApi();
       const { error, stdout } = await captureOutput(() =>
         Preflight.run(
           [
@@ -223,7 +227,7 @@ describe('fs-forge preflight', () => {
     });
 
     it('detects provider conflict (exit 2)', async () => {
-      mockClient({ repoExists: true });
+      mockApi({ repoExists: true });
       const { error } = await captureOutput(() =>
         Preflight.run(
           [
@@ -243,7 +247,7 @@ describe('fs-forge preflight', () => {
     });
 
     it('detects provider conflict with --json (exit 2)', async () => {
-      mockClient({ repoExists: true });
+      mockApi({ repoExists: true });
       const { error, stdout } = await captureOutput(() =>
         Preflight.run(
           [
@@ -264,7 +268,7 @@ describe('fs-forge preflight', () => {
     });
 
     it('only checks claims with --scope claims', async () => {
-      const client = mockClient({ repoExists: true });
+      const api = mockApi({ repoExists: true });
       const { result, stdout } = await captureOutput(async () => {
         await Preflight.run(
           [
@@ -284,11 +288,13 @@ describe('fs-forge preflight', () => {
       });
       expect(result).toBe(0);
       expect(stdout).toContain('not declared in claims');
-      expect(client.checkRepoExists).not.toHaveBeenCalled();
+      expect(api.calls.some((call) => call.startsWith('repoExists'))).toBe(
+        false,
+      );
     });
 
     it('only checks provider with --scope provider', async () => {
-      mockClient();
+      mockApi();
       const { result, stdout } = await captureOutput(async () => {
         await Preflight.run(
           [
@@ -311,7 +317,7 @@ describe('fs-forge preflight', () => {
     });
 
     it('handles tfworkspace (claims-only, no provider API)', async () => {
-      mockClient();
+      mockApi();
       const { result, stdout } = await captureOutput(async () => {
         await Preflight.run(
           [
@@ -332,7 +338,7 @@ describe('fs-forge preflight', () => {
     });
 
     it('handles tfworkspace --scope provider (no-op)', async () => {
-      mockClient();
+      mockApi();
       const { result, stdout } = await captureOutput(async () => {
         await Preflight.run(
           [
@@ -355,7 +361,7 @@ describe('fs-forge preflight', () => {
     });
 
     it('checks user membership', async () => {
-      mockClient();
+      mockApi();
       const { result, stdout } = await captureOutput(async () => {
         await Preflight.run(
           [
@@ -376,7 +382,7 @@ describe('fs-forge preflight', () => {
     });
 
     it('detects user already a member (exit 2)', async () => {
-      mockClient({ userIsMember: true });
+      mockApi({ userIsMember: true });
       const { error } = await captureOutput(() =>
         Preflight.run(
           [
@@ -395,7 +401,7 @@ describe('fs-forge preflight', () => {
     });
 
     it('checks team existence', async () => {
-      mockClient();
+      mockApi();
       const { result, stdout } = await captureOutput(async () => {
         await Preflight.run(
           [
@@ -416,7 +422,7 @@ describe('fs-forge preflight', () => {
     });
 
     it('detects team already exists (exit 2)', async () => {
-      mockClient({ teamExists: true });
+      mockApi({ teamExists: true });
       const { error } = await captureOutput(() =>
         Preflight.run(
           [
@@ -437,7 +443,7 @@ describe('fs-forge preflight', () => {
 
   describe('--edition', () => {
     it('requires --old-name', async () => {
-      mockClient();
+      mockApi();
       const { error } = await captureOutput(() =>
         Preflight.run(
           [
@@ -456,7 +462,7 @@ describe('fs-forge preflight', () => {
     });
 
     it('fails when old name claim does not exist (exit 3)', async () => {
-      mockClient();
+      mockApi();
       const { error } = await captureOutput(() =>
         Preflight.run(
           [
@@ -477,7 +483,7 @@ describe('fs-forge preflight', () => {
     });
 
     it('passes when claim exists and no identity change', async () => {
-      mockClient();
+      mockApi();
       const { result, stdout } = await captureOutput(async () => {
         await Preflight.run(
           [
@@ -500,7 +506,7 @@ describe('fs-forge preflight', () => {
     });
 
     it('checks provider on identity change', async () => {
-      mockClient();
+      mockApi();
       const { result, stdout } = await captureOutput(async () => {
         await Preflight.run(
           [
@@ -524,7 +530,7 @@ describe('fs-forge preflight', () => {
     });
 
     it('detects provider conflict on identity change (exit 2)', async () => {
-      mockClient({ repoExists: true });
+      mockApi({ repoExists: true });
       const { error } = await captureOutput(() =>
         Preflight.run(
           [
@@ -545,7 +551,7 @@ describe('fs-forge preflight', () => {
     });
 
     it('skips provider check with --scope claims', async () => {
-      const client = mockClient({ repoExists: true });
+      const api = mockApi({ repoExists: true });
       const { result, stdout } = await captureOutput(async () => {
         await Preflight.run(
           [
@@ -567,13 +573,15 @@ describe('fs-forge preflight', () => {
       });
       expect(result).toBe(0);
       expect(stdout).toContain('exists');
-      expect(client.checkRepoExists).not.toHaveBeenCalled();
+      expect(api.calls.some((call) => call.startsWith('repoExists'))).toBe(
+        false,
+      );
     });
   });
 
   describe('--deletion', () => {
     it('passes when claim exists', async () => {
-      mockClient();
+      mockApi();
       const { result, stdout } = await captureOutput(async () => {
         await Preflight.run(
           [
@@ -594,7 +602,7 @@ describe('fs-forge preflight', () => {
     });
 
     it('fails when claim does not exist (exit 3)', async () => {
-      mockClient();
+      mockApi();
       const { error } = await captureOutput(() =>
         Preflight.run(
           [
@@ -615,7 +623,7 @@ describe('fs-forge preflight', () => {
 
   describe('error handling', () => {
     it('handles auth errors (exit 4)', async () => {
-      mockClient({
+      mockApi({
         providerError: Object.assign(new Error('Bad credentials'), {
           status: 401,
         }),
@@ -640,7 +648,7 @@ describe('fs-forge preflight', () => {
     });
 
     it('handles API unreachable (exit 5)', async () => {
-      mockClient({ providerError: new Error('connect ECONNREFUSED') });
+      mockApi({ providerError: new Error('connect ECONNREFUSED') });
       const { error } = await captureOutput(() =>
         Preflight.run(
           [
