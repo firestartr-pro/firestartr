@@ -7,8 +7,8 @@ body:
   - type: markdown
     attributes:
       value: |
-        > [!CAUTION]
-        > This is a public repository, do NOT add any customer, private or sensitive data, if any it MUST be anonymized.
+        > [!WARNING]
+        > This is a public repository, do NOT add any private or sensitive data, if any it MUST be anonymized.
   - type: markdown
     attributes:
       value: |
