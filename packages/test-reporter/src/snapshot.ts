@@ -18,7 +18,6 @@ const CRD_KINDS = [
   'FirestartrGithubRepositoryFeature',
   'FirestartrGithubRepositorySecretsSection',
   'FirestartrTerraformWorkspace',
-  'FirestartrTerraformWorkspacePlan',
   'FirestartrGithubOrgWebhook',
   'FirestartrGithubOrganizationSettings',
   'FirestartrGithubOrganizationVariableSection',
