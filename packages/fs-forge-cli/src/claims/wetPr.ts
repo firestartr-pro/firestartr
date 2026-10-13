@@ -1,4 +1,4 @@
-import type { ClaimsClient } from './client.js';
+import type { GitHubApi, RepoRef } from '../github/api.js';
 
 export interface WetPrInfo {
   owner: string;
@@ -45,7 +45,7 @@ function contentMatchesClaim(
   return content.includes(ref);
 }
 
-export function defaultStateRepos(org: string): string[] {
+function defaultStateRepos(org: string): string[] {
   return DEFAULT_STATE_REPOS.map((repo) => `${org}/${repo}`);
 }
 
@@ -58,7 +58,7 @@ export function parseStateRepos(
 }
 
 export async function findWetPr(
-  client: ClaimsClient,
+  api: GitHubApi,
   stateRepos: string[],
   claimType: string,
   claimName: string,
@@ -71,7 +71,7 @@ export async function findWetPr(
     const owner = repoSlug.slice(0, slashIdx);
     const repo = repoSlug.slice(slashIdx + 1);
 
-    const prs = await listOpenAutomatedPrs(client, owner, repo);
+    const prs = await listOpenAutomatedPrs(api, { owner, repo });
     const matches = prs.filter((pr) =>
       branchMatchesClaim(pr.headRef, claimType, claimName),
     );
@@ -82,9 +82,8 @@ export async function findWetPr(
       );
 
       const redirect = await handleDeletionPr(
-        client,
-        owner,
-        repo,
+        api,
+        { owner, repo },
         mostRecent.number,
         mostRecent.baseRef,
         claimType,
@@ -104,18 +103,16 @@ export async function findWetPr(
     }
 
     const contentMatch = await findByContentFallback(
-      client,
-      owner,
-      repo,
+      api,
+      { owner, repo },
       prs,
       claimType,
       claimName,
     );
     if (contentMatch) {
       const redirect = await handleDeletionPr(
-        client,
-        owner,
-        repo,
+        api,
+        { owner, repo },
         contentMatch.number,
         contentMatch.baseRef,
         claimType,
@@ -138,62 +135,40 @@ export async function findWetPr(
 }
 
 async function listOpenAutomatedPrs(
-  client: ClaimsClient,
-  owner: string,
-  repo: string,
+  api: GitHubApi,
+  ref: RepoRef,
 ): Promise<WetPrInfo[]> {
-  const prs: WetPrInfo[] = [];
-  let page = 1;
-
-  while (true) {
-    const batch = await client.listPullRequests(owner, repo, {
-      state: 'open',
-      headPrefix: 'automated',
-      perPage: 100,
-      page,
-    });
-
-    prs.push(
-      ...batch.map((pr) => ({
-        owner,
-        repo: `${owner}/${repo}`,
-        number: pr.number,
-        url: pr.html_url,
-        headRef: pr.head.ref,
-        baseRef: pr.base.sha,
-        state: pr.state,
-        updatedAt: pr.updated_at,
-      })),
-    );
-
-    if (batch.length < 100) break;
-    page++;
-  }
-
-  return prs;
+  const batch = await api.listOpenPullRequests(ref, 'automated');
+  return batch.map((pr) => ({
+    owner: ref.owner,
+    repo: `${ref.owner}/${ref.repo}`,
+    number: pr.number,
+    url: pr.htmlUrl,
+    headRef: pr.headRef,
+    baseRef: pr.baseSha,
+    state: pr.state,
+    updatedAt: pr.updatedAt,
+  }));
 }
 
 async function findByContentFallback(
-  client: ClaimsClient,
-  owner: string,
-  repo: string,
+  api: GitHubApi,
+  ref: RepoRef,
   prs: WetPrInfo[],
   claimType: string,
   claimName: string,
 ): Promise<WetPrInfo | null> {
   for (const pr of prs) {
-    const files = await client.listFilesInPr(owner, repo, pr.number);
+    const files = await api.listPullRequestFiles(ref, pr.number);
     for (const file of files) {
       if (!file.filename.endsWith('.yaml') && !file.filename.endsWith('.yml')) {
         continue;
       }
-      const content = await client.getFileContent(
-        owner,
-        repo,
-        file.filename,
-        pr.headRef,
-      );
-      if (content && contentMatchesClaim(content, claimType, claimName)) {
+      const content = await api.readFile(ref, file.filename, pr.headRef);
+      if (
+        content &&
+        contentMatchesClaim(content.content, claimType, claimName)
+      ) {
         return pr;
       }
     }
@@ -232,51 +207,43 @@ export function extractLastStatePrFromContent(
 }
 
 async function resolveLastStatePrRedirect(
-  client: ClaimsClient,
-  owner: string,
-  repo: string,
+  api: GitHubApi,
+  ref: RepoRef,
   prNumber: number,
   baseRef: string,
   claimType: string,
   claimName: string,
 ): Promise<LastStatePrRedirect | null> {
-  const files = await client.listFilesInPr(owner, repo, prNumber);
+  const files = await api.listPullRequestFiles(ref, prNumber);
   const yamlFiles = files.filter(
     (f) => f.filename.endsWith('.yaml') || f.filename.endsWith('.yml'),
   );
 
   for (const file of yamlFiles) {
-    const content = await client.getFileContent(
-      owner,
-      repo,
-      file.filename,
-      baseRef,
-    );
+    const content = await api.readFile(ref, file.filename, baseRef);
     if (!content) continue;
-    if (!contentMatchesClaim(content, claimType, claimName)) continue;
+    if (!contentMatchesClaim(content.content, claimType, claimName)) continue;
 
-    return extractLastStatePrFromContent(content, owner);
+    return extractLastStatePrFromContent(content.content, ref.owner);
   }
 
   return null;
 }
 
 async function handleDeletionPr(
-  client: ClaimsClient,
-  owner: string,
-  repo: string,
+  api: GitHubApi,
+  ref: RepoRef,
   prNumber: number,
   baseRef: string,
   claimType: string,
   claimName: string,
 ): Promise<LastStatePrRedirect | null> {
-  const files = await client.listFilesInPr(owner, repo, prNumber);
+  const files = await api.listPullRequestFiles(ref, prNumber);
   if (!isDeletionPr(files)) return null;
 
   return resolveLastStatePrRedirect(
-    client,
-    owner,
-    repo,
+    api,
+    ref,
     prNumber,
     baseRef,
     claimType,

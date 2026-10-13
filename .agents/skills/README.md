@@ -15,3 +15,4 @@ workflow skills come from [`prefapp/skills`](https://github.com/prefapp/skills).
 | `rollout-functionality` | Test a branch, issue or release end to end on a pre org. |
 | `smoke-test-renderer` | Live smoke tests of GitHub claims on a pre org. |
 | `smoke-test-tfworkspace` | Live smoke tests of TFWorkspace claims on a pre org. |
+| `verify-fs-forge-cli` | Drive and verify the `fs-forge` CLI: offline claim commands by default, org-bound commands opt-in on a pre org. |

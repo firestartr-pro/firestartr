@@ -1,3 +1,5 @@
+import { isRecord } from './isRecord.js';
+
 export type FlagType = 'string' | 'number' | 'boolean';
 
 export interface FlagSpec {
@@ -19,16 +21,12 @@ export interface VariantGroup {
   variants: Record<string, string[]>;
 }
 
-function object(value: unknown): value is Record<string, unknown> {
-  return typeof value === 'object' && value !== null && !Array.isArray(value);
-}
-
 function branches(
   schema: Record<string, unknown>,
   keyword: 'allOf' | 'oneOf' | 'anyOf',
 ): Record<string, unknown>[] {
   const value = schema[keyword];
-  return Array.isArray(value) ? value.filter(object) : [];
+  return Array.isArray(value) ? value.filter(isRecord) : [];
 }
 
 function requiredNames(schema: Record<string, unknown>): Set<string> {
@@ -45,9 +43,9 @@ function properties(
   schema: Record<string, unknown>,
 ): Record<string, Record<string, unknown>> {
   const result: Record<string, Record<string, unknown>> = {};
-  if (object(schema.properties)) {
+  if (isRecord(schema.properties)) {
     for (const [name, value] of Object.entries(schema.properties)) {
-      if (object(value)) result[name] = value;
+      if (isRecord(value)) result[name] = value;
     }
   }
   for (const branch of branches(schema, 'allOf')) {
@@ -119,7 +117,7 @@ function walk(
   delete ownSchema.allOf;
   delete ownSchema.oneOf;
   delete ownSchema.anyOf;
-  const ownProperties = object(ownSchema.properties)
+  const ownProperties = isRecord(ownSchema.properties)
     ? (ownSchema.properties as Record<string, unknown>)
     : {};
   const required = new Set(
@@ -127,7 +125,7 @@ function walk(
   );
 
   for (const [key, value] of Object.entries(ownProperties)) {
-    if (!object(value)) continue;
+    if (!isRecord(value)) continue;
     const path = prefix ? `${prefix}.${key}` : key;
     const unconditionallyRequired = parentRequired && required.has(key);
     const conditionallyRequired = required.has(key) && !unconditionallyRequired;
@@ -145,7 +143,7 @@ function walk(
       Object.keys(valueProperties).length > 0;
 
     if (value.type === 'array') {
-      const items = object(value.items) ? value.items : undefined;
+      const items = isRecord(value.items) ? value.items : undefined;
       if (
         items &&
         typeof items.type === 'string' &&
@@ -184,8 +182,8 @@ function walk(
       }
       if (
         value.additionalProperties === true ||
-        object(value.additionalProperties) ||
-        object(value.patternProperties)
+        isRecord(value.additionalProperties) ||
+        isRecord(value.patternProperties)
       ) {
         addFlag(
           flags,
@@ -233,7 +231,7 @@ export function deriveFlags(
   schema: Record<string, unknown>,
   prefix = '',
 ): FlagSpec[] {
-  if (!object(schema)) return [];
+  if (!isRecord(schema)) return [];
   return walk(schema, prefix, true);
 }
 
@@ -253,7 +251,7 @@ export function deriveRequiredContainers(
   prefix = '',
   parentRequired = true,
 ): string[] {
-  if (!object(schema)) return [];
+  if (!isRecord(schema)) return [];
   const result: string[] = [];
   const required = requiredNames(schema);
   for (const [key, child] of Object.entries(properties(schema))) {
@@ -281,7 +279,7 @@ export function deriveVariantGroups(
 
   if (Array.isArray(union) && union.length > 1) {
     const branchProperties = union.map((branch) =>
-      object(branch.properties)
+      isRecord(branch.properties)
         ? (branch.properties as Record<string, Record<string, unknown>>)
         : {},
     );

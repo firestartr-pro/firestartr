@@ -9,7 +9,7 @@ import {
   isRetryableError,
   pollUntil,
 } from '../utils/async-control';
-import { getStatusCode } from './errors';
+import { getStatusCode, type StatusCodeError } from '../errors/status-code';
 import { expandManifestList, readManifestFile } from './manifests';
 
 import type { K8sResource, KubeConfigProvider } from './types';
@@ -98,7 +98,7 @@ async function waitForCrdEstablished(
 
         return Boolean(established);
       } catch (err) {
-        const statusCode = getStatusCode(err as Error);
+        const statusCode = getStatusCode(err as StatusCodeError);
         if (
           statusCode !== undefined &&
           statusCode < 500 &&

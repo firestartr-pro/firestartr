@@ -23,6 +23,7 @@ The best way to try this locally is to use the `dagger/etoe` dagger module. See
 - [Basic test structure](#basic-test-structure)
 - [Cleanup helpers](#cleanup-helpers)
 - [Patching and renaming claims](#patching-and-renaming-claims)
+  - [Shared claim-patch policy](#shared-claim-patch-policy)
 - [Common recipes](#common-recipes)
   - [Create a GitHub team](#create-a-github-team)
   - [Create a GitHub repository](#create-a-github-repository)
@@ -151,6 +152,24 @@ If you rename a claim, pass the explicit runtime name to cleanup:
   `'group-a'`
 - do the same for any fixture whose rendered name no longer matches the base
   fixture stem
+
+### Shared claim-patch policy
+
+Build patches with the builders in `packages/e2e/src/claim-patches.ts` instead
+of re-writing the base policy by hand:
+
+- `buildComponentClaimPatches({ name, ownerRef, ... })`: renames the claim and
+  its GitHub repository, points `/owner` and `/platformOwner` at runtime
+  groups, empties the user-reference fields, and sets the OIDC knobs. Pass
+  `org`, `description`, `maintainedBy`, `topics`, `features`, `vars`,
+  `additionalCodeownersRules`, `hasIssues`, `pages` or `secrets` for the fields
+  the test controls.
+- `buildGroupClaimPatches({ name, members, parent, ... })`: renames the group
+  and sets `/members` and `/parent`.
+
+Suite-specific patches go in `extraPatches`, which is appended after the shared
+policy. `renderLocally(...)` still applies the kind-aware common patches (claim
+name, provider name, GitHub org) before the patches you pass.
 
 ## Common recipes
 
@@ -415,6 +434,9 @@ Useful options:
 - `deleteCr(crPath, timeout?)`: delete one rendered CR
 - `applyCrds(version)`: apply released CRDs
 - `applyInBranchCrds()`: apply CRDs from `packages/k8s/src/crds`
+- `listCustomResourcesByAnnotation({ kind, apiVersion, annotationKey,
+  annotationValues })`: list CRs whose annotation value matches (for example by
+  claim ref)
 - `getGroupTfStateKey(claimName)`: useful with `firestartr` / `ensureDefaultGroup`
 
 ### Helpers exported by this package

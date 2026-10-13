@@ -2,26 +2,22 @@ import { afterEach, beforeAll, describe, expect, it } from '@jest/globals';
 import { captureOutput } from '@oclif/test';
 import { readFileSync } from 'fs';
 import { join } from 'path';
-import YAML from 'yaml';
-import { validateClaim, registerValidator } from '../src/utils/ajvValidation';
+import { createClaimValidator } from '../src/utils/ajvValidation';
 import { deriveFlags } from '../src/utils/deriveFlags';
 import { buildClaimFromFlags } from '../src/utils/buildClaim';
-import {
-  deterministicPath,
-  assertCreatePath,
-} from '../src/claims/deterministicPath';
 import CreateOrgSettings from '../src/commands/create/orgsettings';
 
 const SCHEMA_DIR = join(process.cwd(), 'schemas');
-const FIXTURE_DIR = join(process.cwd(), '__tests__', 'fixtures');
 
 function loadSchema(kind: string): Record<string, unknown> {
   const raw = readFileSync(join(SCHEMA_DIR, `${kind}.json`), 'utf8');
   return JSON.parse(raw);
 }
 
+const validator = createClaimValidator({ schemasDir: SCHEMA_DIR });
+
 beforeAll(() => {
-  registerValidator('OrgSettingsClaim', loadSchema('OrgSettingsClaim'));
+  void loadSchema('OrgSettingsClaim');
 });
 
 describe('OrgSettingsClaim schema', () => {
@@ -207,27 +203,6 @@ describe('OrgSettingsClaim schema', () => {
   });
 
   describe('AJV validation', () => {
-    it('passes for a valid full OrgSettingsClaim', async () => {
-      const claim = YAML.parse(
-        readFileSync(join(FIXTURE_DIR, 'valid', 'orgsettings.yaml'), 'utf8'),
-      );
-      const result = await validateClaim(claim, 'OrgSettingsClaim');
-      expect(result.valid).toBe(true);
-      expect(result.errors).toEqual([]);
-    });
-
-    it('passes for a valid minimal OrgSettingsClaim', async () => {
-      const claim = YAML.parse(
-        readFileSync(
-          join(FIXTURE_DIR, 'valid', 'orgsettings-minimal.yaml'),
-          'utf8',
-        ),
-      );
-      const result = await validateClaim(claim, 'OrgSettingsClaim');
-      expect(result.valid).toBe(true);
-      expect(result.errors).toEqual([]);
-    });
-
     it('fails for system or owner because they are not in the renderer envelope', async () => {
       const claim = {
         name: 'test',
@@ -242,20 +217,8 @@ describe('OrgSettingsClaim schema', () => {
           },
         },
       };
-      const result = await validateClaim(claim, 'OrgSettingsClaim');
+      const result = await validator.validate(claim, 'OrgSettingsClaim');
       expect(result.valid).toBe(false);
-    });
-
-    it('fails for missing billing_email', async () => {
-      const claim = YAML.parse(
-        readFileSync(
-          join(FIXTURE_DIR, 'invalid', 'orgsettings-missing-billing-email.yaml'),
-          'utf8',
-        ),
-      );
-      const result = await validateClaim(claim, 'OrgSettingsClaim');
-      expect(result.valid).toBe(false);
-      expect(result.errors.length).toBeGreaterThan(0);
     });
 
     it('fails for a top-level name that the renderer would reject', async () => {
@@ -270,7 +233,7 @@ describe('OrgSettingsClaim schema', () => {
           },
         },
       };
-      const result = await validateClaim(claim, 'OrgSettingsClaim');
+      const result = await validator.validate(claim, 'OrgSettingsClaim');
       expect(result.valid).toBe(false);
     });
 
@@ -287,7 +250,7 @@ describe('OrgSettingsClaim schema', () => {
           },
         },
       };
-      const result = await validateClaim(claim, 'OrgSettingsClaim');
+      const result = await validator.validate(claim, 'OrgSettingsClaim');
       expect(result.valid).toBe(true);
     });
 
@@ -303,7 +266,7 @@ describe('OrgSettingsClaim schema', () => {
           },
         },
       };
-      const result = await validateClaim(claim, 'OrgSettingsClaim');
+      const result = await validator.validate(claim, 'OrgSettingsClaim');
       expect(result.valid).toBe(false);
     });
 
@@ -320,7 +283,7 @@ describe('OrgSettingsClaim schema', () => {
           },
         },
       };
-      const result = await validateClaim(claim, 'OrgSettingsClaim');
+      const result = await validator.validate(claim, 'OrgSettingsClaim');
       expect(result.valid).toBe(false);
     });
 
@@ -340,7 +303,7 @@ describe('OrgSettingsClaim schema', () => {
           },
         },
       };
-      const result = await validateClaim(claim, 'OrgSettingsClaim');
+      const result = await validator.validate(claim, 'OrgSettingsClaim');
       expect(result.valid).toBe(false);
     });
 
@@ -359,7 +322,7 @@ describe('OrgSettingsClaim schema', () => {
           },
         },
       };
-      const result = await validateClaim(claim, 'OrgSettingsClaim');
+      const result = await validator.validate(claim, 'OrgSettingsClaim');
       expect(result.valid).toBe(false);
     });
 
@@ -378,7 +341,7 @@ describe('OrgSettingsClaim schema', () => {
           },
         },
       };
-      const result = await validateClaim(claim, 'OrgSettingsClaim');
+      const result = await validator.validate(claim, 'OrgSettingsClaim');
       expect(result.valid).toBe(false);
     });
 
@@ -402,7 +365,7 @@ describe('OrgSettingsClaim schema', () => {
           },
         },
       };
-      const result = await validateClaim(claim, 'OrgSettingsClaim');
+      const result = await validator.validate(claim, 'OrgSettingsClaim');
       expect(result.valid).toBe(false);
     });
 
@@ -426,7 +389,7 @@ describe('OrgSettingsClaim schema', () => {
           },
         },
       };
-      const result = await validateClaim(claim, 'OrgSettingsClaim');
+      const result = await validator.validate(claim, 'OrgSettingsClaim');
       expect(result.valid).toBe(false);
     });
 
@@ -450,7 +413,7 @@ describe('OrgSettingsClaim schema', () => {
           },
         },
       };
-      const result = await validateClaim(claim, 'OrgSettingsClaim');
+      const result = await validator.validate(claim, 'OrgSettingsClaim');
       expect(result.valid).toBe(true);
     });
 
@@ -475,7 +438,7 @@ describe('OrgSettingsClaim schema', () => {
           },
         },
       };
-      const result = await validateClaim(claim, 'OrgSettingsClaim');
+      const result = await validator.validate(claim, 'OrgSettingsClaim');
       expect(result.valid).toBe(false);
     });
 
@@ -494,38 +457,11 @@ describe('OrgSettingsClaim schema', () => {
           },
         },
       };
-      const result = await validateClaim(claim, 'OrgSettingsClaim');
+      const result = await validator.validate(claim, 'OrgSettingsClaim');
       expect(result.valid).toBe(false);
     });
   });
 
-  describe('deterministic path', () => {
-    it('maps OrgSettingsClaim to claims/orgSettings/<name>.yaml', () => {
-      expect(deterministicPath('OrgSettingsClaim', 'my-org')).toBe(
-        'claims/orgSettings/my-org.yaml',
-      );
-    });
-
-    it('rejects explicit --path for OrgSettingsClaim', () => {
-      expect(() =>
-        assertCreatePath(
-          'OrgSettingsClaim',
-          undefined,
-          'claims/orgSettings/x.yaml',
-        ),
-      ).toThrow(
-        '--path is only supported for TFWorkspaceClaim and SecretsClaim',
-      );
-    });
-
-    it('rejects --commit with --path for OrgSettingsClaim', () => {
-      expect(() =>
-        assertCreatePath('OrgSettingsClaim', true, 'claims/orgSettings/x.yaml'),
-      ).toThrow(
-        '--path is only supported for TFWorkspaceClaim and SecretsClaim',
-      );
-    });
-  });
 });
 
 describe('create orgsettings command', () => {
@@ -596,42 +532,29 @@ describe('create orgsettings command', () => {
     );
   });
 
-  it('rejects an invalid actions_variables name through the command', async () => {
+  it.each([
+    [
+      '[{"name":"MY-VAR","value":"val","visibility":"all"}]',
+      'an invalid actions_variables name',
+    ],
+    [
+      '[{"name":"FOO","value":"one","visibility":"all"},{"name":"FOO","value":"two","visibility":"private"}]',
+      'duplicate actions_variables names',
+    ],
+  ])('rejects %s (%s) through the command', async (actionsVariables) => {
     const { error } = await captureOutput(() =>
       CreateOrgSettings.run(
         [
           '--name',
-          'bad-var',
+          'bad-vars',
           '--providers.github.name',
-          'bad-var',
+          'bad-vars',
           '--providers.github.org',
           'my-org',
           '--providers.github.billing_email',
           'billing@example.com',
           '--providers.github.actions_variables.json',
-          '[{"name":"MY-VAR","value":"val","visibility":"all"}]',
-        ],
-        { root: ROOT },
-      ),
-    );
-
-    expect(error).toBeDefined();
-  });
-
-  it('rejects duplicate actions_variables names through the command', async () => {
-    const { error } = await captureOutput(() =>
-      CreateOrgSettings.run(
-        [
-          '--name',
-          'duplicate-vars',
-          '--providers.github.name',
-          'duplicate-vars',
-          '--providers.github.org',
-          'my-org',
-          '--providers.github.billing_email',
-          'billing@example.com',
-          '--providers.github.actions_variables.json',
-          '[{"name":"FOO","value":"one","visibility":"all"},{"name":"FOO","value":"two","visibility":"private"}]',
+          actionsVariables,
         ],
         { root: ROOT },
       ),

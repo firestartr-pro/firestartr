@@ -75,5 +75,3 @@ export function readAllDiagnostics(hostFilePath = '/tmp/diagnosis'): any[] {
     return [];
   }
 }
-
-export default { getLatestCrdDiagnostics, readAllDiagnostics };

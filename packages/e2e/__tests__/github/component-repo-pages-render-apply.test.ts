@@ -9,58 +9,12 @@ import {
   initE2e,
   type E2EApi,
   type FixtureResourceInput,
-  type JsonPatchOperation,
 } from '../..';
+import { buildComponentClaimPatches } from '../../src/claim-patches';
 import { LOCAL_RENDER_APPLY_TEST_TIMEOUT_MS } from '../../src/test-constants';
 
 const PAGES_CNAME = 'e2e-component-pages.test';
 const PAGES_DEFAULT_BRANCH = 'main';
-
-function pagesComponentPatches(ownerRef: string): JsonPatchOperation[] {
-  return [
-    { op: 'remove', path: '/system' },
-    { op: 'replace', path: '/owner', value: ownerRef },
-    { op: 'replace', path: '/platformOwner', value: ownerRef },
-    { op: 'remove', path: '/maintainedBy' },
-    { op: 'replace', path: '/providers/github/additionalRules', value: [] },
-    {
-      op: 'replace',
-      path: '/providers/github/overrides/additionalAdmins',
-      value: [],
-    },
-    {
-      op: 'replace',
-      path: '/providers/github/overrides/additionalCodeownersRules',
-      value: [],
-    },
-    {
-      op: 'replace',
-      path: '/providers/github/overrides/spec/actions/oidc/useDefault',
-      value: true,
-    },
-    {
-      op: 'replace',
-      path: '/providers/github/overrides/spec/actions/oidc/includeClaimKeys',
-      value: [],
-    },
-    {
-      op: 'add',
-      path: '/providers/github/pages',
-      value: {
-        buildType: 'legacy',
-        source: { branch: PAGES_DEFAULT_BRANCH, path: '/' },
-        // `public` and `https_enforced` are intentionally omitted from the e2e
-        // claim. The firestartr GitHub App installation token cannot change
-        // GitHub Pages visibility (`public`) via the REST API — GitHub returns
-        // 422 "Only repository admins can change the visibility of GitHub
-        // Pages" — and `https_enforced` needs a real DNS-verified TLS
-        // certificate the disposable e2e org cannot provide. Both are covered
-        // at unit/renderer level (#2607/#2613), not via this live org.
-        cname: PAGES_CNAME,
-      },
-    },
-  ];
-}
 
 describe('Claim Render Local Component GitHub Pages E2E', () => {
   let client: E2EApi;
@@ -107,7 +61,23 @@ describe('Claim Render Local Component GitHub Pages E2E', () => {
     async () => {
       const defaultGroup = await ensureDefaultGroup(client);
       const rendered = await client.claims.renderLocally('component-a', {
-        patches: pagesComponentPatches(defaultGroup.ref),
+        patches: buildComponentClaimPatches({
+          name: componentName,
+          ownerRef: defaultGroup.ref,
+          pages: {
+            buildType: 'legacy',
+            source: { branch: PAGES_DEFAULT_BRANCH, path: '/' },
+            // `public` and `https_enforced` are intentionally omitted from the
+            // e2e claim. The firestartr GitHub App installation token cannot
+            // change GitHub Pages visibility (`public`) via the REST API —
+            // GitHub returns 422 "Only repository admins can change the
+            // visibility of GitHub Pages" — and `https_enforced` needs a real
+            // DNS-verified TLS certificate the disposable e2e org cannot
+            // provide. Both are covered at unit/renderer level (#2607/#2613),
+            // not via this live org.
+            cname: PAGES_CNAME,
+          },
+        }),
       });
       await applyAndWaitCrPaths(client, rendered.crPaths);
       await expect(client.gh.repoExists(componentName)).resolves.toBe(true);

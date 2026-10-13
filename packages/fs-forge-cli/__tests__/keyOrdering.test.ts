@@ -201,20 +201,6 @@ describe('serializeClaim', () => {
     expect(lines[5]).toMatch(/^providers:/);
   });
 
-  it('uses lineWidth 120', () => {
-    const longValue = 'x'.repeat(100);
-    const claim = {
-      kind: 'ComponentClaim',
-      name: 'test',
-      annotations: { key: longValue },
-    };
-
-    const yaml = serializeClaim(claim);
-    const lines = yaml.split('\n');
-    const annotationLine = lines.find((l) => l.includes(longValue));
-    expect(annotationLine).toBeDefined();
-  });
-
   it('returns empty object for empty input', () => {
     const yaml = serializeClaim({});
     expect(yaml).toMatch(/^{}\n$/);

@@ -2,7 +2,7 @@ import { Command, Flags } from '@oclif/core';
 import { readFile } from 'fs/promises';
 import { existsSync } from 'fs';
 import { join } from 'path';
-import { validateClaim, setSchemasDir } from '../utils/ajvValidation.js';
+import { createClaimValidator } from '../utils/ajvValidation.js';
 import { getFeatureReferences } from '../utils/features.js';
 import {
   resolveLatestFeatureSchema,
@@ -40,7 +40,9 @@ export default class Validate extends Command {
     const { flags } = await this.parse(Validate);
     const files = flags.file as string[];
 
-    setSchemasDir(join(this.config.root, 'schemas'));
+    const validator = createClaimValidator({
+      schemasDir: join(this.config.root, 'schemas'),
+    });
 
     const results: Array<{
       file: string;
@@ -97,7 +99,7 @@ export default class Validate extends Command {
           continue;
         }
 
-        const result = await validateClaim(claim, kind);
+        const result = await validator.validate(claim, kind);
         const errors = [...result.errors];
         if (kind === 'ComponentClaim') {
           let features: ReturnType<typeof getFeatureReferences> = [];

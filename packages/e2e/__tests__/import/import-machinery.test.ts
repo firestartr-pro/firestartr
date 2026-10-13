@@ -18,7 +18,10 @@ import {
   LOCAL_RENDER_APPLY_TEST_TIMEOUT_MS,
   WAIT_FOR_CR_TIMEOUT_SECONDS,
 } from '../../src/test-constants';
-import { buildClaimRef } from '../../src/claim-taxonomy';
+import {
+  buildClaimRef,
+  getFirestartrAnnotation,
+} from '../../src/claim-taxonomy';
 import {
   findRenderedCrPaths,
   patchResourceSpecContext,
@@ -31,11 +34,9 @@ import type { K8sResource } from '../../src/k8s/types';
 
 // ----- Constants -----
 
-const IMPORT_ANNOTATION = common.generic.getFirestartrAnnotation('import');
-const CLAIM_REF_ANNOTATION =
-  common.generic.getFirestartrAnnotation('claim-ref');
-const EXTERNAL_NAME_ANNOTATION =
-  common.generic.getFirestartrAnnotation('external-name');
+const IMPORT_ANNOTATION = getFirestartrAnnotation('import');
+const CLAIM_REF_ANNOTATION = getFirestartrAnnotation('claimRef');
+const EXTERNAL_NAME_ANNOTATION = getFirestartrAnnotation('externalName');
 
 const SUITE_PREFIX = 'import-machinery';
 

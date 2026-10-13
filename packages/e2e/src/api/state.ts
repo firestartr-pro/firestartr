@@ -1,5 +1,5 @@
 import type { KubeConfigProvider } from '../k8s/types';
-import type { ClaimsConfig, RenderedArtifact, TestContext } from '../types';
+import type { RenderedArtifact, TestContext } from '../types';
 
 type E2EStateOptions = {
   org: string;
@@ -15,7 +15,6 @@ export class E2EState {
   namespace: string;
   prefix: string;
   context: TestContext | null = null;
-  claimsConfig: ClaimsConfig = {};
   kubeConfigProvider: KubeConfigProvider;
   fixturesBasePath?: string;
   onlyFiles?: string[];

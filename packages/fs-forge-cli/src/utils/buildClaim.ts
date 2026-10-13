@@ -67,7 +67,7 @@ function getNestedObject(
   return current;
 }
 
-export function setNestedValue(
+function setNestedValue(
   obj: Record<string, unknown>,
   path: string,
   value: unknown,

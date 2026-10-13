@@ -7,7 +7,7 @@ command that surfaces the current claims inventory.
 The command accepts:
 
 - `--org` / `FSCRT_ORG` — GitHub org owning the claims repo (required)
-- `--claims-repo` — repository name, defaults to `claims` (matches the existing `ClaimsClient` convention)
+- `--claims-repo` — repository name, defaults to `claims` (matches the existing default claims repo name)
 - `--json` — output structured JSON grouped by claim kind instead of a human-readable table
 - `--kind` — repeatable, filters output to one or more claim kinds (e.g. `--kind component --kind group`)
 
@@ -33,9 +33,8 @@ JSON output groups entries by claim kind:
 
 ## Library changes
 
-`ClaimsClient` (in `src/claims/client.ts`) currently hardcodes `repo = 'claims'`. The
-constructor gains an optional third parameter for the repo name, defaulting to `'claims'`
-so all existing callers remain unchanged.
+`claimsRepo()` (in `src/claims/claimsRepo.ts`) defaults the repository name to
+`'claims'`; `--claims-repo` overrides it.
 
 ## Consequences
 

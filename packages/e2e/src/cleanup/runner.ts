@@ -13,12 +13,15 @@ export class CleanupRunner {
     }
   }
 
-  throwOnErrors(context: string): void {
-    if (this.errors.length > 0) {
-      throw new Error(
-        `Cleanup failed for ${context}:\n${this.errors.join('\n')}`,
-      );
-    }
+  // Throws the aggregate of collected errors. Without a context the errors are
+  // thrown as-is, so callers can keep their own message shape.
+  throwOnErrors(context?: string): void {
+    if (this.errors.length === 0) return;
+
+    const detail = this.errors.join('\n');
+    throw new Error(
+      context ? `Cleanup failed for ${context}:\n${detail}` : detail,
+    );
   }
 
   warnOnErrors(logPrefix: string, phase = 'cleanup'): void {

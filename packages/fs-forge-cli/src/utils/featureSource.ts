@@ -1,6 +1,8 @@
 import { readFile } from 'fs/promises';
 import { basename, dirname, resolve, sep } from 'path';
 
+import { isRecord } from './isRecord.js';
+
 export const DEFAULT_FEATURE_SOURCE =
   'https://raw.githubusercontent.com/firestartr-pro/docs/main/site/raw/features';
 
@@ -52,10 +54,6 @@ interface HttpSourceRoot {
 }
 
 type SourceRoot = LocalSourceRoot | HttpSourceRoot;
-
-function isRecord(value: unknown): value is Record<string, unknown> {
-  return typeof value === 'object' && value !== null && !Array.isArray(value);
-}
 
 function isFeatureFile(value: unknown): value is FeatureFile {
   return (

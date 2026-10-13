@@ -27,7 +27,7 @@
   "devDependencies": {
     "github": "file:../github",
     "catalog_common": "file:../catalog_common",
-    "ajv": "^6.12.3"
+    "ajv": "^8.20.0"
   },
   "engines": {
     "node": ">=22"

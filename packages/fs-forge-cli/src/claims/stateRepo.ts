@@ -1,4 +1,6 @@
-import type { ClaimsClient } from './client.js';
+import { extractLastStatePrFromContent } from './wetPr.js';
+
+import type { GitHubApi } from '../github/api.js';
 
 export interface CrInfo {
   owner: string;
@@ -18,10 +20,9 @@ export interface LastStatePrInfo {
 }
 
 const CLAIM_REF_ANNOTATION = 'firestartr.dev/claim-ref';
-const LAST_STATE_PR_ANNOTATION = 'firestartr.dev/last-state-pr';
 
 export async function findCrOnMainBranch(
-  client: ClaimsClient,
+  api: GitHubApi,
   stateRepo: string,
   claimType: string,
   claimName: string,
@@ -31,10 +32,11 @@ export async function findCrOnMainBranch(
   const owner = stateRepo.slice(0, slashIdx);
   const repo = stateRepo.slice(slashIdx + 1);
 
-  const defaultBranch = await client.getDefaultBranchForRepo(owner, repo);
+  const ref = { owner, repo };
+  const defaultBranch = await api.getDefaultBranch(ref);
   const claimRef = `${CLAIM_REF_ANNOTATION}: ${claimType}/${claimName}`;
 
-  const searchResults = await client.searchCode(owner, repo, `"${claimRef}"`);
+  const searchResults = await api.searchFiles(ref, `"${claimRef}"`);
 
   const yamlFiles = searchResults.filter(
     (r) => r.path.endsWith('.yaml') || r.path.endsWith('.yml'),
@@ -43,19 +45,15 @@ export async function findCrOnMainBranch(
   const results: CrInfo[] = [];
 
   for (const { path: filePath } of yamlFiles) {
-    const content = await client.getFileContent(
-      owner,
-      repo,
-      filePath,
-      defaultBranch,
-    );
-    if (!content) continue;
+    const file = await api.readFile(ref, filePath, defaultBranch);
+    if (!file) continue;
+    const content = file.content;
 
     const kindMatch = content.match(/^kind\s*:\s*(.+)$/m);
     const nameMatch = content.match(/^ {2}name\s*:\s*(.+)$/m);
 
-    const lastStatePr = parseLastStatePrAnnotation(content, owner);
-    const prInfo = lastStatePr ? await enrichPrInfo(client, lastStatePr) : null;
+    const lastStatePr = extractLastStatePrFromContent(content, owner);
+    const prInfo = lastStatePr ? await enrichPrInfo(api, lastStatePr) : null;
 
     results.push({
       owner,
@@ -71,31 +69,8 @@ export async function findCrOnMainBranch(
   return results;
 }
 
-function parseLastStatePrAnnotation(
-  content: string,
-  defaultOwner: string,
-): { owner: string; repo: string; number: number } | null {
-  const escaped = LAST_STATE_PR_ANNOTATION.replace(/\./g, '\\.');
-  const annotationRegex = `${escaped}\\s*:\\s*(.+)`;
-  const match = content.match(new RegExp(annotationRegex));
-  if (!match) return null;
-
-  const value = match[1].trim();
-  const repoPrMatch = value.match(/^((?:[^/]+\/)?[^#]+)#(\d+)$/);
-  if (!repoPrMatch) return null;
-
-  const rawRepo = repoPrMatch[1];
-  const number = parseInt(repoPrMatch[2], 10);
-  const repoSlug = rawRepo.includes('/')
-    ? rawRepo
-    : `${defaultOwner}/${rawRepo}`;
-  const owner = repoSlug.split('/')[0]!;
-
-  return { owner, repo: repoSlug, number };
-}
-
 async function enrichPrInfo(
-  client: ClaimsClient,
+  api: GitHubApi,
   parsed: { owner: string; repo: string; number: number },
 ): Promise<LastStatePrInfo> {
   const repoSlug = parsed.repo;
@@ -107,12 +82,12 @@ async function enrichPrInfo(
   const repo = repoSlug.slice(slashIdx + 1);
 
   try {
-    const pr = await client.getPrByNumber(owner, repo, parsed.number);
+    const pr = await api.getPullRequest({ owner, repo }, parsed.number);
     return {
       repo: repoSlug,
       number: parsed.number,
       state: pr.state,
-      url: pr.html_url,
+      url: pr.htmlUrl,
     };
   } catch {
     return { repo: repoSlug, number: parsed.number, state: null, url: null };

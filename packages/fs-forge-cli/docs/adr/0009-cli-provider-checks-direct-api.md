@@ -13,8 +13,8 @@ lifecycle) or call the provider API directly.
 ## Decision
 
 The CLI calls Octokit APIs directly for provider-side existence checks via
-new methods on `ClaimsClient` (`checkRepoExists`, `checkTeamExists`,
-`checkUserIsMember`). It does not delegate to the operator via CRD status
+new methods on the GitHub port (`repoExists`, `teamExists`,
+`userIsOrgMember`). It does not delegate to the operator via CRD status
 queries or GitHub Actions dispatch.
 
 ## Alternatives considered
@@ -29,9 +29,9 @@ command that should return in under a second.
 
 ## Consequences
 
-- `ClaimsClient` grows a provider-check surface beyond claim CRUD.
+- The GitHub port grows a provider-check surface beyond claim CRUD.
 - Token scopes must include `read:org` (for membership checks) and repo read
   (for repository existence checks).
 - `TFWorkspace` remains claims-only for now since no TFC API client exists yet.
 - Provider check methods use the same `Octokit` instance and `GITHUB_TOKEN`
-  already required by `ClaimsClient`.
+  already required by the GitHub port.

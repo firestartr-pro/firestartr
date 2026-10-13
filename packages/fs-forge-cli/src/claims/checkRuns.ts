@@ -1,11 +1,11 @@
-import type { ClaimsClient } from './client.js';
+import type { CheckRunSummary, GitHubApi, RepoRef } from '../github/api.js';
 
 export interface CheckRunResult {
   name: string;
   conclusion: string | null;
   status: string;
   output: CheckRunOutput;
-  htmlUrl: string;
+  htmlUrl: string | null;
 }
 
 export interface CheckRunOutput {
@@ -45,9 +45,8 @@ const DEFAULT_TIMEOUT_MS = 30 * 60 * 1000;
 const DEFAULT_POLL_INTERVAL_MS = 10_000;
 
 export async function watchCheckRuns(
-  client: ClaimsClient,
-  owner: string,
-  repo: string,
+  api: GitHubApi,
+  ref: RepoRef,
   prNumber: number,
   options: WatchCheckOptions = {},
 ): Promise<AggregatedCheckResult> {
@@ -56,7 +55,7 @@ export async function watchCheckRuns(
   const deadline = Date.now() + timeoutMs;
 
   while (Date.now() < deadline) {
-    const checkRuns = await client.listCheckRuns(owner, repo, prNumber);
+    const checkRuns = await api.listCheckRunsForPullRequest(ref, prNumber);
     const allCompleted = checkRuns.every((cr) => cr.status === 'completed');
 
     if (allCompleted) {
@@ -66,37 +65,28 @@ export async function watchCheckRuns(
     await sleep(pollIntervalMs);
   }
 
-  const checkRuns = await client.listCheckRuns(owner, repo, prNumber);
+  const checkRuns = await api.listCheckRunsForPullRequest(ref, prNumber);
   const aggregated = aggregateResults(checkRuns);
   aggregated.overallConclusion = 'timeout';
   return aggregated;
 }
 
 export async function pointInTimeCheck(
-  client: ClaimsClient,
-  owner: string,
-  repo: string,
+  api: GitHubApi,
+  ref: RepoRef,
   prNumber: number,
 ): Promise<AggregatedCheckResult> {
-  const checkRuns = await client.listCheckRuns(owner, repo, prNumber);
+  const checkRuns = await api.listCheckRunsForPullRequest(ref, prNumber);
   return aggregateResults(checkRuns);
 }
 
-function aggregateResults(
-  checkRuns: Array<{
-    name: string;
-    conclusion: string | null;
-    status: string;
-    output: CheckRunOutput;
-    html_url: string;
-  }>,
-): AggregatedCheckResult {
+function aggregateResults(checkRuns: CheckRunSummary[]): AggregatedCheckResult {
   const results: CheckRunResult[] = checkRuns.map((cr) => ({
     name: cr.name,
     conclusion: cr.conclusion,
     status: cr.status,
     output: cr.output,
-    htmlUrl: cr.html_url,
+    htmlUrl: cr.htmlUrl,
   }));
 
   const overallConclusion = deriveOverallConclusion(results);

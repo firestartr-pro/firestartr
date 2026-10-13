@@ -9,11 +9,11 @@ import {
 import { Command, Config } from '@oclif/core';
 import { captureOutput } from '@oclif/test';
 
-jest.mock('../src/claims/client', () => ({
-  ClaimsClient: jest.fn(),
+jest.mock('../src/github/index', () => ({
+  createGitHubApi: jest.fn(),
 }));
 
-import { ClaimsClient } from '../src/claims/client';
+import { createGitHubApi } from '../src/github/index';
 import CreateArgodeploy from '../src/commands/create/argodeploy';
 import CreateComponent from '../src/commands/create/component';
 import CreateDomain from '../src/commands/create/domain';
@@ -24,38 +24,24 @@ import CreateSecrets from '../src/commands/create/secrets';
 import CreateSystem from '../src/commands/create/system';
 import CreateTfworkspace from '../src/commands/create/tfworkspace';
 import CreateUser from '../src/commands/create/user';
+import { MemoryGitHubApi } from './fixtures/memoryGitHubApi';
+
+import type { CheckRunSummary, PullRequestSummary } from '../src/github/api';
 
 const ROOT = process.cwd();
 const ORIGINAL_ORG = process.env.FSCRT_ORG;
-const MockClaimsClient = ClaimsClient as unknown as jest.Mock;
+const MockCreateGitHubApi = createGitHubApi as unknown as jest.Mock;
 
-interface MockPr {
-  number: number;
-  html_url: string;
-  state: string;
-  head: { ref: string };
-  base: { ref: string; sha: string };
-  updated_at: string;
-}
-
-interface MockCheckRun {
-  name: string;
-  conclusion: string | null;
-  status: string;
-  output: { title: string | null; summary: string; text: string | null };
-  html_url: string;
-}
-
-const MATCHING_PR: MockPr = {
+const MATCHING_PR: PullRequestSummary = {
   number: 42,
-  html_url: 'https://github.com/my-org/custom-state/pull/42',
+  htmlUrl: 'https://github.com/my-org/custom-state/pull/42',
   state: 'open',
-  head: { ref: 'automated-component-example' },
-  base: { ref: 'main', sha: 'base-sha' },
-  updated_at: '2026-01-01T00:00:00Z',
+  headRef: 'automated-component-example',
+  baseSha: 'base-sha',
+  updatedAt: '2026-01-01T00:00:00Z',
 };
 
-const SUCCESS_CHECK: MockCheckRun = {
+const SUCCESS_CHECK: CheckRunSummary = {
   name: 'plan',
   conclusion: 'success',
   status: 'completed',
@@ -64,10 +50,10 @@ const SUCCESS_CHECK: MockCheckRun = {
     summary: 'ComponentClaim/example: success',
     text: null,
   },
-  html_url: 'https://github.com/my-org/custom-state/checks/1',
+  htmlUrl: 'https://github.com/my-org/custom-state/checks/1',
 };
 
-const FAILURE_CHECK: MockCheckRun = {
+const FAILURE_CHECK: CheckRunSummary = {
   ...SUCCESS_CHECK,
   name: 'apply',
   conclusion: 'failure',
@@ -119,45 +105,38 @@ async function run(command: CommandClass, ...flags: string[]) {
   }
 }
 
-function mockCommitClient(options: {
-  prs?: MockPr[];
-  checkRuns?: MockCheckRun[];
-} = {}) {
-  const listPullRequests = jest.fn(
-    async (_owner: string, _repo: string, _options: unknown) =>
-      options.prs ?? [MATCHING_PR],
+function mockCommitApi(
+  options: {
+    prs?: PullRequestSummary[];
+    checkRuns?: CheckRunSummary[];
+  } = {},
+): MemoryGitHubApi {
+  const api = new MemoryGitHubApi();
+  api.autoCompleteDispatches = true;
+  const claims = { owner: 'my-org', repo: 'claims' };
+  api.setDefaultBranch(claims, 'main');
+  api.setBranchHeadSha(claims, 'main', 'base-sha');
+  api.setFile(
+    claims,
+    'claims-map.json',
+    JSON.stringify({ headers: { sha: 'map-sha' }, claims: {} }),
+    'map-file-sha',
   );
-  const listCheckRuns = jest.fn(
-    async (_owner: string, _repo: string, _pullNumber: number) =>
-      options.checkRuns ?? [SUCCESS_CHECK],
-  );
-  const client = {
-    hasInFlightClaimsMapWorkflow: jest.fn(async () => false),
-    getFile: jest.fn(async (path: string) => {
-      if (path !== 'claims-map.json') return null;
-      return {
-        content: JSON.stringify({ headers: { sha: 'map-sha' }, claims: {} }),
-        path,
-        sha: 'map-file-sha',
-      };
-    }),
-    listCheckRuns,
-    listFilesInPr: jest.fn(async () => []),
-    listPullRequests,
-    publishClaim: jest.fn(async () => ({
-      url: 'https://example.test/workflow',
-      correlationId: 'corr-1',
-      workflowId: 'provision-claim.yaml',
-      branch: 'fs-forge/ComponentClaim-example',
-    })),
-    waitForWorkflow: jest.fn(async () => ({
-      runUrl: 'https://github.com/my-org/claims/actions/runs/1',
-      runId: 1,
-      conclusion: 'success',
-    })),
-  };
-  MockClaimsClient.mockImplementation(() => client);
-  return client;
+
+  for (const repo of ['custom-state', 'state-github', 'state-infra']) {
+    const ref = { owner: 'my-org', repo };
+    api.setPullRequests(ref, options.prs ?? [MATCHING_PR]);
+    if (options.checkRuns !== undefined) {
+      api.setCheckRuns(
+        ref,
+        MATCHING_PR.number,
+        options.checkRuns,
+      );
+    }
+  }
+
+  MockCreateGitHubApi.mockReturnValue(api);
+  return api;
 }
 
 beforeAll(() => {
@@ -165,7 +144,7 @@ beforeAll(() => {
 });
 
 afterEach(() => {
-  MockClaimsClient.mockClear();
+  MockCreateGitHubApi.mockClear();
   process.exitCode = 0;
   if (ORIGINAL_ORG === undefined) {
     delete process.env.FSCRT_ORG;
@@ -185,7 +164,7 @@ describe('generated create command wait-for-checks flags', () => {
 
 describe('create --wait-for-checks forwarding', () => {
   it('watches the wet PR checks in the requested --state-repos repo', async () => {
-    const client = mockCommitClient();
+    const api = mockCommitApi({ checkRuns: [SUCCESS_CHECK] });
     const args = componentArgs();
     args.push(
       '--commit',
@@ -199,58 +178,56 @@ describe('create --wait-for-checks forwarding', () => {
     const { result, stderr } = await run(CreateComponent, ...args);
 
     expect(result).toBe(0);
-    expect(client.listPullRequests).toHaveBeenCalledWith(
-      'my-org',
-      'custom-state',
-      expect.objectContaining({ state: 'open' }),
+    expect(api.calls).toContain(
+      'listOpenPullRequests my-org/custom-state:automated',
     );
-    expect(client.listCheckRuns).toHaveBeenCalledWith(
-      'my-org',
-      'custom-state',
-      MATCHING_PR.number,
+    expect(api.calls).toContain(
+      `listCheckRunsForPullRequest my-org/custom-state#${MATCHING_PR.number}`,
     );
     expect(stderr).toContain('Watching wet PR my-org/custom-state#42...');
     expect(stderr).toContain('All checks passed');
   });
 
   it('falls back to the conventional state repos when --state-repos is omitted', async () => {
-    const client = mockCommitClient({ prs: [] });
+    const api = mockCommitApi({ prs: [] });
     const args = componentArgs();
     args.push('--commit', '--org', 'my-org', '--wait-for-checks');
 
     const { result, stderr } = await run(CreateComponent, ...args);
 
     expect(result).toBe(0);
-    expect(client.listPullRequests).toHaveBeenCalledWith(
-      'my-org',
-      'state-github',
-      expect.objectContaining({ state: 'open' }),
+    expect(api.calls).toContain(
+      'listOpenPullRequests my-org/state-github:automated',
     );
-    expect(client.listPullRequests).toHaveBeenCalledWith(
-      'my-org',
-      'state-infra',
-      expect.objectContaining({ state: 'open' }),
+    expect(api.calls).toContain(
+      'listOpenPullRequests my-org/state-infra:automated',
     );
-    expect(client.listCheckRuns).not.toHaveBeenCalled();
+    expect(
+      api.calls.some((call) => call.startsWith('listCheckRunsForPullRequest')),
+    ).toBe(false);
     expect(stderr).toContain(
       'No wet PR found for this claim; skipping check watch.',
     );
   });
 
   it('does not watch checks when --wait-for-checks is absent', async () => {
-    const client = mockCommitClient();
+    const api = mockCommitApi();
     const args = componentArgs();
     args.push('--commit', '--org', 'my-org');
 
     const { result } = await run(CreateComponent, ...args);
 
     expect(result).toBe(0);
-    expect(client.listPullRequests).not.toHaveBeenCalled();
-    expect(client.listCheckRuns).not.toHaveBeenCalled();
+    expect(
+      api.calls.some((call) => call.startsWith('listOpenPullRequests')),
+    ).toBe(false);
+    expect(
+      api.calls.some((call) => call.startsWith('listCheckRunsForPullRequest')),
+    ).toBe(false);
   });
 
   it('fails the create when the wet PR checks fail', async () => {
-    mockCommitClient({ checkRuns: [FAILURE_CHECK] });
+    mockCommitApi({ checkRuns: [FAILURE_CHECK] });
     const args = componentArgs();
     args.push(
       '--commit',

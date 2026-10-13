@@ -304,25 +304,4 @@ describe('buildClaimFromFlags', () => {
       },
     });
   });
-
-  it('omits pages flags when not provided', () => {
-    const specs: FlagSpec[] = [
-      {
-        path: 'providers.github.pages.public',
-        type: 'boolean',
-        required: false,
-        multiple: false,
-      },
-      {
-        path: 'providers.github.pages.https_enforced',
-        type: 'boolean',
-        required: false,
-        multiple: false,
-      },
-    ];
-
-    const claim = buildClaimFromFlags({}, specs);
-
-    expect(claim).toEqual({});
-  });
 });

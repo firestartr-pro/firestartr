@@ -1,7 +1,6 @@
 import fs from 'node:fs/promises';
 import os from 'node:os';
 import path from 'node:path';
-import * as k8s from '@kubernetes/client-node';
 import common from 'catalog_common';
 
 import {
@@ -17,15 +16,14 @@ import {
   type FixturePatchesByClaimName,
   type OrgScriptOptions,
 } from '../..';
-import { getE2EState } from '../../src/api/internal-state';
 import {
   buildClaimRef,
   FIRESTARTR_API_VERSION,
+  getFirestartrAnnotation,
   getRelatedCrKindsForClaimKind,
 } from '../../src/claim-taxonomy';
 import { resolveFixtureMetadata } from '../../src/cleanup/fixture-metadata';
 import { resolveFixtureResources } from '../../src/cleanup/fixture-plan';
-import { parseApiVersion, resolveCustomResourceInfo } from '../../src/k8s/crd';
 import { LOCAL_RENDER_APPLY_TEST_TIMEOUT_MS } from '../../src/test-constants';
 
 import type { K8sResource } from '../../src/k8s/types';
@@ -71,8 +69,7 @@ type ReapplyManifest = Pick<K8sResource, 'apiVersion' | 'kind' | 'spec'> & {
   };
 };
 
-const CLAIM_REF_ANNOTATION =
-  common.generic.getFirestartrAnnotation('claim-ref');
+const CLAIM_REF_ANNOTATION = getFirestartrAnnotation('claimRef');
 const REVISION_ANNOTATION = 'firestartr.dev/revision';
 
 function getCrdUpgradePhase(): CrdUpgradePhase {
@@ -175,38 +172,16 @@ describeRunInBandOnly('[crd-upgrade] Org Script E2E', () => {
     kind: string,
     claimRef: string,
   ): Promise<LiveFixtureResource[]> {
-    const state = getE2EState(client);
-    const { group, version } = parseApiVersion(FIRESTARTR_API_VERSION);
-    const { plural, namespaced } = await resolveCustomResourceInfo(
-      state.kubeConfigProvider,
-      group,
+    const resources = (await client.k8s.listCustomResourcesByAnnotation({
       kind,
+      apiVersion: FIRESTARTR_API_VERSION,
+      annotationKey: CLAIM_REF_ANNOTATION,
+      annotationValues: [claimRef],
+    })) as LiveFixtureResource[];
+
+    return resources.sort((left, right) =>
+      getResourceName(left).localeCompare(getResourceName(right)),
     );
-
-    if (!namespaced) {
-      throw new Error(
-        `Cluster-scoped custom resources are not supported: ${kind}`,
-      );
-    }
-
-    const customApi = state
-      .kubeConfigProvider()
-      .makeApiClient(k8s.CustomObjectsApi);
-    const response = (await customApi.listNamespacedCustomObject({
-      group,
-      version,
-      namespace: client.k8s.getNamespace(),
-      plural,
-    })) as { items?: LiveFixtureResource[] };
-
-    return (response?.items ?? [])
-      .filter(
-        (resource) =>
-          resource.metadata?.annotations?.[CLAIM_REF_ANNOTATION] === claimRef,
-      )
-      .sort((left, right) =>
-        getResourceName(left).localeCompare(getResourceName(right)),
-      );
   }
 
   function buildRevisionBumpedLiveManifest(

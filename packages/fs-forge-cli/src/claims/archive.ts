@@ -4,7 +4,7 @@ import { join } from 'path';
 import { x as extractArchive } from 'tar';
 import YAML from 'yaml';
 
-import { ClaimsClient } from './client.js';
+import type { GitHubApi, RepoRef } from '../github/api.js';
 
 async function yamlFiles(directory: string): Promise<string[]> {
   const entries = await readdir(directory, { withFileTypes: true });
@@ -23,13 +23,14 @@ async function yamlFiles(directory: string): Promise<string[]> {
 }
 
 export async function loadClaimsArchive(
-  client: ClaimsClient,
-  ref?: string,
+  api: GitHubApi,
+  ref: RepoRef,
+  gitRef?: string,
 ): Promise<Record<string, unknown>[]> {
   const directory = await mkdtemp(join(tmpdir(), 'fs-forge-claims-'));
   try {
     const archive = join(directory, 'claims.tar.gz');
-    await writeFile(archive, await client.downloadTarball(ref));
+    await writeFile(archive, await api.downloadTarball(ref, gitRef));
     await extractArchive({
       cwd: directory,
       file: archive,

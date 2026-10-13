@@ -16,7 +16,11 @@ import {
   splitBatches,
   type MassiveGroupTemplate,
   type MassiveRepositoryTemplate,
-} from './massive-plan';
+} from '../../src/massive-plan';
+import {
+  buildComponentClaimPatches,
+  buildGroupClaimPatches,
+} from '../../src/claim-patches';
 import { readK8sResource } from '../../src/cr-finder';
 import { isRetryableGitHubError } from '../../src/gh/wait';
 import {
@@ -40,73 +44,38 @@ function groupPatches(
   template: MassiveGroupTemplate,
   org: string,
 ): JsonPatchOperation[] {
-  return [
-    { op: 'replace', path: '/description', value: template.description },
-    {
-      op: 'replace',
-      path: '/profile/displayName',
-      value: template.displayName,
-    },
-    { op: 'replace', path: '/members', value: [] },
-    {
-      op: 'replace',
-      path: '/providers/github/name',
-      value: template.providerName,
-    },
-    { op: 'replace', path: '/providers/github/org', value: org },
-  ];
+  return buildGroupClaimPatches({
+    name: template.claimName,
+    org,
+    description: template.description,
+    displayName: template.displayName,
+    members: [],
+  });
 }
 
 function repositoryPatches(
   template: MassiveRepositoryTemplate,
   org: string,
 ): JsonPatchOperation[] {
-  return [
-    { op: 'remove', path: '/system' },
-    { op: 'replace', path: '/owner', value: template.ownerRef },
-    { op: 'replace', path: '/platformOwner', value: template.ownerRef },
-    { op: 'remove', path: '/maintainedBy' },
-    { op: 'replace', path: '/providers/github/org', value: org },
-    {
-      op: 'replace',
-      path: '/providers/github/name',
-      value: template.providerName,
-    },
-    {
-      op: 'replace',
-      path: '/providers/github/description',
-      value: template.description,
-    },
-    { op: 'replace', path: '/providers/github/additionalRules', value: [] },
-    {
-      op: 'replace',
-      path: '/providers/github/overrides/additionalAdmins',
-      value: [],
-    },
-    {
-      op: 'replace',
-      path: '/providers/github/overrides/additionalCodeownersRules',
-      value: [],
-    },
-    {
-      op: 'replace',
-      path: '/providers/github/overrides/spec/actions/oidc/useDefault',
-      value: true,
-    },
-    {
-      op: 'replace',
-      path: '/providers/github/overrides/spec/actions/oidc/includeClaimKeys',
-      value: [],
-    },
-    {
-      op: 'replace',
-      path: '/providers/github/overrides/spec/repo/topics',
-      value: template.topics,
-    },
-    { op: 'add', path: '/providers/github/features', value: template.features },
-  ];
+  return buildComponentClaimPatches({
+    name: template.claimName,
+    org,
+    ownerRef: template.ownerRef,
+    description: template.description,
+    extraPatches: [
+      {
+        op: 'replace',
+        path: '/providers/github/overrides/spec/repo/topics',
+        value: template.topics,
+      },
+      {
+        op: 'add',
+        path: '/providers/github/features',
+        value: template.features,
+      },
+    ],
+  });
 }
-
 async function rateGate(
   client: E2EApi,
   label: string,
@@ -233,7 +202,7 @@ async function expectRepositoryMetadata(
   const repoInfo = await pollUntil(
     () =>
       retryTransientGitHubProbe(() =>
-        client.gh.getRepoInfo(template.providerName),
+        client.gh.getRepoInfo(template.claimName),
       ),
     {
       timeoutMs: 5 * 60 * 1000,
@@ -244,7 +213,7 @@ async function expectRepositoryMetadata(
       onRetryError: logRetryableGitHubPollError,
       createTimeoutError: (lastRepoInfo) =>
         new Error(
-          `[massive] repository ${template.providerName} metadata did not ` +
+          `[massive] repository ${template.claimName} metadata did not ` +
             `match expected description/topics. Expected ${JSON.stringify({
               description: template.description,
               topics: sortedTopics(template.topics),
@@ -549,9 +518,9 @@ describeMassiveE2e('Massive creation/deletion GitHub E2E', () => {
 
     const cleanup = new CleanupRunner();
     const orgResourceNames = [
-      ...plan.groups.map((group) => group.providerName),
-      plan.canary.create.providerName,
-      ...plan.repositories.map((repository) => repository.providerName),
+      ...plan.groups.map((group) => group.claimName),
+      plan.canary.create.claimName,
+      ...plan.repositories.map((repository) => repository.claimName),
     ];
 
     await cleanup.run(
@@ -677,7 +646,7 @@ describeMassiveE2e('Massive creation/deletion GitHub E2E', () => {
         config.disableSleepGuards,
       );
       await expect(
-        client.gh.repoExists(plan.canary.create.providerName),
+        client.gh.repoExists(plan.canary.create.claimName),
       ).resolves.toBe(true);
 
       renderedCanary = await renderRepository(client, plan.canary.modified);
@@ -700,7 +669,7 @@ describeMassiveE2e('Massive creation/deletion GitHub E2E', () => {
       );
       await waitForCanaryRepositoryDeletion(
         client,
-        plan.canary.create.providerName,
+        plan.canary.create.claimName,
       );
 
       for (const [batchIndex, batch] of remainingDeleteBatches.entries()) {

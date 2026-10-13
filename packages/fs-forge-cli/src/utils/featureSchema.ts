@@ -4,12 +4,9 @@ import { homedir } from 'os';
 import { dirname, join } from 'path';
 
 import { createFeatureSource } from './featureSource.js';
+import { isRecord } from './isRecord.js';
 
 import type { ValidationResult } from './ajvValidation.js';
-
-function isRecord(value: unknown): value is Record<string, unknown> {
-  return typeof value === 'object' && value !== null && !Array.isArray(value);
-}
 
 function cachePath(name: string): string {
   if (!/^[A-Za-z0-9][A-Za-z0-9._-]*$/.test(name)) {

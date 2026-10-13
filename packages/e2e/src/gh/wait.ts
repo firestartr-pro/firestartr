@@ -1,5 +1,5 @@
 import common from 'catalog_common';
-import { getStatusCode as getHttpStatusCode } from '../errors/status-code';
+import { getStatusCode } from '../errors/status-code';
 import { WAIT_FOR_CR_TIMEOUT_SECONDS } from '../test-constants';
 import {
   createRetryableError,
@@ -31,7 +31,7 @@ function getErrorMessage(error: unknown): string {
 
 export function isRetryableGitHubError(error: unknown): boolean {
   if (isTransientError(error)) return true;
-  const statusCode = getHttpStatusCode(error as { status?: number });
+  const statusCode = getStatusCode(error as { status?: number });
   if (statusCode !== undefined && EXTRA_RETRYABLE_STATUS_CODES.has(statusCode))
     return true;
   const message = getErrorMessage(error);

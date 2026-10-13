@@ -2,7 +2,24 @@
 // Add a new claim kind by editing CLAIM_KIND_TO_CR_KIND and
 // CLAIM_KIND_TO_RELATED_CR_KINDS — no other module needs to change.
 
+import common from 'catalog_common';
+
 export const FIRESTARTR_API_VERSION = 'firestartr.dev/v1';
+
+// Firestartr manifest annotation names. The suffix is the fact; the
+// `firestartr.dev/` prefix is applied by getFirestartrAnnotation.
+export const FIRESTARTR_ANNOTATIONS = {
+  claimRef: 'claim-ref',
+  reconcileAt: 'reconcile-at',
+  import: 'import',
+  externalName: 'external-name',
+} as const;
+
+export function getFirestartrAnnotation(
+  name: keyof typeof FIRESTARTR_ANNOTATIONS,
+): string {
+  return common.generic.getFirestartrAnnotation(FIRESTARTR_ANNOTATIONS[name]);
+}
 
 export const CLAIM_KIND_TO_CR_KIND = {
   GroupClaim: 'FirestartrGithubGroup',

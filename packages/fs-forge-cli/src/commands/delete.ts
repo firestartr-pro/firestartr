@@ -1,12 +1,14 @@
 import { Args, Command, Flags } from '@oclif/core';
 
-import { ClaimsClient } from '../claims/client.js';
-import { claimExists, loadClaimsMap } from '../claims/claimsMap.js';
+import { claimExists } from '../claims/claimsMap.js';
 import {
-  CLAIM_KIND_OPTIONS,
-  normalizeClaimKind,
-} from '../mutations/definitions.js';
-import { requireOrg } from '../mutations/support.js';
+  claimsRepo,
+  dispatchUnprovision,
+  loadClaimsMap,
+} from '../claims/claimsRepo.js';
+import { createGitHubApi } from '../github/index.js';
+import { CLAIM_KIND_OPTIONS, normalizeKind } from '../claims/kindRegistry.js';
+import { ORG_FLAG, requireOrg } from '../mutations/support.js';
 import { waitForDispatch } from '../utils/waitForDispatch.js';
 
 export default class Delete extends Command {
@@ -32,10 +34,7 @@ export default class Delete extends Command {
   ];
 
   static flags = {
-    org: Flags.string({
-      description: 'GitHub organization containing the claims repo',
-      env: 'FSCRT_ORG',
-    }),
+    org: ORG_FLAG,
     'include-variants': Flags.boolean({
       description: 'Also delete variant CRs (TFWorkspaceClaim only)',
       default: true,
@@ -58,7 +57,7 @@ export default class Delete extends Command {
   async run(): Promise<void> {
     const { args, flags } = await this.parse(Delete);
 
-    const kind = normalizeClaimKind(args.kind);
+    const kind = normalizeKind(args.kind);
     if (!kind) this.error(`Unsupported claim kind: ${args.kind}`);
 
     const name = args.name;
@@ -70,8 +69,8 @@ export default class Delete extends Command {
           '--org or FSCRT_ORG is required even in dry-run mode to validate the claim exists',
         );
       }
-      const client = new ClaimsClient(org);
-      const map = await loadClaimsMap(client);
+      const repo = claimsRepo(createGitHubApi(), org);
+      const map = await loadClaimsMap(repo);
       if (!claimExists(map, kind, name)) {
         this.error(`Claim not found: ${kind}-${name}`);
       }
@@ -86,20 +85,22 @@ export default class Delete extends Command {
     }
 
     const org = requireOrg(flags.org);
-    const client = new ClaimsClient(org);
+    const repo = claimsRepo(createGitHubApi(), org);
 
-    const map = await loadClaimsMap(client);
+    const map = await loadClaimsMap(repo);
     if (!claimExists(map, kind, name)) {
       this.error(`Claim not found: ${kind}-${name}`);
     }
 
-    const workflowUrl = await client.dispatchUnprovision(kind, name, {
+    const workflowUrl = await dispatchUnprovision(repo, {
+      kind,
+      name,
       includeVariants: flags['include-variants'],
       waitForClaimChecks: flags['wait-for-checks'],
     });
 
     try {
-      await waitForDispatch(client, workflowUrl, {
+      await waitForDispatch(repo.api, repo.ref, workflowUrl, {
         noWait: flags['no-wait'],
         claimType: kind,
         claimName: name,

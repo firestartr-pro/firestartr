@@ -7,7 +7,8 @@ import {
   pollUntil,
 } from '../utils/async-control';
 import { isTransientError } from '../utils/transient-errors';
-import { formatK8sError, getStatusCode, shouldRetryRead } from './errors';
+import { formatK8sError, shouldRetryRead } from './errors';
+import { getStatusCode, type StatusCodeError } from '../errors/status-code';
 import { isCustomResource } from './crd';
 import { resolveCrHandle } from './cr-handle';
 import type { CrHandle } from './cr-handle';
@@ -246,7 +247,7 @@ export function createWaitFunction(
 
           return body;
         } catch (err) {
-          const statusCode = getStatusCode(err as Error);
+          const statusCode = getStatusCode(err as StatusCodeError);
           const errorBody = (err as any)?.body ?? (err as any)?.response?.body;
           const errorMsg = err instanceof Error ? err.message : String(err);
           common.logger.error(
@@ -292,7 +293,7 @@ export function createWaitFunction(
           return hasDesiredStatus(body, status);
         },
         shouldRetryError: (err) => {
-          const statusCode = getStatusCode(err as Error);
+          const statusCode = getStatusCode(err as StatusCodeError);
           return statusCode === 401 || shouldRetryRead(err as Error);
         },
         createTimeoutError: () => {

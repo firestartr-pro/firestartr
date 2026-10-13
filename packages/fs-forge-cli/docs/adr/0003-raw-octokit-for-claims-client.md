@@ -6,9 +6,11 @@
 
 ## Context
 
-The fs-forge-cli package needs a `claimsClient` module that reads from and writes to a
+The fs-forge-cli package needs a module that reads from and writes to a
 remote claims repo — fetching the claims map, downloading claim files, creating
-branches, committing YAML, and dispatching the provision workflow.
+branches, committing YAML, and dispatching the provision workflow. Today that
+is `src/claims/claimsRepo.ts` over the Octokit adapter in
+`src/github/octokitApi.ts`.
 
 The repo convention says "use `packages/github` whenever possible."
 `packages/github` provides two auth paths:
@@ -24,7 +26,8 @@ auth each time. A `--commit` flow makes 6+ sequential API calls.
 
 ## Decision
 
-fs-forge-cli's `claimsClient` will **not** use `packages/github`. Instead it will:
+fs-forge-cli's GitHub adapter (`src/github/octokitApi.ts`) will **not** use
+`packages/github`. Instead it will:
 
 1. Depend directly on `@octokit/rest`
 2. Create a single Octokit instance from `process.env.GITHUB_TOKEN`
@@ -56,13 +59,14 @@ fs-forge-cli's `claimsClient` will **not** use `packages/github`. Instead it wil
 ## Consequences
 
 - `@octokit/rest` must be added to `packages/fs-forge-cli/package.json`
-- The `claimsClient` module is the single source of truth for fs-forge's GitHub
-  API surface — any new GitHub interaction in fscli goes through it
+- The GitHub port (`src/github/api.ts`) and its Octokit adapter are the single
+  source of truth for fs-forge's GitHub API surface — any new GitHub interaction
+  in fscli goes through them
 - `packages/github`'s auth-switch logic (PAT for `prefapp/features`, GitHub
   App for everything else) is bypassed. fscli uses `GITHUB_TOKEN` for all
   requests, including to `prefapp/features` if it ever needs that repo
 - Maintenance: changes to the API wrappers (e.g. a new content API endpoint)
-  must be updated in `claimsClient` and are not inherited from
+  must be updated in `src/github/octokitApi.ts` and are not inherited from
   `packages/github`
 
 ## Alternatives considered

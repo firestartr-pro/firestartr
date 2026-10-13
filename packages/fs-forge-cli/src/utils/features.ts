@@ -1,4 +1,5 @@
 import { mutateClaim } from './mutateClaim.js';
+import { isRecord } from './isRecord.js';
 
 import type { FlagSpec } from './deriveFlags.js';
 
@@ -9,10 +10,6 @@ export interface FeatureReference {
   ref?: string;
   repo?: string;
   args?: Record<string, unknown>;
-}
-
-function isRecord(value: unknown): value is Record<string, unknown> {
-  return typeof value === 'object' && value !== null && !Array.isArray(value);
 }
 
 export function getFeatureReferences(
@@ -33,7 +30,7 @@ export function getFeatureReferences(
   return features as FeatureReference[];
 }
 
-export function setFeatureReferences(
+function setFeatureReferences(
   claim: Record<string, unknown>,
   features: FeatureReference[],
 ): void {
@@ -81,7 +78,6 @@ export function mutateFeatureReference(
 export function buildFeatureReference(
   flags: Record<string, unknown>,
   specs: FlagSpec[],
-  existing?: FeatureReference,
 ): FeatureReference {
   for (const [name, value] of Object.entries(flags)) {
     if (!name.startsWith('args.') || !name.endsWith('.json')) continue;
@@ -100,11 +96,7 @@ export function buildFeatureReference(
     }
   }
 
-  const feature = mutateClaim(
-    existing ? (existing as Record<string, unknown>) : {},
-    flags,
-    specs,
-  ) as FeatureReference;
+  const feature = mutateClaim({}, flags, specs) as FeatureReference;
   feature.name = flags.name as string;
 
   if (flags.version !== undefined) delete feature.ref;

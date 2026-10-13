@@ -8,95 +8,13 @@ import {
   initE2e,
   type E2EApi,
   type FixtureResourceInput,
-  type JsonPatchOperation,
 } from '../..';
-import { readK8sResource } from '../../src/cr-finder';
+import { buildComponentClaimPatches } from '../../src/claim-patches';
+import { pickRenderedCrs } from '../../src/render-artifacts';
 import { LOCAL_RENDER_APPLY_TEST_TIMEOUT_MS } from '../../src/test-constants';
 
 const FEATURE_NAME = 'charts_repo';
 const FEATURE_REF = 'charts_repo-v1';
-
-function componentPatches({
-  repoName,
-  ownerRef,
-  platformGroupRef,
-  org,
-  features,
-}: {
-  repoName: string;
-  ownerRef: string;
-  platformGroupRef: string;
-  org: string;
-  features: Record<string, unknown>[];
-}): JsonPatchOperation[] {
-  return [
-    { op: 'remove', path: '/system' },
-    { op: 'replace', path: '/owner', value: ownerRef },
-    { op: 'replace', path: '/platformOwner', value: platformGroupRef },
-    { op: 'remove', path: '/maintainedBy' },
-    { op: 'replace', path: '/providers/github/org', value: org },
-    { op: 'replace', path: '/providers/github/name', value: repoName },
-    {
-      op: 'replace',
-      path: '/providers/github/description',
-      value: `Feature CR traceability e2e repository ${repoName}`,
-    },
-    { op: 'replace', path: '/providers/github/additionalRules', value: [] },
-    {
-      op: 'replace',
-      path: '/providers/github/overrides/additionalAdmins',
-      value: [],
-    },
-    {
-      op: 'replace',
-      path: '/providers/github/overrides/additionalMaintainers',
-      value: [],
-    },
-    {
-      op: 'replace',
-      path: '/providers/github/overrides/additionalReaders',
-      value: [],
-    },
-    {
-      op: 'replace',
-      path: '/providers/github/overrides/additionalWriters',
-      value: [],
-    },
-    {
-      op: 'replace',
-      path: '/providers/github/overrides/additionalCodeownersRules',
-      value: [],
-    },
-    {
-      op: 'replace',
-      path: '/providers/github/overrides/spec/actions/oidc/useDefault',
-      value: true,
-    },
-    {
-      op: 'replace',
-      path: '/providers/github/overrides/spec/actions/oidc/includeClaimKeys',
-      value: [],
-    },
-    { op: 'add', path: '/providers/github/features', value: features },
-  ];
-}
-
-async function findFeatureCrPaths(crPaths: string[]): Promise<string[]> {
-  const featureCrPaths: string[] = [];
-
-  for (const crPath of crPaths) {
-    const resource = await readK8sResource(crPath);
-    if (resource.kind === 'FirestartrGithubRepositoryFeature') {
-      featureCrPaths.push(crPath);
-    }
-  }
-
-  if (featureCrPaths.length === 0) {
-    throw new Error('Expected rendered component to include a feature CR');
-  }
-
-  return featureCrPaths;
-}
 
 describe('Feature CR git traceability annotations E2E', () => {
   let client: E2EApi;
@@ -169,16 +87,20 @@ describe('Feature CR git traceability annotations E2E', () => {
     'stamps git traceability annotations on the reconciled Feature CR',
     async () => {
       const rendered = await client.claims.renderLocally('component-a', {
-        patches: componentPatches({
-          repoName: componentRepoName,
-          ownerRef: defaultGroupRef,
-          platformGroupRef,
+        patches: buildComponentClaimPatches({
+          name: componentRepoName,
           org: client.getOrg(),
+          ownerRef: defaultGroupRef,
+          platformOwnerRef: platformGroupRef,
+          description: `Feature CR traceability e2e repository ${componentRepoName}`,
           features: [{ name: FEATURE_NAME, ref: FEATURE_REF }],
         }),
       });
 
-      featureCrPaths = await findFeatureCrPaths(rendered.crPaths);
+      featureCrPaths = await pickRenderedCrs(
+        rendered.crPaths,
+        'FirestartrGithubRepositoryFeature',
+      );
       await applyAndWaitCrPaths(client, rendered.crPaths);
 
       for (const featureCrPath of featureCrPaths) {

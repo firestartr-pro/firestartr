@@ -10,8 +10,9 @@ import {
   initE2e,
   type E2EApi,
   type FixtureResourceInput,
-  type JsonPatchOperation,
 } from '../..';
+import { buildComponentClaimPatches } from '../../src/claim-patches';
+import { pickRenderedCrs } from '../../src/render-artifacts';
 import { readK8sResource } from '../../src/cr-finder';
 import { isRetryableGitHubError } from '../../src/gh/wait';
 import { LOCAL_RENDER_APPLY_TEST_TIMEOUT_MS } from '../../src/test-constants';
@@ -58,71 +59,6 @@ const FEATURE_FILE_READ_TIMEOUT_MS = 5 * 60 * 1000;
 const FEATURE_FILE_READ_INTERVAL_MS = 10000;
 const GITHUB_WRITE_RETRY_ATTEMPTS = 5;
 const GITHUB_WRITE_RETRY_DELAY_MS = 5000;
-
-function componentPatches({
-  repoName,
-  ownerRef,
-  platformGroupRef,
-  org,
-  features,
-}: {
-  repoName: string;
-  ownerRef: string;
-  platformGroupRef: string;
-  org: string;
-  features: Record<string, unknown>[];
-}): JsonPatchOperation[] {
-  return [
-    { op: 'remove', path: '/system' },
-    { op: 'replace', path: '/owner', value: ownerRef },
-    { op: 'replace', path: '/platformOwner', value: platformGroupRef },
-    { op: 'remove', path: '/maintainedBy' },
-    { op: 'replace', path: '/providers/github/org', value: org },
-    { op: 'replace', path: '/providers/github/name', value: repoName },
-    {
-      op: 'replace',
-      path: '/providers/github/description',
-      value: `User-managed feature files e2e repository ${repoName}`,
-    },
-    { op: 'replace', path: '/providers/github/additionalRules', value: [] },
-    {
-      op: 'replace',
-      path: '/providers/github/overrides/additionalAdmins',
-      value: [],
-    },
-    {
-      op: 'replace',
-      path: '/providers/github/overrides/additionalMaintainers',
-      value: [],
-    },
-    {
-      op: 'replace',
-      path: '/providers/github/overrides/additionalReaders',
-      value: [],
-    },
-    {
-      op: 'replace',
-      path: '/providers/github/overrides/additionalWriters',
-      value: [],
-    },
-    {
-      op: 'replace',
-      path: '/providers/github/overrides/additionalCodeownersRules',
-      value: [],
-    },
-    {
-      op: 'replace',
-      path: '/providers/github/overrides/spec/actions/oidc/useDefault',
-      value: true,
-    },
-    {
-      op: 'replace',
-      path: '/providers/github/overrides/spec/actions/oidc/includeClaimKeys',
-      value: [],
-    },
-    { op: 'add', path: '/providers/github/features', value: features },
-  ];
-}
 
 function getErrorMessage(error: unknown): string {
   return error instanceof Error ? error.message : String(error);
@@ -279,23 +215,6 @@ async function expectReleasePleaseSnapshot(
   }
 }
 
-async function findFeatureCrPaths(crPaths: string[]): Promise<string[]> {
-  const featureCrPaths: string[] = [];
-
-  for (const crPath of crPaths) {
-    const resource = await readK8sResource(crPath);
-    if (resource.kind === 'FirestartrGithubRepositoryFeature') {
-      featureCrPaths.push(crPath);
-    }
-  }
-
-  if (featureCrPaths.length === 0) {
-    throw new Error('Expected rendered component to include a feature CR');
-  }
-
-  return featureCrPaths;
-}
-
 async function getUserManagedFeatureFilePaths(
   featureCrPaths: string[],
 ): Promise<string[]> {
@@ -333,11 +252,12 @@ async function renderComponent(
   const rendered = await client.claims.renderLocally(claimName, {
     sourceFixtureName: 'component-a',
     claimName,
-    patches: componentPatches({
-      repoName,
-      ownerRef,
-      platformGroupRef,
+    patches: buildComponentClaimPatches({
+      name: repoName,
       org: client.getOrg(),
+      ownerRef,
+      platformOwnerRef: platformGroupRef,
+      description: `User-managed feature files e2e repository ${repoName}`,
       features,
     }),
   });
@@ -421,7 +341,10 @@ describe('Component user-managed feature files E2E', () => {
         platformGroupRef,
         CHARTS_REPO_V1_FEATURES,
       );
-      const initialFeatureCrPaths = await findFeatureCrPaths(initialCrPaths);
+      const initialFeatureCrPaths = await pickRenderedCrs(
+        initialCrPaths,
+        'FirestartrGithubRepositoryFeature',
+      );
       await expect(
         getUserManagedFeatureFilePaths(initialFeatureCrPaths),
       ).resolves.toEqual(expect.arrayContaining(RELEASE_PLEASE_FILE_PATHS));

@@ -1,99 +1,56 @@
-import { ClaimsClient } from '../src/claims/client';
 import {
-  findWetPr,
-  parseStateRepos,
-  defaultStateRepos,
-  isDeletionPr,
   extractLastStatePrFromContent,
+  findWetPr,
+  isDeletionPr,
+  parseStateRepos,
 } from '../src/claims/wetPr';
+import { MemoryGitHubApi } from './fixtures/memoryGitHubApi';
 
-function createMockClient(
-  prLists: Record<string, Array<{
-    number: number;
-    html_url: string;
-    state: string;
-    head: { ref: string };
-    base: { ref: string; sha: string };
-    updated_at: string;
-  }>>,
+import type { PullRequestSummary, RepoRef } from '../src/github/api';
+
+interface MockPr {
+  number: number;
+  html_url: string;
+  state: string;
+  head: { ref: string };
+  base: { ref: string; sha: string };
+  updated_at: string;
+}
+
+function createApi(
+  prLists: Record<string, MockPr[]>,
   fileContents: Record<string, string | null> = {},
   fileLists: Record<string, Array<{ filename: string; status: string }>> = {},
-): ClaimsClient {
-  const mockOctokit = {
-    rest: {
-      pulls: {
-        list: async ({
-          owner,
-          repo,
-          state,
-          head,
-          per_page,
-          page,
-        }: {
-          owner: string;
-          repo: string;
-          state: string;
-          head?: string;
-          per_page?: number;
-          page?: number;
-        }) => {
-          const key = `${owner}/${repo}`;
-          const prs = prLists[key] ?? [];
-          let filtered = prs;
-          if (state) {
-            filtered = filtered.filter((pr) => pr.state === state);
-          }
-          if (head) {
-            const prefix = head.split(':')[1] ?? head;
-            filtered = filtered.filter((pr) =>
-              pr.head.ref.startsWith(prefix),
-            );
-          }
-          const start = ((page ?? 1) - 1) * (per_page ?? 30);
-          return { data: filtered.slice(start, start + (per_page ?? 30)) };
-        },
-        listFiles: async ({
-          owner,
-          repo,
-          pull_number,
-        }: {
-          owner: string;
-          repo: string;
-          pull_number: number;
-        }) => {
-          const key = `${owner}/${repo}#${pull_number}`;
-          return { data: fileLists[key] ?? [] };
-        },
-      },
-      repos: {
-        getContent: async ({
-          owner,
-          repo,
-          path,
-          ref,
-        }: {
-          owner: string;
-          repo: string;
-          path: string;
-          ref: string;
-        }) => {
-          const key = `${owner}/${repo}/${path}@${ref}`;
-          const content = fileContents[key];
-          if (content === undefined || content === null) {
-            throw { status: 404 };
-          }
-          return {
-            data: {
-              type: 'file',
-              content: Buffer.from(content).toString('base64'),
-            },
-          };
-        },
-      },
-    },
-  };
+): MemoryGitHubApi {
+  const api = new MemoryGitHubApi();
+  for (const [slug, prs] of Object.entries(prLists)) {
+    const ref: RepoRef = parseRef(slug);
+    const summaries: PullRequestSummary[] = prs.map((pr) => ({
+      number: pr.number,
+      htmlUrl: pr.html_url,
+      state: pr.state,
+      headRef: pr.head.ref,
+      baseSha: pr.base.sha,
+      updatedAt: pr.updated_at,
+    }));
+    api.setPullRequests(ref, summaries);
+  }
+  for (const [key, content] of Object.entries(fileContents)) {
+    if (content === null) continue;
+    const match = key.match(/^([^/]+)\/([^/]+)\/(.+?)@(.+)$/);
+    if (!match) continue;
+    api.setFile({ owner: match[1], repo: match[2] }, match[3], content);
+  }
+  for (const [key, files] of Object.entries(fileLists)) {
+    const [slug, pr] = key.split('#');
+    api.setPullRequestFiles(parseRef(slug), Number(pr), files);
+  }
+  return api;
+}
 
-  return new ClaimsClient('test-org', mockOctokit as never);
+function parseRef(slug: string): RepoRef {
+  const [owner, repo] = slug.split('/');
+  return { owner, repo };
 }
 
 describe('wetPr', () => {
@@ -104,15 +61,11 @@ describe('wetPr', () => {
     });
 
     it('parses custom repos from flag', () => {
-      const repos = parseStateRepos('custom/state-one,custom/state-two', 'my-org');
+      const repos = parseStateRepos(
+        'custom/state-one,custom/state-two',
+        'my-org',
+      );
       expect(repos).toEqual(['custom/state-one', 'custom/state-two']);
-    });
-  });
-
-  describe('defaultStateRepos', () => {
-    it('returns convention-based repos', () => {
-      const repos = defaultStateRepos('test-org');
-      expect(repos).toEqual(['test-org/state-github', 'test-org/state-infra']);
     });
   });
 
@@ -189,7 +142,7 @@ describe('wetPr', () => {
 
   describe('findWetPr', () => {
     it('finds PR by branch name pattern', async () => {
-      const client = createMockClient({
+      const api = createApi({
         'test-org/state-github': [
           {
             number: 100,
@@ -203,7 +156,7 @@ describe('wetPr', () => {
       });
 
       const result = await findWetPr(
-        client,
+        api,
         ['test-org/state-github'],
         'ComponentClaim',
         'my-app',
@@ -212,10 +165,13 @@ describe('wetPr', () => {
       expect(result).not.toBeNull();
       expect(result?.number).toBe(100);
       expect(result?.repo).toBe('test-org/state-github');
+      expect(api.calls).toContain(
+        'listOpenPullRequests test-org/state-github:automated',
+      );
     });
 
     it('returns null when no matching PR found', async () => {
-      const client = createMockClient({
+      const api = createApi({
         'test-org/state-github': [
           {
             number: 100,
@@ -229,7 +185,7 @@ describe('wetPr', () => {
       });
 
       const result = await findWetPr(
-        client,
+        api,
         ['test-org/state-github'],
         'ComponentClaim',
         'my-app',
@@ -239,7 +195,7 @@ describe('wetPr', () => {
     });
 
     it('selects most recent PR when multiple match', async () => {
-      const client = createMockClient({
+      const api = createApi({
         'test-org/state-github': [
           {
             number: 99,
@@ -261,7 +217,7 @@ describe('wetPr', () => {
       });
 
       const result = await findWetPr(
-        client,
+        api,
         ['test-org/state-github'],
         'ComponentClaim',
         'my-app',
@@ -271,7 +227,7 @@ describe('wetPr', () => {
     });
 
     it('falls back to content matching', async () => {
-      const client = createMockClient(
+      const api = createApi(
         {
           'test-org/state-github': [
             {
@@ -296,7 +252,7 @@ describe('wetPr', () => {
       );
 
       const result = await findWetPr(
-        client,
+        api,
         ['test-org/state-github'],
         'ComponentClaim',
         'my-app',
@@ -306,7 +262,7 @@ describe('wetPr', () => {
     });
 
     it('detects deletion PR and sets lastStatePrRedirect', async () => {
-      const client = createMockClient(
+      const api = createApi(
         {
           'test-org/state-github': [
             {
@@ -331,7 +287,7 @@ describe('wetPr', () => {
       );
 
       const result = await findWetPr(
-        client,
+        api,
         ['test-org/state-github'],
         'ComponentClaim',
         'my-app',
@@ -347,7 +303,7 @@ describe('wetPr', () => {
     });
 
     it('does not set lastStatePrRedirect for non-deletion PR', async () => {
-      const client = createMockClient({
+      const api = createApi({
         'test-org/state-github': [
           {
             number: 100,
@@ -361,7 +317,7 @@ describe('wetPr', () => {
       });
 
       const result = await findWetPr(
-        client,
+        api,
         ['test-org/state-github'],
         'ComponentClaim',
         'my-app',
@@ -372,7 +328,7 @@ describe('wetPr', () => {
     });
 
     it('handles deletion PR with no last-state-pr annotation', async () => {
-      const client = createMockClient(
+      const api = createApi(
         {
           'test-org/state-github': [
             {
@@ -397,7 +353,7 @@ describe('wetPr', () => {
       );
 
       const result = await findWetPr(
-        client,
+        api,
         ['test-org/state-github'],
         'ComponentClaim',
         'my-app',

@@ -1,5 +1,4 @@
 import fs from 'node:fs/promises';
-import { getE2EState } from '../api/internal-state';
 import type { E2EApi } from '../types';
 import { DELETE_TIMEOUT_SECONDS } from './constants';
 
@@ -11,7 +10,7 @@ import { DELETE_TIMEOUT_SECONDS } from './constants';
  * Safe to call even when no render has run yet.
  */
 export async function cleanupRenderedArtifacts(client: E2EApi): Promise<void> {
-  const artifacts = [...getE2EState(client).renderedArtifacts];
+  const artifacts = client.claims.getRenderArtifacts();
   const deletedCrPaths = new Set<string>();
 
   // Teardown should happen in reverse render/apply order so dependencies are

@@ -27,13 +27,11 @@ export {
   E2E_DIAGNOSTIC_BEGIN,
   E2E_DIAGNOSTIC_END,
 } from './src/k8s/diagnostics';
-export { E2E_LIFECYCLE } from './src/api/k8s-api';
 export { ensureDefaultGroup } from './src/default-group';
 export { waitForOrgWebhookState } from './src/gh/wait';
 export { createTempOpaqueSecret } from './src/temp-secret';
-export type { DefaultGroup } from './src/default-group';
 
-export { orgScript, ORG_SCRIPT_CATEGORIES } from './src/org-script';
+export { orgScript } from './src/org-script';
 export {
   applyAndWaitCrPaths,
   renderApplyAndWaitFixtures,
@@ -42,14 +40,12 @@ export {
 
 export type {
   ClaimsApi,
-  ClaimsConfig,
   E2EApi,
   E2EInitOptions,
   GhApi,
   GhOrgSettings,
   GhOrgVariable,
   GhOrgWebhook,
-  GhRateLimit,
   GhRepoLabel,
   JsonPatchOperation,
   K8sApi,
@@ -58,20 +54,9 @@ export type {
   TestContext,
 } from './src/types';
 
-export type {
-  CreateTempOpaqueSecretOptions,
-  TempOpaqueSecret,
-} from './src/temp-secret';
+export type { TempOpaqueSecret } from './src/temp-secret';
 
-export type {
-  OrgScript,
-  OrgScriptCategory,
-  OrgScriptClaim,
-  OrgScriptClaims,
-  OrgScriptExclude,
-  OrgScriptFixture,
-  OrgScriptOptions,
-} from './src/org-script';
+export type { OrgScriptFixture, OrgScriptOptions } from './src/org-script';
 
 export type {
   DestroyFixtureResourcesOptions,
