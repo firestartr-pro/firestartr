@@ -9,6 +9,8 @@ body:
       value: |
         Thanks for taking the time to report a bug! Please replace `<scope>` in the
         title above with the value you pick in the **Scope** dropdown below.
+        > [!CAUTION]
+        > This is a public repository, do NOT add any private or sensitive data, if any it MUST be anonymized.
   - type: dropdown
     id: scope
     attributes:
