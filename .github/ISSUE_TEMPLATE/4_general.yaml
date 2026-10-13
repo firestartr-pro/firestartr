@@ -7,7 +7,7 @@ body:
   - type: markdown
     attributes:
       value: |
-        > [!WARNING]
+        > [!CAUTION]
         > This is a public repository, do NOT add any private or sensitive data, if any it MUST be anonymized.
   - type: markdown
     attributes:
