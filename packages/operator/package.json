@@ -29,7 +29,7 @@
     "@opentelemetry/sdk-metrics": "^2.11.0",
     "catalog_common": "file:../catalog_common",
     "cdk8s_renderer": "file:../cdk8s_renderer",
-    "command-line-args": "^5.2.1",
+    "command-line-args": "^6.0.2",
     "dotenv": "^18.0.5",
     "express": "^5.2.1",
     "fast-json-patch": "^3.1.1",
