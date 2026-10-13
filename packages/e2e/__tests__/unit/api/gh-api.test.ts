@@ -280,6 +280,82 @@ describe('createGhApi org webhook helpers', () => {
     expect(getRateLimit).toHaveBeenCalledTimes(1);
   });
 
+  it('probes the PAT-routed feature repo path, not the rate-limit endpoint', async () => {
+    const request = jest.fn().mockResolvedValue({
+      headers: {
+        'x-ratelimit-limit': '5000',
+        'x-ratelimit-remaining': '1234',
+        'x-ratelimit-reset': '1710000000',
+      },
+    });
+    const getRateLimit = jest.fn();
+    mockOctokit({ request, rest: { rateLimit: { get: getRateLimit } } });
+
+    const api = createGhApi(createState());
+
+    await expect(api.probeFeatureRepoRateLimit()).resolves.toEqual({
+      limit: 5000,
+      remaining: 1234,
+      reset: 1710000000,
+      subject: null,
+    });
+
+    expect(request).toHaveBeenCalledWith('GET /repos/{owner}/{repo}/tags', {
+      owner: 'prefapp',
+      repo: 'features',
+      per_page: 1,
+    });
+    expect(getRateLimit).not.toHaveBeenCalled();
+  });
+
+  it('reports the exhausted quota and the named user from a 403', async () => {
+    const request = jest.fn().mockRejectedValue(
+      Object.assign(
+        new Error('API rate limit exceeded for user ID 88989834.'),
+        {
+          status: 403,
+          response: {
+            status: 403,
+            headers: {
+              'x-ratelimit-limit': '5000',
+              'x-ratelimit-remaining': '0',
+              'x-ratelimit-reset': '1710000000',
+            },
+          },
+        },
+      ),
+    );
+    mockOctokit({ request });
+
+    const api = createGhApi(createState());
+
+    await expect(api.probeFeatureRepoRateLimit()).resolves.toEqual({
+      limit: 5000,
+      remaining: 0,
+      reset: 1710000000,
+      subject: 'user ID 88989834',
+    });
+    expect(request).toHaveBeenCalledTimes(1);
+  });
+
+  it('returns null when the probe answers without rate-limit headers', async () => {
+    const request = jest.fn().mockRejectedValue(new Error('socket hang up'));
+    mockOctokit({ request });
+
+    const api = createGhApi(createState());
+
+    await expect(api.probeFeatureRepoRateLimit()).resolves.toBeNull();
+  });
+
+  it('never throws when the octokit client cannot be built', async () => {
+    const { getOctokitForOrg } = mockOctokit();
+    getOctokitForOrg.mockRejectedValue(new Error('no app token'));
+
+    const api = createGhApi(createState());
+
+    await expect(api.probeFeatureRepoRateLimit()).resolves.toBeNull();
+  });
+
   it('finds org webhooks by URL', async () => {
     mockOctokit({
       paginateData: [

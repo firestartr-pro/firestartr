@@ -308,6 +308,12 @@ export interface GhApi {
   // Read primary GitHub rate-limit state for the current installation token.
   getRateLimit: () => Promise<GhRateLimit>;
 
+  // Read the quota of the shared feature-repo token with one request on the
+  // prefapp/features path commit resolution uses, so it observes the PAT that
+  // actually 403s (getRateLimit queries another endpoint with the App token).
+  // Returns null when the response carried no rate-limit headers.
+  probeFeatureRepoRateLimit: () => Promise<GhFeatureRepoRateLimit | null>;
+
   // Read file content from a repository in current org.
   // Retries on not-found only when retryOptions.attempts is greater than 1.
   // Throws when the file is not found after all retry attempts.
@@ -340,6 +346,16 @@ export interface GhRateLimit {
     remaining: number;
     reset: number;
   };
+}
+
+// Quota of the shared feature-repo token as seen by a request on the
+// prefapp/features path, plus the subject GitHub named in a rate-limit
+// message ("user ID 88989834"). reset is a Unix timestamp in seconds.
+export interface GhFeatureRepoRateLimit {
+  limit: number;
+  remaining: number;
+  reset: number;
+  subject: string | null;
 }
 
 export interface GhOrgWebhook {
