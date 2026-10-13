@@ -7,6 +7,11 @@ body:
   - type: markdown
     attributes:
       value: |
+        > [!CAUTION]
+        > This is a public repository, do NOT add any customer, private or sensitive data, if any it MUST be anonymized.
+  - type: markdown
+    attributes:
+      value: |
         Thanks for taking the time to open an issue! Please provide as much detail as possible.
   - type: textarea
     id: subject

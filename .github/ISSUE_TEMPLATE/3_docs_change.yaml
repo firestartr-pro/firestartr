@@ -4,6 +4,11 @@ title: "[docs]: "
 labels: ["documentation", "triage"]
 type: task
 body:
+  - type: markdown
+    attributes:
+      value: |
+        > [!CAUTION]
+        > This is a public repository, do NOT add any customer, private or sensitive data, if any it MUST be anonymized.
   - type: textarea
     id: target
     attributes:
