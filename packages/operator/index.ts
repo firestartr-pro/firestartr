@@ -13,7 +13,6 @@ import common from 'catalog_common';
 import createCrdMonitor from './src/crdMonitor';
 import { acquireLease } from './src/leader_election';
 import { isKubernetesNotFoundError } from './src/status';
-// FirestartrTerraformWorkspacePlan support removed
 export { execTfCommand } from './src/execTfCmd';
 export { pullRequestPlan } from './src/pull-request-plan';
 
