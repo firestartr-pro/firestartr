@@ -41,17 +41,14 @@ export function hasGitTraceability(
 // Pure decision at the traceability assertion site: which error, if any,
 // replaces the annotation matcher failure. Returns the explicit rate-limit
 // error only when the git annotations are missing/invalid *and* the feature
-// repo quota probe says the shared PAT ran out; otherwise null, so the
-// original assertion fails untouched and a real regression stays visible.
+// repo quota probe was rejected by GitHub's explicit rate-limit response;
+// otherwise null, so the original assertion fails untouched and a real
+// regression stays visible.
 export function traceabilityFailureError(
   annotations: Record<string, string | undefined>,
   probe: GhFeatureRepoRateLimit | null,
 ): Error | null {
-  if (hasGitTraceability(annotations) || probe === null) {
-    return null;
-  }
-
-  if (probe.remaining > 0) {
+  if (hasGitTraceability(annotations) || probe === null || !probe.exhausted) {
     return null;
   }
 
@@ -62,7 +59,8 @@ export function traceabilityFailureError(
     `GitHub API rate limit exceeded${subject}: the ${FEATURE_REPO_TOKEN} quota ` +
       `behind feature commit resolution has ${probe.remaining}/${probe.limit} ` +
       `requests left and resets at ${resetAt}. ` +
-      `${FEATURE_GIT_SHA} was never stamped because resolution was rate ` +
-      'limited, not because traceability regressed — rerun after the reset.',
+      `The git traceability annotations (${FEATURE_GIT_SHA}, ` +
+      `${FEATURE_GIT_TAGS}) are missing because resolution was rate limited, ` +
+      'not because traceability regressed — rerun after the reset.',
   );
 }

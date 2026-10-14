@@ -21,6 +21,7 @@ type RateLimitHeaders = Record<string, unknown> | null | undefined;
 
 function readFeatureRepoRateLimit(
   headers: RateLimitHeaders,
+  status: number | null,
   errorMessage: string | null,
 ): GhFeatureRepoRateLimit | null {
   const rawLimit = headers?.['x-ratelimit-limit'];
@@ -52,7 +53,15 @@ function readFeatureRepoRateLimit(
     /rate limit exceeded for ([^.]+)/i.exec(errorMessage ?? '')?.[1]?.trim() ??
     null;
 
-  return { limit, remaining, reset, subject };
+  // Only GitHub's explicit rate-limit rejection counts as exhaustion. A probe
+  // that succeeds while spending the token's last unit reports remaining 0
+  // without being rate limited, and an unrelated failure can carry a zeroed
+  // quota too; neither makes the failure it diagnoses rate-limit-caused.
+  const exhausted =
+    (status === 403 || status === 429) &&
+    /rate limit exceeded/i.test(errorMessage ?? '');
+
+  return { limit, remaining, reset, subject, exhausted };
 }
 
 type RawOrgSettings = Record<string, unknown>;
@@ -477,13 +486,19 @@ export function createGhApi(state: E2EState): GhApi {
             per_page: 1,
           },
         );
-        return readFeatureRepoRateLimit(response.headers, null);
-      } catch (err) {
-        const response = (
-          err as { response?: { headers?: Record<string, unknown> } }
-        ).response;
         return readFeatureRepoRateLimit(
-          response?.headers,
+          response.headers,
+          response.status,
+          null,
+        );
+      } catch (err) {
+        const error = err as {
+          status?: number;
+          response?: { status?: number; headers?: Record<string, unknown> };
+        };
+        return readFeatureRepoRateLimit(
+          error.response?.headers,
+          error.status ?? error.response?.status ?? null,
           err instanceof Error ? err.message : null,
         );
       }

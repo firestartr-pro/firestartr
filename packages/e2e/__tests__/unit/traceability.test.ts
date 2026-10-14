@@ -26,6 +26,7 @@ function exhaustedProbe(
     remaining: 0,
     reset: RESET_SECONDS,
     subject: 'user ID 88989834',
+    exhausted: true,
     ...overrides,
   };
 }
@@ -38,6 +39,7 @@ function healthyProbe(
     remaining: 1234,
     reset: RESET_SECONDS,
     subject: null,
+    exhausted: false,
     ...overrides,
   };
 }
@@ -120,6 +122,19 @@ describe('traceabilityFailureError', () => {
     expect(traceabilityFailureError(annotations, healthyProbe())).toBeNull();
   });
 
+  it('ignores a zeroed quota from a probe GitHub did not rate-limit', () => {
+    const annotations = stampedAnnotations({
+      'firestartr.dev/feature-git-sha': '',
+    });
+
+    expect(
+      traceabilityFailureError(
+        annotations,
+        healthyProbe({ remaining: 0, subject: 'user ID 88989834' }),
+      ),
+    ).toBeNull();
+  });
+
   it('names the rate limit, the token, the counts and the reset time', () => {
     const annotations = stampedAnnotations({
       'firestartr.dev/feature-git-sha': '',
@@ -134,6 +149,7 @@ describe('traceabilityFailureError', () => {
     expect(error?.message).toContain('0/5000');
     expect(error?.message).toContain(RESET_ISO);
     expect(error?.message).toContain('firestartr.dev/feature-git-sha');
+    expect(error?.message).toContain('firestartr.dev/feature-git-tags');
   });
 
   it('omits the subject when GitHub did not name one', () => {

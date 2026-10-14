@@ -282,6 +282,7 @@ describe('createGhApi org webhook helpers', () => {
 
   it('probes the PAT-routed feature repo path, not the rate-limit endpoint', async () => {
     const request = jest.fn().mockResolvedValue({
+      status: 200,
       headers: {
         'x-ratelimit-limit': '5000',
         'x-ratelimit-remaining': '1234',
@@ -298,6 +299,7 @@ describe('createGhApi org webhook helpers', () => {
       remaining: 1234,
       reset: 1710000000,
       subject: null,
+      exhausted: false,
     });
 
     expect(request).toHaveBeenCalledWith('GET /repos/{owner}/{repo}/tags', {
@@ -334,8 +336,58 @@ describe('createGhApi org webhook helpers', () => {
       remaining: 0,
       reset: 1710000000,
       subject: 'user ID 88989834',
+      exhausted: true,
     });
     expect(request).toHaveBeenCalledTimes(1);
+  });
+
+  it('does not mark exhaustion when the probe succeeds spending the last unit', async () => {
+    const request = jest.fn().mockResolvedValue({
+      status: 200,
+      headers: {
+        'x-ratelimit-limit': '5000',
+        'x-ratelimit-remaining': '0',
+        'x-ratelimit-reset': '1710000000',
+      },
+    });
+    mockOctokit({ request });
+
+    const api = createGhApi(createState());
+
+    await expect(api.probeFeatureRepoRateLimit()).resolves.toEqual({
+      limit: 5000,
+      remaining: 0,
+      reset: 1710000000,
+      subject: null,
+      exhausted: false,
+    });
+  });
+
+  it('does not mark exhaustion when a 403 is not GitHub rate-limiting', async () => {
+    const request = jest.fn().mockRejectedValue(
+      Object.assign(new Error('Resource not accessible by integration'), {
+        status: 403,
+        response: {
+          status: 403,
+          headers: {
+            'x-ratelimit-limit': '5000',
+            'x-ratelimit-remaining': '0',
+            'x-ratelimit-reset': '1710000000',
+          },
+        },
+      }),
+    );
+    mockOctokit({ request });
+
+    const api = createGhApi(createState());
+
+    await expect(api.probeFeatureRepoRateLimit()).resolves.toEqual({
+      limit: 5000,
+      remaining: 0,
+      reset: 1710000000,
+      subject: null,
+      exhausted: false,
+    });
   });
 
   it('returns null when the probe answers without rate-limit headers', async () => {
