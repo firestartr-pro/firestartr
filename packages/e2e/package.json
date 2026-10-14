@@ -28,7 +28,7 @@
     "@types/jest": "^30.0.0",
     "catalog_common": "file:../catalog_common",
     "debug": "^4.3.4",
-    "dotenv": "^18.0.5",
+    "dotenv": "^18.0.7",
     "github": "file:../github",
     "importer": "file:../importer",
     "jest": "^29.7.0",
