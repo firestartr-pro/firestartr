@@ -1,4 +1,5 @@
 import {
+  createTraceabilityDiagnosis,
   hasGitTraceability,
   traceabilityFailureError,
 } from '../../src/traceability';
@@ -164,5 +165,51 @@ describe('traceabilityFailureError', () => {
 
     expect(error?.message).toContain('GitHub API rate limit exceeded');
     expect(error?.message).not.toContain('for user');
+  });
+});
+
+describe('createTraceabilityDiagnosis', () => {
+  function missingShaAnnotations(): Record<string, string> {
+    return stampedAnnotations({ 'firestartr.dev/feature-git-sha': '' });
+  }
+
+  it('never probes when the annotations are stamped', async () => {
+    const probe = jest.fn().mockResolvedValue(exhaustedProbe());
+    const diagnose = createTraceabilityDiagnosis(probe);
+
+    await expect(diagnose(stampedAnnotations())).resolves.toBeNull();
+
+    expect(probe).not.toHaveBeenCalled();
+  });
+
+  it('returns the rate-limit error when the probe was rate-limited', async () => {
+    const probe = jest.fn().mockResolvedValue(exhaustedProbe());
+    const diagnose = createTraceabilityDiagnosis(probe);
+
+    const error = await diagnose(missingShaAnnotations());
+
+    expect(error?.message).toContain('GitHub API rate limit exceeded');
+    expect(probe).toHaveBeenCalledTimes(1);
+  });
+
+  it('stays silent when the probe sees healthy quota', async () => {
+    const probe = jest.fn().mockResolvedValue(healthyProbe());
+    const diagnose = createTraceabilityDiagnosis(probe);
+
+    await expect(diagnose(missingShaAnnotations())).resolves.toBeNull();
+
+    expect(probe).toHaveBeenCalledTimes(1);
+  });
+
+  it('probes once across several failing resources', async () => {
+    const probe = jest.fn().mockResolvedValue(healthyProbe());
+    const diagnose = createTraceabilityDiagnosis(probe);
+    const annotations = missingShaAnnotations();
+
+    await diagnose(annotations);
+    await diagnose(annotations);
+    await diagnose(annotations);
+
+    expect(probe).toHaveBeenCalledTimes(1);
   });
 });

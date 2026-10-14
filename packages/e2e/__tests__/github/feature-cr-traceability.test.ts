@@ -12,11 +12,7 @@ import {
 import { buildComponentClaimPatches } from '../../src/claim-patches';
 import { pickRenderedCrs } from '../../src/render-artifacts';
 import { LOCAL_RENDER_APPLY_TEST_TIMEOUT_MS } from '../../src/test-constants';
-import {
-  hasGitTraceability,
-  traceabilityFailureError,
-} from '../../src/traceability';
-import type { GhFeatureRepoRateLimit } from '../../src/types';
+import { createTraceabilityDiagnosis } from '../../src/traceability';
 
 const FEATURE_NAME = 'charts_repo';
 const FEATURE_REF = 'charts_repo-v1';
@@ -108,10 +104,11 @@ describe('Feature CR git traceability annotations E2E', () => {
       );
       await applyAndWaitCrPaths(client, rendered.crPaths);
 
-      // Failure path only: at most one probe per test run, and none while the
-      // annotations are already stamped.
-      let featureRepoQuota: Promise<GhFeatureRepoRateLimit | null> | null =
-        null;
+      // Failure path only: the diagnosis never probes while the annotations
+      // are stamped, and spends at most one request per test run.
+      const diagnose = createTraceabilityDiagnosis(() =>
+        client.gh.probeFeatureRepoRateLimit(),
+      );
 
       for (const featureCrPath of featureCrPaths) {
         const featureCr = await client.k8s.waitForCr(featureCrPath);
@@ -125,15 +122,9 @@ describe('Feature CR git traceability annotations E2E', () => {
         // the failure: exhausted quota fails with an explicit rate-limit
         // error, healthy quota falls through so a real regression still
         // fails with its original matcher error.
-        if (!hasGitTraceability(annotations)) {
-          featureRepoQuota ??= client.gh.probeFeatureRepoRateLimit();
-          const rateLimitFailure = traceabilityFailureError(
-            annotations,
-            await featureRepoQuota,
-          );
-          if (rateLimitFailure) {
-            throw rateLimitFailure;
-          }
+        const rateLimitFailure = await diagnose(annotations);
+        if (rateLimitFailure) {
+          throw rateLimitFailure;
         }
 
         // SHA is immutable: 40 lowercase hex chars resolved from the real

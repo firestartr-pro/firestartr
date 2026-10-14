@@ -64,3 +64,23 @@ export function traceabilityFailureError(
       'not because traceability regressed — rerun after the reset.',
   );
 }
+
+// Failure-path-only orchestration around the pure decision. The probe is
+// built lazily: never while the annotations are stamped (the happy path keeps
+// its API budget) and at most once per run, so several failing resources spend
+// a single request. Returns the rate-limit error to throw in place of the
+// annotation matcher failure, or null to let that failure report as usual.
+export function createTraceabilityDiagnosis(
+  probe: () => Promise<GhFeatureRepoRateLimit | null>,
+): (annotations: Record<string, string | undefined>) => Promise<Error | null> {
+  let quota: Promise<GhFeatureRepoRateLimit | null> | null = null;
+
+  return async (annotations) => {
+    if (hasGitTraceability(annotations)) {
+      return null;
+    }
+
+    quota ??= probe();
+    return traceabilityFailureError(annotations, await quota);
+  };
+}
