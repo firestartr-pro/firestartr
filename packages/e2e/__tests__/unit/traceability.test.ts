@@ -1,6 +1,6 @@
 import {
   createTraceabilityDiagnosis,
-  hasGitTraceability,
+  missingGitTraceability,
   traceabilityFailureError,
 } from '../../src/traceability';
 import type { GhFeatureRepoRateLimit } from '../../src/types';
@@ -17,6 +17,10 @@ function stampedAnnotations(
     'firestartr.dev/feature-git-tags': JSON.stringify(['charts_repo-v1']),
     ...overrides,
   };
+}
+
+function missingShaAnnotations(): Record<string, string> {
+  return stampedAnnotations({ 'firestartr.dev/feature-git-sha': '' });
 }
 
 function exhaustedProbe(
@@ -45,52 +49,59 @@ function healthyProbe(
   };
 }
 
-describe('hasGitTraceability', () => {
-  it('accepts a stamped SHA and a non-empty tag list', () => {
-    expect(hasGitTraceability(stampedAnnotations())).toBe(true);
+describe('missingGitTraceability', () => {
+  it('is false for a stamped SHA and a non-empty tag list', () => {
+    expect(missingGitTraceability(stampedAnnotations())).toBe(false);
   });
 
-  it('rejects a missing SHA annotation', () => {
-    const annotations = stampedAnnotations();
-    delete annotations['firestartr.dev/feature-git-sha'];
+  it('is true when a git annotation is absent or empty', () => {
+    const noSha = stampedAnnotations();
+    delete noSha['firestartr.dev/feature-git-sha'];
+    expect(missingGitTraceability(noSha)).toBe(true);
 
-    expect(hasGitTraceability(annotations)).toBe(false);
-  });
+    const noTags = stampedAnnotations();
+    delete noTags['firestartr.dev/feature-git-tags'];
+    expect(missingGitTraceability(noTags)).toBe(true);
 
-  it('rejects a SHA that is not 40 lowercase hex chars', () => {
     expect(
-      hasGitTraceability(
+      missingGitTraceability(
+        stampedAnnotations({ 'firestartr.dev/feature-git-sha': '' }),
+      ),
+    ).toBe(true);
+    expect(
+      missingGitTraceability(
+        stampedAnnotations({ 'firestartr.dev/feature-git-tags': '   ' }),
+      ),
+    ).toBe(true);
+  });
+
+  it('is false for present-but-malformed values', () => {
+    expect(
+      missingGitTraceability(
         stampedAnnotations({ 'firestartr.dev/feature-git-sha': 'abc' }),
       ),
     ).toBe(false);
     expect(
-      hasGitTraceability(
+      missingGitTraceability(
         stampedAnnotations({
           'firestartr.dev/feature-git-sha': 'A'.repeat(40),
         }),
       ),
     ).toBe(false);
-  });
-
-  it('rejects missing, empty or malformed tag annotations', () => {
-    const noTags = stampedAnnotations();
-    delete noTags['firestartr.dev/feature-git-tags'];
-
-    expect(hasGitTraceability(noTags)).toBe(false);
     expect(
-      hasGitTraceability(
+      missingGitTraceability(
         stampedAnnotations({
           'firestartr.dev/feature-git-tags': JSON.stringify([]),
         }),
       ),
     ).toBe(false);
     expect(
-      hasGitTraceability(
+      missingGitTraceability(
         stampedAnnotations({ 'firestartr.dev/feature-git-tags': 'not json' }),
       ),
     ).toBe(false);
     expect(
-      hasGitTraceability(
+      missingGitTraceability(
         stampedAnnotations({
           'firestartr.dev/feature-git-tags': JSON.stringify([1]),
         }),
@@ -107,41 +118,48 @@ describe('traceabilityFailureError', () => {
     ).toBeNull();
   });
 
-  it('returns null without a probe so the original assertion still fails', () => {
-    const annotations = stampedAnnotations({
-      'firestartr.dev/feature-git-sha': '',
+  it('never blames quota for malformed annotations', () => {
+    const malformedTags = stampedAnnotations({
+      'firestartr.dev/feature-git-tags': JSON.stringify([]),
+    });
+    const unparsableTags = stampedAnnotations({
+      'firestartr.dev/feature-git-tags': 'not json',
+    });
+    const malformedSha = stampedAnnotations({
+      'firestartr.dev/feature-git-sha': 'abc',
     });
 
-    expect(traceabilityFailureError(annotations, null)).toBeNull();
+    for (const annotations of [malformedTags, unparsableTags, malformedSha]) {
+      expect(
+        traceabilityFailureError(annotations, exhaustedProbe()),
+      ).toBeNull();
+    }
+  });
+
+  it('returns null without a probe so the original assertion still fails', () => {
+    expect(traceabilityFailureError(missingShaAnnotations(), null)).toBeNull();
   });
 
   it('returns null when the probe sees healthy quota', () => {
-    const annotations = stampedAnnotations({
-      'firestartr.dev/feature-git-tags': JSON.stringify([]),
-    });
-
-    expect(traceabilityFailureError(annotations, healthyProbe())).toBeNull();
+    expect(
+      traceabilityFailureError(missingShaAnnotations(), healthyProbe()),
+    ).toBeNull();
   });
 
   it('ignores a zeroed quota from a probe GitHub did not rate-limit', () => {
-    const annotations = stampedAnnotations({
-      'firestartr.dev/feature-git-sha': '',
-    });
-
     expect(
       traceabilityFailureError(
-        annotations,
+        missingShaAnnotations(),
         healthyProbe({ remaining: 0, subject: 'user ID 88989834' }),
       ),
     ).toBeNull();
   });
 
   it('names the rate limit, the token, the counts and the reset time', () => {
-    const annotations = stampedAnnotations({
-      'firestartr.dev/feature-git-sha': '',
-    });
-
-    const error = traceabilityFailureError(annotations, exhaustedProbe());
+    const error = traceabilityFailureError(
+      missingShaAnnotations(),
+      exhaustedProbe(),
+    );
 
     expect(error).toBeInstanceOf(Error);
     expect(error?.message).toContain('GitHub API rate limit exceeded');
@@ -154,12 +172,8 @@ describe('traceabilityFailureError', () => {
   });
 
   it('omits the subject when GitHub did not name one', () => {
-    const annotations = stampedAnnotations({
-      'firestartr.dev/feature-git-tags': 'not json',
-    });
-
     const error = traceabilityFailureError(
-      annotations,
+      missingShaAnnotations(),
       exhaustedProbe({ subject: null }),
     );
 
@@ -169,15 +183,23 @@ describe('traceabilityFailureError', () => {
 });
 
 describe('createTraceabilityDiagnosis', () => {
-  function missingShaAnnotations(): Record<string, string> {
-    return stampedAnnotations({ 'firestartr.dev/feature-git-sha': '' });
-  }
-
   it('never probes when the annotations are stamped', async () => {
     const probe = jest.fn().mockResolvedValue(exhaustedProbe());
     const diagnose = createTraceabilityDiagnosis(probe);
 
     await expect(diagnose(stampedAnnotations())).resolves.toBeNull();
+
+    expect(probe).not.toHaveBeenCalled();
+  });
+
+  it('never probes for malformed annotations', async () => {
+    const probe = jest.fn().mockResolvedValue(exhaustedProbe());
+    const diagnose = createTraceabilityDiagnosis(probe);
+    const annotations = stampedAnnotations({
+      'firestartr.dev/feature-git-tags': 'not json',
+    });
+
+    await expect(diagnose(annotations)).resolves.toBeNull();
 
     expect(probe).not.toHaveBeenCalled();
   });
