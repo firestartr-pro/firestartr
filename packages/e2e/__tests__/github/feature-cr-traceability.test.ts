@@ -104,8 +104,6 @@ describe('Feature CR git traceability annotations E2E', () => {
       );
       await applyAndWaitCrPaths(client, rendered.crPaths);
 
-      // Failure path only: the diagnosis never probes while the annotations
-      // are stamped, and spends at most one request per test run.
       const diagnose = createTraceabilityDiagnosis(() =>
         client.gh.probeFeatureRepoRateLimit(),
       );
@@ -117,11 +115,6 @@ describe('Feature CR git traceability annotations E2E', () => {
         // The feature the CR was rendered from.
         expect(annotations['firestartr.dev/feature-name']).toBe(FEATURE_NAME);
 
-        // When the git annotations never landed, ask the PAT-routed feature
-        // repo whether its quota ran out *before* the assertions below report
-        // the failure: exhausted quota fails with an explicit rate-limit
-        // error, healthy quota falls through so a real regression still
-        // fails with its original matcher error.
         const rateLimitFailure = await diagnose(annotations);
         if (rateLimitFailure) {
           throw rateLimitFailure;

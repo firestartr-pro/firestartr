@@ -53,10 +53,6 @@ function readFeatureRepoRateLimit(
     /rate limit exceeded for ([^.]+)/i.exec(errorMessage ?? '')?.[1]?.trim() ??
     null;
 
-  // Only GitHub's explicit rate-limit rejection counts as exhaustion. A probe
-  // that succeeds while spending the token's last unit reports remaining 0
-  // without being rate limited, and an unrelated failure can carry a zeroed
-  // quota too; neither makes the failure it diagnoses rate-limit-caused.
   const exhausted =
     (status === 403 || status === 429) &&
     /rate limit exceeded/i.test(errorMessage ?? '');
