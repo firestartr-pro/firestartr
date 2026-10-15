@@ -19,6 +19,7 @@ function mockOctokit(
     rest?: {
       repos?: {
         listForOrg?: unknown;
+        listTags?: unknown;
       };
       teams?: {
         list?: unknown;
@@ -41,6 +42,7 @@ function mockOctokit(
   rest: {
     repos: {
       listForOrg: unknown;
+      listTags: unknown;
     };
     teams: {
       list: unknown;
@@ -61,6 +63,7 @@ function mockOctokit(
   const rest = {
     repos: {
       listForOrg: options.rest?.repos?.listForOrg ?? Symbol('listForOrg'),
+      listTags: options.rest?.repos?.listTags ?? Symbol('repos.listTags'),
     },
     teams: {
       list: options.rest?.teams?.list ?? Symbol('teams.list'),
@@ -281,7 +284,7 @@ describe('createGhApi org webhook helpers', () => {
   });
 
   it('probes the PAT-routed feature repo path, not the rate-limit endpoint', async () => {
-    const request = jest.fn().mockResolvedValue({
+    const listTags = jest.fn().mockResolvedValue({
       status: 200,
       headers: {
         'x-ratelimit-limit': '5000',
@@ -290,7 +293,9 @@ describe('createGhApi org webhook helpers', () => {
       },
     });
     const getRateLimit = jest.fn();
-    mockOctokit({ request, rest: { rateLimit: { get: getRateLimit } } });
+    mockOctokit({
+      rest: { repos: { listTags }, rateLimit: { get: getRateLimit } },
+    });
 
     const api = createGhApi(createState());
 
@@ -302,7 +307,7 @@ describe('createGhApi org webhook helpers', () => {
       exhausted: false,
     });
 
-    expect(request).toHaveBeenCalledWith('GET /repos/{owner}/{repo}/tags', {
+    expect(listTags).toHaveBeenCalledWith({
       owner: 'prefapp',
       repo: 'features',
       per_page: 1,
@@ -311,7 +316,7 @@ describe('createGhApi org webhook helpers', () => {
   });
 
   it('reports the exhausted quota and the named user from a 403', async () => {
-    const request = jest.fn().mockRejectedValue(
+    const listTags = jest.fn().mockRejectedValue(
       Object.assign(
         new Error('API rate limit exceeded for user ID 88989834.'),
         {
@@ -327,7 +332,7 @@ describe('createGhApi org webhook helpers', () => {
         },
       ),
     );
-    mockOctokit({ request });
+    mockOctokit({ rest: { repos: { listTags } } });
 
     const api = createGhApi(createState());
 
@@ -338,11 +343,11 @@ describe('createGhApi org webhook helpers', () => {
       subject: 'user ID 88989834',
       exhausted: true,
     });
-    expect(request).toHaveBeenCalledTimes(1);
+    expect(listTags).toHaveBeenCalledTimes(1);
   });
 
   it('does not mark exhaustion when the probe succeeds spending the last unit', async () => {
-    const request = jest.fn().mockResolvedValue({
+    const listTags = jest.fn().mockResolvedValue({
       status: 200,
       headers: {
         'x-ratelimit-limit': '5000',
@@ -350,7 +355,7 @@ describe('createGhApi org webhook helpers', () => {
         'x-ratelimit-reset': '1710000000',
       },
     });
-    mockOctokit({ request });
+    mockOctokit({ rest: { repos: { listTags } } });
 
     const api = createGhApi(createState());
 
@@ -364,7 +369,7 @@ describe('createGhApi org webhook helpers', () => {
   });
 
   it('does not mark exhaustion when a 403 is not GitHub rate-limiting', async () => {
-    const request = jest.fn().mockRejectedValue(
+    const listTags = jest.fn().mockRejectedValue(
       Object.assign(new Error('Resource not accessible by integration'), {
         status: 403,
         response: {
@@ -377,7 +382,7 @@ describe('createGhApi org webhook helpers', () => {
         },
       }),
     );
-    mockOctokit({ request });
+    mockOctokit({ rest: { repos: { listTags } } });
 
     const api = createGhApi(createState());
 
@@ -391,8 +396,8 @@ describe('createGhApi org webhook helpers', () => {
   });
 
   it('returns null when the probe answers without rate-limit headers', async () => {
-    const request = jest.fn().mockRejectedValue(new Error('socket hang up'));
-    mockOctokit({ request });
+    const listTags = jest.fn().mockRejectedValue(new Error('socket hang up'));
+    mockOctokit({ rest: { repos: { listTags } } });
 
     const api = createGhApi(createState());
 

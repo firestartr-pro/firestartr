@@ -474,14 +474,11 @@ export function createGhApi(state: E2EState): GhApi {
     async probeFeatureRepoRateLimit() {
       try {
         const octokit = await github.getOctokitForOrg(state.org, true);
-        const response = await octokit.request(
-          'GET /repos/{owner}/{repo}/tags',
-          {
-            owner: FEATURE_REPO_OWNER,
-            repo: FEATURE_REPO_NAME,
-            per_page: 1,
-          },
-        );
+        const response = await octokit.rest.repos.listTags({
+          owner: FEATURE_REPO_OWNER,
+          repo: FEATURE_REPO_NAME,
+          per_page: 1,
+        });
         return readFeatureRepoRateLimit(
           response.headers,
           response.status,
