@@ -3,6 +3,7 @@ import crypto from 'crypto';
 import fs from 'fs';
 import os from 'os';
 import path from 'path';
+import { parse as parseYaml } from 'yaml';
 
 const PKG_ROOT = path.resolve(__dirname, '..');
 const REPO = path.resolve(PKG_ROOT, '..', '..');
@@ -59,9 +60,18 @@ function treeHash(dir: string): string {
   return hash.digest('hex');
 }
 
+function componentClaims(g: Generated): any[] {
+  const dir = path.join(g.claims, 'components');
+  return fs
+    .readdirSync(dir)
+    .filter((f) => /\.ya?ml$/.test(f))
+    .map((f) => parseYaml(fs.readFileSync(path.join(dir, f), 'utf-8')));
+}
+
 const root = fs.mkdtempSync(path.join(os.tmpdir(), 'bench-tools-'));
 let first: Generated;
 let second: Generated;
+let singleGroup: Generated;
 
 function harnessArgs(out: string, extra: string[] = []): string[] {
   return [
@@ -76,9 +86,36 @@ function harnessArgs(out: string, extra: string[] = []): string[] {
   ];
 }
 
+function harnessArgsWithClaims(
+  claims: string,
+  out: string,
+  extra: string[] = [],
+): string[] {
+  const args = harnessArgs(out, extra);
+  args[args.indexOf('--claims') + 1] = claims;
+  return args;
+}
+
+// A claims view whose generator-manifest.json is absent (or overridden), with
+// the real claims tree exposed through a symlink.
+function manifestView(name: string, manifest?: unknown): string {
+  const dir = path.join(root, name);
+  fs.mkdirSync(dir, { recursive: true });
+  const claims = path.join(dir, 'claims');
+  if (!fs.existsSync(claims)) fs.symlinkSync(first.claims, claims);
+  if (manifest !== undefined) {
+    fs.writeFileSync(
+      path.join(dir, 'generator-manifest.json'),
+      JSON.stringify(manifest),
+    );
+  }
+  return claims;
+}
+
 beforeAll(() => {
   first = generate(path.join(root, 'seed-7-a'), 7, 12);
   second = generate(path.join(root, 'seed-7-b'), 7, 12);
+  singleGroup = generate(path.join(root, 'single-group'), 3, 10);
 });
 
 afterAll(() => {
@@ -127,6 +164,24 @@ describe('generate-claims tool', () => {
     ]);
     expect(forced.status).toBe(0);
     expect(fs.existsSync(path.join(dir, '.bench-owned'))).toBe(true);
+  });
+
+  it('never assigns a maintainedBy group equal to owner or platformOwner', () => {
+    // The repository chart grants owner/platformOwner `admin` and maintainedBy
+    // `maintain`; the same group in both roles fails permission-uniqueness.
+    for (const tree of [first, singleGroup]) {
+      for (const claim of componentClaims(tree)) {
+        for (const maintainer of claim.maintainedBy ?? []) {
+          expect(maintainer).not.toBe(claim.owner);
+          expect(maintainer).not.toBe(claim.platformOwner);
+        }
+      }
+    }
+    // A single-group tier has no third group to draw from, so maintainedBy is
+    // omitted rather than colliding.
+    for (const claim of componentClaims(singleGroup)) {
+      expect(claim.maintainedBy).toBeUndefined();
+    }
   });
 
   it('is byte-identical for the same seed and tier', () => {
@@ -205,6 +260,57 @@ describe('bench-render tool', () => {
     // normalization/conflict/apply phases run instead of short-circuiting.
     expect(report.featureEnvelopes).toBeGreaterThan(0);
     expect(report.featurePatches).toBeGreaterThan(0);
+  });
+
+  it('refuses to render without a valid generator manifest', () => {
+    const views = [
+      manifestView('manifest-missing'),
+      manifestView('manifest-invalid', { total: 0 }),
+    ];
+    for (const claims of views) {
+      const dir = path.dirname(claims);
+      const out = path.join(root, `refused-${path.basename(dir)}`);
+      const result = run(
+        harnessArgsWithClaims(claims, out, [
+          '--json', path.join(dir, 'report.json'),
+          '--repeat', '2',
+          '--providers', 'catalog',
+        ]),
+      );
+      expect(result.status).not.toBe(0);
+      expect(`${result.stdout}${result.stderr}`).toContain(
+        'generator manifest',
+      );
+      expect(fs.existsSync(out)).toBe(false);
+      expect(fs.existsSync(path.join(dir, 'report.json'))).toBe(false);
+    }
+  });
+
+  it('renders unverified inputs only with --allow-unverified', () => {
+    const views: [string, unknown][] = [
+      ['allow-missing', undefined],
+      ['allow-invalid', { total: 0 }],
+    ];
+    for (const [name, manifest] of views) {
+      const claims = manifestView(name, manifest);
+      const out = path.join(root, `${name}-out`);
+      const json = path.join(root, `${name}-report.json`);
+      const result = run(
+        harnessArgsWithClaims(claims, out, [
+          '--json', json,
+          '--repeat', '2',
+          '--providers', 'catalog',
+          '--allow-unverified',
+        ]),
+      );
+      expect(result.status).toBe(0);
+      const report = JSON.parse(fs.readFileSync(json, 'utf-8'));
+      expect(report.expectedClaims).toBeNull();
+      expect(report.loadedClaims).toBe(first.manifest.total);
+      expect(`${result.stdout}${result.stderr}`).toContain(
+        'completeness check is disabled',
+      );
+    }
   });
 
   it('refuses an --out that contains one of its inputs', () => {

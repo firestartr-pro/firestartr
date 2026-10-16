@@ -325,6 +325,15 @@ function buildPlan(args) {
   });
 
   for (const name of componentNames) {
+    // Repository permissions grant owner and platformOwner `admin` and each
+    // maintainedBy group `maintain`. The same group in both roles makes the
+    // permission-uniqueness validation fail, so keep maintainedBy distinct from
+    // both and drop it entirely when no other group is available.
+    const owner = pick(groupNames);
+    const platformOwner = pick(groupNames);
+    const maintainers = groupNames.filter(
+      (g) => g !== owner && g !== platformOwner,
+    );
     const featureCount = rngInt(Math.min(4, FEATURE_CATALOG.length) + 1);
     const flags = [
       'create', 'component',
@@ -332,16 +341,18 @@ function buildPlan(args) {
       '--type', 'service',
       '--lifecycle', 'production',
       '--description', `component ${name}`,
-      '--owner', `group:${pick(groupNames)}`,
+      '--owner', `group:${owner}`,
       '--system', `system:${pick(systemNames)}`,
-      '--maintainedBy', `group:${pick(groupNames)}`,
-      '--platformOwner', `group:${pick(groupNames)}`,
+      '--platformOwner', `group:${platformOwner}`,
       '--providers.github.name', name,
       '--providers.github.org', args.org,
       '--providers.github.visibility', 'private',
       '--providers.github.branchStrategy.name', 'trunkBasedDevelopment',
       '--providers.github.branchStrategy.defaultBranch', 'main',
     ];
+    if (maintainers.length > 0) {
+      flags.push('--maintainedBy', `group:${pick(maintainers)}`);
+    }
     const owned = providers.find((p) => p.component === name);
     if (owned) {
       flags.push(

@@ -58,6 +58,11 @@ claim draws its features from a local feature catalog; and a single
 `seed`, `tier`, `org`, per-kind counts and `total`, which the harness uses as its
 correctness guard.
 
+The generator selects `maintainedBy` from groups other than the component's
+`owner` and `platformOwner`. If no distinct group is available (small tiers with
+very few groups) the tool omits `maintainedBy` instead of emitting a colliding
+permission, preventing GitHub permission-role conflicts during rendering.
+
 ## `bench-render.cjs`
 
 Renders a generated claims directory and measures each phase. It runs through
@@ -84,6 +89,7 @@ node packages/cdk8s_renderer/tools/bench-render.cjs [options]
 | `--cpu-prof` | off | Write a V8 CPU profile next to the report (the report's directory is created first). |
 | `--two-pass` | off | Re-render every provider that yields usable Kubernetes CRs, using that provider's first-pass output as previous CRs. |
 | `--force` | off | Wipe a non-empty `--out` that lacks the `.bench-owned` marker. |
+| `--allow-unverified` | off | Do not require a `generator-manifest.json` with a valid `total`; disables the loaded-claim completeness check. |
 | `--help` | | Show usage. |
 
 Both tools wipe `--out` before writing, and refuse any `--out` that would

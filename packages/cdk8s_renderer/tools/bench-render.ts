@@ -141,6 +141,7 @@ Options:
   --cpu-prof                Write a V8 CPU profile next to the report
   --two-pass                Render once, then re-render with the produced CRs as previous CRs
   --force                   Wipe a non-empty --out that lacks the ${MARKER} marker
+  --allow-unverified        Do not require a generator-manifest.json with a valid total
   --help                    Show this help`;
 
 const PROVIDER_ENUM: Record<string, AllowedProviders> = {
@@ -165,6 +166,7 @@ interface Args {
   cpuProf: boolean;
   twoPass: boolean;
   force: boolean;
+  allowUnverified: boolean;
 }
 
 function parse(argv: string[]): Args {
@@ -182,6 +184,7 @@ function parse(argv: string[]): Args {
     cpuProf: false,
     twoPass: false,
     force: false,
+    allowUnverified: false,
   };
   for (let i = 0; i < argv.length; i++) {
     const k = argv[i];
@@ -206,6 +209,7 @@ function parse(argv: string[]): Args {
     else if (k === '--cpu-prof') args.cpuProf = true;
     else if (k === '--two-pass') args.twoPass = true;
     else if (k === '--force') args.force = true;
+    else if (k === '--allow-unverified') args.allowUnverified = true;
     else throw new Error(`Unknown option ${k}`);
   }
   for (const p of args.providers) {
@@ -389,6 +393,10 @@ async function main(): Promise<void> {
   const args = parse(process.argv.slice(2));
   process.env.ORG ??= args.org;
 
+  // The generator writes generator-manifest.json only after a complete fixture,
+  // so its absence means a partial tree whose claim count cannot be checked.
+  // Require it (and a valid total) before touching disk or rendering; an
+  // explicit --allow-unverified opts out for arbitrary claim sets.
   const manifestPath = path.join(
     path.dirname(args.claims),
     'generator-manifest.json',
@@ -396,11 +404,37 @@ async function main(): Promise<void> {
   let expected: number | null = null;
   let seed: number | null = null;
   let tier: number | null = null;
+  let manifest: { total?: unknown; seed?: unknown; tier?: unknown } | null = null;
   if (fs.existsSync(manifestPath)) {
-    const manifest = JSON.parse(fs.readFileSync(manifestPath, 'utf-8'));
-    expected = manifest.total ?? null;
-    seed = manifest.seed ?? null;
-    tier = manifest.tier ?? null;
+    try {
+      manifest = JSON.parse(fs.readFileSync(manifestPath, 'utf-8'));
+    } catch (err) {
+      throw new Error(
+        `Refusing to benchmark: unreadable generator manifest at ${manifestPath}: ` +
+          `${err instanceof Error ? err.message : String(err)}. ` +
+          'Pass --allow-unverified to benchmark without it.',
+      );
+    }
+  }
+  const total: unknown = manifest?.total;
+  if (manifest && typeof total === 'number' && Number.isInteger(total) && total > 0) {
+    expected = total;
+    seed = typeof manifest.seed === 'number' ? manifest.seed : null;
+    tier = typeof manifest.tier === 'number' ? manifest.tier : null;
+  } else if (!args.allowUnverified) {
+    throw new Error(
+      manifest
+        ? `Refusing to benchmark: invalid generator manifest total ` +
+            `(${JSON.stringify(manifest.total)}) in ${manifestPath}. ` +
+            'Pass --allow-unverified to benchmark without it.'
+        : `Refusing to benchmark: no generator manifest at ${manifestPath}. ` +
+            'Run tools/generate-claims.mjs first, or pass --allow-unverified.',
+    );
+  } else {
+    console.warn(
+      'Warning: --allow-unverified without a valid generator manifest; ' +
+        'the loaded-claim completeness check is disabled.',
+    );
   }
 
   // Process totals, accumulated across every load (warm-up + repeats + two-pass).
