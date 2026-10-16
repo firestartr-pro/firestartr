@@ -16,6 +16,7 @@ import { Session } from 'node:inspector';
 import { Testing, YamlOutputType } from 'cdk8s';
 
 import { MOCK_STITCHING_FEATURES } from '../src/claims/stitching/stitching';
+import type { FeaturePatchEnvelope } from '../src/claims/stitching/stitching';
 import {
   AllowedProviders,
   configureProvider,
@@ -72,10 +73,14 @@ function canonicalize(p: string): string {
   return path.join(real, ...tail);
 }
 
+// A `..`-prefixed name like `..rendered` is a valid child, so only the exact
+// `..` segment (or `..` + separator) counts as escaping the parent.
 function contains(parent: string, child: string): boolean {
   if (parent === child) return true;
   const rel = path.relative(parent, child);
-  return rel !== '' && !rel.startsWith('..') && !path.isAbsolute(rel);
+  if (rel === '' || path.isAbsolute(rel)) return false;
+  if (rel === '..' || rel.startsWith(`..${path.sep}`)) return false;
+  return true;
 }
 
 // Refuse to wipe an --out that would destroy an input or the repository. Not
@@ -204,7 +209,11 @@ function parse(argv: string[]): Args {
     else throw new Error(`Unknown option ${k}`);
   }
   for (const p of args.providers) {
-    if (!(p in PROVIDER_ENUM)) throw new Error(`Unknown provider ${p}`);
+    // Own-property check: `p in PROVIDER_ENUM` would accept inherited names like
+    // `constructor`, which would silently render zero CRs.
+    if (!Object.prototype.hasOwnProperty.call(PROVIDER_ENUM, p)) {
+      throw new Error(`Unknown provider ${p}`);
+    }
   }
   if (!Number.isInteger(args.repeat) || args.repeat < 2) {
     throw new Error('--repeat must be an integer >= 2 (run 0 is the warm-up)');
@@ -253,6 +262,46 @@ function median(xs: number[]): number {
 function stats(xs: number[]) {
   if (xs.length === 0) return { min: 0, median: 0, max: 0 };
   return { min: Math.min(...xs), median: median(xs), max: Math.max(...xs) };
+}
+
+// Offline stand-in for the feature patch-source: one schema-valid, non-protected
+// `add` under /annotations per declared feature. Deterministic and network-free,
+// so stitching's normalization, conflict and apply phases actually run on the
+// generated claims instead of short-circuiting on an empty envelope list.
+// Feature-free claims produce no envelopes.
+function featureEnvelopesForClaim(claim: unknown): FeaturePatchEnvelope[] {
+  const features = (
+    claim as { providers?: { github?: { features?: unknown } } }
+  ).providers?.github?.features;
+  if (!Array.isArray(features) || features.length === 0) return [];
+  return features.map((raw, i) => {
+    const feature = raw as {
+      name?: unknown;
+      version?: unknown;
+      ref?: unknown;
+    };
+    const name =
+      typeof feature.name === 'string' ? feature.name : `feature-${i}`;
+    const versionOrRef =
+      typeof feature.version === 'string'
+        ? feature.version
+        : typeof feature.ref === 'string'
+          ? feature.ref
+          : '';
+    // The annotations schema allows only [a-zA-Z0-9/.-]; the index keeps keys
+    // unique even if two features share a name.
+    const key = `bench-${i}-${name.replace(/[^a-zA-Z0-9/.-]/g, '-')}`;
+    return {
+      feature: name,
+      patches: [
+        {
+          op: 'add',
+          path: `/annotations/${key}`,
+          value: `${name}@${versionOrRef}`,
+        },
+      ],
+    };
+  });
 }
 
 function resetState(args: Args): void {
@@ -354,7 +403,15 @@ async function main(): Promise<void> {
     tier = manifest.tier ?? null;
   }
 
-  MOCK_STITCHING_FEATURES(async () => []);
+  // Process totals, accumulated across every load (warm-up + repeats + two-pass).
+  let featureEnvelopes = 0;
+  let featurePatches = 0;
+  MOCK_STITCHING_FEATURES(async (claim) => {
+    const envelopes = featureEnvelopesForClaim(claim);
+    featureEnvelopes += envelopes.length;
+    featurePatches += envelopes.reduce((n, e) => n + e.patches.length, 0);
+    return envelopes;
+  });
   MOCK_FEATURES(() => ({ files: {}, traceability: {} }));
 
   assertCanWipe(args.out, [
@@ -500,6 +557,11 @@ async function main(): Promise<void> {
     discoveryMs: stats(measured.map((r) => r.discoveryMs)),
     loadMs: stats(measured.map((r) => r.loadMs)),
     loadedClaims: measured[0]?.loadedClaims ?? 0,
+    // Process totals across every load: prove the offline stitching mock fed
+    // real patch envelopes (0 while the catalog is feature-free or the mock is
+    // a no-op).
+    featureEnvelopes,
+    featurePatches,
     // OS high-water mark: process-wide peak, includes the synthesis peak.
     peakRssBytes: peakRssHighWater(),
     perProvider: Object.fromEntries(
@@ -554,6 +616,7 @@ async function main(): Promise<void> {
   }
   console.log(
     `loaded=${report.loadedClaims}${expected ? `/${expected}` : ''} ` +
+      `featurePatches=${report.featurePatches} ` +
       `peakRss=${(report.peakRssBytes / 1024 / 1024).toFixed(0)}MB (process high-water)`,
   );
   console.log(`Report written to ${args.json}`);

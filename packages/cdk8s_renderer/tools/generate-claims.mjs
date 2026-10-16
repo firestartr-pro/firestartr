@@ -52,11 +52,15 @@ function canonicalize(p) {
   return path.join(real, ...tail);
 }
 
-// True when `child` is `parent` or lives under it.
+// True when `child` is `parent` or lives under it. A `..`-prefixed name like
+// `..backup` is a valid child, so only the exact `..` segment (or `..` +
+// separator) counts as escaping the parent.
 function contains(parent, child) {
   if (parent === child) return true;
   const rel = path.relative(parent, child);
-  return rel !== '' && !rel.startsWith('..') && !path.isAbsolute(rel);
+  if (rel === '' || path.isAbsolute(rel)) return false;
+  if (rel === '..' || rel.startsWith(`..${path.sep}`)) return false;
+  return true;
 }
 
 // Never wipe an output directory that holds a source or input we depend on.

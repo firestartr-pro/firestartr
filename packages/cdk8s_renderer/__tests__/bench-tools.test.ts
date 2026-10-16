@@ -200,6 +200,11 @@ describe('bench-render tool', () => {
     expect(report.perProvider.github.twoPassRenderMs).not.toBeNull();
     expect(report.perProvider.catalog.twoPassRenderMs).toBeNull();
     expect(report.twoPassSkipped).toContain('catalog');
+
+    // The offline stitching mock must feed real patch envelopes so the
+    // normalization/conflict/apply phases run instead of short-circuiting.
+    expect(report.featureEnvelopes).toBeGreaterThan(0);
+    expect(report.featurePatches).toBeGreaterThan(0);
   });
 
   it('refuses an --out that contains one of its inputs', () => {
@@ -225,6 +230,41 @@ describe('bench-render tool', () => {
       expect(`${result.stdout}${result.stderr}`).toContain('Refusing to wipe');
       expect(fs.existsSync(first.claims)).toBe(true);
       expect(fs.existsSync(path.join(first.claims, 'orgSettings'))).toBe(true);
+    }
+  });
+
+  it('treats a ".."-prefixed name as a child, not an escape', () => {
+    // <claims>/..rendered is a real child of the claims input (its name merely
+    // starts with ".."), so the two-way overlap rule must refuse it. The
+    // pre-created marker defeats the separate non-empty-unmarked rule, isolating
+    // the containment check.
+    const out = path.join(first.claims, '..rendered');
+    fs.mkdirSync(out, { recursive: true });
+    fs.writeFileSync(path.join(out, '.bench-owned'), '');
+    fs.writeFileSync(path.join(out, 'canary.txt'), 'keep');
+
+    const result = run(
+      harnessArgs(out, ['--repeat', '2', '--providers', 'catalog']),
+    );
+    expect(result.status).not.toBe(0);
+    expect(`${result.stdout}${result.stderr}`).toContain('Refusing to wipe');
+    expect(fs.existsSync(path.join(out, 'canary.txt'))).toBe(true);
+  });
+
+  it('rejects inherited provider names like constructor', () => {
+    for (const provider of ['constructor', 'toString', 'hasOwnProperty']) {
+      const result = run(
+        harnessArgs(path.join(root, `prov-${provider}`), [
+          '--repeat',
+          '2',
+          '--providers',
+          provider,
+        ]),
+      );
+      expect(result.status).not.toBe(0);
+      expect(`${result.stdout}${result.stderr}`).toContain(
+        `Unknown provider ${provider}`,
+      );
     }
   });
 

@@ -134,7 +134,8 @@ times, the rendered-CR counts, and peak RSS. The JSON report contains:
 - `seed`, `tier`, `org`, `claimsDir`, `providers`, `repeats`, `warmUpDropped`,
   `twoPass`, `node`, `generatedAt`;
 - `discoveryMs` and `loadMs` (median plus range), `peakRssBytes` (process-wide
-  OS high-water mark), `loadedClaims`, `expectedClaims`;
+  OS high-water mark), `loadedClaims`, `expectedClaims`, `featureEnvelopes` and
+  `featurePatches` (process totals);
 - `perProvider.<name>`: `renderMs`, `synthMs`, `renderedCrs`, and
   `twoPassRenderMs` (null unless `--two-pass` measured that provider);
 - `twoPassSkipped`, and the raw `rawRuns`.
@@ -143,6 +144,14 @@ The harness makes only two correctness assertions: every provider's render is
 clean (no validation errors) and `loadedClaims` equals the generator's
 `total`. There are no golden files and no timing thresholds — it reports
 numbers, it does not judge them.
+
+Stitching is mocked offline, but not as a no-op: for each claim the mock
+synthesizes one `add` under `/annotations` per declared
+`providers.github.features` entry (schema-valid, non-protected, keyed uniquely).
+This makes the feature path run its normalization, conflict and apply phases
+instead of short-circuiting on an empty envelope list; feature-free claims get
+no patches. `featureEnvelopes`/`featurePatches` are process totals over the
+whole run, so `0` means the catalog was feature-free or the mock was a no-op.
 
 ## Notes and limitations
 
