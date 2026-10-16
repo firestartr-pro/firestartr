@@ -117,8 +117,8 @@ describe('bench-render tool', () => {
     expect(`${result.stdout}${result.stderr}`).not.toContain('PREFAPP_BOT_PAT');
   });
 
-  it('renders the generated tree and reports per-phase timings', () => {
-    const json = path.join(first.dir, 'report.json');
+  it('renders the tree, synthesizes catalog YAML, measures two-pass and saves both artifacts', () => {
+    const json = path.join(first.dir, 'json-out', 'report.json');
     const result = run([
       HARNESS,
       '--claims', first.claims,
@@ -130,8 +130,16 @@ describe('bench-render tool', () => {
       '--json', json,
       '--repeat', '2',
       '--providers', 'catalog,github',
+      '--two-pass',
+      '--cpu-prof',
     ]);
     expect(result.status).toBe(0);
+
+    // Both artifacts land in a directory that did not exist beforehand.
+    expect(fs.existsSync(json)).toBe(true);
+    expect(fs.existsSync(path.join(path.dirname(json), 'report.cpuprofile'))).toBe(
+      true,
+    );
 
     const report = JSON.parse(fs.readFileSync(json, 'utf-8'));
     expect(report.loadedClaims).toBe(first.manifest.total);
@@ -145,5 +153,25 @@ describe('bench-render tool', () => {
       expect(report.perProvider[provider]).toHaveProperty('synthMs.median');
     }
     expect(report.rawRuns).toHaveLength(2);
+
+    // A catalog-only pass must actually write catalog YAML, not just count it.
+    expect(report.perProvider.catalog.renderedCrs).toBeGreaterThan(0);
+    const catalogOut = path.join(
+      first.dir,
+      'out',
+      'run-1',
+      'catalog',
+      'catalog',
+    );
+    const catalogFiles = fs
+      .readdirSync(catalogOut)
+      .filter((f) => /\.ya?ml$/.test(f));
+    expect(catalogFiles.length).toBeGreaterThan(0);
+
+    // Two-pass runs per provider that yields usable previous CRs (github), and
+    // skips catalog (getPreviousCRfromClaim ignores catalog entities).
+    expect(report.perProvider.github.twoPassRenderMs).not.toBeNull();
+    expect(report.perProvider.catalog.twoPassRenderMs).toBeNull();
+    expect(report.twoPassSkipped).toContain('catalog');
   });
 });

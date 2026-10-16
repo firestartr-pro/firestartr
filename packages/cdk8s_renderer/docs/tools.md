@@ -80,8 +80,8 @@ node packages/cdk8s_renderer/tools/bench-render.cjs [options]
 | `--providers <list>` | `catalog,github,terraform,externalSecrets,argocd` | Comma-separated providers to render. |
 | `--repeat <n>` | `3` | Measured repeats. Run 0 is a warm-up and is excluded from the stats. |
 | `--json <path>` | `<repo>/.tmp_dir/bench/report.json` | Report path. |
-| `--cpu-prof` | off | Write a V8 CPU profile next to the report. |
-| `--two-pass` | off | Render once, then re-render using the produced CRs as previous CRs. |
+| `--cpu-prof` | off | Write a V8 CPU profile next to the report (the report's directory is created first). |
+| `--two-pass` | off | Re-render every provider that yields usable Kubernetes CRs, using that provider's first-pass output as previous CRs. |
 | `--help` | | Show usage. |
 
 Phases timed, in order:
@@ -90,13 +90,23 @@ Phases timed, in order:
 2. **load** — `loadClaimsList` (read + parse + validate every claim).
 3. **render+validate** — per provider, with lazy-loader and rendered-claim state
    reset before each provider.
-4. **synth** — chart synthesis for the produced CRs.
+4. **synth** — chart synthesis for the produced CRs and catalog entities. Both
+   the CR app and the catalog app are synthesized, so a catalog-only pass
+   actually writes (and counts) catalog YAML instead of measuring an empty app.
 
-Peak process RSS is sampled across the run. With `--repeat 3` the tool reports
-min/median/max over runs 1 and 2 (the warm-up is dropped). `--cpu-prof` writes
-`<report>.cpuprofile` (open it in a V8 profile viewer). `--two-pass` exercises
-the previous-CR / diff path: it re-loads with the first provider's produced CRs
-and records `twoPassRenderMs`.
+Peak memory is the **process-wide OS high-water RSS**
+(`process.resourceUsage().maxRSS`), read once after the run. It is monotonic and
+captures the synchronous synthesis peak, which an interval sampler cannot (the
+event loop is blocked during synthesis) — so it is a process-wide peak, not a
+per-run one. With `--repeat 3` the tool reports min/median/max over runs 1 and 2
+(the warm-up is dropped). `--cpu-prof` writes `<report>.cpuprofile` (open it in
+a V8 profile viewer), creating the report's directory first. `--two-pass`
+exercises the previous-CR / diff path per provider: for each provider that
+produced usable Kubernetes CRs in the first pass, it reloads with that
+provider's own output directory as previous CRs and re-renders it, recording
+`perProvider.<name>.twoPassRenderMs`. Providers with no usable previous CRs —
+`catalog`, whose entities `getPreviousCRfromClaim` ignores, and any provider this
+claim set has no data for — are skipped and listed in `twoPassSkipped`.
 
 ## Interpreting output
 
@@ -105,10 +115,11 @@ times, the rendered-CR counts, and peak RSS. The JSON report contains:
 
 - `seed`, `tier`, `org`, `claimsDir`, `providers`, `repeats`, `warmUpDropped`,
   `twoPass`, `node`, `generatedAt`;
-- `discoveryMs` and `loadMs` (median plus range), `peakRssBytes`,
-  `loadedClaims`, `expectedClaims`;
-- `perProvider.<name>`: `renderMs`, `synthMs`, `renderedCrs`;
-- `twoPassRenderMs` and the raw `rawRuns`.
+- `discoveryMs` and `loadMs` (median plus range), `peakRssBytes` (process-wide
+  OS high-water mark), `loadedClaims`, `expectedClaims`;
+- `perProvider.<name>`: `renderMs`, `synthMs`, `renderedCrs`, and
+  `twoPassRenderMs` (null unless `--two-pass` measured that provider);
+- `twoPassSkipped`, and the raw `rawRuns`.
 
 The harness makes only two correctness assertions: every provider's render is
 clean (no validation errors) and `loadedClaims` equals the generator's
@@ -118,8 +129,11 @@ numbers, it does not judge them.
 ## Notes and limitations
 
 - Everything is offline; there are no credentials or network calls.
-- The generator emits github/catalog claims, so those providers produce CRs.
-  Other providers may legitimately report `0` rendered CRs on generator output.
+- The generator sets only `providers.github`, so `github` produces Kubernetes
+  CRs and `catalog` produces catalog entities; `terraform`, `externalSecrets`
+  and `argocd` legitimately report `0` rendered entities on generator output.
+  `--two-pass` therefore only measures `github` on generated claims, skipping
+  the rest.
 - TFWorkspace claims are out of scope; the tools are not wired to remote-derived
   schemas.
 - The measured load time depends on the renderer revision under test. A

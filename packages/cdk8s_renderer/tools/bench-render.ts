@@ -1,8 +1,8 @@
 // Render benchmark harness for cdk8s_renderer.
 //
 // Drives the renderer only through its public API and times each phase
-// (discover, load, render+validate, synth) around it, with a peak-RSS sampler
-// and optional CPU profiling. Fully offline: stitching and feature overrides
+// (discover, load, render+validate, synth) around it, with a process-wide peak
+// RSS measurement and optional CPU profiling. Fully offline: stitching and feature overrides
 // are mocked and no credentials are read. It never compares against golden
 // output; the only correctness guard is that rendering validates cleanly and
 // the loaded-claim count matches the generator manifest.
@@ -155,19 +155,15 @@ function setProvider(provider: AllowedProviders): void {
   }
 }
 
-let peakRss = 0;
-let sampler: NodeJS.Timeout | null = null;
-function startRss(): void {
-  peakRss = 0;
-  sampler = setInterval(() => {
-    const rss = process.memoryUsage().rss;
-    if (rss > peakRss) peakRss = rss;
-  }, 25);
-}
-function stopRss(): number {
-  if (sampler) clearInterval(sampler);
-  sampler = null;
-  return peakRss;
+// Process-wide peak RSS, read from the OS high-water mark. A timer-based
+// sampler cannot observe synthesis memory: app.synth() is synchronous and
+// blocks the event loop, so an interval would never fire during it (and an
+// overdue timer can still be beaten by the stop call after the last await).
+// process.resourceUsage().maxRSS is the kernel's high-water mark, so it always
+// includes the synthesis peak; it is monotonic and process-wide, not per-run.
+function peakRssHighWater(): number {
+  // ru_maxrss is reported in kilobytes on Linux.
+  return process.resourceUsage().maxRSS * 1024;
 }
 
 async function timed<T>(fn: () => Promise<T> | T): Promise<[T, number]> {
@@ -213,8 +209,8 @@ interface RunResult {
   discoveryMs: number;
   loadMs: number;
   loadedClaims: number;
-  peakRssBytes: number;
-  twoPassRenderMs: number | null;
+  twoPass: Record<string, number>;
+  twoPassSkipped: string[];
   providers: Record<string, ProviderTiming>;
 }
 
@@ -259,7 +255,13 @@ async function renderProvider(
     validateActionsVariablesUniqueness(crs);
     return crs;
   });
-  const [, synthMs] = await timed(() => app.synth());
+  // Synthesize both apps inside the timed phase: CRs land in `app`, catalog
+  // entities in `catalogApp`. Without the catalog synth a catalog-only pass
+  // writes nothing to disk despite reporting rendered entities.
+  const [, synthMs] = await timed(() => {
+    app.synth();
+    catalogApp.synth();
+  });
   return { renderMs, synthMs, renderedCrs: Object.keys(rendered).length };
 }
 
@@ -281,7 +283,7 @@ async function main(): Promise<void> {
     tier = manifest.tier ?? null;
   }
 
-  MOCK_STITCHING_FEATURES(() => []);
+  MOCK_STITCHING_FEATURES(async () => []);
   MOCK_FEATURES(() => ({ files: {}, traceability: {} }));
 
   fs.rmSync(args.out, { recursive: true, force: true });
@@ -305,7 +307,6 @@ async function main(): Promise<void> {
 
   for (let run = 0; run < args.repeat; run++) {
     resetState(args);
-    startRss();
 
     const [refs, discoveryMs] = await timed(async () => {
       const acc: string[] = [];
@@ -327,24 +328,33 @@ async function main(): Promise<void> {
       providers[p] = await renderProvider(p, run, args, data);
     }
 
-    let twoPassRenderMs: number | null = null;
-    if (args.twoPass && args.providers.length > 0) {
-      // Re-load with the CRs produced above as previous CRs, then re-render.
-      const first = args.providers[0];
-      const producedCrs = path.join(args.out, `run-${run}`, first, 'crs');
-      setPath('crs', producedCrs);
-      const [twoPassData] = await timed(() =>
-        loadClaimsList(refGen(), args.claims),
-      );
-      const pass = await renderProvider(
-        first,
-        run,
-        args,
-        twoPassData,
-        producedCrs,
-      );
-      twoPassRenderMs = pass.renderMs;
-      setPath('crs', args.crs);
+    // Second pass over each provider that can yield usable previous CRs: reload
+    // with that provider's own first-pass output as `crs`, then re-render it so
+    // the previousCR path is exercised. Catalog entities are skipped outright by
+    // getPreviousCRfromClaim, and providers this claim set has no data for write
+    // no CRs at all, so both are reported as skipped instead of silently
+    // measuring a pass with no previous CRs.
+    const twoPass: Record<string, number> = {};
+    const twoPassSkipped: string[] = [];
+    if (args.twoPass) {
+      for (const p of args.providers) {
+        const crsDir = path.join(args.out, `run-${run}`, p, 'crs');
+        const usable =
+          p !== 'catalog' &&
+          fs.existsSync(crsDir) &&
+          fs.readdirSync(crsDir).some((f) => /\.ya?ml$/.test(f));
+        if (!usable) {
+          twoPassSkipped.push(p);
+          continue;
+        }
+        setPath('crs', crsDir);
+        const [twoPassData] = await timed(() =>
+          loadClaimsList(refGen(), args.claims),
+        );
+        const pass = await renderProvider(p, run, args, twoPassData, crsDir);
+        twoPass[p] = pass.renderMs;
+        setPath('crs', args.crs);
+      }
     }
 
     const result: RunResult = {
@@ -352,8 +362,8 @@ async function main(): Promise<void> {
       discoveryMs,
       loadMs,
       loadedClaims,
-      peakRssBytes: stopRss(),
-      twoPassRenderMs,
+      twoPass,
+      twoPassSkipped,
       providers,
     };
     runs.push(result);
@@ -361,10 +371,14 @@ async function main(): Promise<void> {
       `run ${run}${run === 0 ? ' (warm-up)' : ''}: ` +
         `discover=${result.discoveryMs.toFixed(0)}ms ` +
         `load=${result.loadMs.toFixed(0)}ms ` +
-        `claims=${result.loadedClaims} ` +
-        `peakRss=${(result.peakRssBytes / 1024 / 1024).toFixed(0)}MB`,
+        `claims=${result.loadedClaims}`,
     );
   }
+
+  // The profile is written next to the report, so make the report's directory
+  // first; otherwise `--json <new-dir>/report.json --cpu-prof` would throw
+  // ENOENT and exit before either artifact is saved.
+  fs.mkdirSync(path.dirname(args.json), { recursive: true });
 
   if (profiler) {
     const profile: any = await new Promise((resolve, reject) => {
@@ -395,26 +409,28 @@ async function main(): Promise<void> {
     discoveryMs: stats(measured.map((r) => r.discoveryMs)),
     loadMs: stats(measured.map((r) => r.loadMs)),
     loadedClaims: measured[0]?.loadedClaims ?? 0,
-    peakRssBytes: Math.max(...measured.map((r) => r.peakRssBytes)),
+    // OS high-water mark: process-wide peak, includes the synthesis peak.
+    peakRssBytes: peakRssHighWater(),
     perProvider: Object.fromEntries(
-      args.providers.map((p) => [
-        p,
-        {
-          renderMs: stats(measured.map((r) => r.providers[p].renderMs)),
-          synthMs: stats(measured.map((r) => r.providers[p].synthMs)),
-          renderedCrs: measured[0]?.providers[p].renderedCrs ?? 0,
-        },
-      ]),
+      args.providers.map((p) => {
+        const twoPassValues = measured
+          .map((r) => r.twoPass[p])
+          .filter((v): v is number => typeof v === 'number');
+        return [
+          p,
+          {
+            renderMs: stats(measured.map((r) => r.providers[p].renderMs)),
+            synthMs: stats(measured.map((r) => r.providers[p].synthMs)),
+            renderedCrs: measured[0]?.providers[p].renderedCrs ?? 0,
+            twoPassRenderMs: twoPassValues.length ? stats(twoPassValues) : null,
+          },
+        ];
+      }),
     ),
-    twoPassRenderMs: stats(
-      measured
-        .map((r) => r.twoPassRenderMs)
-        .filter((v): v is number => v !== null),
-    ),
+    twoPassSkipped: measured[0]?.twoPassSkipped ?? [],
     rawRuns: runs,
   };
 
-  fs.mkdirSync(path.dirname(args.json), { recursive: true });
   fs.writeFileSync(args.json, JSON.stringify(report, null, 2) + '\n');
 
   console.log('\n=== aggregate (warm-up dropped) ===');
@@ -431,9 +447,23 @@ async function main(): Promise<void> {
         `crs=${timing.renderedCrs}`,
     );
   }
+  if (args.twoPass) {
+    const measuredTwoPass = args.providers
+      .filter((p) => report.perProvider[p].twoPassRenderMs)
+      .map(
+        (p) =>
+          `${p}=${report.perProvider[p].twoPassRenderMs!.median.toFixed(0)}ms`,
+      );
+    console.log(
+      `  two-pass: ${measuredTwoPass.length ? measuredTwoPass.join(' ') : 'none measured'}` +
+        (report.twoPassSkipped.length
+          ? ` (skipped: ${report.twoPassSkipped.join(',')})`
+          : ''),
+    );
+  }
   console.log(
     `loaded=${report.loadedClaims}${expected ? `/${expected}` : ''} ` +
-      `peakRss=${(report.peakRssBytes / 1024 / 1024).toFixed(0)}MB`,
+      `peakRss=${(report.peakRssBytes / 1024 / 1024).toFixed(0)}MB (process high-water)`,
   );
   console.log(`Report written to ${args.json}`);
 
