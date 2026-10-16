@@ -86,13 +86,21 @@ node packages/cdk8s_renderer/tools/bench-render.cjs [options]
 | `--force` | off | Wipe a non-empty `--out` that lacks the `.bench-owned` marker. |
 | `--help` | | Show usage. |
 
-Both tools wipe `--out` before writing. They refuse to do so when it would
-destroy something they rely on: an `--out` that equals or contains any
-configured input directory, the repo, or any source directory is rejected
-(symlinks are resolved first, so an alias is caught too). This check cannot be
-overridden. In addition, an existing **non-empty** `--out` that does not carry
-the `.bench-owned` marker the tools write is refused unless `--force` is passed;
-`--force` overrides only that marker check, never the input/repo check.
+Both tools wipe `--out` before writing, and refuse any `--out` that would
+destroy something they depend on. Symlinks are resolved first, so an alias is
+caught. Two checks, neither overridable by `--force`:
+
+- **Repository**: `--out` may not contain the repository, and if it lives inside
+  it, only `<repo>/.tmp_dir` (the gitignored scratch root) is allowed. So
+  `--out .`, `--out packages/cdk8s_renderer/src` and `--out docs` are all
+  refused.
+- **Inputs** (harness): `--out` may neither contain nor be inside any configured
+  input (`--claims`, `--globals`, `--initializers`, `--claims-defaults`,
+  `--crs`), so rendered output can never be written back into an input tree.
+
+In addition, an existing **non-empty** `--out` that does not carry the
+`.bench-owned` marker the tools write is refused unless `--force` is passed;
+`--force` relaxes only that marker check, never the two checks above.
 
 Phases timed, in order:
 

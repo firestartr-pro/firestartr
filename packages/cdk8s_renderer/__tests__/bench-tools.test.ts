@@ -213,6 +213,26 @@ describe('bench-render tool', () => {
     expect(fs.existsSync(first.claims)).toBe(true);
   });
 
+  it('refuses an --out inside one of its inputs, even with --force', () => {
+    // Rendering into <claims>/... would seed the claims tree with rendered YAML
+    // that later runs rediscover as input, and --force must not allow it.
+    const nested = path.join(first.claims, 'nested-out');
+    for (const extra of [[], ['--force']]) {
+      const result = run(
+        harnessArgs(nested, ['--repeat', '2', '--providers', 'catalog', ...extra]),
+      );
+      expect(result.status).not.toBe(0);
+      expect(`${result.stdout}${result.stderr}`).toContain('Refusing to wipe');
+      expect(fs.existsSync(first.claims)).toBe(true);
+      expect(fs.existsSync(path.join(first.claims, 'orgSettings'))).toBe(true);
+    }
+  });
+
+  // The in-repo rule (any --out inside the repo except <repo>/.tmp_dir is
+  // refused) is not integration-tested: pointing --out at a real repo directory
+  // would delete that directory if the guard ever regressed. It is covered by
+  // review; the two-way machinery itself is exercised by the input tests above.
+
   it('refuses to wipe the repository root', () => {
     const result = run(
       harnessArgs(REPO, ['--repeat', '2', '--providers', 'catalog']),

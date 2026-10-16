@@ -47,6 +47,7 @@ import { validateTfStateKeyUniqueness } from '../src/validations/references';
 const TOOLS_DIR = path.dirname(path.resolve(process.argv[1] ?? ''));
 const PKG_ROOT = path.resolve(TOOLS_DIR, '..');
 const REPO = path.resolve(PKG_ROOT, '..', '..');
+const TMP_DIR = path.join(REPO, '.tmp_dir');
 const BENCH = path.join(REPO, '.tmp_dir', 'bench');
 const MARKER = '.bench-owned';
 
@@ -77,15 +78,39 @@ function contains(parent: string, child: string): boolean {
   return rel !== '' && !rel.startsWith('..') && !path.isAbsolute(rel);
 }
 
-// Refuse to wipe an --out that contains (or equals) any input directory or the
-// repository itself. Not overridable: --force only relaxes the marker check.
-function assertCanWipe(out: string, protectedPaths: string[]): void {
+// Refuse to wipe an --out that would destroy an input or the repository. Not
+// overridable: --force only relaxes the marker check.
+//
+// Two rules:
+//   1. The repository is off-limits. `--out` may not contain it, and if `--out`
+//      lives inside it, it must be under the gitignored scratch root
+//      (`<repo>/.tmp_dir`). Only that subtree is wipable in-repo.
+//   2. Each configured input is refused in both directions, so rendered output
+//      can never be written back into an input tree (nor an input deleted).
+function assertCanWipe(out: string, inputPaths: string[]): void {
   const outReal = canonicalize(out);
-  for (const p of protectedPaths) {
-    if (contains(outReal, canonicalize(p))) {
+  const repoReal = canonicalize(REPO);
+  if (contains(outReal, repoReal)) {
+    throw new Error(
+      `Refusing to wipe ${out}: it contains the repository (${REPO}). ` +
+        'Choose an --out outside the repo.',
+    );
+  }
+  if (
+    contains(repoReal, outReal) &&
+    !contains(canonicalize(TMP_DIR), outReal)
+  ) {
+    throw new Error(
+      `Refusing to wipe ${out}: it lives inside the repository but outside ` +
+        `${TMP_DIR}. Only the scratch directory is wipable in-repo.`,
+    );
+  }
+  for (const input of inputPaths) {
+    const inReal = canonicalize(input);
+    if (contains(outReal, inReal) || contains(inReal, outReal)) {
       throw new Error(
-        `Refusing to wipe ${out}: it contains ${p}. ` +
-          'Choose an --out that contains no inputs.',
+        `Refusing to wipe ${out}: it overlaps the input ${input}. ` +
+          'Choose an --out outside every input.',
       );
     }
   }
@@ -333,7 +358,6 @@ async function main(): Promise<void> {
   MOCK_FEATURES(() => ({ files: {}, traceability: {} }));
 
   assertCanWipe(args.out, [
-    REPO,
     args.claims,
     args.globals,
     args.initializers,
