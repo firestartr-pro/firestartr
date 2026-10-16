@@ -27,6 +27,50 @@ const CLI_DIR = path.join(REPO, 'packages', 'fs-forge-cli');
 const DEFAULT_OUT = path.join(REPO, '.tmp_dir', 'bench');
 const TIERS = [100, 1000, 10000];
 const MIN_TIER = 10;
+const MARKER = '.bench-owned';
+
+// Resolve a path to its real location, following symlinks, even when the leaf
+// does not exist yet: realpath the deepest existing ancestor and re-append the
+// remaining segments. This makes alias endpoints (symlinked parents) compare
+// equal to the directory they really point at.
+function canonicalize(p) {
+  let existing = path.resolve(p);
+  const tail = [];
+  while (!fs.existsSync(existing)) {
+    const parent = path.dirname(existing);
+    if (parent === existing) break;
+    tail.unshift(path.basename(existing));
+    existing = parent;
+  }
+  let real = existing;
+  try {
+    real = fs.realpathSync(existing);
+  } catch {
+    // Keep the resolved path if realpath fails.
+  }
+  return path.join(real, ...tail);
+}
+
+// True when `child` is `parent` or lives under it.
+function contains(parent, child) {
+  if (parent === child) return true;
+  const rel = path.relative(parent, child);
+  return rel !== '' && !rel.startsWith('..') && !path.isAbsolute(rel);
+}
+
+// Never wipe an output directory that holds a source or input we depend on.
+// Not overridable: even `--force` must not be able to delete the repo.
+function assertCanWipe(out, protectedPaths) {
+  const outReal = canonicalize(out);
+  for (const p of protectedPaths) {
+    if (contains(outReal, canonicalize(p))) {
+      throw new Error(
+        `Refusing to wipe ${out}: it contains ${p}. ` +
+          'Choose an --out that contains no inputs.',
+      );
+    }
+  }
+}
 
 const usage = `
 Usage: node tools/generate-claims.mjs [options]
@@ -39,6 +83,7 @@ Options:
   --seed <n>      PRNG seed; same seed+tier is byte-identical (default: 80)
   --jobs <n>      Concurrent fs-forge spawns (default: 8)
   --org <name>    GitHub org used in provider fields (default: bench)
+  --force         Wipe a non-empty --out that lacks the ${MARKER} marker
   --help          Show this help
 
 Output layout:
@@ -56,6 +101,7 @@ function parseArgs(argv) {
     seed: 80,
     jobs: 8,
     org: 'bench',
+    force: false,
   };
   for (let i = 0; i < argv.length; i++) {
     const a = argv[i];
@@ -72,6 +118,7 @@ function parseArgs(argv) {
     else if (a === '--seed') args.seed = Number(next());
     else if (a === '--jobs') args.jobs = Number(next());
     else if (a === '--org') args.org = next();
+    else if (a === '--force') args.force = true;
     else throw new Error(`Unknown option ${a}`);
   }
   if (!Number.isInteger(args.tier) || args.tier < MIN_TIER) {
@@ -378,11 +425,31 @@ async function main() {
     throw new Error(`fs-forge-cli not found at ${CLI_DIR}`);
   }
 
+  assertCanWipe(out, [
+    REPO,
+    PKG_ROOT,
+    CLI_DIR,
+    path.join(PKG_ROOT, '__tests__', 'fixtures'),
+    HERE,
+  ]);
+  if (
+    !args.force &&
+    fs.existsSync(out) &&
+    fs.readdirSync(out).length > 0 &&
+    !fs.existsSync(path.join(out, MARKER))
+  ) {
+    throw new Error(
+      `Refusing to wipe non-empty ${out}: it has no ${MARKER} marker. ` +
+        'Pass --force to overwrite an existing directory.',
+    );
+  }
+
   console.log(
     `Generating claims: tier=${args.tier} seed=${args.seed} jobs=${args.jobs} org=${args.org}`,
   );
   fs.rmSync(out, { recursive: true, force: true });
   fs.mkdirSync(out, { recursive: true });
+  fs.writeFileSync(path.join(out, MARKER), 'benchmark output\n');
 
   const launcher = path.join(out, '.fs-forge-launcher.mjs');
   fs.writeFileSync(launcher, LAUNCHER);

@@ -5,6 +5,7 @@ import os from 'os';
 import path from 'path';
 
 const PKG_ROOT = path.resolve(__dirname, '..');
+const REPO = path.resolve(PKG_ROOT, '..', '..');
 const GENERATOR = path.join(PKG_ROOT, 'tools', 'generate-claims.mjs');
 const HARNESS = path.join(PKG_ROOT, 'tools', 'bench-render.cjs');
 
@@ -62,6 +63,19 @@ const root = fs.mkdtempSync(path.join(os.tmpdir(), 'bench-tools-'));
 let first: Generated;
 let second: Generated;
 
+function harnessArgs(out: string, extra: string[] = []): string[] {
+  return [
+    HARNESS,
+    '--claims', first.claims,
+    '--globals', path.join(first.dir, 'globals'),
+    '--initializers', path.join(first.dir, 'initializers'),
+    '--claims-defaults', path.join(first.dir, '.config'),
+    '--crs', path.join(first.dir, 'crs'),
+    '--out', out,
+    ...extra,
+  ];
+}
+
 beforeAll(() => {
   first = generate(path.join(root, 'seed-7-a'), 7, 12);
   second = generate(path.join(root, 'seed-7-b'), 7, 12);
@@ -95,6 +109,24 @@ describe('generate-claims tool', () => {
     expect(
       fs.existsSync(path.join(first.dir, '.config', 'claims_defaults.yaml')),
     ).toBe(true);
+    expect(fs.existsSync(path.join(first.dir, '.bench-owned'))).toBe(true);
+  });
+
+  it('refuses a non-empty unmarked --out and only overwrites with --force', () => {
+    const dir = path.join(root, 'guarded-gen');
+    fs.mkdirSync(dir, { recursive: true });
+    fs.writeFileSync(path.join(dir, 'stray.txt'), 'keep');
+
+    const refused = run([GENERATOR, '--out', dir, '--tier', '10', '--jobs', '2']);
+    expect(refused.status).not.toBe(0);
+    expect(`${refused.stdout}${refused.stderr}`).toContain('Refusing to wipe');
+    expect(fs.existsSync(path.join(dir, 'stray.txt'))).toBe(true);
+
+    const forced = run([
+      GENERATOR, '--out', dir, '--tier', '10', '--jobs', '2', '--force',
+    ]);
+    expect(forced.status).toBe(0);
+    expect(fs.existsSync(path.join(dir, '.bench-owned'))).toBe(true);
   });
 
   it('is byte-identical for the same seed and tier', () => {
@@ -119,20 +151,15 @@ describe('bench-render tool', () => {
 
   it('renders the tree, synthesizes catalog YAML, measures two-pass and saves both artifacts', () => {
     const json = path.join(first.dir, 'json-out', 'report.json');
-    const result = run([
-      HARNESS,
-      '--claims', first.claims,
-      '--globals', path.join(first.dir, 'globals'),
-      '--initializers', path.join(first.dir, 'initializers'),
-      '--claims-defaults', path.join(first.dir, '.config'),
-      '--crs', path.join(first.dir, 'crs'),
-      '--out', path.join(first.dir, 'out'),
-      '--json', json,
-      '--repeat', '2',
-      '--providers', 'catalog,github',
-      '--two-pass',
-      '--cpu-prof',
-    ]);
+    const result = run(
+      harnessArgs(path.join(first.dir, 'out'), [
+        '--json', json,
+        '--repeat', '2',
+        '--providers', 'catalog,github',
+        '--two-pass',
+        '--cpu-prof',
+      ]),
+    );
     expect(result.status).toBe(0);
 
     // Both artifacts land in a directory that did not exist beforehand.
@@ -173,5 +200,59 @@ describe('bench-render tool', () => {
     expect(report.perProvider.github.twoPassRenderMs).not.toBeNull();
     expect(report.perProvider.catalog.twoPassRenderMs).toBeNull();
     expect(report.twoPassSkipped).toContain('catalog');
+  });
+
+  it('refuses an --out that contains one of its inputs', () => {
+    // first.dir holds claims/, globals/, initializers/, .config/, crs/: using it
+    // as --out would delete every input before discovery.
+    const result = run(
+      harnessArgs(first.dir, ['--repeat', '2', '--providers', 'catalog']),
+    );
+    expect(result.status).not.toBe(0);
+    expect(`${result.stdout}${result.stderr}`).toContain('Refusing to wipe');
+    expect(fs.existsSync(first.claims)).toBe(true);
+  });
+
+  it('refuses to wipe the repository root', () => {
+    const result = run(
+      harnessArgs(REPO, ['--repeat', '2', '--providers', 'catalog']),
+    );
+    expect(result.status).not.toBe(0);
+    expect(`${result.stdout}${result.stderr}`).toContain('Refusing to wipe');
+    expect(fs.existsSync(path.join(REPO, 'AGENTS.md'))).toBe(true);
+  });
+
+  it('resolves symlink aliases before deciding what --out contains', () => {
+    const link = path.join(root, 'out-alias');
+    fs.symlinkSync(first.dir, link);
+    const result = run(
+      harnessArgs(link, ['--repeat', '2', '--providers', 'catalog']),
+    );
+    expect(result.status).not.toBe(0);
+    expect(`${result.stdout}${result.stderr}`).toContain('Refusing to wipe');
+  });
+
+  it('refuses a non-empty unmarked --out and overwrites with --force', () => {
+    const out = path.join(root, 'guarded-harness-out');
+    fs.mkdirSync(out, { recursive: true });
+    fs.writeFileSync(path.join(out, 'stray.txt'), 'keep');
+
+    const refused = run(
+      harnessArgs(out, ['--repeat', '2', '--providers', 'catalog']),
+    );
+    expect(refused.status).not.toBe(0);
+    expect(`${refused.stdout}${refused.stderr}`).toContain('Refusing to wipe');
+    expect(fs.existsSync(path.join(out, 'stray.txt'))).toBe(true);
+
+    const forced = run(
+      harnessArgs(out, [
+        '--json', path.join(out, 'report.json'),
+        '--repeat', '2',
+        '--providers', 'catalog',
+        '--force',
+      ]),
+    );
+    expect(forced.status).toBe(0);
+    expect(fs.existsSync(path.join(out, '.bench-owned'))).toBe(true);
   });
 });

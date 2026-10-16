@@ -37,6 +37,7 @@ node packages/cdk8s_renderer/tools/generate-claims.mjs [options]
 | `--seed <n>` | `80` | PRNG seed. The same seed and tier produce a byte-identical tree. |
 | `--jobs <n>` | `8` | Concurrent `fs-forge` spawns. |
 | `--org <name>` | `bench` | GitHub org written into provider fields. |
+| `--force` | off | Wipe a non-empty `--out` that lacks the `.bench-owned` marker. |
 | `--help` | | Show usage. |
 
 Output layout:
@@ -82,7 +83,16 @@ node packages/cdk8s_renderer/tools/bench-render.cjs [options]
 | `--json <path>` | `<repo>/.tmp_dir/bench/report.json` | Report path. |
 | `--cpu-prof` | off | Write a V8 CPU profile next to the report (the report's directory is created first). |
 | `--two-pass` | off | Re-render every provider that yields usable Kubernetes CRs, using that provider's first-pass output as previous CRs. |
+| `--force` | off | Wipe a non-empty `--out` that lacks the `.bench-owned` marker. |
 | `--help` | | Show usage. |
+
+Both tools wipe `--out` before writing. They refuse to do so when it would
+destroy something they rely on: an `--out` that equals or contains any
+configured input directory, the repo, or any source directory is rejected
+(symlinks are resolved first, so an alias is caught too). This check cannot be
+overridden. In addition, an existing **non-empty** `--out` that does not carry
+the `.bench-owned` marker the tools write is refused unless `--force` is passed;
+`--force` overrides only that marker check, never the input/repo check.
 
 Phases timed, in order:
 

@@ -48,6 +48,48 @@ const TOOLS_DIR = path.dirname(path.resolve(process.argv[1] ?? ''));
 const PKG_ROOT = path.resolve(TOOLS_DIR, '..');
 const REPO = path.resolve(PKG_ROOT, '..', '..');
 const BENCH = path.join(REPO, '.tmp_dir', 'bench');
+const MARKER = '.bench-owned';
+
+// Resolve a path to its real location, following symlinks, even when the leaf
+// does not exist yet: realpath the deepest existing ancestor and re-append the
+// remaining segments. This catches symlink aliases of the paths we must protect.
+function canonicalize(p: string): string {
+  let existing = path.resolve(p);
+  const tail: string[] = [];
+  while (!fs.existsSync(existing)) {
+    const parent = path.dirname(existing);
+    if (parent === existing) break;
+    tail.unshift(path.basename(existing));
+    existing = parent;
+  }
+  let real = existing;
+  try {
+    real = fs.realpathSync(existing);
+  } catch {
+    // Keep the resolved path when realpath fails.
+  }
+  return path.join(real, ...tail);
+}
+
+function contains(parent: string, child: string): boolean {
+  if (parent === child) return true;
+  const rel = path.relative(parent, child);
+  return rel !== '' && !rel.startsWith('..') && !path.isAbsolute(rel);
+}
+
+// Refuse to wipe an --out that contains (or equals) any input directory or the
+// repository itself. Not overridable: --force only relaxes the marker check.
+function assertCanWipe(out: string, protectedPaths: string[]): void {
+  const outReal = canonicalize(out);
+  for (const p of protectedPaths) {
+    if (contains(outReal, canonicalize(p))) {
+      throw new Error(
+        `Refusing to wipe ${out}: it contains ${p}. ` +
+          'Choose an --out that contains no inputs.',
+      );
+    }
+  }
+}
 
 // The renderer's loader logs per-claim at info level; keep it out of the timed
 // path unless the caller asked for it.
@@ -68,6 +110,7 @@ Options:
   --json <path>             Report path (default: <repo>/.tmp_dir/bench/report.json)
   --cpu-prof                Write a V8 CPU profile next to the report
   --two-pass                Render once, then re-render with the produced CRs as previous CRs
+  --force                   Wipe a non-empty --out that lacks the ${MARKER} marker
   --help                    Show this help`;
 
 const PROVIDER_ENUM: Record<string, AllowedProviders> = {
@@ -91,6 +134,7 @@ interface Args {
   json: string;
   cpuProf: boolean;
   twoPass: boolean;
+  force: boolean;
 }
 
 function parse(argv: string[]): Args {
@@ -107,6 +151,7 @@ function parse(argv: string[]): Args {
     json: path.join(BENCH, 'report.json'),
     cpuProf: false,
     twoPass: false,
+    force: false,
   };
   for (let i = 0; i < argv.length; i++) {
     const k = argv[i];
@@ -130,6 +175,7 @@ function parse(argv: string[]): Args {
     else if (k === '--json') args.json = v();
     else if (k === '--cpu-prof') args.cpuProf = true;
     else if (k === '--two-pass') args.twoPass = true;
+    else if (k === '--force') args.force = true;
     else throw new Error(`Unknown option ${k}`);
   }
   for (const p of args.providers) {
@@ -286,8 +332,29 @@ async function main(): Promise<void> {
   MOCK_STITCHING_FEATURES(async () => []);
   MOCK_FEATURES(() => ({ files: {}, traceability: {} }));
 
+  assertCanWipe(args.out, [
+    REPO,
+    args.claims,
+    args.globals,
+    args.initializers,
+    args.claimsDefaults,
+    args.crs,
+  ]);
+  if (
+    !args.force &&
+    fs.existsSync(args.out) &&
+    fs.readdirSync(args.out).length > 0 &&
+    !fs.existsSync(path.join(args.out, MARKER))
+  ) {
+    throw new Error(
+      `Refusing to wipe non-empty ${args.out}: it has no ${MARKER} marker. ` +
+        'Pass --force to overwrite an existing directory.',
+    );
+  }
+
   fs.rmSync(args.out, { recursive: true, force: true });
   fs.mkdirSync(args.out, { recursive: true });
+  fs.writeFileSync(path.join(args.out, MARKER), 'benchmark output\n');
   fs.mkdirSync(args.crs, { recursive: true });
 
   console.log(
