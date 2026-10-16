@@ -30,7 +30,7 @@ function exhaustedProbe(
     limit: 5000,
     remaining: 0,
     reset: RESET_SECONDS,
-    subject: 'user ID 88989834',
+    subject: 'user ID 00000000',
     exhausted: true,
     ...overrides,
   };
@@ -150,7 +150,7 @@ describe('traceabilityFailureError', () => {
     expect(
       traceabilityFailureError(
         missingShaAnnotations(),
-        healthyProbe({ remaining: 0, subject: 'user ID 88989834' }),
+        healthyProbe({ remaining: 0, subject: 'user ID 00000000' }),
       ),
     ).toBeNull();
   });
@@ -164,7 +164,7 @@ describe('traceabilityFailureError', () => {
     expect(error).toBeInstanceOf(Error);
     expect(error?.message).toContain('GitHub API rate limit exceeded');
     expect(error?.message).toContain('PREFAPP_BOT_PAT');
-    expect(error?.message).toContain('user ID 88989834');
+    expect(error?.message).toContain('user ID 00000000');
     expect(error?.message).toContain('0/5000');
     expect(error?.message).toContain(RESET_ISO);
     expect(error?.message).toContain('firestartr.dev/feature-git-sha');

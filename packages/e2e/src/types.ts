@@ -351,7 +351,7 @@ export interface GhRateLimit {
 
 // Quota of the shared feature-repo token as seen by a request on the
 // prefapp/features path, plus the subject GitHub named in a rate-limit
-// message ("user ID 88989834"). reset is a Unix timestamp in seconds.
+// message ("user ID 00000000"). reset is a Unix timestamp in seconds.
 // exhausted is true only when the request was rejected by GitHub's explicit
 // rate-limit response: a request can succeed while consuming the token's
 // last unit, and an unrelated failure can still carry a zeroed quota.

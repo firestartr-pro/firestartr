@@ -318,7 +318,7 @@ describe('createGhApi org webhook helpers', () => {
   it('reports the exhausted quota and the named user from a 403', async () => {
     const listTags = jest.fn().mockRejectedValue(
       Object.assign(
-        new Error('API rate limit exceeded for user ID 88989834.'),
+        new Error('API rate limit exceeded for user ID 00000000.'),
         {
           status: 403,
           response: {
@@ -340,7 +340,7 @@ describe('createGhApi org webhook helpers', () => {
       limit: 5000,
       remaining: 0,
       reset: 1710000000,
-      subject: 'user ID 88989834',
+      subject: 'user ID 00000000',
       exhausted: true,
     });
     expect(listTags).toHaveBeenCalledTimes(1);

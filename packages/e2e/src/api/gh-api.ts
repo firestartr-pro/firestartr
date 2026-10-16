@@ -48,7 +48,7 @@ function readFeatureRepoRateLimit(
   }
 
   // GitHub's 403 body names the exhausted principal, e.g.
-  // "API rate limit exceeded for user ID 88989834."
+  // "API rate limit exceeded for user ID 00000000."
   const subject =
     /rate limit exceeded for ([^.]+)/i.exec(errorMessage ?? '')?.[1]?.trim() ??
     null;
