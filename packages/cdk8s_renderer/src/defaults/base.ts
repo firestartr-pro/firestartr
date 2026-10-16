@@ -5,7 +5,20 @@ import lodash from 'lodash';
 import { mergeTwoArrays } from '../../src/utils/crUtils';
 import { ICustomResourcePatch } from '../patches';
 import Ajv from 'ajv/dist/2020';
+import type { ValidateFunction } from 'ajv/dist/2020';
 import { BasePatches } from '../patches/base';
+
+/*
+ * Shared AJV instance and compiled-validator cache.
+ *
+ * Creating an Ajv and compiling a schema on every validation call re-validates
+ * the draft-2020 meta-schema each time, which dominated the load phase (AJV was
+ * ~76% of non-idle CPU). A single instance plus a per-schema compiled-validator
+ * cache removes that cost.
+ */
+const SHARED_AJV = new Ajv({ allErrors: true });
+
+const COMPILED_VALIDATORS = new Map<any, ValidateFunction>();
 
 /*
  * Base class of our default global and initializer objects.
@@ -41,11 +54,17 @@ export abstract class DefaultSection extends BasePatches {
    *
    */
   async validate(schema: any) {
-    const ajv = new Ajv({
-      allErrors: true,
-    });
+    // An empty schema accepts anything; skip compilation entirely.
+    if (!schema || Object.keys(schema).length === 0) {
+      return true;
+    }
 
-    const ajvValidate = ajv.compile(schema);
+    let ajvValidate = COMPILED_VALIDATORS.get(schema);
+
+    if (!ajvValidate) {
+      ajvValidate = SHARED_AJV.compile(schema);
+      COMPILED_VALIDATORS.set(schema, ajvValidate);
+    }
 
     return ajvValidate(this.data);
   }
