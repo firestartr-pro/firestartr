@@ -3,7 +3,20 @@ import crypto from 'crypto';
 import fs from 'fs';
 import os from 'os';
 import path from 'path';
-import { parse as parseYaml, stringify as stringifyYaml } from 'yaml';
+import { parse as parseYaml } from 'yaml';
+
+import { AllowedProviders, reconfigureProvider } from '../src/config';
+import {
+  createTestContext,
+  rendererTestFixtures,
+  type RendererTestContext,
+} from './auxiliar';
+
+// These are the tools' integration tests: they spawn tools/generate-claims.mjs
+// and tools/bench-render.cjs, which own their generated fixture trees by design,
+// so they read generated claims instead of base_claims/. This is the documented
+// exception in RULES.md; any extra claim shape a test needs comes from
+// base_claims/ via createTestContext() + applyPatches (see the "/" feature test).
 
 const PKG_ROOT = path.resolve(__dirname, '..');
 const REPO = path.resolve(PKG_ROOT, '..', '..');
@@ -331,44 +344,54 @@ describe('bench-render tool', () => {
     expect(report.featurePatches).toBeGreaterThan(0);
   });
 
-  it('escapes a "/" in a feature name so the stitched annotation stays a string', () => {
-    const dir = path.join(root, 'slash-feature');
-    const claims = path.join(dir, 'claims');
-    fs.mkdirSync(dir, { recursive: true });
-    fs.cpSync(first.claims, claims, { recursive: true });
-    fs.copyFileSync(
-      path.join(first.dir, 'generator-manifest.json'),
-      path.join(dir, 'generator-manifest.json'),
-    );
+  it('escapes a "/" in a feature name so the stitched annotation stays a string', async () => {
+    // This case hand-shapes a claim, so it obeys RULES.md: the base claim comes
+    // from base_claims/ through createTestContext() and is patched with
+    // applyPatches, never hand-written YAML.
+    let ctx: RendererTestContext | undefined;
+    try {
+      // component_a resolves system/owner/maintainedBy/domain references, so the
+      // claims it needs must be in the context.
+      ctx = await createTestContext({
+        paths: ['components', 'systems', 'groups', 'users', 'domains'],
+      });
 
-    // `/` is legal in an annotation key but is the JSON Pointer separator, so
-    // the mock must escape it rather than let the pointer nest the value (which
-    // would fail the annotations schema and abort the load).
-    const components = path.join(claims, 'components');
-    const file = path.join(
-      components,
-      fs.readdirSync(components).filter((f) => /\.ya?ml$/.test(f)).sort()[0],
-    );
-    const claim = parseYaml(fs.readFileSync(file, 'utf-8'));
-    const claimName = claim.name;
-    claim.providers.github.features = [{ name: 'team/api', version: '1.0.0' }];
-    fs.writeFileSync(file, stringifyYaml(claim));
+      // `/` is legal in an annotation key but is the JSON Pointer separator, so
+      // the mock must escape it rather than let the pointer nest the value (which
+      // would fail the annotations schema and abort the load).
+      await ctx.applyPatches('component_a', [
+        {
+          op: 'add',
+          path: '/providers/github/features',
+          value: [{ name: 'team/api', version: '1.0.0' }],
+        },
+      ]);
 
-    const out = path.join(dir, 'out');
-    const result = run(
-      harnessArgsWithClaims(claims, out, [
-        '--json', path.join(dir, 'report.json'),
+      const out = path.join(root, 'slash-feature');
+      const result = run([
+        HARNESS,
+        '--claims', ctx.getClaimsDir(),
+        '--globals', rendererTestFixtures.globals,
+        '--initializers', rendererTestFixtures.initializers,
+        '--claims-defaults', rendererTestFixtures.initializers,
+        '--crs', rendererTestFixtures.crs,
+        '--out', out,
+        '--json', path.join(root, 'slash-feature-report.json'),
         '--repeat', '2',
         '--providers', 'github',
-      ]),
-    );
-    expect(result.status).toBe(0);
-    const annotations = githubAnnotationsByClaimRef(out, 1);
-    expect(
-      annotations[
-        `FirestartrGithubRepository::ComponentClaim/${claimName}`
-      ]['bench-0-team/api'],
-    ).toBe('team/api@1.0.0');
+        '--allow-unverified',
+      ]);
+      expect(result.status).toBe(0);
+      const annotations = githubAnnotationsByClaimRef(out, 1);
+      expect(
+        annotations['FirestartrGithubRepository::ComponentClaim/component_a'][
+          'bench-0-team/api'
+        ],
+      ).toBe('team/api@1.0.0');
+    } finally {
+      await ctx?.destroy();
+      reconfigureProvider(AllowedProviders.all);
+    }
   });
 
   it('renders a provider identically whatever the provider order', () => {

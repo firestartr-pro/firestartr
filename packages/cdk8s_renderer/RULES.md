@@ -11,6 +11,13 @@
 - Validate claims (in development and in tests) with the
   `validate-claim-against-schema` skill and its
   `src/skills/validate-claim-against-schema.ts` helper, not ad-hoc AJV.
+- Scoped exception: the `tools/` integration suite
+  (`__tests__/bench-tools.test.ts`) spawns `tools/generate-claims.mjs` and
+  `tools/bench-render.cjs`, whose whole purpose is to produce and consume
+  generated claim trees, so those tests read tool-generated fixtures instead
+  of `base_claims/`. Any *additional* claim shape such a test needs still comes
+  from `base_claims/` through `createTestContext()` and its patch helpers,
+  never from hand-edited YAML.
 
 ## Where render logic goes
 
