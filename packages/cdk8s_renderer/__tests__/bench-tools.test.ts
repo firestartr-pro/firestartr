@@ -3,7 +3,7 @@ import crypto from 'crypto';
 import fs from 'fs';
 import os from 'os';
 import path from 'path';
-import { parse as parseYaml } from 'yaml';
+import { parse as parseYaml, stringify as stringifyYaml } from 'yaml';
 
 const PKG_ROOT = path.resolve(__dirname, '..');
 const REPO = path.resolve(PKG_ROOT, '..', '..');
@@ -58,6 +58,40 @@ function treeHash(dir: string): string {
   };
   walk(dir);
   return hash.digest('hex');
+}
+
+// The Kubernetes CRs a provider pass wrote for run `run` (run 1 is the first
+// measured run; run 0 is the warm-up).
+function githubCrs(out: string, run: number): any[] {
+  const dir = path.join(out, `run-${run}`, 'github', 'crs');
+  return fs
+    .readdirSync(dir)
+    .filter((f) => /\.ya?ml$/.test(f))
+    .map((f) => parseYaml(fs.readFileSync(path.join(dir, f), 'utf-8')));
+}
+
+// The github CRs' annotations keyed by `<kind>::<firestartr.dev/claim-ref>`.
+// Keyed by claim-ref (not name) because generated names carry a per-run UUID,
+// and by kind as well because several CRs share one claim-ref (the repository,
+// its feature, and its secrets-section all reference the same ComponentClaim).
+function githubAnnotationsByClaimRef(
+  out: string,
+  run: number,
+): Record<string, Record<string, string>> {
+  // Only the claim's main CR: feature and secrets-section CRs carry a per-run
+  // UUID in some annotation values, which no two runs share.
+  const mainKinds = new Set([
+    'FirestartrGithubRepository',
+    'FirestartrGithubGroup',
+    'FirestartrGithubMembership',
+  ]);
+  const map: Record<string, Record<string, string>> = {};
+  for (const cr of githubCrs(out, run)) {
+    if (!mainKinds.has(cr.kind)) continue;
+    const ref = cr.metadata?.annotations?.['firestartr.dev/claim-ref'];
+    if (ref) map[`${cr.kind}::${ref}`] = cr.metadata.annotations;
+  }
+  return map;
 }
 
 function componentClaims(g: Generated): any[] {
@@ -295,6 +329,74 @@ describe('bench-render tool', () => {
     // normalization/conflict/apply phases run instead of short-circuiting.
     expect(report.featureEnvelopes).toBeGreaterThan(0);
     expect(report.featurePatches).toBeGreaterThan(0);
+  });
+
+  it('escapes a "/" in a feature name so the stitched annotation stays a string', () => {
+    const dir = path.join(root, 'slash-feature');
+    const claims = path.join(dir, 'claims');
+    fs.mkdirSync(dir, { recursive: true });
+    fs.cpSync(first.claims, claims, { recursive: true });
+    fs.copyFileSync(
+      path.join(first.dir, 'generator-manifest.json'),
+      path.join(dir, 'generator-manifest.json'),
+    );
+
+    // `/` is legal in an annotation key but is the JSON Pointer separator, so
+    // the mock must escape it rather than let the pointer nest the value (which
+    // would fail the annotations schema and abort the load).
+    const components = path.join(claims, 'components');
+    const file = path.join(
+      components,
+      fs.readdirSync(components).filter((f) => /\.ya?ml$/.test(f)).sort()[0],
+    );
+    const claim = parseYaml(fs.readFileSync(file, 'utf-8'));
+    const claimName = claim.name;
+    claim.providers.github.features = [{ name: 'team/api', version: '1.0.0' }];
+    fs.writeFileSync(file, stringifyYaml(claim));
+
+    const out = path.join(dir, 'out');
+    const result = run(
+      harnessArgsWithClaims(claims, out, [
+        '--json', path.join(dir, 'report.json'),
+        '--repeat', '2',
+        '--providers', 'github',
+      ]),
+    );
+    expect(result.status).toBe(0);
+    const annotations = githubAnnotationsByClaimRef(out, 1);
+    expect(
+      annotations[
+        `FirestartrGithubRepository::ComponentClaim/${claimName}`
+      ]['bench-0-team/api'],
+    ).toBe('team/api@1.0.0');
+  });
+
+  it('renders a provider identically whatever the provider order', () => {
+    // Catalog charts alias `claim.annotations` and the catalog patches mutate
+    // it in place; without per-pass isolation the github pass would inherit
+    // catalog-only annotations (title, backstage.io/*) that a github-only run
+    // never produces.
+    const only = path.join(root, 'order-github-only');
+    const combined = path.join(root, 'order-catalog-github');
+    const a = run(
+      harnessArgs(only, [
+        '--json', path.join(root, 'order-a.json'),
+        '--repeat', '2',
+        '--providers', 'github',
+      ]),
+    );
+    expect(a.status).toBe(0);
+    const b = run(
+      harnessArgs(combined, [
+        '--json', path.join(root, 'order-b.json'),
+        '--repeat', '2',
+        '--providers', 'catalog,github',
+      ]),
+    );
+    expect(b.status).toBe(0);
+    expect(githubAnnotationsByClaimRef(only, 1)).toEqual(
+      githubAnnotationsByClaimRef(combined, 1),
+    );
   });
 
   it('refuses to render without a valid generator manifest', () => {

@@ -293,14 +293,17 @@ function featureEnvelopesForClaim(claim: unknown): FeaturePatchEnvelope[] {
           ? feature.ref
           : '';
     // The annotations schema allows only [a-zA-Z0-9/.-]; the index keeps keys
-    // unique even if two features share a name.
+    // unique even if two features share a name. `/` is a legal annotation-key
+    // character but a JSON Pointer separator, so the key must be RFC 6901
+    // escaped (`~` then `/`) before it becomes a path segment.
     const key = `bench-${i}-${name.replace(/[^a-zA-Z0-9/.-]/g, '-')}`;
+    const pointer = key.replace(/~/g, '~0').replace(/\//g, '~1');
     return {
       feature: name,
       patches: [
         {
           op: 'add',
-          path: `/annotations/${key}`,
+          path: `/annotations/${pointer}`,
           value: `${name}@${versionOrRef}`,
         },
       ],
@@ -350,6 +353,23 @@ async function renderProvider(
   emptyRenderedClaims();
   resetLazyLoader();
   setProvider(PROVIDER_ENUM[provider]);
+  // Catalog charts alias `claim.annotations` into their templates, and the
+  // catalog name/backstage patches mutate that aliased object in place, so a
+  // pass would otherwise pollute the claims a later provider renders — making
+  // output depend on provider order. Hand every pass its own deep copy of each
+  // claim payload. The patch sources (initializers, normalizers, overrides,
+  // globals) are stateless w.r.t. the claim — they receive it as an argument —
+  // so they stay shared; only the claim is cloned. Cloning is done here, outside
+  // the timed region, so it never counts toward renderMs.
+  const passData = {
+    ...data,
+    renderClaims: Object.fromEntries(
+      Object.entries(data.renderClaims).map(([key, entry]: [string, any]) => [
+        key,
+        { ...entry, claim: structuredClone(entry.claim) },
+      ]),
+    ),
+  };
   const outDir = path.join(args.out, `run-${run}`, provider);
   const catalogOut = path.join(outDir, 'catalog');
   const crsOut = crsOverride ?? path.join(outDir, 'crs');
@@ -366,10 +386,10 @@ async function renderProvider(
     yamlOutputType: YamlOutputType.FILE_PER_RESOURCE,
   });
   const [rendered, renderMs] = await timed(async () => {
-    const crs = await renderClaims(catalogApp, app, data);
+    const crs = await renderClaims(catalogApp, app, passData);
     const fullCrSet = { ...data.fullCrs, ...crs };
-    validateSubReferences(data.renderClaims);
-    validateComponentPagesPath(data.renderClaims);
+    validateSubReferences(passData.renderClaims);
+    validateComponentPagesPath(passData.renderClaims);
     validateTfStateKeyUniqueness(crs);
     validateCrSizes(crs);
     validatePermissionsUniqueness(crs);

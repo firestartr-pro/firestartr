@@ -155,11 +155,20 @@ it reports numbers, it does not judge them.
 
 Stitching is mocked offline, but not as a no-op: for each claim the mock
 synthesizes one `add` under `/annotations` per declared
-`providers.github.features` entry (schema-valid, non-protected, keyed uniquely).
+`providers.github.features` entry (schema-valid, non-protected, keyed uniquely;
+the key is RFC 6901-escaped before it becomes a JSON Pointer segment, so a `/`
+in a feature name stays an annotation key rather than nesting the value).
 This makes the feature path run its normalization, conflict and apply phases
 instead of short-circuiting on an empty envelope list; feature-free claims get
 no patches. `featureEnvelopes`/`featurePatches` are process totals over the
 whole run, so `0` means the catalog was feature-free or the mock was a no-op.
+
+Each provider pass renders its own deep copy of the claims. Catalog charts alias
+`claim.annotations` into their templates and the catalog patches mutate it in
+place, so without the copy the claims a later provider renders would carry
+catalog-only annotations and a provider's output would depend on `--providers`
+order. The clone runs outside the timed region, so it does not count toward
+`renderMs`.
 
 ## Notes and limitations
 
