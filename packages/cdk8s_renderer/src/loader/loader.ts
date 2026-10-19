@@ -84,7 +84,11 @@ export async function loadGlobals(claim: any): Promise<GlobalSection[]> {
 
         const schema: any = SCHEMAS_BY_SECTION_NAME[name];
 
-        if (schema && !(await section.validate(schema))) {
+        if (
+          schema !== undefined &&
+          schema !== null &&
+          !(await section.validate(schema))
+        ) {
           throw new Error(`Invalid ${name} global file`);
         }
 
@@ -158,11 +162,25 @@ export async function loadNormalizers(
 /*
  * File-based initializers only depend on the claim kind (for the applicability
  * filter) and the initializers directory, not on the specific claim, so their
- * crawl + parse + validation result is memoized per (directory, kind). The
- * non-file initializers below depend on the claim path and are instantiated
- * fresh on every call.
+ * crawl + parse + validation result is memoized per (directory, kind).
+ *
+ * The cache stores definitions (class + parsed YAML data), not instances: a
+ * fresh instance backed by a deep clone is built for every claim. Initializers
+ * may hand their mutable data straight to a CR (see TechnologyInitializer) and
+ * later patches mutate that CR in place, so sharing an instance would leak one
+ * claim's overrides into another claim's defaults. The non-file initializers
+ * below depend on the claim path and are instantiated fresh on every call.
  */
-const FILE_INITIALIZERS_CACHE = new Map<string, InitializerPatches[]>();
+type FileInitializerDefinition = {
+  initializerClass: new (data: any) => InitializerPatches;
+  data: any;
+};
+
+const FILE_INITIALIZERS_CACHE = new Map<string, FileInitializerDefinition[]>();
+
+export function resetFileInitializersCache() {
+  FILE_INITIALIZERS_CACHE.clear();
+}
 
 export async function loadInitializers(
   claim: any,
@@ -171,10 +189,10 @@ export async function loadInitializers(
 ): Promise<InitializerPatches[]> {
   const cacheKey = `${initializersPath}::${claim.kind}`;
 
-  let fileInitializers = FILE_INITIALIZERS_CACHE.get(cacheKey);
+  let fileInitializerDefinitions = FILE_INITIALIZERS_CACHE.get(cacheKey);
 
-  if (!fileInitializers) {
-    const crawled: InitializerPatches[] = [];
+  if (!fileInitializerDefinitions) {
+    const crawled: FileInitializerDefinition[] = [];
 
     await crawl(
       initializersPath,
@@ -197,12 +215,19 @@ export async function loadInitializers(
 
           const schema: any = SCHEMAS_BY_INITIALIZER_NAME[name];
 
-          if (schema && !(await initializerBfN.validate(schema))) {
+          if (
+            schema !== undefined &&
+            schema !== null &&
+            !(await initializerBfN.validate(schema))
+          ) {
             throw new Error(`Invalid ${name} initializer file`);
           }
 
           if (initializerData.kind === claim.kind) {
-            crawled.push(initializerBfN);
+            crawled.push({
+              initializerClass: INITIALIZERS_BY_FILE_NAME[name],
+              data: initializerData,
+            });
           } else {
             log.debug(
               `Skipping initializer ${name} because it is not applicable to ${claim.kind}`,
@@ -212,14 +237,16 @@ export async function loadInitializers(
       },
     );
 
-    fileInitializers = crawled;
+    fileInitializerDefinitions = crawled;
 
-    FILE_INITIALIZERS_CACHE.set(cacheKey, fileInitializers);
+    FILE_INITIALIZERS_CACHE.set(cacheKey, fileInitializerDefinitions);
   }
 
-  // Non-file initializers depend on the claim path, so they are instantiated
-  // fresh on every call instead of being shared.
-  const result: InitializerPatches[] = [...fileInitializers];
+  // Build a fresh instance, and a fresh data graph, for every claim so mutable
+  // defaults are never shared between claims.
+  const result: InitializerPatches[] = fileInitializerDefinitions.map(
+    ({ initializerClass, data }) => new initializerClass(structuredClone(data)),
+  );
 
   for (const initializer of INITIALIZERS) {
     if (initializer.applicableKinds.includes(claim.kind)) {

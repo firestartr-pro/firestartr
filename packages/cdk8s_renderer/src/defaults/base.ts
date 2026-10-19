@@ -54,8 +54,16 @@ export abstract class DefaultSection extends BasePatches {
    *
    */
   async validate(schema: any) {
-    // An empty schema accepts anything; skip compilation entirely.
-    if (!schema || Object.keys(schema).length === 0) {
+    /*
+     * A missing schema or an empty object accepts anything; skip compilation
+     * entirely. Boolean schemas are valid JSON Schemas and must not be
+     * short-circuited: `false` rejects every value, `true` accepts every value.
+     */
+    if (
+      schema === undefined ||
+      schema === null ||
+      (typeof schema === 'object' && Object.keys(schema).length === 0)
+    ) {
       return true;
     }
 
