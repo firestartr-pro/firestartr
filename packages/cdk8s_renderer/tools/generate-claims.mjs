@@ -108,7 +108,8 @@ Options:
                   so tests can use a small tree.
   --seed <n>      PRNG seed; same seed+tier is byte-identical (default: 80)
   --jobs <n>      Concurrent fs-forge spawns (default: 8)
-  --org <name>    GitHub org used in provider fields (default: bench)
+  --org <name>    GitHub org used in provider fields (default: bench).
+                  Lowercase alphanumeric (inner ".", "_", "-"), <= 51 chars.
   --force         Wipe a non-empty --out that lacks the ${MARKER} marker
   --help          Show this help
 
@@ -156,8 +157,21 @@ function parseArgs(argv) {
   if (!Number.isInteger(args.jobs) || args.jobs < 1) {
     throw new Error('--jobs must be a positive integer');
   }
-  if (!/^[a-zA-Z0-9][a-zA-Z0-9._-]*$/.test(args.org)) {
-    throw new Error(`Invalid --org: ${args.org}`);
+  // Match the claim schemas' name/org pattern (fs-forge validates these on
+  // every spawned `create`), and keep `orgsettings-<org>` within the 63-char
+  // claim-name limit (12-char prefix => org <= 51). Validating here, before
+  // the wipe and any spawn, preserves an existing fixture on bad input.
+  if (!/^[a-z0-9]([a-z0-9._-]*[a-z0-9])?$/.test(args.org)) {
+    throw new Error(
+      `Invalid --org: ${args.org}. Must be lowercase alphanumeric with ` +
+        'internal ".", "_" or "-" and start/end alphanumeric.',
+    );
+  }
+  if (`orgsettings-${args.org}`.length > 63) {
+    throw new Error(
+      `Invalid --org: ${args.org} is too long (${args.org.length} chars); ` +
+        '`orgsettings-<org>` must fit within 63 characters (max 51).',
+    );
   }
   return args;
 }

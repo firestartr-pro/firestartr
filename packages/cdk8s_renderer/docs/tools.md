@@ -36,7 +36,7 @@ node packages/cdk8s_renderer/tools/generate-claims.mjs [options]
 | `--tier <n>` | `1000` | Total claim count. Canonical sizes are `100`, `1000`, `10000`; any integer `>= 10` is accepted so tests can use a small tree. |
 | `--seed <n>` | `80` | PRNG seed. The same seed and tier produce a byte-identical tree. |
 | `--jobs <n>` | `8` | Concurrent `fs-forge` spawns. |
-| `--org <name>` | `bench` | GitHub org written into provider fields. |
+| `--org <name>` | `bench` | GitHub org written into provider fields. Must match `^[a-z0-9]([a-z0-9._-]*[a-z0-9])?$` and be at most 51 chars, so the generated `orgsettings-<org>` claim name fits the 63-char limit. Validated before `--out` is wiped, so a bad org never destroys an existing fixture. |
 | `--force` | off | Wipe a non-empty `--out` that lacks the `.bench-owned` marker. |
 | `--help` | | Show usage. |
 
@@ -89,7 +89,7 @@ node packages/cdk8s_renderer/tools/bench-render.cjs [options]
 | `--cpu-prof` | off | Write a V8 CPU profile next to the report (the report's directory is created first). |
 | `--two-pass` | off | Re-render every provider that yields usable Kubernetes CRs, using that provider's first-pass output as previous CRs. |
 | `--force` | off | Wipe a non-empty `--out` that lacks the `.bench-owned` marker. |
-| `--allow-unverified` | off | Do not require a `generator-manifest.json` with a valid `total`; disables the loaded-claim completeness check. |
+| `--allow-unverified` | off | Do not require a readable `generator-manifest.json` with a valid `total`; disables the loaded-claim completeness check. |
 | `--help` | | Show usage. |
 
 Both tools wipe `--out` before writing, and refuse any `--out` that would

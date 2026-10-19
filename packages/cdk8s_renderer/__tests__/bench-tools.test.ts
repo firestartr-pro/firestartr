@@ -112,6 +112,16 @@ function manifestView(name: string, manifest?: unknown): string {
   return claims;
 }
 
+// A claims view whose generator-manifest.json holds unparseable raw content.
+function corruptManifestView(name: string, contents: string): string {
+  const dir = path.join(root, name);
+  fs.mkdirSync(dir, { recursive: true });
+  const claims = path.join(dir, 'claims');
+  if (!fs.existsSync(claims)) fs.symlinkSync(first.claims, claims);
+  fs.writeFileSync(path.join(dir, 'generator-manifest.json'), contents);
+  return claims;
+}
+
 beforeAll(() => {
   first = generate(path.join(root, 'seed-7-a'), 7, 12);
   second = generate(path.join(root, 'seed-7-b'), 7, 12);
@@ -164,6 +174,31 @@ describe('generate-claims tool', () => {
     ]);
     expect(forced.status).toBe(0);
     expect(fs.existsSync(path.join(dir, '.bench-owned'))).toBe(true);
+  });
+
+  it('rejects an --org the claim schemas would refuse, before wiping --out', () => {
+    const badOrgs = [
+      'Bench', // uppercase
+      'bench-', // trailing separator
+      'a'.repeat(52), // orgsettings-<org> would exceed 63 chars (12 + 52)
+    ];
+    badOrgs.forEach((org, i) => {
+      const dir = path.join(root, `org-guard-${i}`);
+      fs.mkdirSync(dir, { recursive: true });
+      fs.writeFileSync(path.join(dir, '.bench-owned'), 'benchmark output\n');
+      fs.writeFileSync(path.join(dir, 'sentinel.txt'), 'keep');
+
+      const result = run([
+        GENERATOR, '--out', dir, '--org', org, '--tier', '10', '--jobs', '2',
+      ]);
+      expect(result.status).not.toBe(0);
+      expect(`${result.stdout}${result.stderr}`).toContain('Invalid --org');
+      // Validation must precede the wipe: the previous fixture survives intact.
+      expect(fs.readFileSync(path.join(dir, 'sentinel.txt'), 'utf-8')).toBe('keep');
+      expect(fs.readdirSync(dir).sort()).toEqual(
+        ['.bench-owned', 'sentinel.txt'],
+      );
+    });
   });
 
   it('never assigns a maintainedBy group equal to owner or platformOwner', () => {
@@ -266,6 +301,7 @@ describe('bench-render tool', () => {
     const views = [
       manifestView('manifest-missing'),
       manifestView('manifest-invalid', { total: 0 }),
+      corruptManifestView('manifest-corrupt', '{"total": 12'),
     ];
     for (const claims of views) {
       const dir = path.dirname(claims);
@@ -287,12 +323,19 @@ describe('bench-render tool', () => {
   });
 
   it('renders unverified inputs only with --allow-unverified', () => {
-    const views: [string, unknown][] = [
-      ['allow-missing', undefined],
-      ['allow-invalid', { total: 0 }],
+    const views: [string, string][] = [
+      ['allow-missing', ''],
+      ['allow-invalid', 'invalid'],
+      ['allow-corrupt', 'corrupt'],
     ];
-    for (const [name, manifest] of views) {
-      const claims = manifestView(name, manifest);
+    for (const [name, kind] of views) {
+      const claims =
+        kind === 'corrupt'
+          ? corruptManifestView(name, '{"total": 12')
+          : manifestView(
+              name,
+              kind === 'invalid' ? { total: 0 } : undefined,
+            );
       const out = path.join(root, `${name}-out`);
       const json = path.join(root, `${name}-report.json`);
       const result = run(

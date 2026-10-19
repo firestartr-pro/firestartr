@@ -141,7 +141,7 @@ Options:
   --cpu-prof                Write a V8 CPU profile next to the report
   --two-pass                Render once, then re-render with the produced CRs as previous CRs
   --force                   Wipe a non-empty --out that lacks the ${MARKER} marker
-  --allow-unverified        Do not require a generator-manifest.json with a valid total
+  --allow-unverified        Do not require a readable generator-manifest.json with a valid total
   --help                    Show this help`;
 
 const PROVIDER_ENUM: Record<string, AllowedProviders> = {
@@ -404,27 +404,36 @@ async function main(): Promise<void> {
   let expected: number | null = null;
   let seed: number | null = null;
   let tier: number | null = null;
-  let manifest: { total?: unknown; seed?: unknown; tier?: unknown } | null = null;
+  let manifest: { total?: unknown; seed?: unknown; tier?: unknown } | null =
+    null;
   if (fs.existsSync(manifestPath)) {
     try {
       manifest = JSON.parse(fs.readFileSync(manifestPath, 'utf-8'));
     } catch (err) {
-      throw new Error(
-        `Refusing to benchmark: unreadable generator manifest at ${manifestPath}: ` +
-          `${err instanceof Error ? err.message : String(err)}. ` +
-          'Pass --allow-unverified to benchmark without it.',
-      );
+      if (!args.allowUnverified) {
+        throw new Error(
+          `Refusing to benchmark: unreadable generator manifest at ${manifestPath}: ` +
+            `${err instanceof Error ? err.message : String(err)}. ` +
+            'Pass --allow-unverified to benchmark without it.',
+        );
+      }
+      manifest = null;
     }
   }
   const total: unknown = manifest?.total;
-  if (manifest && typeof total === 'number' && Number.isInteger(total) && total > 0) {
+  if (
+    manifest &&
+    typeof total === 'number' &&
+    Number.isInteger(total) &&
+    total > 0
+  ) {
     expected = total;
     seed = typeof manifest.seed === 'number' ? manifest.seed : null;
     tier = typeof manifest.tier === 'number' ? manifest.tier : null;
   } else if (!args.allowUnverified) {
     throw new Error(
       manifest
-        ? `Refusing to benchmark: invalid generator manifest total ` +
+        ? 'Refusing to benchmark: invalid generator manifest total ' +
             `(${JSON.stringify(manifest.total)}) in ${manifestPath}. ` +
             'Pass --allow-unverified to benchmark without it.'
         : `Refusing to benchmark: no generator manifest at ${manifestPath}. ` +
