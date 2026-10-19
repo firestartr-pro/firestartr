@@ -147,9 +147,11 @@ times, the rendered-CR counts, and peak RSS. The JSON report contains:
 - `twoPassSkipped`, and the raw `rawRuns`.
 
 The harness makes only two correctness assertions: every provider's render is
-clean (no validation errors) and `loadedClaims` equals the generator's
-`total`. There are no golden files and no timing thresholds — it reports
-numbers, it does not judge them.
+clean (no validation errors) and every run's `loadedClaims` — warm-up included —
+equals the generator's `total`. A mismatch aborts immediately after that run's
+load, before an incomplete set is rendered or reaches the timing statistics,
+so no report is written. There are no golden files and no timing thresholds —
+it reports numbers, it does not judge them.
 
 Stitching is mocked offline, but not as a no-op: for each claim the mock
 synthesizes one `add` under `/annotations` per declared

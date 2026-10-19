@@ -356,6 +356,32 @@ describe('bench-render tool', () => {
     }
   });
 
+  it('checks every run against the manifest total, including the warm-up', () => {
+    // The real fixture loads 12 claims per run; a manifest total of 13 makes
+    // run 0 (the warm-up, which the old measured[0]-only guard never saw)
+    // fail its check, so the harness must abort before any run is timed.
+    const claims = manifestView('manifest-mismatch', { total: 13 });
+    const dir = path.dirname(claims);
+    const out = path.join(root, 'mismatch-out');
+    const json = path.join(root, 'mismatch-report.json');
+    const result = run(
+      harnessArgsWithClaims(claims, out, [
+        '--json', json,
+        '--repeat', '2',
+        '--providers', 'catalog',
+      ]),
+    );
+    expect(result.status).not.toBe(0);
+    expect(`${result.stdout}${result.stderr}`).toContain(
+      'Correctness guard failed: run 0 loaded 12 claims, expected 13',
+    );
+    expect(fs.existsSync(json)).toBe(false);
+    // The harness wipes + marks --out before the loop, but aborts on run 0,
+    // so no per-run output directories are ever created.
+    expect(fs.existsSync(out)).toBe(true);
+    expect(fs.readdirSync(out)).toEqual(['.bench-owned']);
+  });
+
   it('refuses an --out that contains one of its inputs', () => {
     // first.dir holds claims/, globals/, initializers/, .config/, crs/: using it
     // as --out would delete every input before discovery.

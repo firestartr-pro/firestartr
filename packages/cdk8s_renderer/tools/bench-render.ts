@@ -5,7 +5,7 @@
 // RSS measurement and optional CPU profiling. Fully offline: stitching and feature overrides
 // are mocked and no credentials are read. It never compares against golden
 // output; the only correctness guard is that rendering validates cleanly and
-// the loaded-claim count matches the generator manifest.
+// every run's loaded-claim count matches the generator manifest.
 //
 // Run from the repo root:
 //   node packages/cdk8s_renderer/tools/bench-render.cjs [options]
@@ -513,6 +513,13 @@ async function main(): Promise<void> {
       loadClaimsList(refGen(), args.claims),
     );
     const loadedClaims = Object.keys(data.renderClaims).length;
+    // Check every run (warm-up included) right after its load, before an
+    // incomplete set can be rendered or reach the timing statistics.
+    if (expected !== null && loadedClaims !== expected) {
+      throw new Error(
+        `Correctness guard failed: run ${run} loaded ${loadedClaims} claims, expected ${expected}`,
+      );
+    }
 
     const providers: Record<string, ProviderTiming> = {};
     for (const p of args.providers) {
@@ -663,12 +670,6 @@ async function main(): Promise<void> {
       `peakRss=${(report.peakRssBytes / 1024 / 1024).toFixed(0)}MB (process high-water)`,
   );
   console.log(`Report written to ${args.json}`);
-
-  if (expected !== null && report.loadedClaims !== expected) {
-    throw new Error(
-      `Correctness guard failed: loaded ${report.loadedClaims} claims, expected ${expected}`,
-    );
-  }
 }
 
 main().catch((err) => {
