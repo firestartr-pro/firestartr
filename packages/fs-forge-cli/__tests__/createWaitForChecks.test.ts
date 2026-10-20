@@ -1,19 +1,9 @@
-import {
-  afterEach,
-  beforeAll,
-  describe,
-  expect,
-  it,
-  jest,
-} from '@jest/globals';
-import { Command, Config } from '@oclif/core';
-import { captureOutput } from '@oclif/test';
+import { afterEach, beforeAll, describe, expect, it, jest } from '@jest/globals';
 
 jest.mock('../src/github/index', () => ({
   createGitHubApi: jest.fn(),
 }));
 
-import { createGitHubApi } from '../src/github/index';
 import CreateArgodeploy from '../src/commands/create/argodeploy';
 import CreateComponent from '../src/commands/create/component';
 import CreateDomain from '../src/commands/create/domain';
@@ -24,45 +14,15 @@ import CreateSecrets from '../src/commands/create/secrets';
 import CreateSystem from '../src/commands/create/system';
 import CreateTfworkspace from '../src/commands/create/tfworkspace';
 import CreateUser from '../src/commands/create/user';
-import { MemoryGitHubApi } from './fixtures/memoryGitHubApi';
+import {
+  FAILURE_CHECK,
+  SUCCESS_CHECK,
+  WET_PR_NUMBER,
+  mockCommitApi,
+  runCommand,
+} from './fixtures/waitForChecks';
 
-import type { CheckRunSummary, PullRequestSummary } from '../src/github/api';
-
-const ROOT = process.cwd();
 const ORIGINAL_ORG = process.env.FSCRT_ORG;
-const MockCreateGitHubApi = createGitHubApi as unknown as jest.Mock;
-
-const MATCHING_PR: PullRequestSummary = {
-  number: 42,
-  htmlUrl: 'https://github.com/my-org/custom-state/pull/42',
-  state: 'open',
-  headRef: 'automated-component-example',
-  baseSha: 'base-sha',
-  updatedAt: '2026-01-01T00:00:00Z',
-};
-
-const SUCCESS_CHECK: CheckRunSummary = {
-  name: 'plan',
-  conclusion: 'success',
-  status: 'completed',
-  output: {
-    title: null,
-    summary: 'ComponentClaim/example: success',
-    text: null,
-  },
-  htmlUrl: 'https://github.com/my-org/custom-state/checks/1',
-};
-
-const FAILURE_CHECK: CheckRunSummary = {
-  ...SUCCESS_CHECK,
-  name: 'apply',
-  conclusion: 'failure',
-  output: {
-    title: null,
-    summary: 'ComponentClaim/example: failure',
-    text: null,
-  },
-};
 
 interface CreateCommandLike {
   flags: Record<string, { type?: string }>;
@@ -81,9 +41,6 @@ const CREATE_COMMANDS: Array<[string, CreateCommandLike]> = [
   ['user', CreateUser as unknown as CreateCommandLike],
 ];
 
-type CommandClass = typeof Command &
-  (new (argv: string[], config: Config) => Command);
-
 function componentArgs(): string[] {
   return (
     CreateComponent.examples[0]
@@ -92,59 +49,12 @@ function componentArgs(): string[] {
   );
 }
 
-async function run(command: CommandClass, ...flags: string[]) {
-  const previousExitCode = process.exitCode;
-  process.exitCode = undefined;
-  try {
-    return await captureOutput(async () => {
-      await command.run(flags, { root: ROOT });
-      return 0;
-    });
-  } finally {
-    process.exitCode = previousExitCode;
-  }
-}
-
-function mockCommitApi(
-  options: {
-    prs?: PullRequestSummary[];
-    checkRuns?: CheckRunSummary[];
-  } = {},
-): MemoryGitHubApi {
-  const api = new MemoryGitHubApi();
-  api.autoCompleteDispatches = true;
-  const claims = { owner: 'my-org', repo: 'claims' };
-  api.setDefaultBranch(claims, 'main');
-  api.setBranchHeadSha(claims, 'main', 'base-sha');
-  api.setFile(
-    claims,
-    'claims-map.json',
-    JSON.stringify({ headers: { sha: 'map-sha' }, claims: {} }),
-    'map-file-sha',
-  );
-
-  for (const repo of ['custom-state', 'state-github', 'state-infra']) {
-    const ref = { owner: 'my-org', repo };
-    api.setPullRequests(ref, options.prs ?? [MATCHING_PR]);
-    if (options.checkRuns !== undefined) {
-      api.setCheckRuns(
-        ref,
-        MATCHING_PR.number,
-        options.checkRuns,
-      );
-    }
-  }
-
-  MockCreateGitHubApi.mockReturnValue(api);
-  return api;
-}
-
 beforeAll(() => {
   delete process.env.FSCRT_ORG;
 });
 
 afterEach(() => {
-  MockCreateGitHubApi.mockClear();
+  jest.clearAllMocks();
   process.exitCode = 0;
   if (ORIGINAL_ORG === undefined) {
     delete process.env.FSCRT_ORG;
@@ -175,14 +85,14 @@ describe('create --wait-for-checks forwarding', () => {
       'my-org/custom-state',
     );
 
-    const { result, stderr } = await run(CreateComponent, ...args);
+    const { error, stderr } = await runCommand(CreateComponent, args);
 
-    expect(result).toBe(0);
+    expect(error).toBeUndefined();
     expect(api.calls).toContain(
       'listOpenPullRequests my-org/custom-state:automated',
     );
     expect(api.calls).toContain(
-      `listCheckRunsForPullRequest my-org/custom-state#${MATCHING_PR.number}`,
+      `listCheckRunsForPullRequest my-org/custom-state#${WET_PR_NUMBER}`,
     );
     expect(stderr).toContain('Watching wet PR my-org/custom-state#42...');
     expect(stderr).toContain('All checks passed');
@@ -193,9 +103,9 @@ describe('create --wait-for-checks forwarding', () => {
     const args = componentArgs();
     args.push('--commit', '--org', 'my-org', '--wait-for-checks');
 
-    const { result, stderr } = await run(CreateComponent, ...args);
+    const { error, stderr } = await runCommand(CreateComponent, args);
 
-    expect(result).toBe(0);
+    expect(error).toBeUndefined();
     expect(api.calls).toContain(
       'listOpenPullRequests my-org/state-github:automated',
     );
@@ -210,14 +120,34 @@ describe('create --wait-for-checks forwarding', () => {
     );
   });
 
-  it('does not watch checks when --wait-for-checks is absent', async () => {
+  it('watches the wet PR checks by default', async () => {
+    const api = mockCommitApi({ checkRuns: [SUCCESS_CHECK] });
+    const args = componentArgs();
+    args.push(
+      '--commit',
+      '--org',
+      'my-org',
+      '--state-repos',
+      'my-org/custom-state',
+    );
+
+    const { error, stderr } = await runCommand(CreateComponent, args);
+
+    expect(error).toBeUndefined();
+    expect(api.calls).toContain(
+      `listCheckRunsForPullRequest my-org/custom-state#${WET_PR_NUMBER}`,
+    );
+    expect(stderr).toContain('All checks passed');
+  });
+
+  it('does not watch checks with --no-wait-for-checks', async () => {
     const api = mockCommitApi();
     const args = componentArgs();
-    args.push('--commit', '--org', 'my-org');
+    args.push('--commit', '--org', 'my-org', '--no-wait-for-checks');
 
-    const { result } = await run(CreateComponent, ...args);
+    const { error } = await runCommand(CreateComponent, args);
 
-    expect(result).toBe(0);
+    expect(error).toBeUndefined();
     expect(
       api.calls.some((call) => call.startsWith('listOpenPullRequests')),
     ).toBe(false);
@@ -238,7 +168,7 @@ describe('create --wait-for-checks forwarding', () => {
       'my-org/custom-state',
     );
 
-    const { error } = await run(CreateComponent, ...args);
+    const { error } = await runCommand(CreateComponent, args);
 
     expect(error?.message).toContain('Wet PR checks failed: failure');
   });

@@ -1,4 +1,11 @@
-import { afterEach, beforeAll, describe, expect, it, jest } from '@jest/globals';
+import {
+  afterEach,
+  beforeAll,
+  describe,
+  expect,
+  it,
+  jest,
+} from '@jest/globals';
 import { captureOutput } from '@oclif/test';
 
 jest.mock('../src/github/index', () => ({
@@ -32,7 +39,12 @@ function mockClient(opts?: { dispatchError?: string }) {
   for (const owner of ['my-org', 'env-org']) {
     const ref = { owner, repo: 'claims' };
     api.setDefaultBranch(ref, 'main');
-    api.setFile(ref, 'claims-map.json', JSON.stringify(CLAIMS_MAP), 'map-file-sha');
+    api.setFile(
+      ref,
+      'claims-map.json',
+      JSON.stringify(CLAIMS_MAP),
+      'map-file-sha',
+    );
   }
   if (opts?.dispatchError) {
     api.dispatchWorkflow = async () => {
@@ -88,10 +100,9 @@ describe('fs-forge delete', () => {
     it('validates claim exists and prints planned dispatch', async () => {
       mockClient();
       const { result, stderr } = await captureOutput(async () => {
-        await Delete.run(
-          ['component', 'my-component', '--org', 'my-org'],
-          { root: ROOT },
-        );
+        await Delete.run(['component', 'my-component', '--org', 'my-org'], {
+          root: ROOT,
+        });
         return 0;
       });
 
@@ -100,16 +111,14 @@ describe('fs-forge delete', () => {
       expect(stderr).toContain('claimType: ComponentClaim');
       expect(stderr).toContain('claimName: my-component');
       expect(stderr).toContain('includeVariants: true');
-      expect(stderr).toContain('waitForClaimChecks: false');
     });
 
     it('fails when claim does not exist', async () => {
       mockClient();
       const result = await captureOutput(() =>
-        Delete.run(
-          ['component', 'nonexistent', '--org', 'my-org'],
-          { root: ROOT },
-        ),
+        Delete.run(['component', 'nonexistent', '--org', 'my-org'], {
+          root: ROOT,
+        }),
       );
 
       expect(result.error?.message).toContain('Claim not found');
@@ -143,7 +152,19 @@ describe('fs-forge delete', () => {
       expect(stderr).toContain('includeVariants: false');
     });
 
-    it('respects --wait-for-checks in dry-run output', async () => {
+    it('waits for claim checks by default in dry-run output', async () => {
+      mockClient();
+      const { stderr } = await captureOutput(async () => {
+        await Delete.run(['component', 'my-component', '--org', 'my-org'], {
+          root: ROOT,
+        });
+        return 0;
+      });
+
+      expect(stderr).toContain('waitForClaimChecks: true');
+    });
+
+    it('respects --no-wait-for-checks in dry-run output', async () => {
       mockClient();
       const { stderr } = await captureOutput(async () => {
         await Delete.run(
@@ -152,14 +173,14 @@ describe('fs-forge delete', () => {
             'my-component',
             '--org',
             'my-org',
-            '--wait-for-checks',
+            '--no-wait-for-checks',
           ],
           { root: ROOT },
         );
         return 0;
       });
 
-      expect(stderr).toContain('waitForClaimChecks: true');
+      expect(stderr).toContain('waitForClaimChecks: false');
     });
   });
 
@@ -187,7 +208,7 @@ describe('fs-forge delete', () => {
           claimName: 'my-component',
           correlationId: expect.any(String),
           includeVariants: true,
-          waitForClaimChecks: false,
+          waitForClaimChecks: true,
         },
       });
       expect(stderr).toContain('Unprovisioning...');
@@ -210,10 +231,7 @@ describe('fs-forge delete', () => {
 
     it('requires --org when committing', async () => {
       const result = await captureOutput(() =>
-        Delete.run(
-          ['component', 'my-component', '--commit'],
-          { root: ROOT },
-        ),
+        Delete.run(['component', 'my-component', '--commit'], { root: ROOT }),
       );
 
       expect(result.error?.message).toContain('--org or FSCRT_ORG is required');
@@ -223,10 +241,9 @@ describe('fs-forge delete', () => {
       process.env.FSCRT_ORG = 'env-org';
       const api = mockClient();
       const { result } = await captureOutput(async () => {
-        await Delete.run(
-          ['component', 'my-component', '--commit'],
-          { root: ROOT },
-        );
+        await Delete.run(['component', 'my-component', '--commit'], {
+          root: ROOT,
+        });
         return 0;
       });
 
@@ -260,12 +277,12 @@ describe('fs-forge delete', () => {
           claimType: 'TFWorkspaceClaim',
           claimName: 'my-tf',
           includeVariants: false,
-          waitForClaimChecks: false,
+          waitForClaimChecks: true,
         }),
       );
     });
 
-    it('passes --wait-for-checks to the dispatch', async () => {
+    it('passes --no-wait-for-checks to the dispatch', async () => {
       const api = mockClient();
       const { result } = await captureOutput(async () => {
         await Delete.run(
@@ -274,7 +291,7 @@ describe('fs-forge delete', () => {
             'my-component',
             '--org',
             'my-org',
-            '--wait-for-checks',
+            '--no-wait-for-checks',
             '--commit',
           ],
           { root: ROOT },
@@ -288,7 +305,7 @@ describe('fs-forge delete', () => {
           claimType: 'ComponentClaim',
           claimName: 'my-component',
           includeVariants: true,
-          waitForClaimChecks: true,
+          waitForClaimChecks: false,
         }),
       );
     });
