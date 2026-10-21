@@ -149,6 +149,7 @@ env_args=(
   -u GITHUB_TOKEN -u GH_TOKEN -u GITHUB_ENTERPRISE_TOKEN -u GH_ENTERPRISE_TOKEN -u FSCRT_ORG
   "FS_FORGE_FEATURE_CACHE_DIR=$work/.feature-cache"
   "XDG_CACHE_HOME=$work/.xdg/cache" "XDG_CONFIG_HOME=$work/.xdg/config" "XDG_DATA_HOME=$work/.xdg/data"
+  "FS_FORGE_CONFIG=$work/.xdg/config/fs-forge/config.yaml"
   "PATH=$work/.xdg/bin:$PATH"
   "FSF_CANARY=$canary" "FSF_CANARY_LOG=$evid/net.log"
   "NODE_OPTIONS=--require \"$FSF_CANARY_JS\""
