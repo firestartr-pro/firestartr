@@ -78,6 +78,15 @@ export interface TestContext {
     basePath?: string,
   ) => Promise<boolean>;
   createInitializers: (initializers: JsonDocument) => void;
+  /** Writes `<name>.yaml` into the managed initializers directory. */
+  addInitializerFixture: (name: string, data: JsonDocument) => void;
+  /** JSON-patches an existing `<name>.yaml` in the managed initializers directory. */
+  updateInitializerFixture: (
+    name: string,
+    patches: JsonPatchOperation[],
+  ) => void;
+  /** Removes `<name>.yaml` from the managed initializers directory. */
+  removeInitializerFixture: (name: string) => void;
 }
 
 export async function createTestContext(
@@ -368,6 +377,32 @@ async function createTestDir(
 
         common.io.toYaml(initializers),
       );
+    },
+
+    addInitializerFixture(name: string, data: JsonDocument) {
+      fsSync.writeFileSync(
+        path.join(configDir, 'initializers', `${name}.yaml`),
+
+        common.io.toYaml(data),
+      );
+    },
+
+    updateInitializerFixture(name: string, patches: JsonPatchOperation[]) {
+      const filePath = path.join(configDir, 'initializers', `${name}.yaml`);
+
+      const content = fsSync.readFileSync(filePath, 'utf-8');
+
+      fsSync.writeFileSync(
+        filePath,
+
+        common.io.toYaml(
+          fjp.applyPatch(common.io.fromYaml(content), patches).newDocument,
+        ),
+      );
+    },
+
+    removeInitializerFixture(name: string) {
+      fsSync.rmSync(path.join(configDir, 'initializers', `${name}.yaml`));
     },
   };
 }
