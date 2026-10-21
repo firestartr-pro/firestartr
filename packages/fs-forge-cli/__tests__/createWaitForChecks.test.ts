@@ -191,6 +191,31 @@ describe('create --wait-for-checks forwarding', () => {
     expect(stderr).not.toContain('skipping check watch');
   });
 
+  it('checks a merged PR even when another state repo has a successful open PR', async () => {
+    const api = mockCommitApi({ checkRuns: [SUCCESS_CHECK] });
+    const infra = { owner: 'my-org', repo: 'state-infra' };
+    api.setPullRequests(infra, []);
+    api.setSearchResults(infra, [{ path: 'cr.yaml', name: 'cr.yaml' }]);
+    api.setFile(infra, 'cr.yaml', [
+      'kind: FirestartrTerraformWorkspace',
+      'metadata:',
+      '  name: example',
+      '  annotations:',
+      '    firestartr.dev/claim-ref: ComponentClaim/example',
+      '    firestartr.dev/last-state-pr: state-infra#99',
+    ].join('\n'));
+    api.setCheckRuns(infra, 99, [FAILURE_CHECK]);
+
+    const { error, stderr } = await runCommand(CreateComponent, [
+      ...componentArgs(), '--commit', '--org', 'my-org',
+    ]);
+
+    expect(error?.message).toContain('Wet PR checks failed: failure');
+    expect(stderr).toContain('Watching wet PR my-org/state-github#42...');
+    expect(stderr).toContain('Watching wet PR my-org/state-infra#99...');
+    expect(stderr).not.toContain('All checks passed');
+  });
+
   it('fails when reconciliation checks fail behind a successful cleanup PR', async () => {
     const api = mockCommitApi({ checkRuns: [SUCCESS_CHECK] });
     const state = { owner: 'my-org', repo: 'custom-state' };

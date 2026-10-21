@@ -25,16 +25,20 @@ export async function watchWetPrChecks(
   diagnostic: (line: string) => void,
 ): Promise<void> {
   const repos = parseStateRepos(watch.stateRepos, ref.owner);
-  const wetPr = await findWetPr(api, repos, watch.claimType, watch.claimName);
-
   const targets = new Map<string, LastStatePrRedirect>();
-  if (wetPr) {
-    const target = wetPr.lastStatePrRedirect ?? wetPr;
-    targets.set(`${target.repo}#${target.number}`, target);
-  } else {
-    // Provisioning can merge the wet PR before it completes. The rendered CRs
-    // retain its identity even when it is no longer in the open-PR listing.
-    for (const repo of repos) {
+  for (const repo of repos) {
+    const wetPr = await findWetPr(
+      api,
+      [repo],
+      watch.claimType,
+      watch.claimName,
+    );
+    if (wetPr) {
+      const target = wetPr.lastStatePrRedirect ?? wetPr;
+      targets.set(`${target.repo}#${target.number}`, target);
+    } else {
+      // Provisioning can merge the wet PR before it completes. The rendered CRs
+      // retain its identity even when it is no longer in the open-PR listing.
       const crs = await findCrOnMainBranch(
         api,
         repo,
