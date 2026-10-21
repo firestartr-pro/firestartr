@@ -18,7 +18,7 @@
 Preconditions: `LAUNCH OK`, `FSF_RUN` exported. Offline mode. The CLI reads the config from the drive's `.xdg/config`, so seed one there: `--seed $C/<name>.yaml=.xdg/config/fs-forge/config.yaml`. Write the configs under `C="$FSF_RUN/seeds"`. Their `paths` hold `$(cd "$FSF_RUN" && pwd -P)`; macOS resolves `/var` to `/private/var`, and a path holds every drive's work dir under it.
 
 - **Match.** Seed `organizations: [{name: acme, paths: ["<run>"]}]`. Run `$V/drive.sh --label ctx-match --stub-token --allow-connect registry.npmjs.org:443 --seed ... -- context --json`. Exit 0. `stdout.txt` has `"org": "acme"`, `"source": "config"`, `"matchedPath"` equal to the path, repos `acme/claims`, `acme/state-github`, `acme/state-infra`, `acme/catalog`, `"latest": null` and `"auth": {"source": "GITHUB_TOKEN"}`.
-- **Errors.** With `--expect-exit 1`, the `error.code` in `stdout.txt` is:
+- **Errors.** With `--expect-exit 1`, the `error.code` in `stderr.txt` is:
   - `NO_CONFIG` with no seed;
   - `NO_CONFIG` with the old shape `organization: {name: acme}`;
   - `NO_MATCH` with `paths: ["/nowhere/acme"]`;
