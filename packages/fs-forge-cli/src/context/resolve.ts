@@ -160,6 +160,17 @@ export function contextRepos({
   };
 }
 
+export function parseStateRepos(
+  stateReposFlag: string | undefined,
+  org: string,
+): string[] {
+  if (!stateReposFlag) {
+    const repos = reposForOrganization(org);
+    return [repos.stateGithub, repos.stateInfra];
+  }
+  return stateReposFlag.split(',').map((repo) => repo.trim());
+}
+
 export function resolveClaimsRepository(
   org: string,
   repoName?: string,

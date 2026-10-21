@@ -4,13 +4,16 @@ import { claimsRepo } from '../claims/claimsRepo.js';
 
 import type { ClaimsRepo } from '../claims/claimsRepo.js';
 import { createGitHubApi } from '../github/index.js';
-import { resolveClaimsRepository } from '../context/resolve.js';
+import {
+  parseStateRepos,
+  resolveClaimsRepository,
+} from '../context/resolve.js';
 import {
   pointInTimeCheck,
   watchCheckRuns,
   type AggregatedCheckResult,
 } from '../claims/checkRuns.js';
-import { parseStateRepos, findWetPr, type WetPrInfo } from '../claims/wetPr.js';
+import { findWetPr, type WetPrInfo } from '../claims/wetPr.js';
 import { ORG_FLAG, requireOrg } from '../mutations/support.js';
 import { resolveClaimReference } from '../claims/kindRegistry.js';
 import {

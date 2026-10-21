@@ -1,6 +1,6 @@
 import { claimExists } from '../claims/claimsMap.js';
 import { loadClaimsMap, publishClaim } from '../claims/claimsRepo.js';
-import { findWetPr, parseStateRepos } from '../claims/wetPr.js';
+import { findWetPr } from '../claims/wetPr.js';
 import { watchCheckRuns } from '../claims/checkRuns.js';
 import { waitForDispatch } from '../utils/waitForDispatch.js';
 
@@ -16,7 +16,7 @@ export interface ClaimPublishRequest {
   existingSha?: string;
   noWait: boolean;
   waitForChecks: boolean;
-  stateRepos?: string;
+  stateRepos: string[];
   /** Create only: reject a claim that already exists in the claims map. */
   rejectExistingClaim?: boolean;
 }
@@ -82,8 +82,7 @@ export async function publishClaimAndWait(
   });
 
   if (waitForChecks && !noWait) {
-    const repos = parseStateRepos(stateRepos, repo.ref.owner);
-    const wetPr = await findWetPr(repo.api, repos, kind, name);
+    const wetPr = await findWetPr(repo.api, stateRepos, kind, name);
 
     if (wetPr) {
       pulse.diagnostic(`Watching wet PR ${wetPr.repo}#${wetPr.number}...\n`);

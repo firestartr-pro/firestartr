@@ -1,5 +1,3 @@
-import { reposForOrganization } from '../context/resolve.js';
-
 import type { GitHubApi, RepoRef } from '../github/api.js';
 
 export interface WetPrInfo {
@@ -44,17 +42,6 @@ function contentMatchesClaim(
 ): boolean {
   const ref = `${claimType}/${claimName}`;
   return content.includes(ref);
-}
-
-export function parseStateRepos(
-  stateReposFlag: string | undefined,
-  org: string,
-): string[] {
-  if (!stateReposFlag) {
-    const repos = reposForOrganization(org);
-    return [repos.stateGithub, repos.stateInfra];
-  }
-  return stateReposFlag.split(',').map((r) => r.trim());
 }
 
 export async function findWetPr(

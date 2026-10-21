@@ -1,9 +1,11 @@
 import { claimsRepo } from '../claims/claimsRepo.js';
 import { deterministicPath } from '../claims/deterministicPath.js';
-import { parseStateRepos } from '../claims/wetPr.js';
 import { serializeClaim } from '../claims/keyOrdering.js';
 import { createGitHubApi } from '../github/index.js';
-import { resolveClaimsRepository } from '../context/resolve.js';
+import {
+  parseStateRepos,
+  resolveClaimsRepository,
+} from '../context/resolve.js';
 import { publishClaimAndWait } from './publish.js';
 import { requireOrg } from './support.js';
 
@@ -17,7 +19,7 @@ export interface ClaimCreationOptions {
   commit?: boolean;
   noWait?: boolean;
   waitForChecks?: boolean;
-  stateRepos?: string;
+  stateRepos?: string[];
   path?: string;
   writeOutput: (output: string) => void;
   writeDiagnostic: (output: string) => void;
@@ -68,7 +70,7 @@ export async function runClaimCreation(
         path: destinationPath,
         noWait,
         waitForChecks,
-        stateRepos: parseStateRepos(stateRepos, orgName).join(','),
+        stateRepos: stateRepos ?? parseStateRepos(undefined, orgName),
         rejectExistingClaim: true,
       },
       { output: writeOutput, diagnostic: writeDiagnostic },
