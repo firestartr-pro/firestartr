@@ -59,11 +59,15 @@ Decisions taken together with the move:
 
 5. **The file contract is unchanged.** Path (`/tmp/diagnostic`) and YAML shape
    (env, queue, slots, semaphore, errors, crds) stay byte-compatible for
-   existing readers. The CRD view now latches the set of missing plurals on the
-   first snapshot that actually reports a missing CRD, instead of on the first
-   snapshot ever written: because the first snapshot can now precede the CRD
-   monitors, latching an empty set would let a CRD that was missing at startup
-   look observed forever after it gets installed.
+   existing readers. The CRD view is now derived from every retained monitor
+   registration instead of from a sample of the active monitors: because the
+   first snapshot can precede the CRD monitors, sampling `isStarted()` would let
+   a monitor that starts and stops between two ticks - or registers after the
+   first snapshot - leave its kind reported as `observed`. A retained
+   registration means the kind had no informer attached at startup, and
+   `crdMonitor` never reattaches one without an operator restart, so the kind
+   must stay out of `crds.observed` for the whole process lifetime. `crds.missing`
+   still lists only the monitors that are actively waiting for their CRD.
 
 Alternatives considered and rejected:
 

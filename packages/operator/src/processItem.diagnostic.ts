@@ -35,11 +35,6 @@ export interface DiagnosticQueueSnapshot {
 }
 
 let _diagnosticTimer: ReturnType<typeof setInterval> | undefined;
-// Capture the set of CRD plurals that were missing when diagnostics began.
-// Once recorded, observedKinds will permanently exclude kinds whose plural
-// was missing at startup so that CRDs applied later while the operator is
-// running do not retroactively appear in the observed list.
-let _initialMissingPlurals: Set<string> | undefined;
 
 /**
  * Reads `OPERATOR_DIAGNOSTIC_INTERVAL_SECONDS`, falling back to the default for
@@ -176,28 +171,37 @@ async function writeDiagnosticSnapshot(
   const envGithubAppId = process.env.GITHUB_APP_ID || '';
   const envTfmSkipGitConfig = process.env.TFM_SKIP_GIT_CONFIG || 'false';
 
-  // CRD diagnostics: observed kinds (from OPERATOR_KIND_LIST) and missing CRDs
-  // missing CRDs are derived from the runtime __crdMonitors map; any monitor
-  // that is started indicates an actively-missing CRD that is being watched.
+  // CRD diagnostics: observed kinds (from OPERATOR_KIND_LIST) and missing CRDs.
+  // `__crdMonitors` keeps one registration per kind whose CRD was absent when
+  // observeKind ran, and a stopped monitor stays registered (crdMonitor only
+  // flips isStarted). Such a kind has no informer attached until the operator is
+  // restarted, so it must never be reported as observed. Deriving the
+  // exclusions from the retained registrations - not from a sampled isStarted()
+  // state - keeps a kind excluded when its monitor starts and stops between two
+  // ticks, or registers after the first snapshot.
   const observedKindsRaw = envKindList
     .split(',')
     .map((s) => s.trim())
     .filter((s) => s.length > 0);
 
   const missingCrds: string[] = [];
+  const registeredPlurals = new Set<string>();
   try {
     const monitors = (global as any).__crdMonitors as
       | Map<string, any>
       | undefined;
     if (monitors && typeof monitors === 'object') {
       for (const [key, monitor] of monitors) {
+        // key shape is namespace/plural (reflector uses `${namespace}/${plural}`)
+        const plural = String(key).split('/').pop()?.toLowerCase();
+        if (plural) registeredPlurals.add(plural);
+
         try {
           if (
             monitor &&
             typeof monitor.isStarted === 'function' &&
             monitor.isStarted()
           ) {
-            // key shape is namespace/plural (reflector uses `${namespace}/${plural}`)
             missingCrds.push(String(key));
           }
         } catch (e) {
@@ -209,17 +213,8 @@ async function writeDiagnosticSnapshot(
     // defensive: do not fail diagnostic writing if globals are not present
   }
 
-  // Compute the set of plurals that were missing when diagnostics started.
-  // We only capture this once so that CRDs installed while the operator
-  // is running do not cause previously-missing kinds to become observed.
-  if (!_initialMissingPlurals && missingCrds.length > 0) {
-    _initialMissingPlurals = new Set(
-      missingCrds.map((k) => String(k).split('/').pop()?.toLowerCase() || ''),
-    );
-  }
-
   const observedKinds = observedKindsRaw.filter(
-    (k) => !_initialMissingPlurals?.has(k.toLowerCase()),
+    (k) => !registeredPlurals.has(k.toLowerCase()),
   );
 
   // Build YAML output

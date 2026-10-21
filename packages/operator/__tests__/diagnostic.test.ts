@@ -269,7 +269,7 @@ describe('startDiagnosticFile', () => {
     expect(getDiagnosticTimer()).toBeUndefined();
   });
 
-  it('keeps a CRD that was missing at startup out of the observed kinds', () => {
+  it('keeps a kind out of observed while its CRD monitor is running', () => {
     process.env.OPERATOR_KIND_LIST = 'dummycrs,claimreleases';
     (global as any).__crdMonitors = new Map([
       ['default/dummycrs', { isStarted: () => true }],
@@ -280,16 +280,44 @@ describe('startDiagnosticFile', () => {
     expect(lastWrittenDocument()).toContain(
       'crds:\n  observed:\n    - "claimreleases"\n',
     );
-    expect(lastWrittenDocument()).toContain('  missing:\n    - "default/dummycrs"\n');
+    expect(lastWrittenDocument()).toContain(
+      '  missing:\n    - "default/dummycrs"\n',
+    );
+  });
 
-    // A CRD installed later must not retroactively count as observed.
-    (global as any).__crdMonitors = new Map();
-    stopDiagnosticFile();
+  it('keeps a kind out of observed when its monitor stopped between ticks', () => {
+    process.env.OPERATOR_KIND_LIST = 'dummycrs,claimreleases';
+    // crdMonitor stops after the CRD becomes available but keeps the
+    // registration and never reattaches an informer without a restart.
+    (global as any).__crdMonitors = new Map([
+      ['default/dummycrs', { isStarted: () => false }],
+    ]);
 
     startDiagnosticFile(emptySnapshot, 1, {});
 
     expect(lastWrittenDocument()).toContain(
       'crds:\n  observed:\n    - "claimreleases"\n',
     );
+    expect(lastWrittenDocument()).toContain('  missing:\n');
+  });
+
+  it('excludes a kind whose monitor is registered after the first snapshot', async () => {
+    process.env.OPERATOR_KIND_LIST = 'dummycrs';
+    (global as any).__crdMonitors = new Map();
+
+    startDiagnosticFile(emptySnapshot, 1, {});
+
+    expect(lastWrittenDocument()).toContain('crds:\n  observed:\n    - "dummycrs"\n');
+
+    // The monitor registers later and is already stopped by the next tick.
+    (global as any).__crdMonitors = new Map([
+      ['default/dummycrs', { isStarted: () => false }],
+    ]);
+
+    await jest.advanceTimersByTimeAsync(30_000);
+
+    // Not missing any more (the monitor stopped), but never observed either:
+    // no informer was attached, so the kind needs an operator restart.
+    expect(lastWrittenDocument()).toContain('crds:\n  observed:\n  missing:\n');
   });
 });
