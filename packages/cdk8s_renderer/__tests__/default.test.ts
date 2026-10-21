@@ -43,6 +43,27 @@ describe("The initializers logic", () => {
         ).toEqual(false);
     });
 
+    it("treats boolean schemas as JSON Schemas", async () => {
+        const data: any = common.io.fromYaml(fs.readFileSync(path.join(
+            __dirname, "fixtures/defaults/correct_default.yaml"
+        ), "utf-8").toString());
+
+        const globalDefaults: GlobalDefault = new GlobalDefault(data);
+        const initializerDefaults: InitializerDefault = new InitializerDefault(data);
+
+        // `false` rejects every value, `true` accepts every value.
+        expect(await globalDefaults.validate(false)).toEqual(false);
+        expect(await initializerDefaults.validate(false)).toEqual(false);
+        expect(await globalDefaults.validate(true)).toEqual(true);
+        expect(await initializerDefaults.validate(true)).toEqual(true);
+
+        // Missing schemas and empty objects keep accepting anything.
+        expect(await globalDefaults.validate({})).toEqual(true);
+        expect(await initializerDefaults.validate({})).toEqual(true);
+        expect(await globalDefaults.validate(undefined)).toEqual(true);
+        expect(await initializerDefaults.validate(undefined)).toEqual(true);
+    });
+
     it("can correctly apply globals and validate the results", async () => {
         const crToUpdate: any = common.io.fromYaml(fs.readFileSync(path.join(
             __dirname, "fixtures/crs/FirestartrGithubRepository.test-catalog.yaml"

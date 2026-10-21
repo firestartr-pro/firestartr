@@ -82,7 +82,13 @@ export async function loadGlobals(claim: any): Promise<GlobalSection[]> {
       if (name in SECTIONS_BY_FILE_NAME) {
         const section: any = new SECTIONS_BY_FILE_NAME[name](globalData);
 
-        if (!(await section.validate(SCHEMAS_BY_SECTION_NAME[name] || {}))) {
+        const schema: any = SCHEMAS_BY_SECTION_NAME[name];
+
+        if (
+          schema !== undefined &&
+          schema !== null &&
+          !(await section.validate(schema))
+        ) {
           throw new Error(`Invalid ${name} global file`);
         }
 
@@ -153,51 +159,93 @@ export async function loadNormalizers(
  *
  */
 
-let loadedInitializers: InitializerPatches[] | false = false;
+/*
+ * File-based initializers only depend on the claim kind (for the applicability
+ * filter) and the initializers directory, not on the specific claim, so their
+ * crawl + parse + validation result is memoized per (directory, kind).
+ *
+ * The cache stores definitions (class + parsed YAML data), not instances: a
+ * fresh instance backed by a deep clone is built for every claim. Initializers
+ * may hand their mutable data straight to a CR (see TechnologyInitializer) and
+ * later patches mutate that CR in place, so sharing an instance would leak one
+ * claim's overrides into another claim's defaults. The non-file initializers
+ * below depend on the claim path and are instantiated fresh on every call.
+ */
+type FileInitializerDefinition = {
+  initializerClass: new (data: any) => InitializerPatches;
+  data: any;
+};
+
+const FILE_INITIALIZERS_CACHE = new Map<string, FileInitializerDefinition[]>();
+
+export function resetFileInitializersCache() {
+  FILE_INITIALIZERS_CACHE.clear();
+}
 
 export async function loadInitializers(
   claim: any,
   claimPath?: string,
   initializersPath: string = getPath('initializers'),
 ): Promise<InitializerPatches[]> {
-  const result: InitializerPatches[] = [];
+  const cacheKey = `${initializersPath}::${claim.kind}`;
 
-  await crawl(
-    initializersPath,
+  let fileInitializerDefinitions = FILE_INITIALIZERS_CACHE.get(cacheKey);
 
-    (entry: string) => {
-      return isYamlFile.test(entry);
-    },
+  if (!fileInitializerDefinitions) {
+    const crawled: FileInitializerDefinition[] = [];
 
-    async (entry: string, data: any) => {
-      const initializerData: any = common.io.fromYaml(data);
+    await crawl(
+      initializersPath,
 
-      const ext: string = path.extname(entry);
+      (entry: string) => {
+        return isYamlFile.test(entry);
+      },
 
-      const name: string = path.basename(entry, ext);
+      async (entry: string, data: any) => {
+        const initializerData: any = common.io.fromYaml(data);
 
-      if (name in INITIALIZERS_BY_FILE_NAME) {
-        const initializerBfN: any = new INITIALIZERS_BY_FILE_NAME[name](
-          initializerData,
-        );
+        const ext: string = path.extname(entry);
 
-        if (
-          !(await initializerBfN.validate(
-            SCHEMAS_BY_INITIALIZER_NAME[name] || {},
-          ))
-        ) {
-          throw new Error(`Invalid ${name} initializer file`);
-        }
+        const name: string = path.basename(entry, ext);
 
-        if (initializerData.kind === claim.kind) {
-          result.push(initializerBfN);
-        } else {
-          log.debug(
-            `Skipping initializer ${name} because it is not applicable to ${claim.kind}`,
+        if (name in INITIALIZERS_BY_FILE_NAME) {
+          const initializerBfN: any = new INITIALIZERS_BY_FILE_NAME[name](
+            initializerData,
           );
+
+          const schema: any = SCHEMAS_BY_INITIALIZER_NAME[name];
+
+          if (
+            schema !== undefined &&
+            schema !== null &&
+            !(await initializerBfN.validate(schema))
+          ) {
+            throw new Error(`Invalid ${name} initializer file`);
+          }
+
+          if (initializerData.kind === claim.kind) {
+            crawled.push({
+              initializerClass: INITIALIZERS_BY_FILE_NAME[name],
+              data: initializerData,
+            });
+          } else {
+            log.debug(
+              `Skipping initializer ${name} because it is not applicable to ${claim.kind}`,
+            );
+          }
         }
-      }
-    },
+      },
+    );
+
+    fileInitializerDefinitions = crawled;
+
+    FILE_INITIALIZERS_CACHE.set(cacheKey, fileInitializerDefinitions);
+  }
+
+  // Build a fresh instance, and a fresh data graph, for every claim so mutable
+  // defaults are never shared between claims.
+  const result: InitializerPatches[] = fileInitializerDefinitions.map(
+    ({ initializerClass, data }) => new initializerClass(structuredClone(data)),
   );
 
   for (const initializer of INITIALIZERS) {
@@ -208,9 +256,7 @@ export async function loadInitializers(
 
   log.info(`Loaded initializers ${JSON.stringify(result)}`);
 
-  loadedInitializers = result;
-
-  return loadedInitializers;
+  return result;
 }
 
 export function loadClaimDefaults() {
