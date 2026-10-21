@@ -8,7 +8,7 @@ const secretRegex = /\$\{\{ secrets\.(.*?) \}\}/g;
 export function adaptProviders(entity: Entity) {
   const result: any = {};
 
-  const { provider, secrets } = adaptProvider(entity.provider);
+  const { provider, secrets } = adaptProvider(entity, entity.provider);
 
   result['providers'] = [provider];
   result['secrets'] = [].concat(secrets);
@@ -23,7 +23,7 @@ export function adaptBackend(entity: Entity) {
 
   const backendDependency = entityBackend.cr;
 
-  const backendSecrets = getRefContextFromCr(entityBackend);
+  const backendSecrets = getRefContextFromCr(entity, entityBackend);
 
   const providerConfigData = replaceConfigSecrets(
     JSON.parse(backendDependency.spec.config),
@@ -44,12 +44,12 @@ export function adaptBackend(entity: Entity) {
   return backend;
 }
 
-function adaptProvider(providerFromItem: ResolvedRef): any {
+function adaptProvider(entity: Entity, providerFromItem: ResolvedRef): any {
   const provider: any = {};
 
   const providerDependency = providerFromItem.cr;
 
-  const providerSecrets = getRefContextFromCr(providerFromItem);
+  const providerSecrets = getRefContextFromCr(entity, providerFromItem);
 
   const providerConfigData = replaceConfigSecrets(
     JSON.parse(providerDependency.spec.config),
@@ -88,7 +88,10 @@ function adaptProvider(providerFromItem: ResolvedRef): any {
   return { provider, secrets };
 }
 
-function getRefContextFromCr(providerFromItem: ResolvedRef): any {
+function getRefContextFromCr(
+  entity: Entity,
+  providerFromItem: ResolvedRef,
+): any {
   const secrets: any = {};
 
   const cr = providerFromItem.cr;
@@ -101,7 +104,7 @@ function getRefContextFromCr(providerFromItem: ResolvedRef): any {
 
     const { key, name } = value.secretRef;
 
-    const secret: any = Entity.refResolver({
+    const secret: any = entity.resolveRef({
       kind: 'Secret',
       name: name,
     });

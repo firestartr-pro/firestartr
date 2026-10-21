@@ -1,14 +1,20 @@
 import { Entity, PatchOperations } from '../base';
 
+import type { Dependencies } from '../../refs';
+
 import github from 'github';
 
 import log from '../../logger';
 
 export class EntityGHOrgWebHook extends Entity {
-  constructor(artifact: any) {
-    super(artifact, {
-      config: {},
-    });
+  constructor(artifact: any, deps?: Dependencies) {
+    super(
+      artifact,
+      {
+        config: {},
+      },
+      deps,
+    );
   }
 
   async loadResources(tfOp: string): Promise<void> {
@@ -17,7 +23,7 @@ export class EntityGHOrgWebHook extends Entity {
     try {
       const cr = this.cr;
 
-      const secretRef = Entity.refResolver({
+      const secretRef = this.resolveRef({
         kind: 'Secret',
         ...cr.spec.webhook.secretRef,
       });

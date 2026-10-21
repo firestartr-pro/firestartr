@@ -1,26 +1,32 @@
 import { Entity, PatchOperations } from '../base';
 
+import type { Dependencies } from '../../refs';
+
 import log from '../../logger';
 
 import { provisionRepositorySecrets } from './secrets';
 
 export class EntityGHRepositorySecretsSection extends Entity {
-  constructor(artifact: any) {
-    super(artifact, {
-      config: {
-        actions: {},
-        codespaces: {},
-        dependabot: {},
-        actions_sha256: {},
-        codespaces_sha256: {},
-        dependabot_sha256: {},
+  constructor(artifact: any, deps?: Dependencies) {
+    super(
+      artifact,
+      {
+        config: {
+          actions: {},
+          codespaces: {},
+          dependabot: {},
+          actions_sha256: {},
+          codespaces_sha256: {},
+          dependabot_sha256: {},
+        },
       },
-    });
+      deps,
+    );
   }
 
   async loadResources(tfOp: string): Promise<void> {
     try {
-      const repo = Entity.refResolver(this.cr.spec.repositoryTarget.ref);
+      const repo = this.resolveRef(this.cr.spec.repositoryTarget.ref);
 
       await provisionRepositorySecrets(this, repo);
 

@@ -1,2 +1,9 @@
 FirestartrProviderConfig-kubernetes-provider:
   cr:
+Secret-my-webhook-secret:
+  secret:
+    apiVersion: v1
+    kind: Secret
+    type: Opaque
+    data:
+      webhook-secret-key: c2VjcmV0LXh4eA==

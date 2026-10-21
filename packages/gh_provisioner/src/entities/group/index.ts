@@ -1,22 +1,28 @@
 import { Entity, PatchOperations } from '../base';
 
+import type { Dependencies } from '../../refs';
+
 import log from '../../logger';
 
 export class EntityGroup extends Entity {
-  constructor(artifact: any) {
-    super(artifact, {
-      config: {
-        group: {},
+  constructor(artifact: any, deps?: Dependencies) {
+    super(
+      artifact,
+      {
+        config: {
+          group: {},
 
-        group_members: [],
+          group_members: [],
+        },
       },
-    });
+      deps,
+    );
   }
 
   async loadResources(): Promise<void> {
     try {
       const parentTeam = this.cr.spec.parentTeam
-        ? Entity.refResolver(this.cr.spec.parentTeam.ref)
+        ? this.resolveRef(this.cr.spec.parentTeam.ref)
         : null;
 
       this.patchData({
@@ -97,7 +103,7 @@ export class EntityGroup extends Entity {
 
     for (const member of this.cr.spec.members) {
       if (member.ref.kind === 'FirestartrGithubMembership') {
-        const memberRef = Entity.refResolver(member.ref);
+        const memberRef = this.resolveRef(member.ref);
 
         const memberData = {
           username: memberRef.getDepName(),

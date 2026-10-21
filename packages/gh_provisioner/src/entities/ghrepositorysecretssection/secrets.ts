@@ -1,4 +1,4 @@
-import { Entity, PatchOperations } from '../base';
+import { PatchOperations } from '../base';
 
 import { EntityGHRepositorySecretsSection } from '.';
 
@@ -97,7 +97,7 @@ async function createEncryptedSecret(
     `[gh-provisioner] generating encrypted secret ${grss.k8sId}/${section}/${repoSecretName}`,
   );
 
-  const plainSecret = Entity.refResolver(secretRef);
+  const plainSecret = grss.resolveRef(secretRef);
 
   const plainTextSecret = plainSecret.getOutput(secretRef.key);
 
@@ -138,7 +138,7 @@ async function createUnencryptedSecret(
     `[gh-provisioner] generating unencrypted secret ${grss.k8sId}/${section}/${repoSecretName}`,
   );
 
-  const plainSecret = Entity.refResolver(secretRef);
+  const plainSecret = grss.resolveRef(secretRef);
 
   const plainTextSecret = plainSecret.getOutput(secretRef.key);
 
