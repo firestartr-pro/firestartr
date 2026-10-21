@@ -3,6 +3,7 @@ import { deterministicPath } from '../claims/deterministicPath.js';
 import { parseStateRepos } from '../claims/wetPr.js';
 import { serializeClaim } from '../claims/keyOrdering.js';
 import { createGitHubApi } from '../github/index.js';
+import { resolveClaimsRepository } from '../context/resolve.js';
 import { publishClaimAndWait } from './publish.js';
 import { requireOrg } from './support.js';
 
@@ -48,8 +49,10 @@ export async function runClaimCreation(
       ? deterministicPath(kind, name, path)
       : undefined;
     const orgName = commit ? requireOrg(org) : undefined;
-    const repo =
-      commit && orgName ? claimsRepo(createGitHubApi(), orgName) : undefined;
+    const target = orgName ? resolveClaimsRepository(orgName) : undefined;
+    const repo = target
+      ? claimsRepo(createGitHubApi(), target.owner, target.repo)
+      : undefined;
     const output = serializeClaim(claim);
     if (!repo || !destinationPath || !orgName) {
       writeOutput(output);

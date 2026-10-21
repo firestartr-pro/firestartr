@@ -3,6 +3,7 @@ import { Args, Command, Flags } from '@oclif/core';
 import { claimsRepo } from '../claims/claimsRepo.js';
 import { parseStateRepos } from '../claims/wetPr.js';
 import { createGitHubApi } from '../github/index.js';
+import { resolveClaimsRepository } from '../context/resolve.js';
 import { resolveClaimReference } from '../claims/kindRegistry.js';
 import {
   assertMutationFlags,
@@ -60,7 +61,8 @@ export default class Edit extends Command {
     }
 
     const org = requireOrg(flags.org);
-    const repo = claimsRepo(createGitHubApi(), org);
+    const target = resolveClaimsRepository(org);
+    const repo = claimsRepo(createGitHubApi(), target.owner, target.repo);
     await runClaimMutation({
       repo,
       root: this.config.root,

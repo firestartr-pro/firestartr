@@ -56,7 +56,7 @@ export default class Context extends Command {
       org: organization.org,
       source: organization.source,
       matchedPath: organization.matchedPath,
-      repos: contextRepos(organization.org, organization.organization),
+      repos: contextRepos(organization),
       cli: {
         version: this.config.version,
         latest: await latestCliVersion(),

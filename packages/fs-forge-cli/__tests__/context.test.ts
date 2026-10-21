@@ -263,7 +263,7 @@ describe('context organization precedence', () => {
       expect(resolved).toEqual(
         expect.objectContaining({ org, source, matchedPath: null }),
       );
-      expect(contextRepos(resolved.org, resolved.organization)).toEqual({
+      expect(contextRepos(resolved)).toEqual({
         claims: 'shared/claims-fork',
         stateGithub: `${org}/state-github-fork`,
         stateInfra: 'other/state-infra-fork',
@@ -287,7 +287,7 @@ describe('context organization precedence', () => {
 
 describe('context repos', () => {
   it('derives the conventional repos', () => {
-    expect(contextRepos('acme')).toEqual({
+    expect(contextRepos({ org: 'acme' })).toEqual({
       claims: 'acme/claims',
       stateGithub: 'acme/state-github',
       stateInfra: 'acme/state-infra',
@@ -297,13 +297,16 @@ describe('context repos', () => {
 
   it('qualifies bare repository overrides with the selected organization', () => {
     expect(
-      contextRepos('acme', {
-        name: 'acme',
-        paths: ['/srv/acme'],
-        claims_repo: 'claims-fork',
-        state_github_repo: 'state-github-fork',
-        state_infra_repo: 'state-infra-fork',
-        catalog_repo: 'catalog-fork',
+      contextRepos({
+        org: 'acme',
+        organization: {
+          name: 'acme',
+          paths: ['/srv/acme'],
+          claims_repo: 'claims-fork',
+          state_github_repo: 'state-github-fork',
+          state_infra_repo: 'state-infra-fork',
+          catalog_repo: 'catalog-fork',
+        },
       }),
     ).toEqual({
       claims: 'acme/claims-fork',
@@ -319,7 +322,7 @@ describe('context repos', () => {
       cwd: '/srv/acme',
     });
 
-    expect(contextRepos(resolved.org, resolved.organization)).toEqual({
+    expect(contextRepos(resolved)).toEqual({
       claims: 'acme/claims-fork',
       stateGithub: 'acme/state-github-fork',
       stateInfra: 'acme/state-infra-fork',

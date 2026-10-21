@@ -10,6 +10,7 @@ import {
 import { deterministicPath } from '../claims/deterministicPath.js';
 import { serializeClaim } from '../claims/keyOrdering.js';
 import { createGitHubApi } from '../github/index.js';
+import { resolveClaimsRepository } from '../context/resolve.js';
 import { parseClaimYaml, requireOrg } from '../mutations/support.js';
 import { mergeObjects } from '../utils/mutateClaim.js';
 import { createClaimValidator } from '../utils/ajvValidation.js';
@@ -47,8 +48,11 @@ export async function loadComponentTarget(options: {
     );
   }
 
-  const repo = () =>
-    options.repo ?? claimsRepo(createGitHubApi(), requireOrg(options.org));
+  const repo = () => {
+    if (options.repo) return options.repo;
+    const target = resolveClaimsRepository(requireOrg(options.org));
+    return claimsRepo(createGitHubApi(), target.owner, target.repo);
+  };
 
   if (options.file) {
     const claim = parseClaimYaml(await readFile(options.file, 'utf8'));

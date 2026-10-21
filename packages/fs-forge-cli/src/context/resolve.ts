@@ -4,6 +4,7 @@ import { loadContextConfig, contextConfigPath } from './config.js';
 import { matchOrganization } from './match.js';
 
 import type { ContextConfig, OrganizationConfig } from './config.js';
+import type { RepoRef } from '../github/api.js';
 
 export type ContextSource = 'config' | 'flag' | 'env';
 
@@ -142,14 +143,13 @@ export function resolveContext(
 
 /** Repository defaults for an already resolved org, including its config entry. */
 export function reposForOrganization(org: string): ContextRepos {
-  const context = resolveOrganization({ flag: org });
-  return contextRepos(org, context.organization);
+  return contextRepos(resolveOrganization({ flag: org }));
 }
 
-export function contextRepos(
-  org: string,
-  organization?: OrganizationConfig,
-): ContextRepos {
+export function contextRepos({
+  org,
+  organization,
+}: Pick<OrganizationContext, 'org' | 'organization'>): ContextRepos {
   const qualify = (repo: string): string =>
     repo.includes('/') ? repo : `${org}/${repo}`;
   return {
@@ -158,6 +158,20 @@ export function contextRepos(
     stateInfra: qualify(organization?.state_infra_repo ?? 'state-infra'),
     catalog: qualify(organization?.catalog_repo ?? 'catalog'),
   };
+}
+
+export function resolveClaimsRepository(
+  org: string,
+  repoName?: string,
+): RepoRef {
+  if (repoName !== undefined) return { owner: org, repo: repoName };
+  const slug = reposForOrganization(org).claims;
+  const parts = slug.split('/');
+  if (parts.length !== 2 || parts.some((part) => !part)) {
+    throw new Error(`Invalid claims repository: ${slug}; expected owner/repo`);
+  }
+  const [owner, repo] = parts;
+  return { owner, repo };
 }
 
 function fromName(

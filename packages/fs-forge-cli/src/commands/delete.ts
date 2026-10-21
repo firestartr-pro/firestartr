@@ -7,6 +7,7 @@ import {
   loadClaimsMap,
 } from '../claims/claimsRepo.js';
 import { createGitHubApi } from '../github/index.js';
+import { resolveClaimsRepository } from '../context/resolve.js';
 import { CLAIM_KIND_OPTIONS, normalizeKind } from '../claims/kindRegistry.js';
 import { ORG_FLAG, requireOrg } from '../mutations/support.js';
 import { waitForDispatch } from '../utils/waitForDispatch.js';
@@ -68,7 +69,8 @@ export default class Delete extends Command {
         flags.org,
         '--org or FSCRT_ORG is required even in dry-run mode to validate the claim exists',
       );
-      const repo = claimsRepo(createGitHubApi(), org);
+      const target = resolveClaimsRepository(org);
+      const repo = claimsRepo(createGitHubApi(), target.owner, target.repo);
       const map = await loadClaimsMap(repo);
       if (!claimExists(map, kind, name)) {
         this.error(`Claim not found: ${kind}-${name}`);
@@ -84,7 +86,8 @@ export default class Delete extends Command {
     }
 
     const org = requireOrg(flags.org);
-    const repo = claimsRepo(createGitHubApi(), org);
+    const target = resolveClaimsRepository(org);
+    const repo = claimsRepo(createGitHubApi(), target.owner, target.repo);
 
     const map = await loadClaimsMap(repo);
     if (!claimExists(map, kind, name)) {

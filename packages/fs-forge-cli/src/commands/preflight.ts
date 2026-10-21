@@ -6,6 +6,7 @@ import { claimsRepo, loadClaimsMap } from '../claims/claimsRepo.js';
 
 import type { ClaimsRepo } from '../claims/claimsRepo.js';
 import { createGitHubApi } from '../github/index.js';
+import { resolveClaimsRepository } from '../context/resolve.js';
 import { ORG_FLAG, requireOrg } from '../mutations/support.js';
 
 import type { PreflightKindId } from '../claims/kindRegistry.js';
@@ -122,7 +123,8 @@ export default class Preflight extends Command {
     const name = flags.name;
     const scope = flags.scope;
     const org = requireOrg(flags.org);
-    const repo = claimsRepo(createGitHubApi(), org);
+    const target = resolveClaimsRepository(org);
+    const repo = claimsRepo(createGitHubApi(), target.owner, target.repo);
 
     // --- DELETION ---
     if (subcommand === 'deletion') {

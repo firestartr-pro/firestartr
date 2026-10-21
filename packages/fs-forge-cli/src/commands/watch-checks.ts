@@ -4,6 +4,7 @@ import { claimsRepo } from '../claims/claimsRepo.js';
 
 import type { ClaimsRepo } from '../claims/claimsRepo.js';
 import { createGitHubApi } from '../github/index.js';
+import { resolveClaimsRepository } from '../context/resolve.js';
 import {
   pointInTimeCheck,
   watchCheckRuns,
@@ -112,7 +113,8 @@ export default class WatchChecks extends Command {
     }
     const { kind, name } = reference;
 
-    const repo = claimsRepo(createGitHubApi(), org);
+    const target = resolveClaimsRepository(org);
+    const repo = claimsRepo(createGitHubApi(), target.owner, target.repo);
     const stateRepos = parseStateRepos(flags['state-repos'], org);
     const claimRef = `${kind}-${name}`;
 
