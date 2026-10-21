@@ -70,12 +70,6 @@ case "$mode" in
     # which would pass as a write proof.
     [ "$mode" = read ] || [ "$has_commit" = 1 ] || fsf_die "--mode write needs --commit in the command; drive a dry run with --mode read"
     command -v gh >/dev/null 2>&1 || fsf_die "gh is required by org-snapshot.sh"
-    token="$(fsf_token)" || fsf_die "no GH_TOKEN, GITHUB_TOKEN or 'gh auth token'"
-    if [ "$mode" = write ]; then
-      # Registered pre orgs live in firestartr-pre/app-firestartr (see smoke-test-renderer).
-      gh api --hostname github.com "repos/firestartr-pre/app-firestartr/contents/kubernetes/firestartr-pre/$org" >/dev/null 2>&1 ||
-        fsf_die "write mode refused: $org is not registered under firestartr-pre/app-firestartr kubernetes/firestartr-pre/"
-    fi
     ;;
   *) fsf_die "unknown mode $mode (offline, read or write)" ;;
 esac
@@ -126,6 +120,31 @@ for seed in ${seeds[@]+"${seeds[@]}"}; do
   esac
   cp -R "$src" "$work/$dest" || fsf_die "could not copy seed $src to $dest"
 done
+
+if [ "$mode" != offline ]; then
+  # Snapshots and pre-org approval cover only the conventional repositories.
+  # Refuse config redirects before acquiring credentials or contacting GitHub.
+  if ! (cd "$FSF_PKG" && FS_FORGE_CONFIG="$work/.xdg/config/fs-forge/config.yaml" \
+    node --input-type=module - "$org" <<'JS'
+import { reposForOrganization } from './dist/context/resolve.js';
+const org = process.argv[2];
+const repos = reposForOrganization(org);
+const defaults = {
+  claims: `${org}/claims`, stateGithub: `${org}/state-github`,
+  stateInfra: `${org}/state-infra`, catalog: `${org}/catalog`,
+};
+process.exit(Object.keys(defaults).every(key => repos[key] === defaults[key]) ? 0 : 1);
+JS
+  ); then
+    fsf_die "authenticated drives refuse configured repository overrides; snapshots cover only $org/claims"
+  fi
+  token="$(fsf_token)" || fsf_die "no GH_TOKEN, GITHUB_TOKEN or 'gh auth token'"
+  if [ "$mode" = write ]; then
+    # Registered pre orgs live in firestartr-pre/app-firestartr (see smoke-test-renderer).
+    gh api --hostname github.com "repos/firestartr-pre/app-firestartr/contents/kubernetes/firestartr-pre/$org" >/dev/null 2>&1 ||
+      fsf_die "write mode refused: $org is not registered under firestartr-pre/app-firestartr kubernetes/firestartr-pre/"
+  fi
+fi
 
 # sha256 of every file in the work dir, minus the isolated cache and XDG dirs.
 list_files() { (cd "$work" && find . -type f -not -path './.feature-cache/*' -not -path './.xdg/*' -exec shasum -a 256 {} + | sort -k2); }
