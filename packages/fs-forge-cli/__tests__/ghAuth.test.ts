@@ -36,7 +36,7 @@ afterEach(() => {
 });
 
 describe('gh auth token fallback', () => {
-  it('reads and trims the token printed by `gh auth token`', () => {
+  it('reads and trims the github.com token regardless of GH_HOST', () => {
     ghPrints(FAKE_TOKEN);
 
     expect(readGhAuthToken()).toBe(FAKE_TOKEN);
@@ -46,7 +46,7 @@ describe('gh auth token fallback', () => {
     });
     expect(FakeExecFileSync).toHaveBeenCalledWith(
       'gh',
-      ['auth', 'token'],
+      ['auth', 'token', '--hostname', 'github.com'],
       expect.objectContaining({ timeout: expect.any(Number) }),
     );
   });

@@ -19,11 +19,15 @@ export const NO_AUTH_MESSAGE =
  */
 export function readGhAuthToken(): string | undefined {
   try {
-    const token = execFileSync('gh', ['auth', 'token'], {
-      encoding: 'utf8',
-      stdio: ['ignore', 'pipe', 'ignore'],
-      timeout: GH_TIMEOUT_MS,
-    }).trim();
+    const token = execFileSync(
+      'gh',
+      ['auth', 'token', '--hostname', 'github.com'],
+      {
+        encoding: 'utf8',
+        stdio: ['ignore', 'pipe', 'ignore'],
+        timeout: GH_TIMEOUT_MS,
+      },
+    ).trim();
     return token || undefined;
   } catch {
     return undefined;
