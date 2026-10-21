@@ -56,7 +56,9 @@ export async function watchCheckRuns(
 
   while (Date.now() < deadline) {
     const checkRuns = await api.listCheckRunsForPullRequest(ref, prNumber);
-    const allCompleted = checkRuns.every((cr) => cr.status === 'completed');
+    const allCompleted =
+      checkRuns.length > 0 &&
+      checkRuns.every((cr) => cr.status === 'completed');
 
     if (allCompleted) {
       return aggregateResults(checkRuns);
