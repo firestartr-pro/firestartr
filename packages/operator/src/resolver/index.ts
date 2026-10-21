@@ -14,12 +14,18 @@ export type Dependencies = { [key: string]: Dependency };
 export class ResolverError extends Error {
   refKey: string;
 
-  constructor(refKey: string, message?: string) {
+  // Original failure (e.g. the HTTP error a lookup helper rejected with),
+  // preserved so the contextual message never hides the root cause
+  cause?: unknown;
+
+  constructor(refKey: string, message?: string, cause?: unknown) {
     super(message ?? `${refKey} could not be resolved`);
 
     this.name = 'ResolverError';
 
     this.refKey = refKey;
+
+    this.cause = cause;
   }
 }
 
@@ -93,8 +99,11 @@ export async function resolveSecretRef(
 
   const secret = await getSecret(namespace, secretName);
 
+  // Expected absence (e.g. a dependency has not published its outputs yet):
+  // stay quiet here. The failure boundary (resolveDep / the reconciliation
+  // handler) logs the single contextual error, or the caller tolerates it.
   if (!secret) {
-    log.error(
+    log.debug(
       `The outputs secret '${secretName}' of '${crDependency.kind}/${crDependency.metadata.name}' was not found in namespace '${namespace}'.`,
     );
   }
@@ -122,11 +131,24 @@ async function resolveDep(
 
   if (kr in deps) return;
 
-  const ref: any = await getItemByItemPath(
-    `${namespace}/${plural}/${resolve.name}`,
-    resolve.apiGroup,
-    resolve.apiVersion,
-  );
+  let ref: any;
+
+  try {
+    ref = await getItemByItemPath(
+      `${namespace}/${plural}/${resolve.name}`,
+      resolve.apiGroup,
+      resolve.apiVersion,
+    );
+  } catch (e: any) {
+    // The production lookup (ctl.getItemByItemPath) rejects on 404, so a
+    // missing dependency never reaches the guard below. Fail closed here with
+    // the same contextual error instead of surfacing a bare HTTP failure.
+    throw new ResolverError(
+      kr,
+      `[operator] '${referring}' in namespace '${namespace}' depends on '${resolve.kind}/${resolve.name}' but looking it up failed: ${e?.message ?? e}; aborting instead of provisioning with an incomplete dependency map`,
+      e,
+    );
+  }
 
   if (!ref)
     throw new ResolverError(

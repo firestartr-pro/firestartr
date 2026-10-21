@@ -170,6 +170,48 @@ describe('Resolver', () => {
     );
   });
 
+  it('wraps a rejecting dependency lookup in a contextual ResolverError', async () => {
+    // Production lookups (ctl.getItemByItemPath) reject on 404 instead of
+    // returning undefined: the contextual error must cover that path too.
+    const lookupError = new Error(
+      "Error on getItemByItemPath: test-namespace/githubrepositories/repo-a: Not Found",
+    );
+
+    const getItemByItemPath = jest.fn(async () => {
+      throw lookupError;
+    });
+
+    const getSecret = jest.fn(async () => undefined);
+
+    let caught: any;
+
+    try {
+      await resolve(
+        {
+          kind: 'FirestartrGithubGroup',
+          metadata: { name: 'group-a', namespace: 'test-namespace' },
+          spec: {
+            members: [
+              { ref: { kind: 'FirestartrGithubRepository', name: 'repo-a' } },
+            ],
+          },
+        },
+        getItemByItemPath,
+        getSecret,
+      );
+    } catch (e) {
+      caught = e;
+    }
+
+    expect(caught).toBeInstanceOf(ResolverError);
+    expect(caught.refKey).toBe('FirestartrGithubRepository-repo-a');
+    expect(caught.message).toMatch(
+      /'FirestartrGithubGroup\/group-a' in namespace 'test-namespace' depends on 'FirestartrGithubRepository\/repo-a'.*aborting instead of provisioning with an incomplete dependency map/,
+    );
+    expect(caught.message).toContain('Not Found');
+    expect(caught.cause).toBe(lookupError);
+  });
+
   it('throws when the outputs secret of a dependency is missing', async () => {
     const dependency = {
       kind: 'FirestartrGithubRepository',

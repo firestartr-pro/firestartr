@@ -90,4 +90,20 @@ describe('tfworkspaces resolveReferences', () => {
       /Reference FirestartrGithubGroup-missing-team not found/,
     );
   });
+
+  it('throws the reference error for an absent Secret before dereferencing it', () => {
+    // Regression for the guard order: the Secret branch used to write
+    // `ref.secret` before checking that `ref` exists, so an absent Secret
+    // crashed with a TypeError instead of the reference error.
+    const item = workspaceCr([
+      {
+        name: 'token',
+        ref: { kind: 'Secret', name: 'missing-secret', key: 'token' },
+      },
+    ]);
+
+    expect(() => resolveReferences(item, {})).toThrow(
+      /Reference Secret-missing-secret not found/,
+    );
+  });
 });
