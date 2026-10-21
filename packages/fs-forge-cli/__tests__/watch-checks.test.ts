@@ -150,6 +150,43 @@ describe('watch-checks watch mode', () => {
   });
 
   it(
+    'returns no_checks with exit 1 immediately when the wet PR has no checks',
+    async () => {
+      const api = mockApi();
+      api.setPullRequests(STATE_REPO, [
+        pull(42, 'automated-componentclaim-my-app'),
+      ]);
+      api.setCheckRuns(STATE_REPO, 42, []);
+
+      const outcome = await run(
+        'ComponentClaim-my-app',
+        '--org',
+        'my-org',
+        '--state-repos',
+        'my-org/state-github',
+        '--timeout',
+        '1',
+        '--json',
+      );
+
+      expect(outcome.error?.oclif?.exit).toBe(1);
+      expect(JSON.parse(outcome.stdout)).toEqual(
+        expect.objectContaining({
+          status: 'error',
+          overallConclusion: 'no_checks',
+          exitCode: 1,
+        }),
+      );
+      expect(
+        api.calls.filter((call) =>
+          call.startsWith('listCheckRunsForPullRequest'),
+        ),
+      ).toHaveLength(1);
+    },
+    20_000,
+  );
+
+  it(
     'exits 2 when the checks time out',
     async () => {
       const api = mockApi();

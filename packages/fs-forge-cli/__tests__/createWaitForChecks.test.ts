@@ -140,6 +140,37 @@ describe('create --wait-for-checks forwarding', () => {
     expect(stderr).toContain('All checks passed');
   });
 
+  it('waits for wet PR checks to register before reporting success', async () => {
+    const api = mockCommitApi({ checkRuns: [] });
+    let reportFirstPoll!: () => void;
+    const firstPoll = new Promise<void>((resolve) => {
+      reportFirstPoll = resolve;
+    });
+    jest.spyOn(api, 'listCheckRunsForPullRequest')
+      .mockImplementationOnce(async () => {
+        reportFirstPoll();
+        return [];
+      })
+      .mockResolvedValue([SUCCESS_CHECK]);
+
+    jest.useFakeTimers();
+    try {
+      const running = runCommand(CreateComponent, [
+        ...componentArgs(), '--commit', '--org', 'my-org',
+        '--state-repos', 'my-org/custom-state',
+      ]);
+      await firstPoll;
+      await jest.advanceTimersByTimeAsync(10_000);
+      const { error, stderr } = await running;
+
+      expect(error).toBeUndefined();
+      expect(stderr).toContain('All checks passed');
+    } finally {
+      jest.useRealTimers();
+      jest.restoreAllMocks();
+    }
+  });
+
   it('does not watch checks with --no-wait-for-checks', async () => {
     const api = mockCommitApi();
     const args = componentArgs();

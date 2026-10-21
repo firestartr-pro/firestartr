@@ -67,6 +67,7 @@ export async function watchWetPrChecks(
       api,
       { owner: target.owner, repo: watchRepoName },
       target.number,
+      { waitForRegistration: true },
     );
     if (result.overallConclusion !== 'success') {
       throw new Error(`Wet PR checks failed: ${result.overallConclusion}`);

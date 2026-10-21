@@ -109,6 +109,7 @@ SomeOtherOutput: not a CR`;
         const watching = watchCheckRuns(api, REF, 1, {
           timeoutMs: 1000,
           pollIntervalMs: 100,
+          waitForRegistration: true,
         });
         await jest.advanceTimersByTimeAsync(200);
 
@@ -129,6 +130,7 @@ SomeOtherOutput: not a CR`;
         const watching = watchCheckRuns(api, REF, 1, {
           timeoutMs: 200,
           pollIntervalMs: 50,
+          waitForRegistration: true,
         });
         await jest.advanceTimersByTimeAsync(200);
 
