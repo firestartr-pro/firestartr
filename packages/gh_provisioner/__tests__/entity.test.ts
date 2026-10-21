@@ -1,14 +1,18 @@
 import {Entity, PatchOperations} from "../src/entities/base"
 
+import { initSystem } from "../src"
+
 describe("Entity", () => {
 
-    beforeEach(() => {
-    
-        // let's mock the ref refsolver
-        Entity.setRefResolver(() => {
-        
-        })
-    
+    it("is constructed with empty deps instead of failing on them", async () => {
+        const entity = await initSystem({
+            kind: "FirestartrGithubGroup",
+            apiVersion: "firestartr.dev/v1",
+            metadata: { name: "group-empty", annotations: {} },
+            spec: { description: "d", privacy: "closed", members: [] },
+        }, {})
+
+        expect(entity).toBeTruthy()
     })
 
     it("can be derived and used", () => {

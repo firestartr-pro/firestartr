@@ -67,11 +67,6 @@ export async function runGhProvisioner(data: any, opts: any) {
     entity.sessionProjectPath = sessionProjectPath;
 
     // ---------------------------------------
-    // for subentity calling (if necessary)
-    // ---------------------------------------
-    entity.deps = data.deps;
-
-    // ---------------------------------------
     // set stream logs (if available)
     // ---------------------------------------
     if ('logStreamCallbacksGHProvisioner' in opts) {
