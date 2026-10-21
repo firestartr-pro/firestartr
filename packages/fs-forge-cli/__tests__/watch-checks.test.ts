@@ -282,7 +282,6 @@ describe('watch-checks current mode', () => {
 
   it('exits 0 with the CR and its last PR checks', async () => {
     const api = mockApi();
-    api.setBlobPaths(STATE_REPO, ['cr.yaml']);
     api.setFile(STATE_REPO, 'cr.yaml', CR_CONTENT);
     api.setPullRequests(STATE_REPO, [pull(100, 'automated-componentclaim-my-app')]);
     api.setCheckRuns(STATE_REPO, 100, [checkRun('plan', 'success')]);
@@ -303,7 +302,6 @@ describe('watch-checks current mode', () => {
 
   it('exits 1 when the CR has no last-state-pr annotation', async () => {
     const api = mockApi();
-    api.setBlobPaths(STATE_REPO, ['cr.yaml']);
     api.setFile(
       STATE_REPO,
       'cr.yaml',
@@ -327,7 +325,6 @@ describe('watch-checks current mode', () => {
 
   it('exits 3 when --cr-name filters out every CR', async () => {
     const api = mockApi();
-    api.setBlobPaths(STATE_REPO, ['cr.yaml']);
     api.setFile(STATE_REPO, 'cr.yaml', CR_CONTENT);
 
     const outcome = await run(
@@ -347,7 +344,6 @@ describe('watch-checks current mode', () => {
 
   it('keeps only the CR matching --cr-name', async () => {
     const api = mockApi();
-    api.setBlobPaths(STATE_REPO, ['cr.yaml', 'other.yaml']);
     api.setFile(STATE_REPO, 'cr.yaml', CR_CONTENT);
     api.setFile(
       STATE_REPO,

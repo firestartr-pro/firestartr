@@ -1,3 +1,6 @@
+import { Header } from 'tar';
+import { gzipSync } from 'zlib';
+
 import type {
   CheckRunSummary,
   GitHubApi,
@@ -135,7 +138,26 @@ export class MemoryGitHubApi implements GitHubApi {
 
   async downloadTarball(ref: RepoRef, gitRef?: string): Promise<Buffer> {
     this.calls.push(`downloadTarball ${this.key(ref)}@${gitRef ?? 'HEAD'}`);
-    return this.tarball;
+    if (this.tarball.length > 0) return this.tarball;
+    const prefix = `${this.key(ref)}#`;
+    const directory = Buffer.alloc(512);
+    new Header({ path: 'repo/', type: 'Directory', mode: 0o755 }).encode(directory);
+    const blocks: Buffer[] = [directory];
+    for (const [key, file] of this.files) {
+      if (!key.startsWith(prefix)) continue;
+      const content = Buffer.from(file.content);
+      const header = new Header({
+        path: `repo/${key.slice(prefix.length)}`,
+        type: 'File',
+        size: content.length,
+        mode: 0o644,
+      });
+      const block = Buffer.alloc(512);
+      header.encode(block);
+      blocks.push(block, content, Buffer.alloc((512 - content.length % 512) % 512));
+    }
+    blocks.push(Buffer.alloc(1024));
+    return gzipSync(Buffer.concat(blocks));
   }
 
   async getDefaultBranch(ref: RepoRef): Promise<string> {

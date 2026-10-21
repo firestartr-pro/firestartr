@@ -1,3 +1,4 @@
+import { t as listArchive } from 'tar';
 import { parseDocument } from 'yaml';
 
 import { extractLastStatePrFromContent } from './wetPr.js';
@@ -37,17 +38,13 @@ export async function findCrOnMainBranch(
   const ref = { owner, repo };
   const defaultBranch = await api.getDefaultBranch(ref);
   const claimRef = `${claimType}/${claimName}`;
-  const paths = await api.listBlobPaths(ref, defaultBranch);
-  const yamlFiles = paths.filter(
-    (path) => path.endsWith('.yaml') || path.endsWith('.yml'),
+  const yamlFiles = await readYamlArchive(
+    await api.downloadTarball(ref, defaultBranch),
   );
 
   const results: CrInfo[] = [];
 
-  for (const filePath of yamlFiles) {
-    const file = await api.readFile(ref, filePath, defaultBranch);
-    if (!file) continue;
-    const content = file.content;
+  for (const { path: filePath, content } of yamlFiles) {
     const document = parseDocument(content);
     if (document.errors.length > 0) continue;
     const annotation = document.getIn([
@@ -76,6 +73,36 @@ export async function findCrOnMainBranch(
   }
 
   return results;
+}
+
+/** Read only regular YAML entries in memory; never extract paths or links. */
+async function readYamlArchive(
+  archive: Buffer,
+): Promise<Array<{ path: string; content: string }>> {
+  const files: Array<{ path: string; content: string }> = [];
+  await new Promise<void>((resolve, reject) => {
+    const parser = listArchive({
+      strict: true,
+      filter: (path, entry) =>
+        /\.ya?ml$/i.test(path) &&
+        'type' in entry &&
+        ['File', 'OldFile'].includes(entry.type),
+      onReadEntry: (entry) => {
+        const chunks: Buffer[] = [];
+        entry.on('data', (chunk: Buffer) => chunks.push(chunk));
+        entry.on('end', () => {
+          files.push({
+            path: entry.path.split('/').slice(1).join('/'),
+            content: Buffer.concat(chunks).toString('utf8'),
+          });
+        });
+      },
+    });
+    parser.once('error', reject);
+    parser.once('end', resolve);
+    parser.end(archive);
+  });
+  return files;
 }
 
 async function enrichPrInfo(
