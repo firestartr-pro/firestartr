@@ -2,6 +2,14 @@ jest.mock('github');
 
 import { EntityGHRepo } from '../src/entities/ghrepo';
 
+import { EntityGroup } from '../src/entities/group';
+
+import { EntityGHFeature } from '../src/entities/ghfeature';
+
+import { EntityGHOrgWebHook } from '../src/entities/ghorgwebhook';
+
+import { EntityGHRepositorySecretsSection } from '../src/entities/ghrepositorysecretssection';
+
 import { provisionPermissions } from '../src/entities/ghrepo/helpers/teams';
 import { provisionVariables } from '../src/entities/ghrepo/helpers/variables';
 
@@ -42,13 +50,31 @@ function groupDep(id: string) {
   };
 }
 
-function providerDep(name: string) {
+function groupDepWithoutIdOutput() {
+  return {
+    cr: {
+      apiVersion: 'firestartr.dev/v1',
+      kind: 'FirestartrGithubGroup',
+      metadata: { name: 'team-a', annotations: {} },
+      spec: {},
+    },
+    secret: {
+      apiVersion: 'v1',
+      kind: 'Secret',
+      data: {
+        other: Buffer.from('value').toString('base64'),
+      },
+    },
+  };
+}
+
+function providerDep(name: string, secrets: any = {}) {
   return {
     cr: {
       apiVersion: 'firestartr.dev/v1',
       kind: 'FirestartrProviderConfig',
       metadata: { name, annotations: {} },
-      spec: { secrets: {} },
+      spec: { secrets },
     },
     secret: { apiVersion: 'v1', kind: 'Secret', data: {} },
   };
@@ -58,6 +84,85 @@ function contextDeps() {
   return {
     'FirestartrProviderConfig-kubernetes-provider': providerDep('kubernetes-provider'),
     'FirestartrProviderConfig-github': providerDep('github'),
+  };
+}
+
+function secretDep(data: Record<string, string>) {
+  return {
+    cr: null,
+    secret: { apiVersion: 'v1', kind: 'Secret', data },
+  };
+}
+
+function repoDep(name: string) {
+  return {
+    cr: {
+      apiVersion: 'firestartr.dev/v1',
+      kind: 'FirestartrGithubRepository',
+      metadata: { name, annotations: {} },
+      spec: { org: 'test-org' },
+    },
+    secret: { apiVersion: 'v1', kind: 'Secret', data: {} },
+  };
+}
+
+function groupCr(members: any[] = [], parentTeam?: any) {
+  return {
+    kind: 'FirestartrGithubGroup',
+    apiVersion: 'firestartr.dev/v1',
+    metadata: { name: 'group-a', annotations: {} },
+    spec: {
+      description: 'a group',
+      privacy: 'closed',
+      members,
+      ...(parentTeam ? { parentTeam: { ref: parentTeam } } : {}),
+    },
+  };
+}
+
+function featureCr() {
+  return {
+    kind: 'FirestartrGithubRepositoryFeature',
+    apiVersion: 'firestartr.dev/v1',
+    metadata: { name: 'feature-a', annotations: {} },
+    spec: {
+      repositoryTarget: {
+        ref: { kind: 'FirestartrGithubRepository', name: 'missing-repo' },
+        branch: 'main',
+      },
+      files: [],
+    },
+  };
+}
+
+function webhookCr() {
+  return {
+    kind: 'FirestartrGithubOrgWebhook',
+    apiVersion: 'firestartr.dev/v1',
+    metadata: { name: 'hook-a', annotations: {} },
+    spec: {
+      orgName: 'test-org',
+      webhook: {
+        url: 'https://example.com/hook',
+        events: ['push'],
+        contentType: 'json',
+        secretRef: { name: 'missing-secret', key: 'url' },
+      },
+    },
+  };
+}
+
+function grssCr(actions?: any[]) {
+  return {
+    kind: 'FirestartrGithubRepositorySecretsSection',
+    apiVersion: 'firestartr.dev/v1',
+    metadata: { name: 'section-a', annotations: {} },
+    spec: {
+      repositoryTarget: {
+        ref: { kind: 'FirestartrGithubRepository', name: 'repo-a' },
+      },
+      ...(actions ? { secrets: { actions } } : {}),
+    },
   };
 }
 
@@ -71,7 +176,7 @@ describe('unresolved refs fail closed', () => {
     );
 
     expect(() => provisionPermissions(gh)).toThrow(
-      /could not resolve team ref missing-team/,
+      /could not resolve FirestartrGithubGroup\/missing-team ref from its dependencies/,
     );
     expect(gh.document.config.teams).toEqual([]);
   });
@@ -85,7 +190,7 @@ describe('unresolved refs fail closed', () => {
     );
 
     expect(() => provisionPermissions(gh)).toThrow(
-      /could not resolve membership ref missing-user/,
+      /could not resolve FirestartrGithubMembership\/missing-user ref from its dependencies/,
     );
     expect(gh.document.config.collaborators).toEqual([]);
   });
@@ -97,7 +202,7 @@ describe('unresolved refs fail closed', () => {
     );
 
     await expect(provisionVariables(gh)).rejects.toThrow(
-      /could not resolve secret ref missing-secret/,
+      /could not resolve Secret\/missing-secret ref from its dependencies/,
     );
     expect(gh.document.config.variables).toEqual([]);
   });
@@ -111,7 +216,9 @@ describe('unresolved refs fail closed', () => {
     );
 
     await expect(gh.loadResources('apply')).rejects.toEqual(
-      expect.stringContaining('could not resolve team ref missing-team'),
+      expect.stringContaining(
+        'could not resolve FirestartrGithubGroup/missing-team ref',
+      ),
     );
   });
 
@@ -130,7 +237,7 @@ describe('unresolved refs fail closed', () => {
     ]);
 
     expect(() => provisionPermissions(withoutTeam)).toThrow(
-      /could not resolve team ref team-a/,
+      /could not resolve FirestartrGithubGroup\/team-a ref/,
     );
     expect(withoutTeam.document.config.teams).toEqual([]);
   });
@@ -140,14 +247,9 @@ describe('unresolved refs fail closed', () => {
       repoCr([], { actions: [{ name: 'FOO', ref: { name: 'team-a-secret', key: 'foo' } }] }),
       {
         ...contextDeps(),
-        'Secret-team-a-secret': {
-          cr: null,
-          secret: {
-            apiVersion: 'v1',
-            kind: 'Secret',
-            data: { foo: Buffer.from('bar').toString('base64') },
-          },
-        },
+        'Secret-team-a-secret': secretDep({
+          foo: Buffer.from('bar').toString('base64'),
+        }),
       },
     );
 
@@ -156,5 +258,145 @@ describe('unresolved refs fail closed', () => {
     expect(gh.document.config.variables).toEqual([
       { variableName: 'FOO', value: 'bar' },
     ]);
+  });
+});
+
+describe('absent refs and outputs produce clear errors instead of TypeErrors', () => {
+  it('names the missing context ref in the backend and provider getters', () => {
+    const gh = new EntityGHRepo(repoCr([], {}), {});
+
+    expect(() => gh.backend).toThrow(
+      /could not resolve FirestartrProviderConfig\/kubernetes-provider ref from its dependencies/,
+    );
+    expect(() => gh.provider).toThrow(
+      /could not resolve FirestartrProviderConfig\/github ref from its dependencies/,
+    );
+  });
+
+  it('names the missing provider secret output in the github credentials', () => {
+    const gh = new EntityGHRepo(repoCr([]), {
+      'FirestartrProviderConfig-kubernetes-provider': providerDep('kubernetes-provider'),
+      'FirestartrProviderConfig-github': providerDep('github', {
+        GITHUB_TOKEN: { secretRef: { name: 'missing-token-secret', key: 'token' } },
+      }),
+    });
+
+    expect(() => gh.githubGithubProviderCredentials).toThrow(
+      /could not resolve Secret\/missing-token-secret ref from its dependencies/,
+    );
+  });
+
+  it('names the missing team id output instead of provisioning undefined', () => {
+    const gh = new EntityGHRepo(
+      repoCr([
+        { ref: { kind: 'FirestartrGithubGroup', name: 'team-a' }, role: 'pull' },
+      ]),
+      { ...contextDeps(), 'FirestartrGithubGroup-team-a': groupDepWithoutIdOutput() },
+    );
+
+    expect(() => provisionPermissions(gh)).toThrow(
+      /could not resolve output 'id' of FirestartrGithubGroup\/team-a/,
+    );
+    expect(gh.document.config.teams).toEqual([]);
+  });
+
+  it('names the missing variable secret key instead of provisioning undefined', async () => {
+    const gh = new EntityGHRepo(
+      repoCr([], { actions: [{ name: 'FOO', ref: { name: 'the-secret', key: 'missing' } }] }),
+      {
+        ...contextDeps(),
+        'Secret-the-secret': secretDep({
+          other: Buffer.from('value').toString('base64'),
+        }),
+      },
+    );
+
+    await expect(provisionVariables(gh)).rejects.toThrow(
+      /could not resolve output 'missing' of Secret\/the-secret/,
+    );
+    expect(gh.document.config.variables).toEqual([]);
+  });
+
+  it('fails closed when a declared parentTeam ref is absent', async () => {
+    const group = new EntityGroup(
+      groupCr([], { kind: 'FirestartrGithubGroup', name: 'missing-parent' }),
+      {},
+    );
+
+    await expect(group.loadResources()).rejects.toEqual(
+      expect.stringContaining(
+        'could not resolve FirestartrGithubGroup/missing-parent ref',
+      ),
+    );
+  });
+
+  it('names the missing membership ref of a group instead of a TypeError', async () => {
+    const group = new EntityGroup(
+      groupCr([
+        { ref: { kind: 'FirestartrGithubMembership', name: 'missing-user' } },
+      ]),
+      {},
+    );
+
+    await expect(group.loadResources()).rejects.toEqual(
+      expect.stringContaining(
+        'could not resolve FirestartrGithubMembership/missing-user ref',
+      ),
+    );
+  });
+
+  it('names the missing repository target of a feature instead of a TypeError', async () => {
+    const feature = new EntityGHFeature(featureCr(), {});
+
+    await expect(feature.loadResources('apply')).rejects.toThrow(
+      /could not resolve FirestartrGithubRepository\/missing-repo ref/,
+    );
+  });
+
+  it('names the missing webhook secret instead of a TypeError', async () => {
+    const hook = new EntityGHOrgWebHook(webhookCr(), {});
+
+    await expect(hook.loadResources('apply')).rejects.toEqual(
+      expect.stringContaining('could not resolve Secret/missing-secret ref'),
+    );
+  });
+
+  it('names the missing repository of a secrets section instead of a TypeError', async () => {
+    const section = new EntityGHRepositorySecretsSection(grssCr(), {});
+
+    await expect(section.loadResources('apply')).rejects.toEqual(
+      expect.stringContaining(
+        'could not resolve FirestartrGithubRepository/repo-a ref',
+      ),
+    );
+  });
+
+  it('names the missing plain secret of a secrets section instead of a TypeError', async () => {
+    const section = new EntityGHRepositorySecretsSection(
+      grssCr([{ name: 'FOO', ref: { key: 'rds_conn', kind: 'Secret', name: 'missing-secret' } }]),
+      { 'FirestartrGithubRepository-repo-a': repoDep('repo-a') },
+    );
+
+    await expect(section.loadResources('apply')).rejects.toEqual(
+      expect.stringContaining('could not resolve Secret/missing-secret ref'),
+    );
+  });
+
+  it('names the missing secret key of a secrets section instead of provisioning undefined', async () => {
+    const section = new EntityGHRepositorySecretsSection(
+      grssCr([{ name: 'FOO', ref: { key: 'rds_conn', kind: 'Secret', name: 'secret-a' } }]),
+      {
+        'FirestartrGithubRepository-repo-a': repoDep('repo-a'),
+        'Secret-secret-a': secretDep({
+          other: Buffer.from('value').toString('base64'),
+        }),
+      },
+    );
+
+    await expect(section.loadResources('apply')).rejects.toEqual(
+      expect.stringContaining(
+        "could not resolve output 'rds_conn' of Secret/secret-a",
+      ),
+    );
   });
 });

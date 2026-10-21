@@ -45,7 +45,7 @@ describe("The reference resolutor", () => {
     
     expect(() =>
       resolveRef("${{references.test-e}}", references, false)
-    ).toThrow("KEY NOT FOUND");
+    ).toThrow(/Could not resolve reference 'test-e'/);
 
   });
 

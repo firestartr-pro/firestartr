@@ -14,11 +14,25 @@ export type Dependencies = { [key: string]: Dependency };
 export class ResolverError extends Error {
   refKey: string;
 
-  constructor(refKey: string) {
-    super(`${refKey} could not be resolved`);
+  constructor(refKey: string, message?: string) {
+    super(message ?? `${refKey} could not be resolved`);
+
     this.name = 'ResolverError';
+
     this.refKey = refKey;
   }
+}
+
+/**
+ * Name of the secret holding another CR's outputs (its terraform state
+ * outputs, published through writeConnectionSecretToRef).
+ */
+export function outputsSecretName(crDependency: any): string {
+  if (crDependency.kind === 'ExternalSecret') {
+    return crDependency.metadata.name;
+  }
+
+  return `${crDependency['kind']}-${crDependency['metadata']['name']}-outputs`.toLowerCase();
 }
 
 export async function resolve(
@@ -31,19 +45,30 @@ export async function resolve(
 
   namespace = cr['metadata']['namespace'] || namespace;
 
-  const references = [...walk(cr)];
-
-  log.silly(
-    `${cr.kind}/${cr.metadata?.name}: references ${JSON.stringify(references, null, 2)}`,
+  // Each pending entry knows which CR declared the ref, so failures can
+  // report the referring item
+  const pending: { ref: any; referredBy: any }[] = [...walk(cr)].map(
+    (ref: any) => ({
+      ref,
+      referredBy: cr,
+    }),
   );
 
-  // ⚠️ The references array is mutated by resolveDep, adding new references if nested dependencies are found
-  for (const resolve of references) {
+  log.silly(
+    `${cr.kind}/${cr.metadata?.name}: references ${JSON.stringify(
+      pending.map((p) => p.ref),
+      null,
+      2,
+    )}`,
+  );
+
+  // ⚠️ The pending list is mutated by resolveDep, adding new references if nested dependencies are found
+  for (const pendingRef of pending) {
     await resolveDep(
       namespace,
-      resolve,
+      pendingRef,
       deps,
-      references,
+      pending,
       getItemByItemPath,
       getSecret,
     );
@@ -57,8 +82,7 @@ export async function resolveSecretRef(
   crDependency: any,
   getSecret: Function,
 ) {
-  let secretName =
-    `${crDependency['kind']}-${crDependency['metadata']['name']}-outputs`.toLowerCase();
+  const secretName = outputsSecretName(crDependency);
 
   if (crDependency.kind === 'FirestartrProviderConfig') {
     log.debug(
@@ -67,17 +91,12 @@ export async function resolveSecretRef(
     return undefined;
   }
 
-  if (crDependency.kind === 'ExternalSecret') {
-    secretName = crDependency.metadata.name;
-  }
-
   const secret = await getSecret(namespace, secretName);
 
   if (!secret) {
     log.error(
-      `The resolver could not find the secret '${secretName}' required by custom resource dependency '${crDependency}' in namespace '${namespace}'.`,
+      `The outputs secret '${secretName}' of '${crDependency.kind}/${crDependency.metadata.name}' was not found in namespace '${namespace}'.`,
     );
-    console.error(`Could not resolve secret ${secretName}`);
   }
 
   return secret;
@@ -85,12 +104,18 @@ export async function resolveSecretRef(
 
 async function resolveDep(
   namespace: string,
-  resolve: any,
+  pendingRef: { ref: any; referredBy: any },
   deps: Dependencies,
-  references: any,
+  references: { ref: any; referredBy: any }[],
   getItemByItemPath: Function,
   getSecret: Function,
 ) {
+  const resolve = pendingRef.ref;
+
+  const referredBy = pendingRef.referredBy;
+
+  const referring = `${referredBy.kind}/${referredBy.metadata?.name}`;
+
   const plural = getPluralFromKind(resolve.kind);
 
   const kr = `${resolve.kind}-${resolve.name}`;
@@ -103,20 +128,35 @@ async function resolveDep(
     resolve.apiVersion,
   );
 
-  if (!ref) throw new ResolverError(kr);
+  if (!ref)
+    throw new ResolverError(
+      kr,
+      `[operator] '${referring}' in namespace '${namespace}' depends on '${resolve.kind}/${resolve.name}' but it does not exist; aborting instead of provisioning with an incomplete dependency map`,
+    );
 
   // We may have nested refs but they should not be circular
   // ⚠️ This mutates the references array, but it's ok because we don't need to resolve the same ref twice
   for (const nestedRef of walk(ref)) {
-    references.push(nestedRef);
+    references.push({ ref: nestedRef, referredBy: ref });
   }
 
-  const secret =
+  // The outputs secret is only expected for deps whose outputs are consumed:
+  // never for ProviderConfig, plain Kubernetes Secrets, or needsSecret: false
+  const expectsSecret =
     resolve.needsSecret !== false &&
     (resolve.apiGroup === common.types.controller.FirestartrApiGroup ||
-      resolve.apiGroup === common.types.controller.ExternalSecretsApiGroup)
-      ? await resolveSecretRef(namespace, ref, getSecret)
-      : undefined;
+      resolve.apiGroup === common.types.controller.ExternalSecretsApiGroup) &&
+    ref.kind !== 'FirestartrProviderConfig';
+
+  const secret = expectsSecret
+    ? await resolveSecretRef(namespace, ref, getSecret)
+    : undefined;
+
+  if (!secret && expectsSecret)
+    throw new ResolverError(
+      kr,
+      `[operator] '${referring}' in namespace '${namespace}' depends on '${ref.kind}/${ref.metadata?.name}', but its outputs secret '${outputsSecretName(ref)}' was not found; aborting instead of provisioning with an incomplete dependency map`,
+    );
 
   deps[kr] = {
     cr: ref,

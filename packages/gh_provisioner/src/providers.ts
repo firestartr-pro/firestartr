@@ -104,7 +104,7 @@ function getRefContextFromCr(
 
     const { key, name } = value.secretRef;
 
-    const secret: any = entity.resolveRef({
+    const secret: any = entity.requireRef({
       kind: 'Secret',
       name: name,
     });

@@ -14,23 +14,12 @@ export function provisionPermissions(fsGithubRepository: EntityGHRepo): void {
   for (const permission of cr.spec.permissions) {
     if ('ref' in permission) {
       if (permission.ref.kind === 'FirestartrGithubGroup') {
-        //const teamSlug = fsGithubRepository.resolveRef(permission.ref, 'slug');
-        //const teamId = fsGithubRepository.resolveRef(permission.ref, 'id');
-
         log.info(
           `[gh-provisioner] ${fsGithubRepository.k8sId} provisions a team ${permission.ref.name} with role ${permission.role}`,
         );
 
-        const refTeam = fsGithubRepository.resolveRef(permission.ref);
-
-        if (!refTeam) {
-          throw new Error(
-            `[gh-provisioner] ${fsGithubRepository.k8sId} could not resolve team ref ${permission.ref.name}, aborting instead of dropping it from permissions`,
-          );
-        }
-
         const config = {
-          teamId: refTeam.getOutput('id'),
+          teamId: fsGithubRepository.requireOutput(permission.ref, 'id'),
 
           permission: permission.role,
         };
@@ -47,16 +36,8 @@ export function provisionPermissions(fsGithubRepository: EntityGHRepo): void {
           `[gh-provisioner] ${fsGithubRepository.k8sId} provisions a member ${permission.ref.name} with role ${permission.role}`,
         );
 
-        const refUser = fsGithubRepository.resolveRef(permission.ref);
-
-        if (!refUser) {
-          throw new Error(
-            `[gh-provisioner] ${fsGithubRepository.k8sId} could not resolve membership ref ${permission.ref.name}, aborting instead of dropping it from permissions`,
-          );
-        }
-
         const config = {
-          username: refUser.getDepName(),
+          username: fsGithubRepository.requireRef(permission.ref).getDepName(),
 
           permission: permission.role,
         };
