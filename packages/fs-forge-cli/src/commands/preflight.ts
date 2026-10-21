@@ -76,7 +76,7 @@ export default class Preflight extends Command {
     'old-name': Flags.string({
       description: 'Current claim name before rename (edition only)',
     }),
-    org: { ...ORG_FLAG, description: 'GitHub organization' },
+    org: ORG_FLAG,
     scope: Flags.string({
       description: 'What to check: claims, provider, or all',
       options: ['all', 'claims', 'provider'],
@@ -88,6 +88,7 @@ export default class Preflight extends Command {
   };
 
   static examples = [
+    '<%= config.bin %> <%= command.id %> --create --kind repo --name my-service',
     '<%= config.bin %> <%= command.id %> --create --kind repo --name my-service --org my-org',
     '<%= config.bin %> <%= command.id %> --create --kind repo --name my-service --scope claims --org my-org',
     '<%= config.bin %> <%= command.id %> --create --kind repo --name my-service --org my-org --json',

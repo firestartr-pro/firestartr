@@ -32,6 +32,7 @@ const ROOT = process.cwd();
 const ORIGINAL_ORG = process.env.FSCRT_ORG;
 const MockCreateGitHubApi = createGitHubApi as unknown as jest.Mock;
 
+/** The commands that wire in the shared `--org` flag. */
 const COMMANDS: Array<[string, typeof Command]> = [
   ['delete', Delete],
   ['edit', Edit],
@@ -127,6 +128,18 @@ describe('the shared --org flag', () => {
     expect(flag).toBeDefined();
     expect(flag.env).toBe('FSCRT_ORG');
     expect(flag.parse).toBe((ORG_FLAG as unknown as Record<string, unknown>).parse);
+  });
+
+  it.each(COMMANDS)('%s declares a default that resolves the org', (_name, command) => {
+    const flag = (command.flags as Record<string, Record<string, unknown>>).org;
+    expect(typeof flag.default).toBe('function');
+  });
+
+  // oclif's manifest builder caches a flag's default into oclif.manifest.json
+  // unless the flag opts out, and this default reads the developer's own config.
+  it.each(COMMANDS)('%s keeps that default out of the manifest', (_name, command) => {
+    const flag = (command.flags as Record<string, Record<string, unknown>>).org;
+    expect(flag.noCacheDefault).toBe(true);
   });
 });
 

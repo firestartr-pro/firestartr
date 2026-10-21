@@ -3,14 +3,20 @@ import { readFile } from 'fs/promises';
 import { join } from 'path';
 import YAML from 'yaml';
 
+import { orgFromContext, resolveContext } from '../context/resolve.js';
 import { deriveVariantGroups } from '../utils/deriveFlags.js';
 
 import type { ClaimKind } from './definitions.js';
 import type { VariantGroup } from '../utils/deriveFlags.js';
 
 export const ORG_FLAG = Flags.string({
-  description: 'GitHub organization containing the claims repo',
+  description:
+    'GitHub organization containing the claims repo (default: FSCRT_ORG, then the config entry matching the current directory)',
   env: 'FSCRT_ORG',
+  // The default reads this machine's config file, so caching it would bake a
+  // developer's org into oclif.manifest.json and ship it to every user.
+  noCacheDefault: true,
+  default: async () => orgFromContext(),
 });
 
 export const MUTATION_CONTROL_FLAGS = {
@@ -45,9 +51,21 @@ export const MUTATION_CONTROL_FLAGS = {
   }),
 };
 
-export function requireOrg(org: string | undefined): string {
-  if (!org) throw new Error('--org or FSCRT_ORG is required');
-  return org;
+/**
+ * The `--org` value, which oclif already fills from `FSCRT_ORG`, then from the
+ * config entry matching the current directory.
+ */
+export function requireOrg(
+  org: string | undefined,
+  message = '--org or FSCRT_ORG is required',
+): string {
+  if (org) return org;
+  const resolution = resolveContext();
+  // Only a caller that bypassed the flag reaches this: whenever the context
+  // resolves, the flag default has already supplied the org.
+  if (resolution.ok) throw new Error(message);
+  const { code, message: detail } = resolution.error;
+  throw new Error(`${message} (${code}: ${detail})`);
 }
 
 export function parseClaimYaml(content: string): Record<string, unknown> {

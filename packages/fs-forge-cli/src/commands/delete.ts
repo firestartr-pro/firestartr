@@ -28,6 +28,7 @@ export default class Delete extends Command {
     'Delete (unprovision) an existing claim. Network access requires GITHUB_TOKEN authentication.';
 
   static examples = [
+    '<%= config.bin %> <%= command.id %> component my-svc',
     '<%= config.bin %> <%= command.id %> component my-svc --org my-org',
     '<%= config.bin %> <%= command.id %> component my-svc --org my-org --commit',
     '<%= config.bin %> <%= command.id %> tfworkspace my-tf --org my-org --no-include-variants --commit',
@@ -63,12 +64,10 @@ export default class Delete extends Command {
     const name = args.name;
 
     if (!flags.commit) {
-      const org = flags.org ?? process.env.FSCRT_ORG;
-      if (!org) {
-        this.error(
-          '--org or FSCRT_ORG is required even in dry-run mode to validate the claim exists',
-        );
-      }
+      const org = requireOrg(
+        flags.org,
+        '--org or FSCRT_ORG is required even in dry-run mode to validate the claim exists',
+      );
       const repo = claimsRepo(createGitHubApi(), org);
       const map = await loadClaimsMap(repo);
       if (!claimExists(map, kind, name)) {
