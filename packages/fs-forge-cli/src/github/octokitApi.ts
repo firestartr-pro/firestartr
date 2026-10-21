@@ -189,22 +189,66 @@ export function createOctokitApi(octokit: Octokit): GitHubApi {
     },
 
     async listCheckRunsForPullRequest(ref, pr) {
-      const { data } = await octokit.rest.checks.listForRef({
+      const { data: pull } = await octokit.rest.pulls.get({
         owner: ref.owner,
         repo: ref.repo,
-        ref: `refs/pull/${pr}/head`,
+        pull_number: pr,
       });
-      return data.check_runs.map((run) => ({
-        name: run.name,
-        conclusion: run.conclusion,
-        status: run.status,
-        output: {
-          title: run.output?.title ?? null,
-          summary: run.output?.summary ?? '',
-          text: run.output?.text ?? null,
-        },
-        htmlUrl: run.html_url,
-      }));
+      // The operator posts reconciliation checks on merge_commit_sha, which
+      // may differ from the PR head after merging.
+      const shas = new Set([pull.head.sha]);
+      if (pull.merge_commit_sha) shas.add(pull.merge_commit_sha);
+      const checks: Awaited<
+        ReturnType<GitHubApi['listCheckRunsForPullRequest']>
+      > = [];
+      const awaitingChecks: string[] = [];
+      for (const sha of shas) {
+        let page = 1;
+        while (true) {
+          const { data } = await octokit.rest.checks.listForRef({
+            owner: ref.owner,
+            repo: ref.repo,
+            ref: sha,
+            per_page: 100,
+            page,
+          });
+          if (page === 1 && data.check_runs.length === 0)
+            awaitingChecks.push(sha);
+          checks.push(
+            ...data.check_runs.map((run) => ({
+              name: run.name,
+              conclusion: run.conclusion,
+              status: run.status,
+              output: {
+                title: run.output?.title ?? null,
+                summary: run.output?.summary ?? '',
+                text: run.output?.text ?? null,
+              },
+              htmlUrl: run.html_url,
+            })),
+          );
+          if (data.check_runs.length < 100) break;
+          page++;
+        }
+      }
+      // A completed head check cannot stand in for reconciliation checks that
+      // have not registered on the merge commit yet (or vice versa).
+      if (checks.length > 0) {
+        for (const sha of awaitingChecks) {
+          checks.push({
+            name: `Waiting for check runs on ${sha}`,
+            conclusion: null,
+            status: 'queued',
+            output: {
+              title: null,
+              summary: 'No checks registered yet',
+              text: null,
+            },
+            htmlUrl: null,
+          });
+        }
+      }
+      return checks;
     },
 
     async searchFiles(ref, query) {

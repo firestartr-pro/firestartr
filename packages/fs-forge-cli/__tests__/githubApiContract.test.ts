@@ -162,6 +162,8 @@ function octokitScenario(): GitHubApi {
             html_url: `https://github.com/example/state-github/pull/${pull_number}`,
             state: 'closed',
             merged: true,
+            head: { sha: 'head-sha' },
+            merge_commit_sha: 'head-sha',
           },
         })),
       },
@@ -414,10 +416,10 @@ describe.each(ADAPTERS)('GitHubApi contract (%s)', (_name, makeApi) => {
 });
 
 describe('octokit adapter request shapes', () => {
-  it('reads check runs through refs/pull/<n>/head', async () => {
+  it('reads check runs through the pull request head SHA', async () => {
     const api = octokitScenario();
     await api.listCheckRunsForPullRequest(REF, 7);
-    expect(octokitRequests).toContain('checks.listForRef refs/pull/7/head');
+    expect(octokitRequests).toEqual(['checks.listForRef head-sha']);
   });
 
   it('lists every open pull request and filters the head prefix locally', async () => {
