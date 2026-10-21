@@ -13,14 +13,6 @@ function createApi(
   for (const [path, content] of Object.entries(fileContents)) {
     api.setFile(ref, path, content);
   }
-  api.setPullRequests(ref, [{
-    number: 100,
-    htmlUrl: 'https://github.com/test/repo/pull/100',
-    state: 'merged',
-    headRef: 'automated-100',
-    baseSha: 'base123',
-    updatedAt: '2024-01-01T00:00:00Z',
-  }]);
   return api;
 }
 
@@ -52,10 +44,11 @@ describe('stateRepo', () => {
 
       expect(results).toHaveLength(1);
       expect(results[0].kind).toBe('FirestartrGithubRepository');
-      expect(results[0].lastStatePr?.number).toBe(100);
-      expect(api.calls).toContain(
+      expect(results[0].lastStatePr).toEqual({ owner: 'test-org', repo: 'test-org/state-github', number: 100 });
+      expect(api.calls).toEqual([
+        'getDefaultBranch test-org/state-github',
         'downloadTarball test-org/state-github@main',
-      );
+      ]);
     });
 
     it('finds a committed CR before it is indexed by code search', async () => {

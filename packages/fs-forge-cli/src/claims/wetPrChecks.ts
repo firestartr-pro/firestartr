@@ -46,11 +46,7 @@ export async function watchWetPrChecks(
       for (const cr of crs) {
         if (!cr.lastStatePr) continue;
         const { repo, number } = cr.lastStatePr;
-        targets.set(`${repo}#${number}`, {
-          owner: repo.split('/')[0],
-          repo,
-          number,
-        });
+        targets.set(`${repo}#${number}`, cr.lastStatePr);
       }
     }
   }

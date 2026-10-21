@@ -2,6 +2,8 @@ import { describe, expect, it, jest } from '@jest/globals';
 
 import { pointInTimeCheck, watchCheckRuns } from '../src/claims/checkRuns';
 import { createOctokitApi } from '../src/github/octokitApi';
+import { watchWetPrChecks } from '../src/claims/wetPrChecks';
+import { MemoryGitHubApi } from './fixtures/memoryGitHubApi';
 
 import type { Octokit } from '@octokit/rest';
 
@@ -45,6 +47,54 @@ function checkApi(
 }
 
 describe('wet PR checks on head and merge commits', () => {
+  it('fetches PR details only once when five archived CRs share a wait target', async () => {
+    const archive = new MemoryGitHubApi();
+    for (let index = 0; index < 5; index++) {
+      archive.setFile(REF, `cr-${index}.yaml`, [
+        'kind: FirestartrTerraformWorkspace',
+        'metadata:',
+        `  name: workspace-${index}`,
+        '  annotations:',
+        '    firestartr.dev/claim-ref: ComponentClaim/example',
+        '    firestartr.dev/last-state-pr: state-infra#7',
+      ].join('\n'));
+    }
+    const tarball = await archive.downloadTarball(REF, 'main');
+    const pullsGet = jest.fn(async () => ({
+      data: { head: { sha: 'head-sha' }, merge_commit_sha: 'merge-sha' },
+    }));
+    const octokit = {
+      rest: {
+        repos: {
+          get: jest.fn(async () => ({ data: { default_branch: 'main' } })),
+          downloadTarballArchive: jest.fn(async () => ({ data: tarball })),
+        },
+        pulls: {
+          list: jest.fn(async () => ({ data: [] })),
+          get: pullsGet,
+        },
+        checks: {
+          listForRef: jest.fn(async () => ({ data: { check_runs: [HEAD_CHECK] } })),
+        },
+      },
+    } as unknown as Octokit;
+    const diagnostic = jest.fn();
+
+    await watchWetPrChecks(createOctokitApi(octokit), { owner: 'example', repo: 'claims' }, {
+      claimType: 'ComponentClaim',
+      claimName: 'example',
+      stateRepos: 'example/state-infra',
+    }, diagnostic);
+
+    expect(pullsGet).toHaveBeenCalledTimes(1);
+    expect(pullsGet).toHaveBeenCalledWith({ ...REF, pull_number: 7 });
+    expect(octokit.rest.repos.downloadTarballArchive).toHaveBeenCalledTimes(1);
+    expect(diagnostic.mock.calls).toEqual([
+      ['Watching wet PR example/state-infra#7...\n'],
+      ['All checks passed ✓\n'],
+    ]);
+  });
+
   it('reads a shared head and merge SHA only once', async () => {
     const checksForRef = jest.fn(() => [HEAD_CHECK]);
     const api = checkApi(checksForRef, 'head-sha');
