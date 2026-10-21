@@ -146,6 +146,15 @@ describe('context config loading', () => {
     ).toBe('NO_CONFIG');
   });
 
+  it('reports NO_CONFIG for duplicate organization names with conflicting repositories', () => {
+    const error = failure({
+      configPath: contextFixture('duplicate-name.yaml'),
+      cwd: '/srv/acme',
+    });
+
+    expect(error.code).toBe('NO_CONFIG');
+  });
+
   it('reports NO_CONFIG for a relative organization path', () => {
     const error = failure({
       configPath: contextFixture('relative-path.yaml'),

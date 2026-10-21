@@ -1,0 +1,7 @@
+organizations:
+  - name: acme
+    paths: [/srv/first]
+    claims_repo: first/claims
+  - name: acme
+    paths: [/srv/acme]
+    claims_repo: second/claims

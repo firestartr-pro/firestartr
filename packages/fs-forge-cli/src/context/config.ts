@@ -68,9 +68,11 @@ function parseContextConfig(content: string): ContextConfig | undefined {
     return undefined;
   }
   const entries: OrganizationConfig[] = [];
+  const names = new Set<string>();
   for (const value of organizations) {
     const entry = parseOrganization(value);
-    if (!entry) return undefined;
+    if (!entry || names.has(entry.name)) return undefined;
+    names.add(entry.name);
     entries.push(entry);
   }
   const cliVersion = parsed.cli_version;
