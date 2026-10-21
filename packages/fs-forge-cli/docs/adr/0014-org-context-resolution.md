@@ -43,7 +43,9 @@ exactly, and path matching done by hand is where the mistakes came from
 - The registry lookup for `latest` exists only inside `context`: bounded by a
   short timeout and non-fatal (`null` when offline). No other command touches
   the network or spawns `gh` as part of resolving context: they read one small
-  config file, and only when neither `--org` nor `FSCRT_ORG` is present.
+  config file. The path match picks the org only when neither `--org` nor
+  `FSCRT_ORG` is present; an org chosen either way still takes its configured
+  repos from its entry.
 - `context init` / `context add-path` (writing the config) is deliberately out
   of scope: the new-organization flow stays in the skill for now.
 
