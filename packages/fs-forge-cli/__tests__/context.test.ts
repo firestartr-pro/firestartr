@@ -12,7 +12,7 @@ jest.mock('fs', () => ({
   realpathSync: realpathOrSelf,
 }));
 
-import { contextConfigPath } from '../src/context/config';
+import { contextConfigPath, loadContextConfig } from '../src/context/config';
 import {
   ContextError,
   contextRepos,
@@ -144,6 +144,12 @@ describe('context config loading', () => {
         cwd: '/srv/acme',
       }).code,
     ).toBe('NO_CONFIG');
+  });
+
+  it('accepts the Windows home prefix in configured paths', () => {
+    expect(
+      loadContextConfig(contextFixture('windows-home.yaml'))?.organizations[0].paths,
+    ).toEqual([String.raw`~\work\acme`]);
   });
 
   it('reports NO_CONFIG for duplicate organization names with conflicting repositories', () => {

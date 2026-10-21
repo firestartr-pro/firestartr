@@ -1,6 +1,6 @@
 import { homedir } from 'os';
 import { realpathSync } from 'fs';
-import { join, resolve } from 'path';
+import { isAbsolute, join, relative, resolve } from 'path';
 
 import type { OrganizationConfig } from './config.js';
 
@@ -22,7 +22,9 @@ export type MatchOutcome =
 /** Expands a leading `~` to the home directory; leaves other paths alone. */
 function expandHome(value: string, home: string = homedir()): string {
   if (value === '~') return home;
-  if (value.startsWith('~/')) return join(home, value.slice(2));
+  if (value.startsWith('~/') || value.startsWith('~\\')) {
+    return join(home, value.slice(2));
+  }
   return value;
 }
 
@@ -48,11 +50,9 @@ function canonicalContextPath(value: string, home: string = homedir()): string {
 /** Collapses a path under the home directory back to `~`-form for display. */
 function displayContextPath(value: string, home: string = homedir()): string {
   const normalizedHome = normalizeContextPath(home, home);
-  if (value === normalizedHome) return '~';
-  if (value.startsWith(`${normalizedHome}/`)) {
-    return `~${value.slice(normalizedHome.length)}`;
-  }
-  return value;
+  return contains(value, normalizedHome)
+    ? join('~', relative(normalizedHome, value))
+    : value;
 }
 
 /**
@@ -111,8 +111,6 @@ export function matchOrganization(
 }
 
 function contains(directory: string, storedPath: string): boolean {
-  if (directory === storedPath) return true;
-  return storedPath.endsWith('/')
-    ? directory.startsWith(storedPath)
-    : directory.startsWith(`${storedPath}/`);
+  const rel = relative(storedPath, directory);
+  return rel === '' || (!rel.startsWith('..') && !isAbsolute(rel));
 }

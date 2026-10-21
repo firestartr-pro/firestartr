@@ -91,7 +91,10 @@ function parseOrganization(value: unknown): OrganizationConfig | undefined {
     !paths.every(
       (path) =>
         typeof path === 'string' &&
-        (isAbsolute(path) || path === '~' || path.startsWith('~/')),
+        (isAbsolute(path) ||
+          path === '~' ||
+          path.startsWith('~/') ||
+          path.startsWith('~\\')),
     )
   ) {
     return undefined;
