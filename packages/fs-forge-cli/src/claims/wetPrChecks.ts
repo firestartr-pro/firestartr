@@ -29,12 +29,13 @@ export async function watchWetPrChecks(
     return;
   }
 
-  diagnostic(`Watching wet PR ${wetPr.repo}#${wetPr.number}...\n`);
-  const watchRepoName = wetPr.repo.split('/')[1];
+  const target = wetPr.lastStatePrRedirect ?? wetPr;
+  diagnostic(`Watching wet PR ${target.repo}#${target.number}...\n`);
+  const watchRepoName = target.repo.split('/')[1];
   const result = await watchCheckRuns(
     api,
-    { owner: wetPr.owner, repo: watchRepoName },
-    wetPr.number,
+    { owner: target.owner, repo: watchRepoName },
+    target.number,
   );
   if (result.overallConclusion !== 'success') {
     throw new Error(`Wet PR checks failed: ${result.overallConclusion}`);

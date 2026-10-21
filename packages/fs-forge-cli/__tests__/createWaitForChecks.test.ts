@@ -156,6 +156,37 @@ describe('create --wait-for-checks forwarding', () => {
     ).toBe(false);
   });
 
+  it('fails when reconciliation checks fail behind a successful cleanup PR', async () => {
+    const api = mockCommitApi({ checkRuns: [SUCCESS_CHECK] });
+    const state = { owner: 'my-org', repo: 'custom-state' };
+    api.setPullRequestFiles(state, WET_PR_NUMBER, [
+      { filename: 'cr.yaml', status: 'removed' },
+    ]);
+    api.setFile(
+      state,
+      'cr.yaml',
+      [
+        'metadata:',
+        '  annotations:',
+        '    firestartr.dev/claim-ref: ComponentClaim/example',
+        '    firestartr.dev/last-state-pr: other-org/reconciled-state#99',
+      ].join('\n'),
+    );
+    api.setCheckRuns({ owner: 'other-org', repo: 'reconciled-state' }, 99, [
+      FAILURE_CHECK,
+    ]);
+    const args = componentArgs();
+    args.push('--commit', '--org', 'my-org', '--state-repos', 'my-org/custom-state');
+
+    const { error, stderr } = await runCommand(CreateComponent, args);
+
+    expect(error?.message).toContain('Wet PR checks failed: failure');
+    expect(stderr).toContain('Watching wet PR other-org/reconciled-state#99...');
+    expect(api.calls).not.toContain(
+      `listCheckRunsForPullRequest my-org/custom-state#${WET_PR_NUMBER}`,
+    );
+  });
+
   it('fails the create when the wet PR checks fail', async () => {
     mockCommitApi({ checkRuns: [FAILURE_CHECK] });
     const args = componentArgs();
