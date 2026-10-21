@@ -54,6 +54,22 @@ describe('wet PR checks on head and merge commits', () => {
     expect(result.checkRuns.map((check) => check.name)).toEqual(['plan', 'apply']);
   });
 
+  it('succeeds when reconciliation checks exist only on the merge commit', async () => {
+    const api = checkApi((ref) => ref === 'merge-sha' ? [HEAD_CHECK] : []);
+    jest.useFakeTimers();
+    try {
+      const watching = watchCheckRuns(api, REF, 7, { timeoutMs: 200, pollIntervalMs: 50 });
+      await jest.advanceTimersByTimeAsync(200);
+
+      const result = await watching;
+
+      expect(result.overallConclusion).toBe('success');
+      expect(result.checkRuns).toHaveLength(1);
+    } finally {
+      jest.useRealTimers();
+    }
+  });
+
   it('includes failed checks after the first result page', async () => {
     const api = checkApi((_ref, page) => page === 1 ? Array(100).fill(HEAD_CHECK) : [FAILED_APPLY], null);
 

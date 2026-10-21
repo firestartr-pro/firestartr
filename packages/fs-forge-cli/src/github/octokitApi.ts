@@ -212,7 +212,11 @@ export function createOctokitApi(octokit: Octokit): GitHubApi {
             per_page: 100,
             page,
           });
-          if (page === 1 && data.check_runs.length === 0)
+          if (
+            page === 1 &&
+            data.check_runs.length === 0 &&
+            sha === (pull.merge_commit_sha ?? pull.head.sha)
+          )
             awaitingChecks.push(sha);
           checks.push(
             ...data.check_runs.map((run) => ({
@@ -231,8 +235,8 @@ export function createOctokitApi(octokit: Octokit): GitHubApi {
           page++;
         }
       }
-      // A completed head check cannot stand in for reconciliation checks that
-      // have not registered on the merge commit yet (or vice versa).
+      // Reconciliation targets the merge SHA (head only when no merge SHA is
+      // available). Head checks are optional, but any present ones still count.
       if (checks.length > 0) {
         for (const sha of awaitingChecks) {
           checks.push({
