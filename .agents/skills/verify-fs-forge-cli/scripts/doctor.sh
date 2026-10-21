@@ -61,8 +61,6 @@ drive="$FSF_SKILL_DIR/scripts/drive.sh"
 "$drive" --mode read -- kinds >/dev/null 2>&1
 [ $? = 2 ] && pass guard-org "drive.sh refuses an org-bound drive with no --org" || fail guard-org "drive.sh ran an org-bound drive without a named org"
 
-# Config overrides must never redirect an authenticated drive beyond the repo
-# its snapshots cover. A stand-in gh prevents this refusal test contacting GitHub.
 guard_dir="$(mktemp -d)"
 mkdir -p "$guard_dir/bin" "$guard_dir/verify-fs-forge-cli/run/evidence" "$guard_dir/verify-fs-forge-cli/run/work"
 printf '#!/bin/sh\nexit 97\n' > "$guard_dir/bin/gh"

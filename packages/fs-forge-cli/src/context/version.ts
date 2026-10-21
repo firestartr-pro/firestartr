@@ -2,7 +2,6 @@ const CLI_PACKAGE = '@firestartr/fs-forge-cli';
 const REGISTRY = 'https://registry.npmjs.org';
 const VERSION_LOOKUP_TIMEOUT_MS = 3000;
 
-/** The slice of fetch the lookup needs; injectable so tests stay offline. */
 export type FetchLike = (
   url: string,
   init: { signal: AbortSignal },

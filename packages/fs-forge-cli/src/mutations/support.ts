@@ -56,16 +56,15 @@ export const MUTATION_CONTROL_FLAGS = {
  * config entry matching the current directory.
  */
 export function requireOrg(
-  org: string | undefined,
+  parsedOrg: string | undefined,
   message = '--org or FSCRT_ORG is required',
 ): string {
-  if (org) return org;
+  if (parsedOrg) return parsedOrg;
   const resolution = resolveContext();
-  // Only a caller that bypassed the flag reaches this: whenever the context
-  // resolves, the flag default has already supplied the org.
-  if (resolution.ok) throw new Error(message);
-  const { code, message: detail } = resolution.error;
-  throw new Error(`${message} (${code}: ${detail})`);
+  const error = resolution.ok ? undefined : resolution.error;
+  throw new Error(
+    error ? `${message} (${error.code}: ${error.message})` : message,
+  );
 }
 
 export function parseClaimYaml(content: string): Record<string, unknown> {

@@ -54,7 +54,6 @@ interface JsonOutput {
   exitCode: number;
 }
 
-/** The parsed flags of `watch-checks`, with the org every mode reports. */
 interface WatchFlags {
   org: string;
   current: boolean;

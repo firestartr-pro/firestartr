@@ -24,7 +24,6 @@ import { captureEnv, contextFixture } from './fixtures/contextFixtures';
 import { MemoryGitHubApi } from './fixtures/memoryGitHubApi';
 
 const ROOT = process.cwd();
-/** The directory `defaults.yaml` claims; it never has to exist on disk. */
 const ORG_DIR = '/srv/acme';
 const ORG = 'acme';
 const env = captureEnv();
@@ -85,7 +84,6 @@ afterEach(() => {
   env.restore();
 });
 
-// `process` outlives the suite, so put the real cwd back for the next file.
 afterAll(() => {
   cwd.mockRestore();
 });

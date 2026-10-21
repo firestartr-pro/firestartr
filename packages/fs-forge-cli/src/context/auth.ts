@@ -1,6 +1,5 @@
 import { execFileSync } from 'child_process';
 
-/** Where the CLI's GitHub token came from. */
 export type AuthSource = 'GITHUB_TOKEN' | 'gh';
 
 export interface ResolvedAuth {

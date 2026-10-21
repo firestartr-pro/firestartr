@@ -122,8 +122,6 @@ for seed in ${seeds[@]+"${seeds[@]}"}; do
 done
 
 if [ "$mode" != offline ]; then
-  # Snapshots and pre-org approval cover only the conventional repositories.
-  # Refuse config redirects before acquiring credentials or contacting GitHub.
   if ! (cd "$FSF_PKG" && FS_FORGE_CONFIG="$work/.xdg/config/fs-forge/config.yaml" \
     node --input-type=module - "$org" <<'JS'
 import { contextRepos, reposForOrganization } from './dist/context/resolve.js';
@@ -137,7 +135,6 @@ JS
   fi
   token="$(fsf_token)" || fsf_die "no GH_TOKEN, GITHUB_TOKEN or 'gh auth token'"
   if [ "$mode" = write ]; then
-    # Registered pre orgs live in firestartr-pre/app-firestartr (see smoke-test-renderer).
     gh api --hostname github.com "repos/firestartr-pre/app-firestartr/contents/kubernetes/firestartr-pre/$org" >/dev/null 2>&1 ||
       fsf_die "write mode refused: $org is not registered under firestartr-pre/app-firestartr kubernetes/firestartr-pre/"
   fi

@@ -7,14 +7,8 @@ import { contextFixture } from './fixtures/contextFixtures';
 
 const ROOT = process.cwd();
 const PROBE = join(ROOT, '__tests__', 'fixtures', 'cachedOrgDefaults.mjs');
-/** The org the probe's environment resolves to; never a real one. */
 const CONTEXT_ORG = 'ctx-org';
 
-/**
- * What oclif's own manifest builder caches for `--org`, running over the real
- * command classes. `--import tsx` transpiles the TypeScript sources the way a
- * development checkout does.
- */
 function cachedOrgDefaults(mode: 'cache' | 'nocache'): string[] {
   const stdout = execFileSync(
     process.execPath,
@@ -34,8 +28,6 @@ function cachedOrgDefaults(mode: 'cache' | 'nocache'): string[] {
 
 describe('the org flag default and the manifest', () => {
   it('would cache a context-resolved org as a flag default', () => {
-    // Control: the default really resolves, so caching it really bakes the
-    // developer's org into oclif.manifest.json for every command.
     expect(cachedOrgDefaults('cache')).toEqual(
       expect.arrayContaining([
         `delete=${CONTEXT_ORG}`,

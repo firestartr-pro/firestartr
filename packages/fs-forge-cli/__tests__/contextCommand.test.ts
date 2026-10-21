@@ -27,10 +27,8 @@ const CLI_VERSION = (
     version: string;
   }
 ).version;
-/** The directory `full.yaml` claims; it never has to exist on disk. */
 const ACME_DIR = '/srv/acme';
 const env = captureEnv();
-/** The token `gh` would print; never a real one. */
 const GH_TOKEN = 'ghs_fake_token_for_tests';
 
 const FakeExecFileSync = execFileSync as unknown as jest.Mock;
@@ -90,7 +88,6 @@ afterEach(() => {
   env.restore();
 });
 
-// `process` outlives the suite, so put the real cwd back for the next file.
 afterAll(() => {
   cwd.mockRestore();
 });

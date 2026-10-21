@@ -19,7 +19,6 @@ export type MatchOutcome =
       organizations: OrganizationConfig[];
     };
 
-/** Expands a leading `~` to the home directory; leaves other paths alone. */
 function expandHome(value: string, home: string = homedir()): string {
   if (value === '~') return home;
   if (value.startsWith('~/') || value.startsWith('~\\')) {
@@ -28,16 +27,10 @@ function expandHome(value: string, home: string = homedir()): string {
   return value;
 }
 
-/** Absolute, `..`-free, no trailing slash: the form used for comparisons. */
 function normalizeContextPath(value: string, home: string = homedir()): string {
   return resolve(expandHome(value, home));
 }
 
-/**
- * Symlinks resolved, so a config path and the physical cwd it points at still
- * match. Paths that do not exist yet (a not-yet-cloned checkout) keep their
- * normalized form.
- */
 function canonicalContextPath(value: string, home: string = homedir()): string {
   const normalized = normalizeContextPath(value, home);
   try {
@@ -47,7 +40,6 @@ function canonicalContextPath(value: string, home: string = homedir()): string {
   }
 }
 
-/** Collapses a path under the home directory back to `~`-form for display. */
 function displayContextPath(value: string, home: string = homedir()): string {
   const normalizedHome = normalizeContextPath(home, home);
   return contains(value, normalizedHome)
@@ -66,27 +58,26 @@ export function matchOrganization(
   home: string = homedir(),
 ): MatchOutcome {
   const directory = canonicalContextPath(cwd, home);
-  // One entry per matching (organization, canonical path) pair, longest first.
-  const matches: Array<PathMatch & { canonicalPath: string }> = [];
-  let longest = -1;
+  const longestMatches: Array<PathMatch & { canonicalPath: string }> = [];
+  let longestPathLength = -1;
 
   for (const organization of organizations) {
     for (const storedPath of organization.paths) {
       const normalizedPath = normalizeContextPath(storedPath, home);
       const canonicalPath = canonicalContextPath(normalizedPath, home);
       if (!contains(directory, canonicalPath)) continue;
-      if (canonicalPath.length < longest) continue;
-      if (canonicalPath.length > longest) {
-        longest = canonicalPath.length;
-        matches.length = 0;
+      if (canonicalPath.length < longestPathLength) continue;
+      if (canonicalPath.length > longestPathLength) {
+        longestPathLength = canonicalPath.length;
+        longestMatches.length = 0;
       }
-      const duplicate = matches.some(
+      const duplicate = longestMatches.some(
         (match) =>
           match.organization.name === organization.name &&
           relative(match.canonicalPath, canonicalPath) === '',
       );
       if (duplicate) continue;
-      matches.push({
+      longestMatches.push({
         organization,
         canonicalPath,
         matchedPath: displayContextPath(normalizedPath, home),
@@ -94,13 +85,13 @@ export function matchOrganization(
     }
   }
 
-  const [first] = matches;
+  const [first] = longestMatches;
   if (!first) return { kind: 'no-match' };
-  if (matches.length > 1) {
+  if (longestMatches.length > 1) {
     return {
       kind: 'ambiguous',
       matchedPath: first.matchedPath,
-      organizations: matches.map((match) => match.organization),
+      organizations: longestMatches.map((match) => match.organization),
     };
   }
   return {

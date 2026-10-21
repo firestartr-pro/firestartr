@@ -7,10 +7,6 @@ export function contextFixture(name: string): string {
 
 const ENV_KEYS = ['FS_FORGE_CONFIG', 'FSCRT_ORG', 'GITHUB_TOKEN'] as const;
 
-/**
- * Snapshots the environment the context tests touch; `restore()` puts it back,
- * so a developer's own org or token never leaks in or out of a test.
- */
 export function captureEnv(): { restore(): void } {
   const saved = new Map(ENV_KEYS.map((key) => [key, process.env[key]]));
   return {

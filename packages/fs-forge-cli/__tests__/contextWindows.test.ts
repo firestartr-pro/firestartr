@@ -1,6 +1,5 @@
 import { describe, expect, it, jest } from '@jest/globals';
 
-// Inject Node's real Windows path implementation on Linux/macOS too.
 jest.mock(
   'path',
   () => jest.requireActual<typeof import('path')>('path').win32,

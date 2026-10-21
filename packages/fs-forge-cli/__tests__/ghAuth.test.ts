@@ -9,7 +9,6 @@ import { createGitHubApi } from '../src/github/index';
 const ORIGINAL_TOKEN = process.env.GITHUB_TOKEN;
 const FakeExecFileSync = execFileSync as unknown as jest.Mock;
 
-/** The token `gh` would print; never a real one. */
 const FAKE_TOKEN = 'ghs_fake_token_for_tests';
 
 function ghPrints(token: string): void {

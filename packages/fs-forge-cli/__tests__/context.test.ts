@@ -1,6 +1,5 @@
 import { afterEach, describe, expect, it, jest } from '@jest/globals';
 
-/** Symlinks the config fixtures point at; the suite writes none on disk. */
 let symlinks: Record<string, string> = {};
 
 function realpathOrSelf(path: string): string {

@@ -45,7 +45,6 @@ export interface ResolveContextOptions {
   configPath?: string;
 }
 
-/** `{<org>/claims, <org>/state-github, <org>/state-infra, <org>/catalog}`. */
 export interface ContextRepos {
   claims: string;
   stateGithub: string;
@@ -53,7 +52,6 @@ export interface ContextRepos {
   catalog: string;
 }
 
-/** The lookup result: either the context, or the reason there is none. */
 export type ContextResolution =
   | { ok: true; context: OrganizationContext }
   | { ok: false; error: ContextError };
@@ -79,7 +77,6 @@ export function orgFromContext(
   return resolution.ok ? resolution.context.org : undefined;
 }
 
-/** The context, or the reason it does not resolve. */
 export function resolveContext(
   options: ResolveContextOptions = {},
 ): ContextResolution {

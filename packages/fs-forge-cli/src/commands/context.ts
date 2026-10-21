@@ -84,7 +84,6 @@ export default class Context extends Command {
     }
   }
 
-  /** Non-zero exit, `{error: {code, message}}` on stderr when `--json`. */
   private fail(json: boolean, error: ContextError): never {
     if (!json) this.error(error.message, { code: error.code, exit: 1 });
     process.stderr.write(
