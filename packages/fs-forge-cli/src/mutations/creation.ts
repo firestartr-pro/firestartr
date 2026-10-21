@@ -1,5 +1,6 @@
 import { claimsRepo } from '../claims/claimsRepo.js';
 import { deterministicPath } from '../claims/deterministicPath.js';
+import { parseStateRepos } from '../claims/wetPr.js';
 import { serializeClaim } from '../claims/keyOrdering.js';
 import { createGitHubApi } from '../github/index.js';
 import { publishClaimAndWait } from './publish.js';
@@ -50,7 +51,7 @@ export async function runClaimCreation(
     const repo =
       commit && orgName ? claimsRepo(createGitHubApi(), orgName) : undefined;
     const output = serializeClaim(claim);
-    if (!repo || !destinationPath) {
+    if (!repo || !destinationPath || !orgName) {
       writeOutput(output);
       return { output };
     }
@@ -64,7 +65,7 @@ export async function runClaimCreation(
         path: destinationPath,
         noWait,
         waitForChecks,
-        stateRepos,
+        stateRepos: parseStateRepos(stateRepos, orgName).join(','),
         rejectExistingClaim: true,
       },
       { output: writeOutput, diagnostic: writeDiagnostic },

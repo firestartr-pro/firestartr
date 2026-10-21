@@ -4,6 +4,7 @@ import { posix } from 'path';
 import { parseClaimsMap } from './claimsMap.js';
 import { KIND_REGISTRY } from './kindRegistry.js';
 import { isNotFoundError } from '../github/api.js';
+import { reposForOrganization } from '../context/resolve.js';
 
 import type { ClaimsMap, ResolvedClaim } from './claimsMap.js';
 import type { GitHubApi, RepoRef } from '../github/api.js';
@@ -35,9 +36,13 @@ function isBranchAlreadyExists(error: unknown): boolean {
 export function claimsRepo(
   api: GitHubApi,
   org: string,
-  repoName = 'claims',
+  repoName?: string,
 ): ClaimsRepo {
-  return { api, ref: { owner: org, repo: repoName } };
+  if (repoName !== undefined)
+    return { api, ref: { owner: org, repo: repoName } };
+  const slug = reposForOrganization(org).claims;
+  const [owner, repo] = slug.split('/');
+  return { api, ref: { owner, repo } };
 }
 
 async function hasInFlightClaimsMapWorkflow(

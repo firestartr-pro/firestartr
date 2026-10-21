@@ -1,6 +1,7 @@
 import { Args, Command, Flags } from '@oclif/core';
 
 import { claimsRepo } from '../claims/claimsRepo.js';
+import { parseStateRepos } from '../claims/wetPr.js';
 import { createGitHubApi } from '../github/index.js';
 import { resolveClaimReference } from '../claims/kindRegistry.js';
 import {
@@ -70,7 +71,7 @@ export default class Edit extends Command {
       commit: flags.commit,
       noWait: flags['no-wait'],
       waitForChecks: flags['wait-for-checks'],
-      stateRepos: flags['state-repos'],
+      stateRepos: parseStateRepos(flags['state-repos'], org).join(','),
       transform: (claim) => {
         for (const value of flags['add-feature'] ?? []) {
           claim = mutateFeatureReference(

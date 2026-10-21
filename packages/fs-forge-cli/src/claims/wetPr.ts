@@ -1,3 +1,5 @@
+import { reposForOrganization } from '../context/resolve.js';
+
 import type { GitHubApi, RepoRef } from '../github/api.js';
 
 export interface WetPrInfo {
@@ -19,7 +21,6 @@ export interface LastStatePrRedirect {
 }
 
 const LAST_STATE_PR_ANNOTATION = 'firestartr.dev/last-state-pr';
-const DEFAULT_STATE_REPOS = ['state-github', 'state-infra'];
 
 function branchMatchesClaim(
   branchName: string,
@@ -45,15 +46,14 @@ function contentMatchesClaim(
   return content.includes(ref);
 }
 
-function defaultStateRepos(org: string): string[] {
-  return DEFAULT_STATE_REPOS.map((repo) => `${org}/${repo}`);
-}
-
 export function parseStateRepos(
   stateReposFlag: string | undefined,
   org: string,
 ): string[] {
-  if (!stateReposFlag) return defaultStateRepos(org);
+  if (!stateReposFlag) {
+    const repos = reposForOrganization(org);
+    return [repos.stateGithub, repos.stateInfra];
+  }
   return stateReposFlag.split(',').map((r) => r.trim());
 }
 

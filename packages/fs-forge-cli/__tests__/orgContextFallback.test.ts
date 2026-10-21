@@ -8,6 +8,8 @@ import {
   jest,
 } from '@jest/globals';
 import { captureOutput } from '@oclif/test';
+import { readFileSync } from 'fs';
+import { join } from 'path';
 
 jest.mock('../src/github/index', () => ({
   createGitHubApi: jest.fn(),
@@ -16,6 +18,8 @@ jest.mock('../src/github/index', () => ({
 import { createGitHubApi } from '../src/github/index';
 import CreateComponent from '../src/commands/create/component';
 import Delete from '../src/commands/delete';
+import OrgElements from '../src/commands/discovery/org-elements';
+import Edit from '../src/commands/edit';
 import { captureEnv, contextFixture } from './fixtures/contextFixtures';
 import { MemoryGitHubApi } from './fixtures/memoryGitHubApi';
 
@@ -115,6 +119,191 @@ describe('--org defaults to the resolved context', () => {
       expect.objectContaining({
         ref: { owner: ORG, repo: 'claims' },
         path: 'claims/components/example.yaml',
+      }),
+    );
+  });
+
+  it('publishes to the claims repository reported by the config', async () => {
+    process.env.FS_FORGE_CONFIG = contextFixture('full.yaml');
+    const api = mockClient();
+    const ref = { owner: ORG, repo: 'claims-fork' };
+    api.setDefaultBranch(ref, 'main');
+    api.setFile(
+      ref,
+      'claims-map.json',
+      JSON.stringify(CLAIMS_MAP),
+      'map-file-sha',
+    );
+    const args = CreateComponent.examples[0]
+      .replace('<%= config.bin %> <%= command.id %> ', '')
+      .split(' ');
+
+    const outcome = await run(CreateComponent, ...args, '--commit');
+
+    expect(outcome.error).toBeUndefined();
+    expect(api.committed[0]).toEqual(expect.objectContaining({ ref }));
+  });
+
+  it('watches the configured state repos even when the claims owner differs', async () => {
+    process.env.FS_FORGE_CONFIG = contextFixture('repo-overrides.yaml');
+    const api = mockClient();
+    const ref = { owner: 'shared', repo: 'claims-fork' };
+    api.setDefaultBranch(ref, 'main');
+    api.setFile(
+      ref,
+      'claims-map.json',
+      JSON.stringify(CLAIMS_MAP),
+      'map-file-sha',
+    );
+    const args = CreateComponent.examples[0]
+      .replace('<%= config.bin %> <%= command.id %> ', '')
+      .split(' ');
+
+    const outcome = await run(
+      CreateComponent,
+      ...args,
+      '--commit',
+      '--wait-for-checks',
+    );
+
+    expect(outcome.error).toBeUndefined();
+    expect(api.committed[0]).toEqual(expect.objectContaining({ ref }));
+    expect(api.calls).toContain(
+      'listOpenPullRequests acme/state-github-fork:automated',
+    );
+    expect(api.calls).toContain(
+      'listOpenPullRequests other/state-infra-fork:automated',
+    );
+  });
+
+  it('discovers claims from the configured repo by default', async () => {
+    process.env.FS_FORGE_CONFIG = contextFixture('full.yaml');
+    const api = mockClient();
+    const ref = { owner: ORG, repo: 'claims-fork' };
+    api.setDefaultBranch(ref, 'main');
+    api.setFile(
+      ref,
+      'claims-map.json',
+      JSON.stringify(CLAIMS_MAP),
+      'map-file-sha',
+    );
+
+    const outcome = await run(OrgElements, '--json');
+
+    expect(outcome.error).toBeUndefined();
+    expect(JSON.parse(outcome.stdout).claimsRepo).toBe('claims-fork');
+    expect(api.calls).toContain(
+      'readFile acme/claims-fork:claims-map.json@claims-index',
+    );
+  });
+
+  it('keeps state defaults attached to the selected org when editing across owners', async () => {
+    process.env.FS_FORGE_CONFIG = contextFixture('repo-overrides.yaml');
+    const api = mockClient();
+    const ref = { owner: 'shared', repo: 'claims-fork' };
+    api.setDefaultBranch(ref, 'main');
+    api.setFile(
+      ref,
+      'claims-map.json',
+      JSON.stringify(CLAIMS_MAP),
+      'map-file-sha',
+    );
+    api.setFile(
+      ref,
+      'claims/components/my-component.yaml',
+      readFileSync(
+        join(ROOT, '__tests__/fixtures/valid/component.yaml'),
+        'utf8',
+      ),
+    );
+
+    const outcome = await run(
+      Edit,
+      'ComponentClaim-my-component',
+      '--commit',
+      '--wait-for-checks',
+    );
+
+    expect(outcome.error).toBeUndefined();
+    expect(api.committed[0]).toEqual(expect.objectContaining({ ref }));
+    expect(api.calls).toContain(
+      'listOpenPullRequests acme/state-github-fork:automated',
+    );
+    expect(api.calls).toContain(
+      'listOpenPullRequests other/state-infra-fork:automated',
+    );
+  });
+
+  it('keeps an explicit claims-repo flag above the configured override', async () => {
+    process.env.FS_FORGE_CONFIG = contextFixture('repo-overrides.yaml');
+    const api = mockClient();
+
+    const outcome = await run(OrgElements, '--claims-repo', 'claims', '--json');
+
+    expect(outcome.error).toBeUndefined();
+    expect(JSON.parse(outcome.stdout).claimsRepo).toBe('claims');
+    expect(api.calls).toContain(
+      'readFile acme/claims:claims-map.json@claims-index',
+    );
+  });
+
+  it('keeps explicit state-repos above the configured defaults', async () => {
+    process.env.FS_FORGE_CONFIG = contextFixture('full.yaml');
+    const api = mockClient();
+    const ref = { owner: ORG, repo: 'claims-fork' };
+    api.setDefaultBranch(ref, 'main');
+    api.setFile(
+      ref,
+      'claims-map.json',
+      JSON.stringify(CLAIMS_MAP),
+      'map-file-sha',
+    );
+    const args = CreateComponent.examples[0]
+      .replace('<%= config.bin %> <%= command.id %> ', '')
+      .split(' ');
+
+    const outcome = await run(
+      CreateComponent,
+      ...args,
+      '--commit',
+      '--wait-for-checks',
+      '--state-repos',
+      'custom/one,custom/two',
+    );
+
+    expect(outcome.error).toBeUndefined();
+    expect(api.calls).toContain('listOpenPullRequests custom/one:automated');
+    expect(api.calls).toContain('listOpenPullRequests custom/two:automated');
+    expect(api.calls).not.toContain(
+      'listOpenPullRequests acme/state-github-fork:automated',
+    );
+  });
+
+  it('dispatches deletion in the configured claims repository', async () => {
+    process.env.FS_FORGE_CONFIG = contextFixture('repo-overrides.yaml');
+    const api = mockClient();
+    const ref = { owner: 'shared', repo: 'claims-fork' };
+    api.setDefaultBranch(ref, 'main');
+    api.setFile(
+      ref,
+      'claims-map.json',
+      JSON.stringify(CLAIMS_MAP),
+      'map-file-sha',
+    );
+
+    const outcome = await run(
+      Delete,
+      'component',
+      'my-component',
+      '--commit',
+      '--no-wait',
+    );
+
+    expect(outcome.error).toBeUndefined();
+    expect(api.dispatched[0]).toEqual(
+      expect.objectContaining({
+        ref,
+        workflowId: 'unprovision-claim.yaml',
       }),
     );
   });

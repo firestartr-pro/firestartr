@@ -5529,47 +5529,6 @@
         "show.js"
       ]
     },
-    "diagram:print": {
-      "aliases": [],
-      "args": {},
-      "description": "Render an arbitrary relation graph (nodes/edges JSON) as a tree, using the same graphics as `discovery map`",
-      "examples": [
-        "<%= config.bin %> <%= command.id %> --file graph.json",
-        "cat graph.json | <%= config.bin %> <%= command.id %>",
-        "<%= config.bin %> <%= command.id %> --file graph.json --ascii"
-      ],
-      "flags": {
-        "file": {
-          "char": "f",
-          "description": "Path to a JSON file with a relation graph ({ nodes, edges }); reads stdin if omitted",
-          "name": "file",
-          "hasDynamicHelp": false,
-          "multiple": false,
-          "type": "option"
-        },
-        "ascii": {
-          "description": "Use ASCII icons instead of emoji",
-          "name": "ascii",
-          "allowNo": false,
-          "type": "boolean"
-        }
-      },
-      "hasDynamicHelp": false,
-      "hiddenAliases": [],
-      "id": "diagram:print",
-      "pluginAlias": "@firestartr/fs-forge-cli",
-      "pluginName": "@firestartr/fs-forge-cli",
-      "pluginType": "core",
-      "strict": true,
-      "enableJsonFlag": false,
-      "isESM": true,
-      "relativePath": [
-        "dist",
-        "commands",
-        "diagram",
-        "print.js"
-      ]
-    },
     "discovery:map": {
       "aliases": [],
       "args": {},
@@ -5674,9 +5633,8 @@
           "type": "option"
         },
         "claims-repo": {
-          "description": "Repository name for the claims repo",
+          "description": "Repository name for the claims repo (default: config, then claims)",
           "name": "claims-repo",
-          "default": "claims",
           "hasDynamicHelp": false,
           "multiple": false,
           "type": "option"
@@ -5733,25 +5691,34 @@
         "org-elements.js"
       ]
     },
-    "schema:list": {
+    "diagram:print": {
       "aliases": [],
       "args": {},
-      "description": "List machine-readable fs-forge output contracts",
+      "description": "Render an arbitrary relation graph (nodes/edges JSON) as a tree, using the same graphics as `discovery map`",
       "examples": [
-        "<%= config.bin %> <%= command.id %>",
-        "<%= config.bin %> <%= command.id %> --json"
+        "<%= config.bin %> <%= command.id %> --file graph.json",
+        "cat graph.json | <%= config.bin %> <%= command.id %>",
+        "<%= config.bin %> <%= command.id %> --file graph.json --ascii"
       ],
       "flags": {
-        "json": {
-          "description": "Output as JSON",
-          "name": "json",
+        "file": {
+          "char": "f",
+          "description": "Path to a JSON file with a relation graph ({ nodes, edges }); reads stdin if omitted",
+          "name": "file",
+          "hasDynamicHelp": false,
+          "multiple": false,
+          "type": "option"
+        },
+        "ascii": {
+          "description": "Use ASCII icons instead of emoji",
+          "name": "ascii",
           "allowNo": false,
           "type": "boolean"
         }
       },
       "hasDynamicHelp": false,
       "hiddenAliases": [],
-      "id": "schema:list",
+      "id": "diagram:print",
       "pluginAlias": "@firestartr/fs-forge-cli",
       "pluginName": "@firestartr/fs-forge-cli",
       "pluginType": "core",
@@ -5761,39 +5728,8 @@
       "relativePath": [
         "dist",
         "commands",
-        "schema",
-        "list.js"
-      ]
-    },
-    "schema:show": {
-      "aliases": [],
-      "args": {
-        "name": {
-          "description": "Contract name",
-          "name": "name",
-          "required": true
-        }
-      },
-      "description": "Print a machine-readable output contract verbatim",
-      "examples": [
-        "<%= config.bin %> <%= command.id %> CommandHelpJson",
-        "<%= config.bin %> <%= command.id %> RelationGraph"
-      ],
-      "flags": {},
-      "hasDynamicHelp": false,
-      "hiddenAliases": [],
-      "id": "schema:show",
-      "pluginAlias": "@firestartr/fs-forge-cli",
-      "pluginName": "@firestartr/fs-forge-cli",
-      "pluginType": "core",
-      "strict": true,
-      "enableJsonFlag": false,
-      "isESM": true,
-      "relativePath": [
-        "dist",
-        "commands",
-        "schema",
-        "show.js"
+        "diagram",
+        "print.js"
       ]
     },
     "features:add": {
@@ -6288,6 +6224,69 @@
         "commands",
         "features",
         "remove.js"
+      ]
+    },
+    "schema:list": {
+      "aliases": [],
+      "args": {},
+      "description": "List machine-readable fs-forge output contracts",
+      "examples": [
+        "<%= config.bin %> <%= command.id %>",
+        "<%= config.bin %> <%= command.id %> --json"
+      ],
+      "flags": {
+        "json": {
+          "description": "Output as JSON",
+          "name": "json",
+          "allowNo": false,
+          "type": "boolean"
+        }
+      },
+      "hasDynamicHelp": false,
+      "hiddenAliases": [],
+      "id": "schema:list",
+      "pluginAlias": "@firestartr/fs-forge-cli",
+      "pluginName": "@firestartr/fs-forge-cli",
+      "pluginType": "core",
+      "strict": true,
+      "enableJsonFlag": false,
+      "isESM": true,
+      "relativePath": [
+        "dist",
+        "commands",
+        "schema",
+        "list.js"
+      ]
+    },
+    "schema:show": {
+      "aliases": [],
+      "args": {
+        "name": {
+          "description": "Contract name",
+          "name": "name",
+          "required": true
+        }
+      },
+      "description": "Print a machine-readable output contract verbatim",
+      "examples": [
+        "<%= config.bin %> <%= command.id %> CommandHelpJson",
+        "<%= config.bin %> <%= command.id %> RelationGraph"
+      ],
+      "flags": {},
+      "hasDynamicHelp": false,
+      "hiddenAliases": [],
+      "id": "schema:show",
+      "pluginAlias": "@firestartr/fs-forge-cli",
+      "pluginName": "@firestartr/fs-forge-cli",
+      "pluginType": "core",
+      "strict": true,
+      "enableJsonFlag": false,
+      "isESM": true,
+      "relativePath": [
+        "dist",
+        "commands",
+        "schema",
+        "show.js"
       ]
     }
   },

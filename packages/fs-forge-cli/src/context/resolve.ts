@@ -140,15 +140,23 @@ export function resolveContext(
   };
 }
 
+/** Repository defaults for an already resolved org, including its config entry. */
+export function reposForOrganization(org: string): ContextRepos {
+  const context = resolveOrganization({ flag: org });
+  return contextRepos(org, context.organization);
+}
+
 export function contextRepos(
   org: string,
   organization?: OrganizationConfig,
 ): ContextRepos {
+  const qualify = (repo: string): string =>
+    repo.includes('/') ? repo : `${org}/${repo}`;
   return {
-    claims: organization?.claims_repo ?? `${org}/claims`,
-    stateGithub: organization?.state_github_repo ?? `${org}/state-github`,
-    stateInfra: organization?.state_infra_repo ?? `${org}/state-infra`,
-    catalog: organization?.catalog_repo ?? `${org}/catalog`,
+    claims: qualify(organization?.claims_repo ?? 'claims'),
+    stateGithub: qualify(organization?.state_github_repo ?? 'state-github'),
+    stateInfra: qualify(organization?.state_infra_repo ?? 'state-infra'),
+    catalog: qualify(organization?.catalog_repo ?? 'catalog'),
   };
 }
 

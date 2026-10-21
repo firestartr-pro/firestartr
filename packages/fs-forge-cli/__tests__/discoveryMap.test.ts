@@ -5,6 +5,7 @@ import { join } from 'path';
 import { loadClaimsArchive } from '../src/claims/archive';
 import DiscoveryMap from '../src/commands/discovery/map';
 import { createClaimValidator } from '../src/utils/ajvValidation';
+import { captureEnv, contextFixture } from './fixtures/contextFixtures';
 
 jest.mock('../src/claims/archive', () => ({
   loadClaimsArchive: jest.fn(),
@@ -12,6 +13,7 @@ jest.mock('../src/claims/archive', () => ({
 jest.mock('../src/github/index', () => ({ createGitHubApi: jest.fn() }));
 
 const loadClaimsArchiveMock = jest.mocked(loadClaimsArchive);
+const env = captureEnv();
 
 async function runMap(flags: string[]) {
   return captureOutput(async () => {
@@ -31,7 +33,7 @@ const claims = [
 ];
 
 afterEach(() => {
-  delete process.env.FSCRT_ORG;
+  env.restore();
   loadClaimsArchiveMock.mockReset();
   process.exitCode = 0;
 });
@@ -89,6 +91,20 @@ describe('discovery map', () => {
     });
     const validation = await validator.validate(graph, 'RelationGraph');
     expect(validation).toEqual({ valid: true, errors: [] });
+  });
+
+  it('downloads the archive from the configured claims repository', async () => {
+    process.env.FS_FORGE_CONFIG = contextFixture('repo-overrides.yaml');
+    loadClaimsArchiveMock.mockResolvedValue(claims);
+
+    const result = await runMap(['--org', 'acme', '--json']);
+
+    expect(result.error).toBeUndefined();
+    expect(loadClaimsArchiveMock).toHaveBeenCalledWith(
+      undefined,
+      { owner: 'shared', repo: 'claims-fork' },
+      undefined,
+    );
   });
 
   it('reports archive fetch failures', async () => {
