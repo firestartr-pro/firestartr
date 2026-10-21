@@ -187,7 +187,8 @@ async function writeDiagnosticSnapshot(
   const missingCrds: string[] = [];
   try {
     const monitors = (global as any).__crdMonitors as
-      Map<string, any> | undefined;
+      | Map<string, any>
+      | undefined;
     if (monitors && typeof monitors === 'object') {
       for (const [key, monitor] of monitors) {
         try {
