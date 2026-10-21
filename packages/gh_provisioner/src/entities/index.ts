@@ -6,6 +6,8 @@ import { EntityCR } from './cr';
 
 import { Entity } from './base';
 
+import type { Dependencies } from '../refs';
+
 import { EntityGroup } from './group';
 import { EntityGHRepositorySecretsSection } from './ghrepositorysecretssection';
 import { EntityGHRepo } from './ghrepo';
@@ -21,14 +23,17 @@ export { EntityCR } from './cr';
 
 export { Entity } from './base';
 
-export type EntityConstructor<T extends Entity = Entity> = new (cr: any) => T;
+export type EntityConstructor<T extends Entity = Entity> = new (
+  cr: any,
+  deps?: Dependencies,
+) => T;
 
-export function getEntity(cr: any): Entity {
+export function getEntity(cr: any, deps?: Dependencies): Entity {
   const entityClass: EntityConstructor = getEntityClass(
     cr.kind,
   ) as EntityConstructor;
 
-  return new entityClass(cr);
+  return new entityClass(cr, deps);
 }
 
 function getEntityClass(kind: string): EntityConstructor {

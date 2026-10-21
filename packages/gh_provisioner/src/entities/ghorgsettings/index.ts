@@ -1,12 +1,18 @@
 import { Entity, PatchOperations } from '../base';
 
+import type { Dependencies } from '../../refs';
+
 import log from '../../logger';
 
 export class EntityGHOrgSettings extends Entity {
-  constructor(artifact: any) {
-    super(artifact, {
-      config: {},
-    });
+  constructor(artifact: any, deps?: Dependencies) {
+    super(
+      artifact,
+      {
+        config: {},
+      },
+      deps,
+    );
   }
 
   async loadResources(tfOp: string): Promise<void> {

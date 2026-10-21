@@ -1,19 +1,48 @@
-const fakeLogger = { debug: jest.fn(), error: jest.fn() };
+const fakeLogger = { debug: jest.fn(), error: jest.fn(), info: jest.fn(), warn: jest.fn(), silly: jest.fn() };
 jest.mock('../src/logger', () => ({ __esModule: true, default: fakeLogger }));
 
 import { provisionCodeowners } from '../src/entities/ghrepo/helpers/codeowners';
-import { Entity } from '../src/entities/base';
+import { EntityGHRepo } from '../src/entities/ghrepo';
 
 // Helper to create a fake repo CR
 function makeRepoCR(org: string, codeowners: string, permissions: any[]) {
   return {
+    kind: 'FirestartrGithubRepository',
+    apiVersion: 'firestartr.dev/v1',
     spec: {
       org,
       repo: { defaultBranch: 'main', codeowners },
       permissions,
     },
-    metadata: { name: 'r' },
+    metadata: { name: 'r', annotations: {} },
   };
+}
+
+// A group dependency: the external name comes from its CR annotation,
+// the slug from its output secret.
+function groupDep(externalName: string, slug?: string) {
+  return {
+    cr: {
+      apiVersion: 'firestartr.dev/v1',
+      kind: 'FirestartrGithubGroup',
+      metadata: {
+        name: externalName,
+        annotations: { 'firestartr.dev/external-name': externalName },
+      },
+      spec: {},
+    },
+    secret: {
+      apiVersion: 'v1',
+      kind: 'Secret',
+      data: {
+        outputs: Buffer.from(JSON.stringify({ slug })).toString('base64'),
+      },
+    },
+  };
+}
+
+function renderFileContent(repo: EntityGHRepo): string {
+  return repo.document.config.files[0].content;
 }
 
 describe('provisionCodeowners', () => {
@@ -26,39 +55,30 @@ describe('provisionCodeowners', () => {
     const slug1 = 'data-eng';
     const extName2 = 'QA_Team';
     const slug2 = 'qa_team';
-    
+
     const codeownersRaw = [
       '# Generated CODEOWNERS',
       '* @my-org/Data Eng @my-org/QA_Team @someone',
       '/api/** @my-org/Data Eng',
       ''
     ].join('\n');
-    
+
     const cr = makeRepoCR(org, codeownersRaw, [
       { ref: { kind: 'FirestartrGithubGroup', name: 'dataEng' } },
       { ref: { kind: 'FirestartrGithubGroup', name: 'qaTeam' } },
     ]);
-    // Mock refResolver
-    Entity.refResolver = (ref: any) => {
-      if (ref.name === 'dataEng') {
-        return {
-          cr: { metadata: { annotations: { 'firestartr.dev/external-name': extName1 } } },
-          getOutput: (key: string) => (key === 'slug' ? slug1 : undefined),
-        };
-      } else if (ref.name === 'qaTeam') {
-        return {
-          cr: { metadata: { annotations: { 'firestartr.dev/external-name': extName2 } } },
-          getOutput: (key: string) => (key === 'slug' ? slug2 : undefined),
-        };
-      }
-      return undefined;
+
+    const deps = {
+      'FirestartrGithubGroup-dataEng': groupDep(extName1, slug1),
+      'FirestartrGithubGroup-qaTeam': groupDep(extName2, slug2),
     };
 
-    // Fake repo entity wrapper
-    const fsGithubRepository = { cr, patchData: jest.fn() } as any;
-    await provisionCodeowners(fsGithubRepository);
+    const repo = new EntityGHRepo(cr, deps);
+
+    await provisionCodeowners(repo);
+
     // The new CODEOWNERS content written should have both owners rewritten
-    const newContent = fsGithubRepository.patchData.mock.calls[0][0].value.content;
+    const newContent = renderFileContent(repo);
     expect(newContent).toContain('@my-org/data-eng');
     expect(newContent).toContain('@my-org/qa_team');
     expect(newContent).not.toContain('@my-org/Data Eng');
@@ -76,26 +96,50 @@ describe('provisionCodeowners', () => {
     const cr = makeRepoCR(org, codeownersRaw, [
       { ref: { kind: 'FirestartrGithubGroup', name: 'teamA' } }
     ]);
-    Entity.refResolver = (_ref: any) => ({
-      cr: { metadata: { annotations: { 'firestartr.dev/external-name': extName } } },
-      getOutput: (_: string) => undefined,
-    });
-    const fsGithubRepository = { cr, patchData: jest.fn() } as any;
-    await provisionCodeowners(fsGithubRepository);
-    const newContent = fsGithubRepository.patchData.mock.calls[0][0].value.content;
+
+    const deps = {
+      'FirestartrGithubGroup-teamA': groupDep(extName),
+    };
+
+    const repo = new EntityGHRepo(cr, deps);
+
+    await provisionCodeowners(repo);
+
+    const newContent = renderFileContent(repo);
     // Owner not replaced
     expect(newContent).toContain('@o/Team A');
     // Logger called
     expect(fakeLogger.error).toHaveBeenCalledWith(expect.stringContaining('Missing slug'));
   });
 
+  it('keeps catching unresolved group refs instead of failing the run', async () => {
+    const org = 'o';
+    const codeownersRaw = '* @o/Missing Team';
+    const cr = makeRepoCR(org, codeownersRaw, [
+      { ref: { kind: 'FirestartrGithubGroup', name: 'missingTeam' } }
+    ]);
+
+    const repo = new EntityGHRepo(cr, {});
+
+    await expect(provisionCodeowners(repo)).resolves.toBeUndefined();
+
+    const newContent = renderFileContent(repo);
+    expect(newContent).toBe(codeownersRaw);
+    expect(fakeLogger.error).toHaveBeenCalledWith(
+      expect.stringContaining('missingTeam'),
+    );
+  });
+
   it('preserves unrelated CODEOWNERS content', async () => {
     const org = 'org';
     const codeownersRaw = ['# comment', '/x @org/foo', ''].join('\n');
     const cr = makeRepoCR(org, codeownersRaw, []);
-    const fsGithubRepository = { cr, patchData: jest.fn() } as any;
-    await provisionCodeowners(fsGithubRepository);
-    const newContent = fsGithubRepository.patchData.mock.calls[0][0].value.content;
+
+    const repo = new EntityGHRepo(cr, {});
+
+    await provisionCodeowners(repo);
+
+    const newContent = renderFileContent(repo);
     expect(newContent).toBe(codeownersRaw);
   });
 });
