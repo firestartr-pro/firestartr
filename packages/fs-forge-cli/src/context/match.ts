@@ -1,6 +1,6 @@
 import { homedir } from 'os';
 import { realpathSync } from 'fs';
-import { isAbsolute, join, relative, resolve } from 'path';
+import { isAbsolute, join, relative, resolve, sep } from 'path';
 
 import type { OrganizationConfig } from './config.js';
 
@@ -112,5 +112,5 @@ export function matchOrganization(
 
 function contains(directory: string, storedPath: string): boolean {
   const rel = relative(storedPath, directory);
-  return rel === '' || (!rel.startsWith('..') && !isAbsolute(rel));
+  return rel !== '..' && !rel.startsWith(`..${sep}`) && !isAbsolute(rel);
 }

@@ -36,6 +36,18 @@ describe('Windows context paths', () => {
     ).toEqual({ kind: 'no-match' });
   });
 
+  it('keeps the most-specific organization for a child starting with two dots', () => {
+    const parent = { name: 'beta', paths: [String.raw`C:\Users\me\work`] };
+
+    expect(
+      matchOrganization(
+        [parent, ACME],
+        String.raw`C:\Users\me\work\acme\..work\project`,
+        HOME,
+      ),
+    ).toEqual(expect.objectContaining({ kind: 'match', organization: ACME }));
+  });
+
   it('displays matched paths with a platform-native home prefix', () => {
     expect(
       matchOrganization([ACME], String.raw`C:\Users\me\work\acme\claims`, HOME),

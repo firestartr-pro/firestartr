@@ -79,6 +79,20 @@ describe('context path matching', () => {
     ).toBe('acme');
   });
 
+  it('keeps the most-specific organization for a child starting with two dots', () => {
+    expect(
+      resolveOrganization({
+        configPath: contextFixture('nested.yaml'),
+        cwd: '/srv/acme/project/..work/sub',
+      }),
+    ).toEqual(
+      expect.objectContaining({
+        org: 'acme-project',
+        matchedPath: '/srv/acme/project',
+      }),
+    );
+  });
+
   it('matches a directory reached through a symlink', () => {
     symlinks = { '/srv/acme-link': '/srv/acme' };
 
