@@ -146,6 +146,15 @@ describe('context config loading', () => {
     ).toBe('NO_CONFIG');
   });
 
+  it('reports NO_CONFIG for a relative organization path', () => {
+    const error = failure({
+      configPath: contextFixture('relative-path.yaml'),
+      cwd: '/srv/acme',
+    });
+
+    expect(error.code).toBe('NO_CONFIG');
+  });
+
   it('reports NO_MATCH when no configured path contains the directory', () => {
     const error = failure({
       configPath: contextFixture('defaults.yaml'),

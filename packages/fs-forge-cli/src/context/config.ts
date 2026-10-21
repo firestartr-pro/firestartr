@@ -1,6 +1,6 @@
 import { readFileSync } from 'fs';
 import { homedir } from 'os';
-import { join } from 'path';
+import { isAbsolute, join } from 'path';
 import YAML from 'yaml';
 
 /** One `organizations[]` entry of the fs-forge config file. */
@@ -85,7 +85,13 @@ function parseOrganization(value: unknown): OrganizationConfig | undefined {
   if (typeof name !== 'string' || !name) return undefined;
   const paths = value.paths;
   if (!Array.isArray(paths) || paths.length === 0) return undefined;
-  if (!paths.every((path) => typeof path === 'string' && path !== '')) {
+  if (
+    !paths.every(
+      (path) =>
+        typeof path === 'string' &&
+        (isAbsolute(path) || path === '~' || path.startsWith('~/')),
+    )
+  ) {
     return undefined;
   }
   const organization: OrganizationConfig = { name, paths: paths as string[] };
