@@ -53,10 +53,6 @@ export class MemoryGitHubApi implements GitHubApi {
   private readonly pulls = new Map<string, PullRequestSummary[]>();
   private readonly pullFiles = new Map<string, PullRequestFile[]>();
   private readonly checkRuns = new Map<string, CheckRunSummary[]>();
-  private readonly searchResults = new Map<
-    string,
-    Array<{ path: string; name: string }>
-  >();
 
   key(ref: RepoRef): string {
     return `${ref.owner}/${ref.repo}`;
@@ -100,13 +96,6 @@ export class MemoryGitHubApi implements GitHubApi {
 
   setCheckRuns(ref: RepoRef, pr: number, runs: CheckRunSummary[]): void {
     this.checkRuns.set(`${this.key(ref)}#${pr}`, runs);
-  }
-
-  setSearchResults(
-    ref: RepoRef,
-    results: Array<{ path: string; name: string }>,
-  ): void {
-    this.searchResults.set(this.key(ref), results);
   }
 
   addRepo(ref: RepoRef): void {
@@ -287,14 +276,6 @@ export class MemoryGitHubApi implements GitHubApi {
   ): Promise<CheckRunSummary[]> {
     this.calls.push(`listCheckRunsForPullRequest ${this.key(ref)}#${pr}`);
     return this.checkRuns.get(`${this.key(ref)}#${pr}`) ?? [];
-  }
-
-  async searchFiles(
-    ref: RepoRef,
-    query: string,
-  ): Promise<Array<{ path: string; name: string }>> {
-    this.calls.push(`searchFiles ${this.key(ref)}:${query}`);
-    return this.searchResults.get(this.key(ref)) ?? [];
   }
 
   async repoExists(ref: RepoRef): Promise<boolean> {

@@ -255,27 +255,6 @@ export function createOctokitApi(octokit: Octokit): GitHubApi {
       return checks;
     },
 
-    async searchFiles(ref, query) {
-      const results: Array<{ path: string; name: string }> = [];
-      let page = 1;
-      while (true) {
-        const { data } = await octokit.rest.search.code({
-          q: `${query} repo:${ref.owner}/${ref.repo}`,
-          per_page: 100,
-          page,
-        });
-        for (const item of data.items) {
-          if (item.repository.full_name === `${ref.owner}/${ref.repo}`) {
-            results.push({ path: item.path, name: item.name });
-          }
-        }
-        if (data.items.length < 100 || results.length >= data.total_count)
-          break;
-        page++;
-      }
-      return results;
-    },
-
     async repoExists(ref) {
       try {
         await octokit.rest.repos.get({ owner: ref.owner, repo: ref.repo });
