@@ -1,4 +1,4 @@
-import { Entity, PatchOperations } from '../../base';
+import { PatchOperations } from '../../base';
 
 import log from '../../../logger';
 
@@ -21,13 +21,12 @@ export function provisionPermissions(fsGithubRepository: EntityGHRepo): void {
           `[gh-provisioner] ${fsGithubRepository.k8sId} provisions a team ${permission.ref.name} with role ${permission.role}`,
         );
 
-        const refTeam = Entity.refResolver(permission.ref);
+        const refTeam = fsGithubRepository.resolveRef(permission.ref);
 
         if (!refTeam) {
-          log.warn(
-            `[gh-provisioner] ${fsGithubRepository.k8sId} could not resolve team ref ${permission.ref.name}, skipping`,
+          throw new Error(
+            `[gh-provisioner] ${fsGithubRepository.k8sId} could not resolve team ref ${permission.ref.name}, aborting instead of dropping it from permissions`,
           );
-          continue;
         }
 
         const config = {
@@ -48,13 +47,12 @@ export function provisionPermissions(fsGithubRepository: EntityGHRepo): void {
           `[gh-provisioner] ${fsGithubRepository.k8sId} provisions a member ${permission.ref.name} with role ${permission.role}`,
         );
 
-        const refUser = Entity.refResolver(permission.ref);
+        const refUser = fsGithubRepository.resolveRef(permission.ref);
 
         if (!refUser) {
-          log.warn(
-            `[gh-provisioner] ${fsGithubRepository.k8sId} could not resolve membership ref ${permission.ref.name}, skipping`,
+          throw new Error(
+            `[gh-provisioner] ${fsGithubRepository.k8sId} could not resolve membership ref ${permission.ref.name}, aborting instead of dropping it from permissions`,
           );
-          continue;
         }
 
         const config = {

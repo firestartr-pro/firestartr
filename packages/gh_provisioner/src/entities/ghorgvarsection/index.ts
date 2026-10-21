@@ -1,16 +1,22 @@
 import { Entity, PatchOperations } from '../base';
 
+import type { Dependencies } from '../../refs';
+
 import log from '../../logger';
 
 import github from 'github';
 
 export class EntityGHOrgVarsSection extends Entity {
-  constructor(artifact: any) {
-    super(artifact, {
-      config: {
-        variables: {},
+  constructor(artifact: any, deps?: Dependencies) {
+    super(
+      artifact,
+      {
+        config: {
+          variables: {},
+        },
       },
-    });
+      deps,
+    );
   }
 
   async loadResources(tfOp: string): Promise<void> {

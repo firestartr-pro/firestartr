@@ -4,44 +4,43 @@ import { ResolvedRef } from './resolved';
 
 import log from '../logger';
 
-let _DEPENDENCIES: Dependencies | null = null;
-
 export type Ref = {
   kind: string;
   name: string;
   needsSecret?: boolean;
 };
 
-export function isDependenciesEmpty(): boolean {
-  return _DEPENDENCIES === null || Object.keys(_DEPENDENCIES).length === 0;
-}
-
-export function setDependencies(deps: Dependencies) {
-  log.info('Setting dependencies');
-
-  _DEPENDENCIES = deps;
-}
-
-export function refResolver(ref: Ref): ResolvedRef | null {
-  if (isDependenciesEmpty()) {
+/**
+ * Resolves a ref against one execution's dependency map. The map is passed in
+ * by the caller (an Entity instance), never held as module state: concurrent
+ * runs in the same process must not see each other's dependencies.
+ *
+ * Empty or missing refs resolve to `null`; callers decide whether an
+ * unresolved ref is fatal.
+ */
+export function resolveRefIn(
+  deps: Dependencies | null | undefined,
+  ref: Ref,
+): ResolvedRef | null {
+  if (!deps || Object.keys(deps).length === 0) {
     log.error('Entity has no dependencies, nothing can be resolved');
 
-    throw new Error('Entity has no dependencies: nothing can be resolved');
+    return null;
   }
 
   const { kind, name } = ref;
 
   const index = `${kind}-${name}`;
 
-  if (index in _DEPENDENCIES) {
-    const dep = _DEPENDENCIES[index] as Dependency;
-
-    if (!dep.cr && !dep.secret) {
-      return null;
-    } else {
-      return new ResolvedRef(dep);
-    }
-  } else {
+  if (!(index in deps)) {
     return null;
   }
+
+  const dep = deps[index] as Dependency;
+
+  if (!dep.cr && !dep.secret) {
+    return null;
+  }
+
+  return new ResolvedRef(dep, deps);
 }

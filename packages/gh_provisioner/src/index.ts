@@ -1,6 +1,6 @@
-import { initDepsSystem, initDepsSystemFromMemory, refResolver } from './refs';
+import { loadDependencies } from './refs';
 
-import { Entity, getEntity } from './entities';
+import { getEntity } from './entities';
 
 import common from 'catalog_common';
 
@@ -10,21 +10,17 @@ import { readFile } from 'node:fs/promises';
 
 // from memory ( no files involved )
 export async function initSystem(cr: any, deps: any) {
-  await initDepsSystemFromMemory(deps);
-
-  Entity.setRefResolver(refResolver);
-
-  return getEntity(cr);
+  return getEntity(cr, deps ?? {});
 }
 
 export async function initSystemFS(crPath: string, depsPath: string) {
-  await initDepsSystem(depsPath);
+  log.info(`[gh-provisioner] loading dependencies from ${depsPath}`);
 
-  Entity.setRefResolver(refResolver);
+  const deps = await loadDependencies(depsPath);
 
   const cr = await loadCr(crPath);
 
-  return getEntity(cr);
+  return getEntity(cr, deps);
 }
 
 async function loadCr(crPath: string) {
