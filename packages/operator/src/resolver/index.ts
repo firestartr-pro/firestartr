@@ -111,6 +111,22 @@ export async function resolveSecretRef(
   return secret;
 }
 
+/**
+ * A ref or an already-loaded dep CR whose outputs must never be resolved:
+ * ProviderConfig carries config, not published outputs.
+ */
+function isProviderConfigRef(candidate: any): boolean {
+  return candidate?.kind === 'FirestartrProviderConfig';
+}
+
+function missingOutputsMessage(
+  referring: string,
+  namespace: string,
+  cr: any,
+): string {
+  return `[operator] '${referring}' in namespace '${namespace}' depends on '${cr.kind}/${cr.metadata?.name}', but its outputs secret '${outputsSecretName(cr)}' was not found; aborting instead of provisioning with an incomplete dependency map`;
+}
+
 async function resolveDep(
   namespace: string,
   pendingRef: { ref: any; referredBy: any },
@@ -129,7 +145,36 @@ async function resolveDep(
 
   const kr = `${resolve.kind}-${resolve.name}`;
 
-  if (kr in deps) return;
+  // The outputs secret is only expected for deps whose outputs are consumed:
+  // never for ProviderConfig, plain Kubernetes Secrets, or needsSecret: false
+  const expectsSecret =
+    resolve.needsSecret !== false &&
+    (resolve.apiGroup === common.types.controller.FirestartrApiGroup ||
+      resolve.apiGroup === common.types.controller.ExternalSecretsApiGroup) &&
+    !isProviderConfigRef(resolve);
+
+  const cached = deps[kr];
+
+  if (cached) {
+    // Reuse the already-loaded CR (its nested refs were walked on the first
+    // visit), but never let an earlier needsSecret:false reference shield a
+    // later one that does consume outputs: load and validate them now.
+    if (!expectsSecret || cached.secret) return;
+
+    if (isProviderConfigRef(cached.cr)) return;
+
+    const secret = await resolveSecretRef(namespace, cached.cr, getSecret);
+
+    if (!secret)
+      throw new ResolverError(
+        kr,
+        missingOutputsMessage(referring, namespace, cached.cr),
+      );
+
+    cached.secret = secret;
+
+    return;
+  }
 
   let ref: any;
 
@@ -156,19 +201,11 @@ async function resolveDep(
       `[operator] '${referring}' in namespace '${namespace}' depends on '${resolve.kind}/${resolve.name}' but it does not exist; aborting instead of provisioning with an incomplete dependency map`,
     );
 
-  // We may have nested refs but they should not be circular
-  // ⚠️ This mutates the references array, but it's ok because we don't need to resolve the same ref twice
+  // Nested refs are only walked on the first visit: the cached branch above
+  // reuses the CR already expanded into `references`.
   for (const nestedRef of walk(ref)) {
     references.push({ ref: nestedRef, referredBy: ref });
   }
-
-  // The outputs secret is only expected for deps whose outputs are consumed:
-  // never for ProviderConfig, plain Kubernetes Secrets, or needsSecret: false
-  const expectsSecret =
-    resolve.needsSecret !== false &&
-    (resolve.apiGroup === common.types.controller.FirestartrApiGroup ||
-      resolve.apiGroup === common.types.controller.ExternalSecretsApiGroup) &&
-    ref.kind !== 'FirestartrProviderConfig';
 
   const secret = expectsSecret
     ? await resolveSecretRef(namespace, ref, getSecret)
@@ -177,7 +214,7 @@ async function resolveDep(
   if (!secret && expectsSecret)
     throw new ResolverError(
       kr,
-      `[operator] '${referring}' in namespace '${namespace}' depends on '${ref.kind}/${ref.metadata?.name}', but its outputs secret '${outputsSecretName(ref)}' was not found; aborting instead of provisioning with an incomplete dependency map`,
+      missingOutputsMessage(referring, namespace, ref),
     );
 
   deps[kr] = {

@@ -123,6 +123,118 @@ describe('Resolver', () => {
     });
   });
 
+  it('loads the outputs secret when a later reference requires it after a needsSecret:false one', async () => {
+    const dependency = {
+      kind: 'FirestartrGithubRepository',
+      metadata: { name: 'repo-a', namespace: 'test-namespace' },
+      spec: {},
+    };
+    const secret = { metadata: { name: 'repo-a-outputs' }, data: {} };
+
+    const getItemByItemPath = jest.fn(async () => dependency);
+    const getSecret = jest.fn(async () => secret);
+
+    const result = await resolve(
+      {
+        kind: 'FirestartrGithubRepositoryFeature',
+        metadata: { name: 'feature-a', namespace: 'test-namespace' },
+        spec: {
+          repositoryTarget: {
+            ref: {
+              kind: 'FirestartrGithubRepository',
+              name: 'repo-a',
+              needsSecret: false,
+            },
+          },
+          // Same dep, but this reference consumes its outputs.
+          branch: {
+            ref: { kind: 'FirestartrGithubRepository', name: 'repo-a' },
+          },
+        },
+      },
+      getItemByItemPath,
+      getSecret,
+    );
+
+    // The CR is fetched once, but the outputs are loaded for the reference
+    // that needs them instead of being skipped by the cached entry.
+    expect(getItemByItemPath).toHaveBeenCalledTimes(1);
+    expect(getSecret).toHaveBeenCalledWith(
+      'test-namespace',
+      'firestartrgithubrepository-repo-a-outputs',
+    );
+    expect(result['FirestartrGithubRepository-repo-a'].secret).toBe(secret);
+  });
+
+  it('fails closed when a later reference needs outputs that were never published', async () => {
+    const dependency = {
+      kind: 'FirestartrGithubRepository',
+      metadata: { name: 'repo-a', namespace: 'test-namespace' },
+      spec: {},
+    };
+
+    const getItemByItemPath = jest.fn(async () => dependency);
+    const getSecret = jest.fn(async () => undefined);
+
+    await expect(
+      resolve(
+        {
+          kind: 'FirestartrGithubRepositoryFeature',
+          metadata: { name: 'feature-a', namespace: 'test-namespace' },
+          spec: {
+            repositoryTarget: {
+              ref: {
+                kind: 'FirestartrGithubRepository',
+                name: 'repo-a',
+                needsSecret: false,
+              },
+            },
+            branch: {
+              ref: { kind: 'FirestartrGithubRepository', name: 'repo-a' },
+            },
+          },
+        },
+        getItemByItemPath,
+        getSecret,
+      ),
+    ).rejects.toThrow(
+      /'FirestartrGithubRepositoryFeature\/feature-a' in namespace 'test-namespace' depends on 'FirestartrGithubRepository\/repo-a', but its outputs secret 'firestartrgithubrepository-repo-a-outputs' was not found/,
+    );
+  });
+
+  it('resolves the same dep once when two references both need its outputs', async () => {
+    const dependency = {
+      kind: 'FirestartrGithubRepository',
+      metadata: { name: 'repo-a', namespace: 'test-namespace' },
+      spec: {},
+    };
+    const secret = { metadata: { name: 'repo-a-outputs' }, data: {} };
+
+    const getItemByItemPath = jest.fn(async () => dependency);
+    const getSecret = jest.fn(async () => secret);
+
+    const result = await resolve(
+      {
+        kind: 'FirestartrGithubRepositoryFeature',
+        metadata: { name: 'feature-a', namespace: 'test-namespace' },
+        spec: {
+          repositoryTarget: {
+            ref: { kind: 'FirestartrGithubRepository', name: 'repo-a' },
+          },
+          branch: {
+            ref: { kind: 'FirestartrGithubRepository', name: 'repo-a' },
+          },
+        },
+      },
+      getItemByItemPath,
+      getSecret,
+    );
+
+    expect(getItemByItemPath).toHaveBeenCalledTimes(1);
+    expect(getSecret).toHaveBeenCalledTimes(1);
+    expect(result['FirestartrGithubRepository-repo-a'].secret).toBe(secret);
+  });
+
   it('Throws an exception if the ref was not found', async () => {
     await expect(
       async () =>
