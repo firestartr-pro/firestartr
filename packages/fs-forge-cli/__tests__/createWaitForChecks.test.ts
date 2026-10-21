@@ -159,7 +159,13 @@ describe('create --wait-for-checks forwarding', () => {
   it.each([
     { conclusion: 'success', check: SUCCESS_CHECK, message: undefined },
     { conclusion: 'failure', check: FAILURE_CHECK, message: 'Wet PR checks failed: failure' },
-  ])('observes $conclusion checks after the wet PR has merged', async ({ check, message }) => {
+    {
+      conclusion: 'failure from a block-scalar annotation',
+      check: FAILURE_CHECK,
+      message: 'Wet PR checks failed: failure',
+      annotation: '|\n      custom-state#99\n',
+    },
+  ])('observes $conclusion checks after the wet PR has merged', async ({ check, message, annotation }) => {
     const api = mockCommitApi({ prs: [] });
     const state = { owner: 'my-org', repo: 'custom-state' };
     api.setSearchResults(state, [{ path: 'cr.yaml', name: 'cr.yaml' }]);
@@ -172,7 +178,7 @@ describe('create --wait-for-checks forwarding', () => {
         '  name: example',
         '  annotations:',
         '    firestartr.dev/claim-ref: ComponentClaim/example',
-        '    firestartr.dev/last-state-pr: custom-state#99',
+        `    firestartr.dev/last-state-pr: ${annotation ?? 'custom-state#99'}`,
       ].join('\n'),
     );
     api.setCheckRuns(state, 99, [check]);
