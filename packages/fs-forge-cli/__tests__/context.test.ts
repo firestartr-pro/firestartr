@@ -184,6 +184,15 @@ describe('context config loading', () => {
     ).toBe('NO_CONFIG');
   });
 
+  it('reports NO_CONFIG for a repository override with an extra path component', () => {
+    expect(
+      failure({
+        configPath: contextFixture('invalid-repo-components.yaml'),
+        cwd: '/srv/acme',
+      }).code,
+    ).toBe('NO_CONFIG');
+  });
+
   it('reports NO_CONFIG for a relative organization path', () => {
     const error = failure({
       configPath: contextFixture('relative-path.yaml'),

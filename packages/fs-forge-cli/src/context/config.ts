@@ -103,7 +103,9 @@ function parseOrganization(value: unknown): OrganizationConfig | undefined {
   for (const field of REPO_FIELDS) {
     const repo = value[field];
     if (repo === undefined) continue;
-    if (typeof repo !== 'string' || !repo) return undefined;
+    if (typeof repo !== 'string' || !/^[^/\s]+(?:\/[^/\s]+)?$/.test(repo)) {
+      return undefined;
+    }
     organization[field] = repo;
   }
   return organization;
