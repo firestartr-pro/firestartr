@@ -4,6 +4,9 @@
 // themselves, pointing at a checked-in fixture under fixtures/context/.
 import { join } from 'path';
 
+// Tests opt in to an environment-selected org instead of inheriting the caller's.
+delete process.env.FSCRT_ORG;
+
 process.env.FS_FORGE_CONFIG = join(
   __dirname,
   'fixtures',
