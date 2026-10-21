@@ -1,4 +1,4 @@
-import { Entity, PatchOperations } from '../../base';
+import { PatchOperations } from '../../base';
 import log from '../../../logger';
 import { EntityGHRepo } from '../';
 
@@ -35,7 +35,7 @@ export async function provisionCodeowners(fsGithubRepository: EntityGHRepo) {
   for (const ref of allRefs) {
     let dep;
     try {
-      dep = Entity.refResolver(ref);
+      dep = fsGithubRepository.resolveRef(ref);
     } catch (e) {
       log.error(
         `[provisionCodeowners] Failed to resolve group ref ${ref.name}: ${String(e)}`,

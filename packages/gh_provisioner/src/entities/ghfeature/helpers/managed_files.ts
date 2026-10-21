@@ -1,4 +1,4 @@
-import { Entity, PatchOperations } from '../../base';
+import { PatchOperations } from '../../base';
 
 import log from '../../../logger';
 
@@ -55,11 +55,11 @@ export async function provisionManagedFiles(
 
   const repoInfo: any = cr.spec.repositoryTarget;
 
-  const repoRef = Entity.refResolver(cr.spec.repositoryTarget.ref);
+  const repoRef = ghFeature.resolveRef(cr.spec.repositoryTarget.ref);
 
   // Read the accumulated list of previously provisioned user-managed file addresses
   // from the entity's output secrets. Defaults to [] on first apply.
-  const selfOutputs = Entity.refResolver({ kind: 'self', name: 'outputs' });
+  const selfOutputs = ghFeature.resolveRef({ kind: 'self', name: 'outputs' });
 
   const rawInstalledFiles = selfOutputs?.getOutput('installed_managed_files');
 

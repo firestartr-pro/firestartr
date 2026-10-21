@@ -3,7 +3,7 @@ import {initSystemFS} from "../src"
 import path from "path"
 
 import {EntityGHRepo} from "../src/entities/ghrepo"
-import {Entity, PatchOperations} from "../src/entities/base"
+import {PatchOperations} from "../src/entities/base"
 
 // Mock the github module so we control repoExists
 jest.mock('github');
@@ -82,13 +82,6 @@ describe("EntityGHRepo entity", () => {
 })
 
 describe("hasDiscussions in provisionRepository", () => {
-  let previousRefResolver: any;
-
-  beforeAll(() => {
-    previousRefResolver = Entity.refResolver;
-    Entity.setRefResolver(() => null);
-  });
-
   it("should pass hasDiscussions: true to config.repository", async () => {
     const gh = new EntityGHRepo({
       kind: "FirestartrGithubRepository",
@@ -136,20 +129,9 @@ describe("hasDiscussions in provisionRepository", () => {
     const config = gh.document.config;
     expect(config.repository.hasDiscussions).toBeUndefined();
   });
-
-  afterAll(() => {
-    Entity.setRefResolver(previousRefResolver);
-  });
 });
 
 describe("validatePages logic", () => {
-  let previousRefResolver: any;
-
-  beforeAll(() => {
-    previousRefResolver = Entity.refResolver;
-    Entity.setRefResolver(() => null);
-  });
-
   it("should succeed for creation when pages.branch equals defaultBranch", async () => {
     const gh = new EntityGHRepo({
       kind: "FirestartrGithubRepository",
@@ -253,24 +235,9 @@ describe("validatePages logic", () => {
   afterEach(() => {
     jest.restoreAllMocks();
   });
-
-  afterAll(() => {
-    Entity.setRefResolver(previousRefResolver);
-  });
 });
 
 describe("provisionLabels - idempotent label imports", () => {
-  let previousRefResolver: any;
-
-  beforeAll(() => {
-    previousRefResolver = Entity.refResolver;
-    Entity.setRefResolver(() => null);
-  });
-
-  afterAll(() => {
-    Entity.setRefResolver(previousRefResolver);
-  });
-
   it("creates import entries for labels that already exist in GitHub", async () => {
     const gh = new EntityGHRepo({
       kind: "FirestartrGithubRepository",
@@ -508,17 +475,6 @@ describe("provisionLabels - import and drift correction", () => {
 });
 
 describe("loadAddressesToImport - Pages import", () => {
-  let previousRefResolver = Entity.refResolver;
-
-  beforeAll(() => {
-    previousRefResolver = Entity.refResolver;
-    Entity.setRefResolver(() => null);
-  });
-
-  afterAll(() => {
-    Entity.setRefResolver(previousRefResolver);
-  });
-
   it("should add Pages import when spec.pages is defined", async () => {
     const gh = new EntityGHRepo({
       kind: "FirestartrGithubRepository",
@@ -672,13 +628,6 @@ describe("loadAddressesToImport - Pages import", () => {
 });
 
 describe("provisionPages - buildType handling", () => {
-  let previousRefResolver: any;
-
-  beforeAll(() => {
-    previousRefResolver = Entity.refResolver;
-    Entity.setRefResolver(() => null);
-  });
-
   it("should provision legacy pages with source when buildType is legacy", async () => {
     const gh = new EntityGHRepo({
       kind: "FirestartrGithubRepository",
@@ -881,9 +830,5 @@ describe("provisionPages - buildType handling", () => {
 
     const config = gh.document.config;
     expect(config.pages.cname).toBeUndefined();
-  });
-
-  afterAll(() => {
-    Entity.setRefResolver(previousRefResolver);
   });
 });

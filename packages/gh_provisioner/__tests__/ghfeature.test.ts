@@ -11,7 +11,6 @@ import github from 'github';
 
 import { runOnTerraform } from '../src/tp_bridge';
 import { EntityGHFeature } from '../src/entities/ghfeature';
-import { Entity } from '../src/entities/base';
 
 const mockRunOnTerraform = runOnTerraform as jest.Mock;
 
@@ -64,38 +63,61 @@ const FEATURE_CR_BASE = {
   },
 };
 
-const MOCK_REPO_REF = {
-  cr: { spec: { org: 'testorg' } },
-  getDepName: () => 'target-repo',
-};
-
 /**
- * Build a ref resolver that exposes:
- * - self-outputs with an optional installedManagedFiles list
+ * Build the dependency map bound to one feature run:
  * - the repository target ref (FirestartrGithubRepository/target-repo)
+ * - the provider config refs of the CR context
+ * - self-outputs with an optional installed_managed_files list
  *
  * @param installedManagedFiles pass `null` for "first apply" (no prior outputs)
  */
-function buildRefResolver(installedManagedFiles: string[] | null) {
-  return (ref: any) => {
-    if (ref.kind === 'self' && ref.name === 'outputs') {
-      if (installedManagedFiles === null) return null;
+function buildDeps(installedManagedFiles: string[] | null) {
+  const deps: any = {
+    'FirestartrGithubRepository-target-repo': {
+      cr: {
+        apiVersion: 'firestartr.dev/v1',
+        kind: 'FirestartrGithubRepository',
+        metadata: { name: 'target-repo', annotations: {} },
+        spec: { org: 'testorg' },
+      },
+      secret: { apiVersion: 'v1', kind: 'Secret', data: {} },
+    },
+    'FirestartrProviderConfig-kubernetes-provider': providerDep('kubernetes-provider'),
+    'FirestartrProviderConfig-github': providerDep('github'),
+  };
 
-      return {
-        getOutput: (key: string) =>
-          key === 'installed_managed_files' ? installedManagedFiles : null,
-      };
-    }
+  if (installedManagedFiles !== null) {
+    deps['self-outputs'] = {
+      cr: {
+        apiVersion: 'firestartr.dev/v1',
+        kind: 'FirestartrGithubRepositoryFeature',
+        metadata: { name: FEATURE_CR_BASE.metadata.name, annotations: {} },
+        spec: {},
+      },
+      secret: {
+        apiVersion: 'v1',
+        kind: 'Secret',
+        data: {
+          outputs: Buffer.from(
+            JSON.stringify({ installed_managed_files: installedManagedFiles }),
+          ).toString('base64'),
+        },
+      },
+    };
+  }
 
-    if (ref.kind === 'FirestartrGithubRepository') {
-      return MOCK_REPO_REF;
-    }
+  return deps;
+}
 
-    if (ref.kind === 'FirestartrProviderConfig') {
-      return { cr: { spec: { secrets: {} } } };
-    }
-
-    return null;
+function providerDep(name: string) {
+  return {
+    cr: {
+      apiVersion: 'firestartr.dev/v1',
+      kind: 'FirestartrProviderConfig',
+      metadata: { name, annotations: {} },
+      spec: { secrets: {} },
+    },
+    secret: { apiVersion: 'v1', kind: 'Secret', data: {} },
   };
 }
 
@@ -107,13 +129,11 @@ function createEntity(
   installedManagedFiles: string[] | null,
   files?: any[],
 ): EntityGHFeature {
-  Entity.setRefResolver(buildRefResolver(installedManagedFiles));
-
   const cr = files
     ? { ...FEATURE_CR_BASE, spec: { ...FEATURE_CR_BASE.spec, files } }
     : { ...FEATURE_CR_BASE, spec: { ...FEATURE_CR_BASE.spec, files: FEATURE_CR_BASE.spec.files.map(f => ({ ...f })) } };
 
-  return new EntityGHFeature(cr);
+  return new EntityGHFeature(cr, buildDeps(installedManagedFiles));
 }
 
 // ---------------------------------------------------------------------------

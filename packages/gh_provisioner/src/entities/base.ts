@@ -6,7 +6,9 @@ import { EntityCR } from './cr';
 
 import log from '../logger';
 
-import type { RefResolver } from '../refs';
+import type { Dependencies, Ref, ResolvedRef } from '../refs';
+
+import { resolveRefIn } from '../refs';
 
 import { getFirestartrDefaultTFM } from '../terraform';
 
@@ -41,12 +43,6 @@ export abstract class Entity {
   sessionProjectPath?: string;
   __ghProvisionerSessionWorkspaceInitialized?: boolean;
 
-  static refResolver: RefResolver;
-
-  static setRefResolver(refResolver: RefResolver) {
-    Entity.refResolver = refResolver;
-  }
-
   _cr: EntityCR;
 
   _document: any = null;
@@ -55,18 +51,22 @@ export abstract class Entity {
     imports: [],
   };
 
-  _deps: any = null;
+  // Dependencies of this execution only: every ref this entity resolves
+  // is looked up here, never in module state.
+  _deps: Dependencies = {};
 
   _streamGHProvisioner: any = null;
   _streamTFProvisioner: any = null;
 
-  constructor(artifact: any, document?: any) {
+  constructor(artifact: any, document?: any, deps?: Dependencies) {
     this._document = document || {};
+
+    this._deps = deps ?? {};
 
     // we pass the artifact
     // a resolutor to self-outputs (self-outputs is not present in the
     // CREATED op)
-    const selfOutputs = Entity.refResolver({
+    const selfOutputs = this.resolveRef({
       kind: 'self',
       name: 'outputs',
     });
@@ -74,6 +74,14 @@ export abstract class Entity {
     this._cr = new EntityCR(artifact, (key: string) => {
       return selfOutputs && selfOutputs.getOutput(key);
     });
+
+    log.info(
+      `[gh-provisioner] ${this.k8sId} bound ${Object.keys(this._deps).length} dependencies`,
+    );
+  }
+
+  resolveRef(ref: Ref): ResolvedRef | null {
+    return resolveRefIn(this._deps, ref);
   }
 
   abstract loadResources(tfOp: string): Promise<void>;
@@ -96,14 +104,6 @@ export abstract class Entity {
     this._importDocument = fastJsonPatch.applyPatch(this._importDocument, [
       patch as Operation,
     ]).newDocument;
-  }
-
-  set deps(deps) {
-    this._deps = deps;
-  }
-
-  get deps() {
-    return this._deps;
   }
 
   // streams
@@ -202,11 +202,11 @@ export abstract class Entity {
   }
 
   get backend() {
-    return Entity.refResolver(this.cr.spec.context.backend.ref);
+    return this.resolveRef(this.cr.spec.context.backend.ref);
   }
 
   get provider() {
-    return Entity.refResolver(this.cr.spec.context.provider.ref);
+    return this.resolveRef(this.cr.spec.context.provider.ref);
   }
 
   async runWithGithubProvider(fn: Function) {
@@ -221,7 +221,7 @@ export abstract class Entity {
     const envGH = {};
 
     for (const name in providerRef.cr.spec.secrets) {
-      envGH[name] = Entity.refResolver({
+      envGH[name] = this.resolveRef({
         ...providerRef.cr.spec.secrets[name].secretRef,
         kind: 'Secret',
       }).getOutput(providerRef.cr.spec.secrets[name].secretRef.key);
