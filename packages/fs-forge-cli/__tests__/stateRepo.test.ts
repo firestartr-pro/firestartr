@@ -4,30 +4,23 @@ import { MemoryGitHubApi } from './fixtures/memoryGitHubApi';
 import type { RepoRef } from '../src/github/api';
 
 function createApi(
-  fileContents: Record<string, string | null>,
+  fileContents: Record<string, string>,
   defaultBranch = 'main',
-  pullState = 'merged',
-  pullNumbers: number[] = [100],
 ): MemoryGitHubApi {
   const ref: RepoRef = { owner: 'test-org', repo: 'state-github' };
   const api = new MemoryGitHubApi();
   api.setDefaultBranch(ref, defaultBranch);
-  for (const [key, content] of Object.entries(fileContents)) {
-    if (content === null) continue;
-    const path = key.split('@')[0];
+  for (const [path, content] of Object.entries(fileContents)) {
     api.setFile(ref, path, content);
   }
-  api.setPullRequests(
-    ref,
-    pullNumbers.map((number) => ({
-      number,
-      htmlUrl: `https://github.com/test/repo/pull/${number}`,
-      state: pullState,
-      headRef: `automated-${number}`,
-      baseSha: 'base123',
-      updatedAt: '2024-01-01T00:00:00Z',
-    })),
-  );
+  api.setPullRequests(ref, [{
+    number: 100,
+    htmlUrl: 'https://github.com/test/repo/pull/100',
+    state: 'merged',
+    headRef: 'automated-100',
+    baseSha: 'base123',
+    updatedAt: '2024-01-01T00:00:00Z',
+  }]);
   return api;
 }
 
@@ -44,9 +37,9 @@ describe('stateRepo', () => {
   });
 
   describe('findCrOnMainBranch', () => {
-    it('finds CRs by claim-ref annotation on the default-branch tree', async () => {
+    it('finds CRs by claim-ref annotation in the default-branch archive', async () => {
       const api = createApi({
-        'cr1.yaml@main':
+        'cr1.yaml':
           'apiVersion: firestartr.dev/v1\nkind: FirestartrGithubRepository\nmetadata:\n  name: my-repo\n  annotations:\n    firestartr.dev/claim-ref: ComponentClaim/my-app\n    firestartr.dev/last-state-pr: state-github#100',
       });
 
@@ -67,7 +60,7 @@ describe('stateRepo', () => {
 
     it('finds a committed CR before it is indexed by code search', async () => {
       const api = createApi({
-        'new-cr.yaml@main': [
+        'new-cr.yaml': [
           'kind: FirestartrGithubRepository',
           'metadata:',
           '  name: new-repo',
@@ -84,12 +77,12 @@ describe('stateRepo', () => {
       expect(results[0].lastStatePr?.number).toBe(100);
     });
 
-    it('keeps only exact claim-ref annotations from the tree', async () => {
+    it('keeps only exact claim-ref annotations from the archive', async () => {
       const api = createApi(
         {
-          'matching.yaml@main': 'metadata:\n  annotations:\n    firestartr.dev/claim-ref: "ComponentClaim/my-app"',
-          'other.yml@main': 'metadata:\n  annotations:\n    firestartr.dev/claim-ref: ComponentClaim/my-app-other',
-          'invalid.yaml@main': 'metadata: [',
+          'matching.yaml': 'metadata:\n  annotations:\n    firestartr.dev/claim-ref: "ComponentClaim/my-app"',
+          'other.yml': 'metadata:\n  annotations:\n    firestartr.dev/claim-ref: ComponentClaim/my-app-other',
+          'invalid.yaml': 'metadata: [',
         },
         'trunk',
       );
@@ -151,7 +144,7 @@ describe('stateRepo', () => {
 
     it('handles missing last-state-pr annotation', async () => {
       const api = createApi({
-        'cr1.yaml@main':
+        'cr1.yaml':
           'apiVersion: firestartr.dev/v1\nkind: FirestartrGithubRepository\nmetadata:\n  name: my-repo\n  annotations:\n    firestartr.dev/claim-ref: ComponentClaim/my-app',
       });
 
@@ -166,11 +159,11 @@ describe('stateRepo', () => {
       expect(results[0].lastStatePr).toBeNull();
     });
 
-    it('filters out non-YAML files from the default-branch tree', async () => {
+    it('filters out non-YAML files from the default-branch archive', async () => {
       const api = createApi({
-        'cr1.yaml@main':
+        'cr1.yaml':
           'apiVersion: firestartr.dev/v1\nkind: FirestartrGithubRepository\nmetadata:\n  name: my-repo\n  annotations:\n    firestartr.dev/claim-ref: ComponentClaim/my-app',
-        'README.md@main': 'metadata:\n  annotations:\n    firestartr.dev/claim-ref: ComponentClaim/my-app',
+        'README.md': 'metadata:\n  annotations:\n    firestartr.dev/claim-ref: ComponentClaim/my-app',
       });
 
       const results = await findCrOnMainBranch(
