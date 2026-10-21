@@ -126,13 +126,10 @@ if [ "$mode" != offline ]; then
   # Refuse config redirects before acquiring credentials or contacting GitHub.
   if ! (cd "$FSF_PKG" && FS_FORGE_CONFIG="$work/.xdg/config/fs-forge/config.yaml" \
     node --input-type=module - "$org" <<'JS'
-import { reposForOrganization } from './dist/context/resolve.js';
+import { contextRepos, reposForOrganization } from './dist/context/resolve.js';
 const org = process.argv[2];
 const repos = reposForOrganization(org);
-const defaults = {
-  claims: `${org}/claims`, stateGithub: `${org}/state-github`,
-  stateInfra: `${org}/state-infra`, catalog: `${org}/catalog`,
-};
+const defaults = contextRepos({ org });
 process.exit(Object.keys(defaults).every(key => repos[key] === defaults[key]) ? 0 : 1);
 JS
   ); then
