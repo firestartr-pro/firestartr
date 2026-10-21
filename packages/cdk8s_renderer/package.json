@@ -35,12 +35,12 @@
     "features_preparer": "file:../features_preparer",
     "github": "file:../github",
     "jest": "^30.1.3",
-    "ts-jest": "^29.4.14",
+    "ts-jest": "^29.4.15",
     "yaml": "^2.9.1"
   },
   "devDependencies": {
     "ajv": "^8.20.0",
-    "cdk8s-cli": "2.207.64",
+    "cdk8s-cli": "2.207.67",
     "fast-json-patch": "^3.1.1",
     "lodash": "4.18.1",
     "uuid": "^9.0.0"
