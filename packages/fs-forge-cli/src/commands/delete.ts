@@ -62,41 +62,33 @@ export default class Delete extends Command {
     const kind = normalizeKind(args.kind);
     if (!kind) this.error(`Unsupported claim kind: ${args.kind}`);
 
-    const name = args.name;
+    const org = requireOrg(
+      flags.org,
+      flags.commit
+        ? undefined
+        : '--org or FSCRT_ORG is required even in dry-run mode to validate the claim exists',
+    );
+    const target = resolveClaimsRepository(org);
+    const repo = claimsRepo(createGitHubApi(), target.owner, target.repo);
+    const map = await loadClaimsMap(repo);
+    if (!claimExists(map, kind, args.name)) {
+      this.error(`Claim not found: ${kind}-${args.name}`);
+    }
 
     if (!flags.commit) {
-      const org = requireOrg(
-        flags.org,
-        '--org or FSCRT_ORG is required even in dry-run mode to validate the claim exists',
-      );
-      const target = resolveClaimsRepository(org);
-      const repo = claimsRepo(createGitHubApi(), target.owner, target.repo);
-      const map = await loadClaimsMap(repo);
-      if (!claimExists(map, kind, name)) {
-        this.error(`Claim not found: ${kind}-${name}`);
-      }
       process.stderr.write(
         'Dry run — would dispatch unprovision-claim.yaml with:\n' +
           `  claimType: ${kind}\n` +
-          `  claimName: ${name}\n` +
+          `  claimName: ${args.name}\n` +
           `  includeVariants: ${flags['include-variants']}\n` +
           `  waitForClaimChecks: ${flags['wait-for-checks']}\n`,
       );
       return;
     }
 
-    const org = requireOrg(flags.org);
-    const target = resolveClaimsRepository(org);
-    const repo = claimsRepo(createGitHubApi(), target.owner, target.repo);
-
-    const map = await loadClaimsMap(repo);
-    if (!claimExists(map, kind, name)) {
-      this.error(`Claim not found: ${kind}-${name}`);
-    }
-
     const workflowUrl = await dispatchUnprovision(repo, {
       kind,
-      name,
+      name: args.name,
       includeVariants: flags['include-variants'],
       waitForClaimChecks: flags['wait-for-checks'],
     });
@@ -105,7 +97,7 @@ export default class Delete extends Command {
       await waitForDispatch(repo.api, repo.ref, workflowUrl, {
         noWait: flags['no-wait'],
         claimType: kind,
-        claimName: name,
+        claimName: args.name,
         label: 'Unprovisioning',
       });
     } catch (error) {

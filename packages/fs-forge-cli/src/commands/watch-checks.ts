@@ -121,16 +121,25 @@ export default class WatchChecks extends Command {
     const stateRepos = parseStateRepos(flags['state-repos'], org);
     const claimRef = `${kind}-${name}`;
 
+    const resolvedFlags = { ...flags, org };
     if (flags.current) {
-      await this.runCurrentMode(repo, stateRepos, kind, name, claimRef, {
-        ...flags,
-        org,
-      });
+      await this.runCurrentMode(
+        repo,
+        stateRepos,
+        kind,
+        name,
+        claimRef,
+        resolvedFlags,
+      );
     } else {
-      await this.runWatchMode(repo, stateRepos, kind, name, claimRef, {
-        ...flags,
-        org,
-      });
+      await this.runWatchMode(
+        repo,
+        stateRepos,
+        kind,
+        name,
+        claimRef,
+        resolvedFlags,
+      );
     }
   }
 
@@ -177,11 +186,7 @@ export default class WatchChecks extends Command {
           label: `${wetPr.repo}#${wetPr.number}`,
         };
 
-    if (flags.json) {
-      process.stderr.write(`Watching wet PR ${watchTarget.label}...\n`);
-    } else {
-      process.stderr.write(`Watching wet PR ${watchTarget.label}...\n`);
-    }
+    process.stderr.write(`Watching wet PR ${watchTarget.label}...\n`);
 
     const timeoutMs = flags.timeout ? flags.timeout * 1000 : undefined;
 
