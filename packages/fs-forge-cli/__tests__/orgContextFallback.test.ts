@@ -123,6 +123,31 @@ describe('--org defaults to the resolved context', () => {
     );
   });
 
+  it.each(['flag', 'env', 'config'] as const)(
+    'rejects a slash-containing %s organization before publishing to a truncated target',
+    async (source) => {
+      const api = mockClient();
+      const ref = { owner: ORG, repo: 'claims-fork' };
+      api.setDefaultBranch(ref, 'main');
+      api.setFile(ref, 'claims-map.json', JSON.stringify(CLAIMS_MAP));
+      const args = CreateComponent.examples[0]
+        .replace('<%= config.bin %> <%= command.id %> ', '')
+        .split(' ');
+      if (source === 'flag') args.push('--org', 'acme/claims-fork');
+      if (source === 'env') process.env.FSCRT_ORG = 'acme/claims-fork';
+      if (source === 'config') {
+        process.env.FS_FORGE_CONFIG = contextFixture('slash-name.yaml');
+      }
+
+      const outcome = await run(CreateComponent, ...args, '--commit');
+
+      expect(outcome.error?.message).toContain('Invalid claims repository');
+      expect(api.calls).toEqual([]);
+      expect(api.committed).toEqual([]);
+      expect(api.dispatched).toEqual([]);
+    },
+  );
+
   it('publishes to the claims repository reported by the config', async () => {
     process.env.FS_FORGE_CONFIG = contextFixture('full.yaml');
     const api = mockClient();

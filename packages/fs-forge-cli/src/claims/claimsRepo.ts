@@ -41,7 +41,11 @@ export function claimsRepo(
   if (repoName !== undefined)
     return { api, ref: { owner: org, repo: repoName } };
   const slug = reposForOrganization(org).claims;
-  const [owner, repo] = slug.split('/');
+  const parts = slug.split('/');
+  if (parts.length !== 2 || parts.some((part) => !part)) {
+    throw new Error(`Invalid claims repository: ${slug}; expected owner/repo`);
+  }
+  const [owner, repo] = parts;
   return { api, ref: { owner, repo } };
 }
 
