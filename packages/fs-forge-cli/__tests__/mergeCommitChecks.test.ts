@@ -1,6 +1,6 @@
 import { describe, expect, it, jest } from '@jest/globals';
 
-import { watchCheckRuns } from '../src/claims/checkRuns';
+import { pointInTimeCheck, watchCheckRuns } from '../src/claims/checkRuns';
 import { createOctokitApi } from '../src/github/octokitApi';
 
 import type { Octokit } from '@octokit/rest';
@@ -45,6 +45,27 @@ function checkApi(
 }
 
 describe('wet PR checks on head and merge commits', () => {
+  it('reads a shared head and merge SHA only once', async () => {
+    const checksForRef = jest.fn(() => [HEAD_CHECK]);
+    const api = checkApi(checksForRef, 'head-sha');
+
+    const result = await watchCheckRuns(api, REF, 7);
+
+    expect(result.overallConclusion).toBe('success');
+    expect(result.checkRuns).toHaveLength(1);
+    expect(checksForRef).toHaveBeenCalledTimes(1);
+    expect(checksForRef).toHaveBeenCalledWith('head-sha', 1);
+  });
+
+  it('preserves no_checks for a point-in-time read when neither SHA has checks', async () => {
+    const api = checkApi(() => []);
+
+    const result = await pointInTimeCheck(api, REF, 7);
+
+    expect(result.overallConclusion).toBe('no_checks');
+    expect(result.checkRuns).toEqual([]);
+  });
+
   it('fails when head checks pass but checks on the distinct merge SHA fail', async () => {
     const api = checkApi((ref) => ref === 'merge-sha' ? [FAILED_APPLY] : [HEAD_CHECK]);
 

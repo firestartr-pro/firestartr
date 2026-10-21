@@ -196,12 +196,12 @@ export function createOctokitApi(octokit: Octokit): GitHubApi {
       });
       // The operator posts reconciliation checks on merge_commit_sha, which
       // may differ from the PR head after merging.
-      const shas = new Set([pull.head.sha]);
-      if (pull.merge_commit_sha) shas.add(pull.merge_commit_sha);
+      const reconciliationSha = pull.merge_commit_sha ?? pull.head.sha;
+      const shas = new Set([pull.head.sha, reconciliationSha]);
       const checks: Awaited<
         ReturnType<GitHubApi['listCheckRunsForPullRequest']>
       > = [];
-      const awaitingChecks: string[] = [];
+      let awaitingReconciliationChecks = false;
       for (const sha of shas) {
         let page = 1;
         while (true) {
@@ -215,9 +215,9 @@ export function createOctokitApi(octokit: Octokit): GitHubApi {
           if (
             page === 1 &&
             data.check_runs.length === 0 &&
-            sha === (pull.merge_commit_sha ?? pull.head.sha)
+            sha === reconciliationSha
           )
-            awaitingChecks.push(sha);
+            awaitingReconciliationChecks = true;
           checks.push(
             ...data.check_runs.map((run) => ({
               name: run.name,
@@ -237,20 +237,18 @@ export function createOctokitApi(octokit: Octokit): GitHubApi {
       }
       // Reconciliation targets the merge SHA (head only when no merge SHA is
       // available). Head checks are optional, but any present ones still count.
-      if (checks.length > 0) {
-        for (const sha of awaitingChecks) {
-          checks.push({
-            name: `Waiting for check runs on ${sha}`,
-            conclusion: null,
-            status: 'queued',
-            output: {
-              title: null,
-              summary: 'No checks registered yet',
-              text: null,
-            },
-            htmlUrl: null,
-          });
-        }
+      if (checks.length > 0 && awaitingReconciliationChecks) {
+        checks.push({
+          name: `Waiting for check runs on ${reconciliationSha}`,
+          conclusion: null,
+          status: 'queued',
+          output: {
+            title: null,
+            summary: 'No checks registered yet',
+            text: null,
+          },
+          htmlUrl: null,
+        });
       }
       return checks;
     },
