@@ -302,6 +302,8 @@ export function resetLazyLoader() {
   LoadedClaims = {};
   VisitedClaims = {};
   DuplicatedClaims = {};
+
+  loader.resetFileInitializersCache();
 }
 
 async function lazyGetClaim(
