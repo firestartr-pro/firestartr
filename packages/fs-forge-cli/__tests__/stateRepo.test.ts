@@ -4,7 +4,7 @@ import { MemoryGitHubApi } from './fixtures/memoryGitHubApi';
 import type { RepoRef } from '../src/github/api';
 
 function createApi(
-  searchResults: Array<{ path: string; name: string }>,
+  treeFiles: Array<{ path: string; name: string }>,
   fileContents: Record<string, string | null>,
   defaultBranch = 'main',
   pullState = 'merged',
@@ -13,7 +13,7 @@ function createApi(
   const ref: RepoRef = { owner: 'test-org', repo: 'state-github' };
   const api = new MemoryGitHubApi();
   api.setDefaultBranch(ref, defaultBranch);
-  api.setSearchResults(ref, searchResults);
+  api.setBlobPaths(ref, treeFiles.map(({ path }) => path));
   for (const [key, content] of Object.entries(fileContents)) {
     if (content === null) continue;
     const path = key.split('@')[0];
@@ -46,7 +46,7 @@ describe('stateRepo', () => {
   });
 
   describe('findCrOnMainBranch', () => {
-    it('finds CRs by claim-ref annotation using code search', async () => {
+    it('finds CRs by claim-ref annotation on the default-branch tree', async () => {
       const api = createApi(
         [{ path: 'cr1.yaml', name: 'cr1.yaml' }],
         {
@@ -66,8 +66,45 @@ describe('stateRepo', () => {
       expect(results[0].kind).toBe('FirestartrGithubRepository');
       expect(results[0].lastStatePr?.number).toBe(100);
       expect(api.calls).toContain(
-        'searchFiles test-org/state-github:"firestartr.dev/claim-ref: ComponentClaim/my-app"',
+        'listBlobPaths test-org/state-github@main',
       );
+    });
+
+    it('finds a committed CR before it is indexed by code search', async () => {
+      const api = createApi([], {
+        'new-cr.yaml@main': [
+          'kind: FirestartrGithubRepository',
+          'metadata:',
+          '  name: new-repo',
+          '  annotations:',
+          '    firestartr.dev/claim-ref: ComponentClaim/my-app',
+          '    firestartr.dev/last-state-pr: state-github#100',
+        ].join('\n'),
+      });
+      api.setBlobPaths({ owner: 'test-org', repo: 'state-github' }, ['new-cr.yaml']);
+
+      const results = await findCrOnMainBranch(api, 'test-org/state-github', 'ComponentClaim', 'my-app');
+
+      expect(results).toHaveLength(1);
+      expect(results[0].path).toBe('new-cr.yaml');
+      expect(results[0].lastStatePr?.number).toBe(100);
+    });
+
+    it('keeps only exact claim-ref annotations from the tree', async () => {
+      const api = createApi(
+        ['matching.yaml', 'other.yml', 'invalid.yaml'].map((path) => ({ path, name: path })),
+        {
+          'matching.yaml@main': 'metadata:\n  annotations:\n    firestartr.dev/claim-ref: "ComponentClaim/my-app"',
+          'other.yml@main': 'metadata:\n  annotations:\n    firestartr.dev/claim-ref: ComponentClaim/my-app-other',
+          'invalid.yaml@main': 'metadata: [',
+        },
+        'trunk',
+      );
+
+      const results = await findCrOnMainBranch(api, 'test-org/state-github', 'ComponentClaim', 'my-app');
+
+      expect(results.map((cr) => cr.path)).toEqual(['matching.yaml']);
+      expect(api.calls).toContain('readFile test-org/state-github:matching.yaml@trunk');
     });
 
     it('returns empty array when no CRs match', async () => {
@@ -116,7 +153,7 @@ describe('stateRepo', () => {
       expect(results[0].lastStatePr).toBeNull();
     });
 
-    it('filters out non-YAML files from search results', async () => {
+    it('filters out non-YAML files from the default-branch tree', async () => {
       const api = createApi(
         [
           { path: 'cr1.yaml', name: 'cr1.yaml' },

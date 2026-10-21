@@ -1,3 +1,5 @@
+import { parseDocument } from 'yaml';
+
 import { extractLastStatePrFromContent } from './wetPr.js';
 
 import type { GitHubApi } from '../github/api.js';
@@ -34,20 +36,27 @@ export async function findCrOnMainBranch(
 
   const ref = { owner, repo };
   const defaultBranch = await api.getDefaultBranch(ref);
-  const claimRef = `${CLAIM_REF_ANNOTATION}: ${claimType}/${claimName}`;
-
-  const searchResults = await api.searchFiles(ref, `"${claimRef}"`);
-
-  const yamlFiles = searchResults.filter(
-    (r) => r.path.endsWith('.yaml') || r.path.endsWith('.yml'),
+  const claimRef = `${claimType}/${claimName}`;
+  const paths = await api.listBlobPaths(ref, defaultBranch);
+  const yamlFiles = paths.filter(
+    (path) => path.endsWith('.yaml') || path.endsWith('.yml'),
   );
 
   const results: CrInfo[] = [];
 
-  for (const { path: filePath } of yamlFiles) {
+  for (const filePath of yamlFiles) {
     const file = await api.readFile(ref, filePath, defaultBranch);
     if (!file) continue;
     const content = file.content;
+    const document = parseDocument(content);
+    if (document.errors.length > 0) continue;
+    const annotation = document.getIn([
+      'metadata',
+      'annotations',
+      CLAIM_REF_ANNOTATION,
+    ]);
+    if (typeof annotation !== 'string' || annotation.trim() !== claimRef)
+      continue;
 
     const kindMatch = content.match(/^kind\s*:\s*(.+)$/m);
     const nameMatch = content.match(/^ {2}name\s*:\s*(.+)$/m);

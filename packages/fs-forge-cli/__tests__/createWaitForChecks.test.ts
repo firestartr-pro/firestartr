@@ -168,7 +168,7 @@ describe('create --wait-for-checks forwarding', () => {
   ])('observes $conclusion checks after the wet PR has merged', async ({ check, message, annotation }) => {
     const api = mockCommitApi({ prs: [] });
     const state = { owner: 'my-org', repo: 'custom-state' };
-    api.setSearchResults(state, [{ path: 'cr.yaml', name: 'cr.yaml' }]);
+    api.setBlobPaths(state, ['cr.yaml']);
     api.setFile(
       state,
       'cr.yaml',
@@ -201,7 +201,7 @@ describe('create --wait-for-checks forwarding', () => {
     const api = mockCommitApi({ checkRuns: [SUCCESS_CHECK] });
     const infra = { owner: 'my-org', repo: 'state-infra' };
     api.setPullRequests(infra, []);
-    api.setSearchResults(infra, [{ path: 'cr.yaml', name: 'cr.yaml' }]);
+    api.setBlobPaths(infra, ['cr.yaml']);
     api.setFile(infra, 'cr.yaml', [
       'kind: FirestartrTerraformWorkspace',
       'metadata:',
