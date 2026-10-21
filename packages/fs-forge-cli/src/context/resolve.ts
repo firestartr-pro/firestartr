@@ -166,7 +166,7 @@ function fromName(
   config: ContextConfig | undefined,
 ): OrganizationContext {
   const organization = config?.organizations.find(
-    (entry) => entry.name === org,
+    (entry) => entry.name.toLowerCase() === org.toLowerCase(),
   );
   const context: OrganizationContext = { org, source, matchedPath: null };
   if (organization) context.organization = organization;

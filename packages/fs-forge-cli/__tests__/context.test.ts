@@ -175,6 +175,15 @@ describe('context config loading', () => {
     expect(error.code).toBe('NO_CONFIG');
   });
 
+  it('reports NO_CONFIG for organization names differing only in case', () => {
+    expect(
+      failure({
+        configPath: contextFixture('duplicate-name-case.yaml'),
+        cwd: '/srv/acme',
+      }).code,
+    ).toBe('NO_CONFIG');
+  });
+
   it('reports NO_CONFIG for a relative organization path', () => {
     const error = failure({
       configPath: contextFixture('relative-path.yaml'),
@@ -229,6 +238,30 @@ describe('context organization precedence', () => {
       }),
     ).toEqual({ org: 'from-env', source: 'env', matchedPath: null });
   });
+
+  it.each(['flag', 'env'] as const)(
+    'keeps configured repository overrides for a mixed-case %s organization',
+    (source) => {
+      const org = source === 'flag' ? 'ACME' : 'AcMe';
+      const resolved = resolveOrganization({
+        configPath: contextFixture('repo-overrides.yaml'),
+        cwd: '/elsewhere',
+        ...(source === 'flag'
+          ? { flag: org, env: { FSCRT_ORG: 'beta' } }
+          : { env: { FSCRT_ORG: org } }),
+      });
+
+      expect(resolved).toEqual(
+        expect.objectContaining({ org, source, matchedPath: null }),
+      );
+      expect(contextRepos(resolved.org, resolved.organization)).toEqual({
+        claims: 'shared/claims-fork',
+        stateGithub: `${org}/state-github-fork`,
+        stateInfra: 'other/state-infra-fork',
+        catalog: `${org}/catalog-fork`,
+      });
+    },
+  );
 
   it('falls back to the config match', () => {
     const resolved = resolveOrganization({

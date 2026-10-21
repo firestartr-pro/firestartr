@@ -176,6 +176,28 @@ describe('--org defaults to the resolved context', () => {
     );
   });
 
+  it.each(['flag', 'env'] as const)(
+    'publishes to configured claims for a mixed-case %s organization',
+    async (source) => {
+      process.env.FS_FORGE_CONFIG = contextFixture('repo-overrides.yaml');
+      const org = source === 'flag' ? 'ACME' : 'AcMe';
+      process.env.FSCRT_ORG = source === 'flag' ? 'beta' : org;
+      const api = mockClient();
+      const ref = { owner: 'shared', repo: 'claims-fork' };
+      api.setDefaultBranch(ref, 'main');
+      api.setFile(ref, 'claims-map.json', JSON.stringify(CLAIMS_MAP));
+      const args = CreateComponent.examples[0]
+        .replace('<%= config.bin %> <%= command.id %> ', '')
+        .split(' ');
+      if (source === 'flag') args.push('--org', org);
+
+      const outcome = await run(CreateComponent, ...args, '--commit');
+
+      expect(outcome.error).toBeUndefined();
+      expect(api.committed[0]).toEqual(expect.objectContaining({ ref }));
+    },
+  );
+
   it('discovers claims from the configured repo by default', async () => {
     process.env.FS_FORGE_CONFIG = contextFixture('full.yaml');
     const api = mockClient();
