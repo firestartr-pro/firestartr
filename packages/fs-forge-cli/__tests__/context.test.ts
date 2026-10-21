@@ -292,6 +292,18 @@ describe('context repos', () => {
       expect(repos).toEqual(['my-org/state-github', 'my-org/state-infra']);
     });
 
+    it('drops blank entries and uses defaults when none remain', () => {
+      for (const flag of ['  ', ' , ']) {
+        expect(parseStateRepos(flag, 'my-org')).toEqual([
+          'my-org/state-github',
+          'my-org/state-infra',
+        ]);
+      }
+      expect(
+        parseStateRepos(' , custom/state-one, ,custom/state-two, ', 'my-org'),
+      ).toEqual(['custom/state-one', 'custom/state-two']);
+    });
+
     it('parses custom repos from flag', () => {
       const repos = parseStateRepos(
         'custom/state-one,custom/state-two',

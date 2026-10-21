@@ -161,11 +161,13 @@ export function parseStateRepos(
   stateReposFlag: string | undefined,
   org: string,
 ): string[] {
-  if (!stateReposFlag) {
-    const repos = reposForOrganization(org);
-    return [repos.stateGithub, repos.stateInfra];
-  }
-  return stateReposFlag.split(',').map((repo) => repo.trim());
+  const parsed = stateReposFlag
+    ?.split(',')
+    .map((repo) => repo.trim())
+    .filter((repo) => repo.length > 0);
+  if (parsed?.length) return parsed;
+  const repos = reposForOrganization(org);
+  return [repos.stateGithub, repos.stateInfra];
 }
 
 export function resolveClaimsRepository(
