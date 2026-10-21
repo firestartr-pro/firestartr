@@ -23,7 +23,6 @@ interface HelpJson {
   }>;
 }
 
-/** Renders `--help --json` for a command through the real help class. */
 async function showJsonHelp(
   id: string,
   argv: string[],

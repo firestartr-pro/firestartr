@@ -75,7 +75,6 @@ export async function findCrOnMainBranch(
   return results;
 }
 
-/** Read only regular YAML entries in memory; never extract paths or links. */
 async function readYamlArchive(
   archive: Buffer,
 ): Promise<Array<{ path: string; content: string }>> {

@@ -235,8 +235,6 @@ export function createOctokitApi(octokit: Octokit): GitHubApi {
           page++;
         }
       }
-      // Reconciliation targets the merge SHA (head only when no merge SHA is
-      // available). Head checks are optional, but any present ones still count.
       if (checks.length > 0 && awaitingReconciliationChecks) {
         checks.push({
           name: `Waiting for check runs on ${reconciliationSha}`,

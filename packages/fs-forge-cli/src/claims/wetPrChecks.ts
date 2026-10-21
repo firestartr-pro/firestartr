@@ -37,8 +37,6 @@ export async function watchWetPrChecks(
       const target = wetPr.lastStatePrRedirect ?? wetPr;
       targets.set(`${target.repo}#${target.number}`, target);
     } else {
-      // Provisioning can merge the wet PR before it completes. The rendered CRs
-      // retain its identity even when it is no longer in the open-PR listing.
       const crs = await findCrOnMainBranch(
         api,
         repo,

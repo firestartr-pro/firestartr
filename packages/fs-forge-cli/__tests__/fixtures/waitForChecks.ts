@@ -9,7 +9,6 @@ import type { CheckRunSummary, PullRequestSummary } from '../../src/github/api';
 
 const ROOT = process.cwd();
 
-/** The wet PR number the fixtures open in every state repo. */
 export const WET_PR_NUMBER = 42;
 
 export const SUCCESS_CHECK: CheckRunSummary = {
@@ -35,7 +34,6 @@ export const FAILURE_CHECK: CheckRunSummary = {
   },
 };
 
-/** An open state-repo PR whose branch names the claim it was rendered from. */
 function matchingWetPr(claimName: string): PullRequestSummary {
   return {
     number: WET_PR_NUMBER,
@@ -47,11 +45,6 @@ function matchingWetPr(claimName: string): PullRequestSummary {
   };
 }
 
-/**
- * A `--commit` run whose provision workflow completes immediately and whose
- * wet PR carries the given check runs. The calling test file must
- * `jest.mock('../src/github/index')` so the returned API is the one used.
- */
 export function mockCommitApi(
   options: {
     claimName?: string;
@@ -89,7 +82,6 @@ export function mockCommitApi(
 type CommandClass = typeof Command &
   (new (argv: string[], config: Config) => Command);
 
-/** Runs a command the way the CLI does, keeping the process exit code local. */
 export async function runCommand(command: CommandClass, argv: string[]) {
   const previousExitCode = process.exitCode;
   process.exitCode = undefined;
