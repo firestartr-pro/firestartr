@@ -188,7 +188,7 @@ export default class Preflight extends Command {
         return;
       }
 
-      await this.checkProvider(repo, kindId, name, flags.json);
+      await this.checkProvider(repo, org, kindId, name, flags.json);
       return;
     }
 
@@ -216,12 +216,13 @@ export default class Preflight extends Command {
     }
 
     if (scope === 'provider' || scope === 'all') {
-      await this.checkProvider(repo, kindId, name, flags.json);
+      await this.checkProvider(repo, org, kindId, name, flags.json);
     }
   }
 
   private async checkProvider(
     repo: ClaimsRepo,
+    org: string,
     kindId: PreflightKindId,
     name: string,
     json: boolean,
@@ -242,15 +243,15 @@ export default class Preflight extends Command {
       switch (kindId) {
         case 'repo':
           exists = await repo.api.repoExists({
-            owner: repo.ref.owner,
+            owner: org,
             repo: name,
           });
           break;
         case 'team':
-          exists = await repo.api.teamExists(repo.ref.owner, name);
+          exists = await repo.api.teamExists(org, name);
           break;
         case 'user':
-          exists = await repo.api.userIsOrgMember(repo.ref.owner, name);
+          exists = await repo.api.userIsOrgMember(org, name);
           break;
         default:
           return;
