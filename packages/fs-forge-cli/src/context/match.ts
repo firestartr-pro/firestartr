@@ -83,7 +83,7 @@ export function matchOrganization(
       const duplicate = matches.some(
         (match) =>
           match.organization.name === organization.name &&
-          match.canonicalPath === canonicalPath,
+          relative(match.canonicalPath, canonicalPath) === '',
       );
       if (duplicate) continue;
       matches.push({

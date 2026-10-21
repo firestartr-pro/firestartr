@@ -48,6 +48,38 @@ describe('Windows context paths', () => {
     ).toEqual(expect.objectContaining({ kind: 'match', organization: ACME }));
   });
 
+  it('does not treat one organization listing case-equivalent paths as ambiguous', () => {
+    const organization = {
+      ...ACME,
+      paths: [...ACME.paths, 'c:\\users\\me\\work\\acme'],
+    };
+
+    expect(
+      matchOrganization(
+        [organization],
+        String.raw`C:\Users\me\work\acme\claims`,
+        HOME,
+      ),
+    ).toEqual(expect.objectContaining({ kind: 'match', organization }));
+  });
+
+  it('still reports ambiguity for different owners of case-equivalent paths', () => {
+    const other = { name: 'beta', paths: ['c:\\users\\me\\work\\acme'] };
+
+    expect(
+      matchOrganization(
+        [ACME, other],
+        String.raw`C:\Users\me\work\acme\claims`,
+        HOME,
+      ),
+    ).toEqual(
+      expect.objectContaining({
+        kind: 'ambiguous',
+        organizations: [ACME, other],
+      }),
+    );
+  });
+
   it('displays matched paths with a platform-native home prefix', () => {
     expect(
       matchOrganization([ACME], String.raw`C:\Users\me\work\acme\claims`, HOME),
