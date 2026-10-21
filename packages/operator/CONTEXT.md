@@ -142,7 +142,7 @@ _Avoid_: dev container
 ## Diagnostics & observability
 
 **Diagnostic file**:
-`/tmp/diagnostic`: a YAML snapshot of operator state (queue, slots, semaphore, error count) overwritten every 10 seconds. Always active by default; opt-out via `DISABLE_DIAGNOSTIC_FILE`.
+`/tmp/diagnostic`: a YAML snapshot of operator state (queue, slots, semaphore, error count) written at operator startup and then overwritten every 30 seconds by default (`OPERATOR_DIAGNOSTIC_INTERVAL_SECONDS` tunes it). Always active by default; opt-out via `DISABLE_DIAGNOSTIC_FILE`.
 _Avoid_: flight recorder, diagnosis file
 
 **Diagnostic error count**:

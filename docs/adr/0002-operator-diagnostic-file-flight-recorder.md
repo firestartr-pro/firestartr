@@ -1,5 +1,11 @@
 # Operator diagnostic file: /tmp/diagnostic as the flight recorder
 
+> Superseded in part by [operator ADR 0012](../../packages/operator/docs/adr/0012-operator-diagnostic-startup-writer.md):
+> the writer now starts at operator startup, lives in
+> `src/processItem.diagnostic.ts`, and defaults to a **30-second** interval
+> (`OPERATOR_DIAGNOSTIC_INTERVAL_SECONDS`). Wherever the body below says
+> "every 10 seconds", read 30 seconds with an immediate first snapshot.
+
 The operator now writes a `/tmp/diagnostic` file every 10 seconds (overwrite,
 not append) containing a YAML snapshot of its internal state: queue counts, slot
 assignments, semaphore usage, and a cumulative error counter. The e2e global
