@@ -7,7 +7,8 @@ import common from 'catalog_common';
 
 import { loopWorkItemDebug } from './processItem.debug';
 
-import { loopDiagnosticFile } from './processItem.diagnostic';
+import { startDiagnosticFile } from './processItem.diagnostic';
+import type { DiagnosticQueueSnapshot } from './processItem.diagnostic';
 
 import { initSignalsHandler } from './signals';
 
@@ -44,6 +45,15 @@ function getMaxSlotsFromEnvironment(): number {
 }
 
 const MAX_SLOTS = getMaxSlotsFromEnvironment();
+
+/**
+ * Number of concurrent processing slots, used by startup wiring that needs the
+ * same capacity the processor loop uses.
+ */
+export function getMaxSlots(): number {
+  return MAX_SLOTS;
+}
+
 export function getQueueMetrics() {
   let renamed = 0;
   let updated = 0;
@@ -134,8 +144,45 @@ export function getQueueMetrics() {
   };
 }
 
-let INIT = false;
+/**
+ * Queue state for the diagnostic file. Counts come from the existing metrics
+ * seam (`getQueueMetrics`) so scheduling state is never counted twice, and only
+ * the fields the diagnostic file documents differently are derived here: `blocked`
+ * keeps the historical `isBlocked` meaning instead of the parent-aware gauge,
+ * and `slots` needs the per-slot assignment the gauge does not expose.
+ */
+export function getOperatorQueueSnapshot(): DiagnosticQueueSnapshot {
+  const metrics = getQueueMetrics();
 
+  const slots: Record<string, string> = {};
+  let blocked = 0;
+
+  for (const workItem of queue) {
+    if (workItem.isBlocked) {
+      blocked++;
+    }
+
+    if (
+      workItem.workStatus === WorkStatus.PROCESSING &&
+      workItem.slotId !== undefined
+    ) {
+      slots[`slot-${workItem.slotId}`] =
+        `${workItem.item.kind}/${workItem.item.metadata.name}`;
+    }
+  }
+
+  return {
+    total: metrics.nItems,
+    pending: metrics.nItemsPending,
+    processing: metrics.nItemsProcessing,
+    finished: metrics.nItemsFinished,
+    blocked,
+    deadLetter: metrics.nItemsInDeadLetterHandling,
+    slots,
+  };
+}
+
+let INIT = false;
 let podIsTerminating = false;
 
 const handleTerminationSignal = (signal: string) => {
@@ -185,7 +232,7 @@ export async function processItem(workItem: WorkItem) {
  */
 async function loop() {
   loopWorkItemDebug(queue);
-  loopDiagnosticFile(queue, MAX_SLOTS);
+  startDiagnosticFile(getOperatorQueueSnapshot, MAX_SLOTS);
 
   const deferredBookkeeper = new DeferredSchedulingBookkeeper();
 
