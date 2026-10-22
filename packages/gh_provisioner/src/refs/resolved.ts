@@ -1,6 +1,8 @@
-import type { Dependency } from './loader';
+import type { Dependency, Dependencies } from './loader';
 
-import { EntityCR, Entity } from '../entities';
+import { EntityCR } from '../entities/cr';
+
+import { resolveRefIn } from './resolver';
 
 function isRecord(value: unknown): value is Record<string, any> {
   return value !== null && typeof value === 'object' && !Array.isArray(value);
@@ -13,14 +15,14 @@ export class ResolvedRef {
 
   entityCr: EntityCR;
 
-  constructor(dep: Dependency) {
+  constructor(dep: Dependency, deps: Dependencies) {
     this.dep = dep;
 
     if ('cr' in this.dep && this.dep.cr) {
       // we create an EntityCR to handle a dep cr
       // but it has no self-outputs, thus, we go to
       // its own outputs (its secret)
-      const selfOutputs = Entity.refResolver({
+      const selfOutputs = resolveRefIn(deps, {
         kind: 'Secret',
         name: `${this.dep.cr.name}-outputs`,
       });

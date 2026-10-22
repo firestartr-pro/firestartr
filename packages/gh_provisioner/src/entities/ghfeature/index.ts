@@ -1,5 +1,7 @@
 import { Entity, PatchOperations } from '../base';
 
+import type { Dependencies } from '../../refs';
+
 import log from '../../logger';
 
 import github from 'github';
@@ -11,19 +13,23 @@ import { runOnTerraform } from '../../tp_bridge';
 export class EntityGHFeature extends Entity {
   _newlyProvisionedAddresses: string[] = [];
 
-  constructor(artifact: any) {
-    super(artifact, {
-      config: {
-        files: [],
+  constructor(artifact: any, deps?: Dependencies) {
+    super(
+      artifact,
+      {
+        config: {
+          files: [],
+        },
+        installed_managed_files: [],
       },
-      installed_managed_files: [],
-    });
+      deps,
+    );
   }
 
   async loadResources(tfOp: string): Promise<void> {
     log.info(`[gh-provisioner] running ${tfOp} on ${this.k8sId}`);
 
-    const repoRef = Entity.refResolver(this.cr.spec.repositoryTarget.ref);
+    const repoRef = this.resolveRef(this.cr.spec.repositoryTarget.ref);
 
     this.patchData({
       path: '/config/repository',
@@ -101,7 +107,7 @@ export class EntityGHFeature extends Entity {
    * User-managed files are intentionally excluded (see ADR 0005).
    */
   async loadAddressesToImport(): Promise<void> {
-    const repoRef = Entity.refResolver(this.cr.spec.repositoryTarget.ref);
+    const repoRef = this.resolveRef(this.cr.spec.repositoryTarget.ref);
 
     const repoName = repoRef.getDepName();
 
