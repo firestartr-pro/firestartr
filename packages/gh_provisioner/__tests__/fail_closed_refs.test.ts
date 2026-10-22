@@ -12,6 +12,7 @@ import { EntityGHRepositorySecretsSection } from '../src/entities/ghrepositoryse
 
 import { provisionPermissions } from '../src/entities/ghrepo/helpers/teams';
 import { provisionVariables } from '../src/entities/ghrepo/helpers/variables';
+import { adaptProviders } from '../src/providers';
 
 function repoCr(permissions: any[], vars?: any) {
   return {
@@ -283,6 +284,40 @@ describe('absent refs and outputs produce clear errors instead of TypeErrors', (
 
     expect(() => gh.githubGithubProviderCredentials).toThrow(
       /could not resolve Secret\/missing-token-secret ref from its dependencies/,
+    );
+  });
+
+  it('names the secret and key instead of a TypeError when a Secret has no data', () => {
+    // A Secret that exists but carries no `data` field must not surface as
+    // a TypeError from the credential lookup.
+    const secretCr = secretDep(undefined);
+    secretCr.cr = {
+      apiVersion: 'v1',
+      kind: 'Secret',
+      metadata: { name: 'bare-secret', annotations: {} },
+    };
+
+    const gh = new EntityGHRepo(repoCr([]), {
+      ...contextDeps(),
+      'FirestartrProviderConfig-github': {
+        cr: {
+          apiVersion: 'firestartr.dev/v1',
+          kind: 'FirestartrProviderConfig',
+          metadata: { name: 'github', annotations: {} },
+          spec: {
+            config: '{}',
+            secrets: {
+              GITHUB_TOKEN: { secretRef: { name: 'bare-secret', key: 'token' } },
+            },
+          },
+        },
+        secret: { apiVersion: 'v1', kind: 'Secret', data: {} },
+      },
+      'Secret-bare-secret': secretCr,
+    });
+
+    expect(() => adaptProviders(gh)).toThrow(
+      /could not resolve output 'token' of Secret\/bare-secret/,
     );
   });
 
