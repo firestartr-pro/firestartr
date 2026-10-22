@@ -83,6 +83,258 @@ describe('CDK8s Renderer', () => {
     });
   });
 
+  it('Is able to detect repeated tfStateKeys across GroupClaims', async () => {
+    const nContext = await createTestContext({
+      onlyFiles: ['group_a', 'group_b', 'user_a'],
+    });
+
+    try {
+      await nContext.applyPatches('group_a', [
+        {
+          op: 'add',
+          path: '/providers/github/tfStateKey',
+          value: '11111111-2222-4333-8444-555555555555',
+        },
+      ]);
+
+      await nContext.applyPatches('group_b', [
+        {
+          op: 'add',
+          path: '/providers/github/tfStateKey',
+          value: '11111111-2222-4333-8444-555555555555',
+        },
+      ]);
+
+      await expect(
+        nContext.renderClaims(undefined, { crsPath: rendererTestFixtures.noCrs }),
+      ).rejects.toMatchObject({
+        message: expect.stringContaining(
+          'Check the following Claims to ensure that the tfStateKey is unique',
+        ),
+      });
+    } finally {
+      await nContext.destroy();
+    }
+  });
+
+  it('Is able to detect repeated tfStateKeys across UserClaims', async () => {
+    const nContext = await createTestContext({
+      onlyFiles: ['user_a', 'system_a', 'domain_a'],
+    });
+
+    try {
+      // Add a second user by duplicating user_a
+      await nContext.duplicateFile('user_a', 'user_b');
+      // Change the claim name and github name in the duplicated file
+      await nContext.applyPatches('user_b', [
+        {
+          op: 'replace',
+          path: '/name',
+          value: 'user_b',
+        },
+        {
+          op: 'replace',
+          path: '/providers/github/name',
+          value: 'user-b-github',
+        },
+      ]);
+
+      await nContext.applyPatches('user_a', [
+        {
+          op: 'add',
+          path: '/providers/github/tfStateKey',
+          value: '11111111-2222-4333-8444-555555555555',
+        },
+      ]);
+
+      await nContext.applyPatches('user_b', [
+        {
+          op: 'add',
+          path: '/providers/github/tfStateKey',
+          value: '11111111-2222-4333-8444-555555555555',
+        },
+      ]);
+
+      await expect(
+        nContext.renderClaims(undefined, { crsPath: rendererTestFixtures.noCrs }),
+      ).rejects.toMatchObject({
+        message: expect.stringContaining(
+          'Check the following Claims to ensure that the tfStateKey is unique',
+        ),
+      });
+    } finally {
+      await nContext.destroy();
+    }
+  });
+
+  it('Is able to detect repeated tfStateKeys across ComponentClaims', async () => {
+    const nContext = await createTestContext({
+      onlyFiles: ['component_a', 'system_a', 'domain_a', 'user_a', 'group_a', 'group_b', 'group_c'],
+    });
+
+    try {
+      // Add a second component by duplicating component_a
+      await nContext.duplicateFile('component_a', 'component_b');
+      // Change the claim name and github name in the duplicated file
+      await nContext.applyPatches('component_b', [
+        {
+          op: 'replace',
+          path: '/name',
+          value: 'component_b',
+        },
+        {
+          op: 'replace',
+          path: '/providers/github/name',
+          value: 'component-b',
+        },
+      ]);
+
+      await nContext.applyPatches('component_a', [
+        {
+          op: 'add',
+          path: '/providers/github/tfStateKey',
+          value: '11111111-2222-4333-8444-555555555555',
+        },
+      ]);
+
+      await nContext.applyPatches('component_b', [
+        {
+          op: 'add',
+          path: '/providers/github/tfStateKey',
+          value: '11111111-2222-4333-8444-555555555555',
+        },
+      ]);
+
+      await expect(
+        nContext.renderClaims(undefined, { crsPath: rendererTestFixtures.noCrs }),
+      ).rejects.toMatchObject({
+        message: expect.stringContaining(
+          'Check the following Claims to ensure that the tfStateKey is unique',
+        ),
+      });
+    } finally {
+      await nContext.destroy();
+    }
+  });
+
+  it('Is able to detect repeated tfStateKeys across OrgWebhookClaims', async () => {
+    const nContext = await createTestContext({
+      onlyFiles: ['orgwebhook_a', 'secret_a', 'system_a', 'group_a', 'user_a', 'domain_a'],
+    });
+
+    try {
+      // Add a second orgwebhook by duplicating orgwebhook_a
+      await nContext.duplicateFile('orgwebhook_a', 'orgwebhook_b');
+      // Change the claim name in the duplicated file
+      await nContext.applyPatches('orgwebhook_b', [
+        {
+          op: 'replace',
+          path: '/name',
+          value: 'orgwebhook_b',
+        },
+        {
+          op: 'replace',
+          path: '/providers/github/name',
+          value: 'my-github-org-webhook-b',
+        },
+      ]);
+
+      await nContext.applyPatches('orgwebhook_a', [
+        {
+          op: 'add',
+          path: '/providers/github/tfStateKey',
+          value: '11111111-2222-4333-8444-555555555555',
+        },
+      ]);
+
+      await nContext.applyPatches('orgwebhook_b', [
+        {
+          op: 'add',
+          path: '/providers/github/tfStateKey',
+          value: '11111111-2222-4333-8444-555555555555',
+        },
+      ]);
+
+      await expect(
+        nContext.renderClaims(undefined, { crsPath: rendererTestFixtures.noCrs }),
+      ).rejects.toMatchObject({
+        message: expect.stringContaining(
+          'Check the following Claims to ensure that the tfStateKey is unique',
+        ),
+      });
+    } finally {
+      await nContext.destroy();
+    }
+  });
+
+  it('Is able to detect repeated tfStateKeys across OrgSettingsClaims', async () => {
+    const nContext = await createTestContext({
+      onlyFiles: ['orgsettings_a', 'orgsettings_vars_a', 'component_a', 'system_a', 'domain_a', 'user_a', 'group_a', 'group_b', 'group_c'],
+    });
+
+    try {
+      await nContext.applyPatches('orgsettings_a', [
+        {
+          op: 'add',
+          path: '/providers/github/tfStateKey',
+          value: '11111111-2222-4333-8444-555555555555',
+        },
+      ]);
+
+      await nContext.applyPatches('orgsettings_vars_a', [
+        {
+          op: 'add',
+          path: '/providers/github/tfStateKey',
+          value: '11111111-2222-4333-8444-555555555555',
+        },
+      ]);
+
+      await expect(
+        nContext.renderClaims(undefined, { crsPath: rendererTestFixtures.noCrs }),
+      ).rejects.toMatchObject({
+        message: expect.stringContaining(
+          'Check the following Claims to ensure that the tfStateKey is unique',
+        ),
+      });
+    } finally {
+      await nContext.destroy();
+    }
+  });
+
+  it('Is able to detect repeated tfStateKeys across different claim kinds (GroupClaim + TFWorkspaceClaim)', async () => {
+    const nContext = await createTestContext({
+      onlyFiles: ['group_a', 'user_a', 'workspace_a', 'workspace_b', 'system_a', 'domain_a', 'secret_a'],
+    });
+
+    try {
+      await nContext.applyPatches('group_a', [
+        {
+          op: 'add',
+          path: '/providers/github/tfStateKey',
+          value: '11111111-2222-4333-8444-555555555555',
+        },
+      ]);
+
+      await nContext.applyPatches('workspace_a', [
+        {
+          op: 'add',
+          path: '/providers/terraform/tfStateKey',
+          value: '11111111-2222-4333-8444-555555555555',
+        },
+      ]);
+
+      await expect(
+        nContext.renderClaims(undefined, { crsPath: rendererTestFixtures.noCrs }),
+      ).rejects.toMatchObject({
+        message: expect.stringContaining(
+          'Check the following Claims to ensure that the tfStateKey is unique',
+        ),
+      });
+    } finally {
+      await nContext.destroy();
+    }
+  });
+
   it('Is able to detect missconfiguration between policy and syncpolicy', async () => {
     await context.applyPatches('workspace_b', [
       {

@@ -4,11 +4,18 @@ export function validateTfStateKeyUniqueness(crs: any) {
   for (const crKey of Object.keys(crs)) {
     const cr = crs[crKey];
 
-    if (!isTerraformWorkspace(cr)) continue;
+    if (!cr.spec?.firestartr?.tfStateKey) continue;
 
     const tfKey = cr.spec.firestartr.tfStateKey;
+    const claimRef = cr.metadata?.annotations?.['firestartr.dev/claim-ref'];
 
     if (tfStateKeys[tfKey]) {
+      const existingClaimRef = tfStateKeys[tfKey].metadata?.annotations?.['firestartr.dev/claim-ref'];
+
+      if (existingClaimRef === claimRef) {
+        continue;
+      }
+
       throw new Error(
         `❗❗ ❌ RENDER ERROR ❌ ❗❗
 
@@ -22,9 +29,9 @@ It is being used by the following CRs:
 
 Check the following Claims to ensure that the tfStateKey is unique:
 
-- ${tfStateKeys[tfKey].metadata.annotations['firestartr.dev/claim-ref']}
+- ${existingClaimRef}
 
-- ${cr.metadata.annotations['firestartr.dev/claim-ref']}
+- ${claimRef}
 `,
       );
     }
@@ -42,8 +49,4 @@ export function isCatalogEntity(cr: any): boolean {
     'Group',
     'Resource',
   ].includes(cr.kind);
-}
-
-function isTerraformWorkspace(cr: any): boolean {
-  return cr.kind === 'FirestartrTerraformWorkspace';
 }
