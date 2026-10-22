@@ -26,7 +26,7 @@ export class EntityGHRepositorySecretsSection extends Entity {
 
   async loadResources(tfOp: string): Promise<void> {
     try {
-      const repo = this.resolveRef(this.cr.spec.repositoryTarget.ref);
+      const repo = this.requireRef(this.cr.spec.repositoryTarget.ref);
 
       await provisionRepositorySecrets(this, repo);
 

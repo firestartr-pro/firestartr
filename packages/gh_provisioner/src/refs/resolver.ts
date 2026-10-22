@@ -23,7 +23,9 @@ export function resolveRefIn(
   ref: Ref,
 ): ResolvedRef | null {
   if (!deps || Object.keys(deps).length === 0) {
-    log.error('Entity has no dependencies, nothing can be resolved');
+    log.error(
+      `[gh-provisioner] cannot resolve '${ref.kind}/${ref.name}': this execution has no dependencies bound`,
+    );
 
     return null;
   }
