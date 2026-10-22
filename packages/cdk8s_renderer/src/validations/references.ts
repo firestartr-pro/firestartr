@@ -9,10 +9,17 @@ export function validateTfStateKeyUniqueness(crs: any) {
     const tfKey = cr.spec.firestartr.tfStateKey;
     const claimRef = cr.metadata?.annotations?.['firestartr.dev/claim-ref'];
 
-    if (tfStateKeys[tfKey]) {
-      const existingClaimRef = tfStateKeys[tfKey].metadata?.annotations?.['firestartr.dev/claim-ref'];
+    const existing = tfStateKeys[tfKey];
 
-      if (existingClaimRef === claimRef) {
+    if (existing) {
+      const existingClaimRef =
+        existing.metadata?.annotations?.['firestartr.dev/claim-ref'];
+
+      const sameClaim = claimRef !== undefined && existingClaimRef === claimRef;
+      const workspaceInvolved =
+        isTerraformWorkspace(cr) || isTerraformWorkspace(existing);
+
+      if (sameClaim && !workspaceInvolved) {
         continue;
       }
 
@@ -23,7 +30,7 @@ The tfStateKey ${tfKey} is not unique,
 
 It is being used by the following CRs:
 
-- ${tfStateKeys[tfKey].kind} ${tfStateKeys[tfKey].metadata.name}
+- ${existing.kind} ${existing.metadata.name}
 
 - ${cr.kind} ${cr.metadata.name}
 
@@ -49,4 +56,8 @@ export function isCatalogEntity(cr: any): boolean {
     'Group',
     'Resource',
   ].includes(cr.kind);
+}
+
+function isTerraformWorkspace(cr: any): boolean {
+  return cr.kind === 'FirestartrTerraformWorkspace';
 }
