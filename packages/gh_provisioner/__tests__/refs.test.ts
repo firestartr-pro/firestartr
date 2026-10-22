@@ -120,4 +120,43 @@ describe("Refs system", () => {
 
     })
 
+    it("treats absent prototype-named keys as missing outputs", async () => {
+        const entity = await initSystem(groupCr("group-a"), {
+            "FirestartrGithubGroup-group-a": {
+                cr: {
+                    apiVersion: "firestartr.dev/v1",
+                    kind: "FirestartrGithubGroup",
+                    metadata: { name: "group-a", annotations: {} },
+                    spec: {},
+                },
+                secret: {
+                    apiVersion: "v1",
+                    kind: "Secret",
+                    data: {
+                        outputs: Buffer.from(
+                            JSON.stringify({ id: "16464102" }),
+                        ).toString("base64"),
+                    },
+                },
+            },
+        } as any)
+
+        const ref = entity.resolveRef({
+            kind: "FirestartrGithubGroup",
+            name: "group-a",
+            needsSecret: true,
+        })
+
+        if (!ref) {
+            throw new Error("Expected FirestartrGithubGroup reference to be resolved")
+        }
+
+        // These exist on Object.prototype: without an own-property check the
+        // lookup would return a function and be treated as a valid output.
+        expect(ref.getOutput("constructor")).toBeUndefined()
+        expect(ref.getOutput("toString")).toBeUndefined()
+        expect(ref.getOutput("valueOf")).toBeUndefined()
+        expect(ref.getOutput("id")).toBe("16464102")
+    })
+
 })

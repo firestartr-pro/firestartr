@@ -97,9 +97,7 @@ async function createEncryptedSecret(
     `[gh-provisioner] generating encrypted secret ${grss.k8sId}/${section}/${repoSecretName}`,
   );
 
-  const plainSecret = grss.resolveRef(secretRef);
-
-  const plainTextSecret = plainSecret.getOutput(secretRef.key);
+  const plainTextSecret = grss.requireOutput(secretRef, secretRef.key);
 
   const plaintextSha256 = crypto
     .createHash('sha256')
@@ -138,9 +136,7 @@ async function createUnencryptedSecret(
     `[gh-provisioner] generating unencrypted secret ${grss.k8sId}/${section}/${repoSecretName}`,
   );
 
-  const plainSecret = grss.resolveRef(secretRef);
-
-  const plainTextSecret = plainSecret.getOutput(secretRef.key);
+  const plainTextSecret = grss.requireOutput(secretRef, secretRef.key);
 
   secretPatcherFunction({
     secretName: repoSecretName,

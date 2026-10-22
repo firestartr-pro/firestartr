@@ -88,7 +88,9 @@ export function resolveRef(
 
   // check if key exists
   if (!Object.prototype.hasOwnProperty.call(references, refName)) {
-    throw new Error('KEY NOT FOUND');
+    throw new Error(
+      `Could not resolve reference '${refName}': it is not present in the resolved references (from '${key}')`,
+    );
   }
 
   const value = references[refName];
