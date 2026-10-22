@@ -12,6 +12,7 @@ import {
 import { buildComponentClaimPatches } from '../../src/claim-patches';
 import { pickRenderedCrs } from '../../src/render-artifacts';
 import { LOCAL_RENDER_APPLY_TEST_TIMEOUT_MS } from '../../src/test-constants';
+import { createTraceabilityDiagnosis } from '../../src/traceability';
 
 const FEATURE_NAME = 'charts_repo';
 const FEATURE_REF = 'charts_repo-v1';
@@ -103,12 +104,21 @@ describe('Feature CR git traceability annotations E2E', () => {
       );
       await applyAndWaitCrPaths(client, rendered.crPaths);
 
+      const diagnose = createTraceabilityDiagnosis(() =>
+        client.gh.probeFeatureRepoRateLimit(),
+      );
+
       for (const featureCrPath of featureCrPaths) {
         const featureCr = await client.k8s.waitForCr(featureCrPath);
         const annotations = featureCr.metadata?.annotations ?? {};
 
         // The feature the CR was rendered from.
         expect(annotations['firestartr.dev/feature-name']).toBe(FEATURE_NAME);
+
+        const rateLimitFailure = await diagnose(annotations);
+        if (rateLimitFailure) {
+          throw rateLimitFailure;
+        }
 
         // SHA is immutable: 40 lowercase hex chars resolved from the real
         // GitHub API via resolveFeatureCommit.
