@@ -28,12 +28,12 @@
     "@types/jest": "^30.0.0",
     "catalog_common": "file:../catalog_common",
     "debug": "^4.3.4",
-    "dotenv": "^18.0.7",
+    "dotenv": "^18.0.8",
     "github": "file:../github",
     "importer": "file:../importer",
     "jest": "^29.7.0",
     "render": "file:../cdk8s_renderer",
-    "ts-jest": "^29.4.14"
+    "ts-jest": "^29.4.15"
   },
   "dependencies": {
     "@kubernetes/client-node": "^1.4.0",

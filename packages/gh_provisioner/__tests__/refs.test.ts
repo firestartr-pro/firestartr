@@ -1,60 +1,75 @@
-import {
-  loadDependencies,
-  initDepsSystem,
-  initDepsSystemFromMemory,
-  refResolver,
-} from "../src/refs"
+import { loadDependencies } from "../src/refs"
 
-import {Entity} from "../src/entities"
+import { initSystem } from "../src"
 
 import path from "path"
 
+function groupCr(name: string) {
+    return {
+        kind: "FirestartrGithubGroup",
+        apiVersion: "firestartr.dev/v1",
+        metadata: { name, annotations: {} },
+        spec: {
+            description: "a group",
+            privacy: "closed",
+            members: [],
+        },
+    }
+}
 
 describe("Refs system", () => {
 
     it("is able to load a deps file", async () => {
-    
+
         const deps = await loadDependencies(
-        
+
             path.join(__dirname, "fixtures/group/deps.yaml")
-        
+
         )
 
         expect(deps).toBeTruthy()
-     
+
     })
 
-    it("is able prepare a deps system", async () => {
-    
-        await initDepsSystem(
-        
-            path.join(__dirname, "fixtures/group/deps.yaml")
-        
-        )
-    
-    })
+    it("resolves a reference against the deps bound to its entity", async () => {
 
-    it("is able to get a reference", async () => {
-    
-        await initDepsSystem(
-        
-            path.join(__dirname, "fixtures/group/deps.yaml")
-        
-        )
- 
-        Entity.setRefResolver(refResolver)
+        const deps = await loadDependencies(
 
-        const ref = refResolver({
-        
-            kind: "FirestartrGithubMembership", 
-            
+            path.join(__dirname, "fixtures/group/deps.yaml")
+        )
+
+        const entity = await initSystem(groupCr("group-jp-group"), deps)
+
+        const ref = entity.resolveRef({
+
+            kind: "FirestartrGithubMembership",
+
             name: "user-b-user",
 
             needsSecret: false
-        
+
         })
 
         expect(ref).toBeTruthy()
+
+    })
+
+    it("does not resolve references missing from its own deps", async () => {
+
+        const deps = await loadDependencies(
+
+            path.join(__dirname, "fixtures/group/deps.yaml")
+        )
+
+        const entity = await initSystem(groupCr("group-jp-group"), deps)
+
+        expect(entity.resolveRef({
+
+            kind: "FirestartrGithubMembership",
+
+            name: "user-that-does-not-exist",
+
+        })).toBeNull()
 
     })
 
@@ -65,7 +80,7 @@ describe("Refs system", () => {
             node_id: { value: "MDQ6VGVhbTE2NDY0MTAy", type: "string", sensitive: false },
         }
 
-        await initDepsSystemFromMemory({
+        const entity = await initSystem(groupCr("group-a"), {
             "FirestartrGithubGroup-group-a": {
                 cr: {
                     apiVersion: "firestartr.dev/v1",
@@ -86,9 +101,7 @@ describe("Refs system", () => {
             },
         } as any)
 
-        Entity.setRefResolver(refResolver)
-
-        const ref = refResolver({
+        const ref = entity.resolveRef({
             kind: "FirestartrGithubGroup",
             name: "group-a",
             needsSecret: true,

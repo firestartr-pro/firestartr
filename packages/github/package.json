@@ -37,6 +37,6 @@
     "@octokit/request": "^10.0.9",
     "@types/jest": "^30.0.0",
     "libsodium-wrappers": "^0.8.4",
-    "ts-jest": "^29.4.14"
+    "ts-jest": "^29.4.15"
   }
 }
