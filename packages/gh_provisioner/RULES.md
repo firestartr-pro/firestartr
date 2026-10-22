@@ -16,4 +16,4 @@
 - Post-provision side effects go in `postProvision` (a no-op when unused), or
   in `<entity>/post/` when complex.
 - Entities never touch the file system or network directly; use
-  `runWithGithubProvider`, `refResolver` and `patchData`.
+  `runWithGithubProvider`, `resolveRef` and `patchData`.

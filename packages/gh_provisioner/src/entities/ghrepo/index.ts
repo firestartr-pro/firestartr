@@ -1,5 +1,7 @@
 import { Entity, PatchOperations } from '../base';
 
+import type { Dependencies } from '../../refs';
+
 import log from '../../logger';
 
 import github from 'github';
@@ -21,22 +23,26 @@ export class EntityGHRepo extends Entity {
     return value.replace(/\\/g, '\\\\').replace(/"/g, '\\"');
   }
 
-  constructor(artifact: any) {
-    super(artifact, {
-      config: {
-        files: [],
+  constructor(artifact: any, deps?: Dependencies) {
+    super(
+      artifact,
+      {
+        config: {
+          files: [],
 
-        variables: [],
+          variables: [],
 
-        teams: [],
+          teams: [],
 
-        collaborators: [],
+          collaborators: [],
 
-        labels: [],
+          labels: [],
 
-        branch_protections: [],
+          branch_protections: [],
+        },
       },
-    });
+      deps,
+    );
   }
 
   private async validatePages(

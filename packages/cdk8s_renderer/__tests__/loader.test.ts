@@ -3,6 +3,7 @@ import {
   loadGlobals, loadInitializers, loadOverrides,
    loadCRs, loadClaimDefaults, loadClaimsList
 } from '../src/loader/loader';
+import { resetLazyLoader } from '../src/loader/lazy_loader';
 import * as path from "path";
 import * as fs from "fs";
 import common from "catalog_common";
@@ -84,6 +85,76 @@ describe("The loaders", () => {
     setPath("initializers", path.join(__dirname, "fixtures/initializers"));
     const result: any[] = await loadInitializers(claim).then((result: any) => result);
     expect(result[0].data).toEqual(expectedResult.defaultValues);
+  });
+
+  it("caches initializers per run and re-reads them after a reset", async () => {
+    // The context keeps one config dir for the whole file (restart()'s return
+    // value is discarded), so start from a cold per-run cache.
+    resetLazyLoader();
+    setPath("initializers", context.getInitializersDir());
+
+    context.addInitializerFixture("defaults_github_repository", {
+      name: "repo_base",
+      apiVersion: "firestartr.dev/v1",
+      kind: "ComponentClaim",
+      defaultValues: { context: { value: "first" } },
+    });
+
+    const firstLoad: any[] = await loadInitializers(claim);
+    expect(firstLoad[0].data.context.value).toEqual("first");
+
+    // Editing the file mid-run does not invalidate the per-run cache...
+    context.updateInitializerFixture("defaults_github_repository", [
+      { op: "replace", path: "/defaultValues/context/value", value: "second" },
+    ]);
+    const cachedLoad: any[] = await loadInitializers(claim);
+    expect(cachedLoad[0].data.context.value).toEqual("first");
+
+    // ...but resetting the render state drops the cache and re-reads the file.
+    resetLazyLoader();
+    const refreshedLoad: any[] = await loadInitializers(claim);
+    expect(refreshedLoad[0].data.context.value).toEqual("second");
+
+    // Deleting the file is likewise only visible after a reset.
+    context.removeInitializerFixture("defaults_github_repository");
+    const stillCached: any[] = await loadInitializers(claim);
+    expect(stillCached[0].data.context.value).toEqual("second");
+
+    resetLazyLoader();
+    const afterDelete: any[] = await loadInitializers(claim);
+    expect(afterDelete.find((initializer) => initializer.data?.context?.value))
+      .toBeUndefined();
+  });
+
+  it("builds independent initializer instances and data per call", async () => {
+    resetLazyLoader();
+    setPath("initializers", context.getInitializersDir());
+
+    context.addInitializerFixture("defaults_github_repository", {
+      name: "repo_base",
+      apiVersion: "firestartr.dev/v1",
+      kind: "ComponentClaim",
+      defaultValues: {
+        context: { value: "shared" },
+        firestartr: { technology: { stack: "node", version: "14" } },
+      },
+    });
+
+    const firstLoad: any[] = await loadInitializers(claim);
+    const secondLoad: any[] = await loadInitializers(claim);
+
+    // Fresh instances, not a shared cached one.
+    expect(firstLoad[0]).not.toBe(secondLoad[0]);
+
+    const snapshot: any = JSON.parse(JSON.stringify(secondLoad[0].data));
+
+    // Mutating one claim's defaults must not leak into another claim's.
+    firstLoad[0].data.injected = "mutation";
+    firstLoad[0].data.firestartr.technology.stack = "python";
+
+    expect(secondLoad[0].data).not.toHaveProperty("injected");
+    expect(secondLoad[0].data.firestartr.technology.stack).toEqual("node");
+    expect(secondLoad[0].data).toEqual(snapshot);
   });
 
   it("can correctly load overrides", async () => {

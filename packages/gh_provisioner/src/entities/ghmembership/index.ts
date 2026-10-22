@@ -1,5 +1,7 @@
 import { Entity, PatchOperations } from '../base';
 
+import type { Dependencies } from '../../refs';
+
 import log from '../../logger';
 
 import github from 'github';
@@ -9,12 +11,16 @@ import { allGroupMembershipRelationExists } from './helpers';
 export class EntityGHMembership extends Entity {
   teamAllId: number | undefined;
 
-  constructor(artifact: any) {
-    super(artifact, {
-      config: {
-        relationships: [],
+  constructor(artifact: any, deps?: Dependencies) {
+    super(
+      artifact,
+      {
+        config: {
+          relationships: [],
+        },
       },
-    });
+      deps,
+    );
   }
 
   async loadResources(tfOp: string): Promise<void> {
