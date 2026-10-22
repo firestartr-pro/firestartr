@@ -23,6 +23,7 @@ jest.mock('catalog_common', () => ({
 jest.mock('../src/resolver', () => ({
   __esModule: true,
   resolve: jest.fn(async () => ({ dep: true })),
+  resolveSecretRef: jest.fn(async () => undefined),
 }));
 
 jest.mock('../src/ctl', () => ({
@@ -68,10 +69,15 @@ jest.mock('gh_provisioner', () => ({
 import github from 'github';
 import { runTerraformProvisioner } from 'terraform_provisioner';
 import ghProvisioner from 'gh_provisioner';
-import { resolve } from '../src/resolver';
-import { addPlanStatusCheck, getItemByItemPath } from '../src/ctl';
+import { resolve, resolveSecretRef } from '../src/resolver';
+import { addPlanStatusCheck, getItemByItemPath, getSecret } from '../src/ctl';
 import { publishPlan } from '../src/user-feedback-ops/user-feedback-ops';
 import { pullRequestPlan } from '../src/pull-request-plan';
+
+const withSelfOutputs = (deps: Record<string, any>) => ({
+  ...deps,
+  'self-outputs': { cr: undefined },
+});
 
 describe('pullRequestPlan', () => {
   const githubMock = github as any;
@@ -164,7 +170,7 @@ describe('pullRequestPlan', () => {
     expect(ghProvisioner.runGhProvisioner).toHaveBeenCalledWith(
       {
         mainCr: cr,
-        deps: { dep: true },
+        deps: withSelfOutputs({ dep: true }),
       },
       { plan: true },
     );
@@ -196,7 +202,7 @@ describe('pullRequestPlan', () => {
     expect(ghProvisioner.runGhProvisioner).toHaveBeenCalledWith(
       {
         mainCr: cr,
-        deps: { dep: true },
+        deps: withSelfOutputs({ dep: true }),
       },
       { plan: true },
     );
@@ -225,7 +231,7 @@ describe('pullRequestPlan', () => {
     expect(ghProvisioner.runGhProvisioner).toHaveBeenCalledWith(
       {
         mainCr: cr,
-        deps: { dep: true },
+        deps: withSelfOutputs({ dep: true }),
       },
       { planDestroy: true },
     );
@@ -452,7 +458,7 @@ describe('pullRequestPlan', () => {
     expect(ghProvisioner.runGhProvisioner).toHaveBeenCalledWith(
       {
         mainCr: cr,
-        deps: { dep: true },
+        deps: withSelfOutputs({ dep: true }),
       },
       { plan: true },
     );
@@ -492,14 +498,14 @@ describe('pullRequestPlan', () => {
     expect(ghProvisioner.runGhProvisioner).toHaveBeenCalledWith(
       {
         mainCr: copiedCr,
-        deps: { dep: true },
+        deps: withSelfOutputs({ dep: true }),
       },
       { plan: true },
     );
     expect(ghProvisioner.runGhProvisioner).toHaveBeenCalledWith(
       {
         mainCr: changedCr,
-        deps: { dep: true },
+        deps: withSelfOutputs({ dep: true }),
       },
       { plan: true },
     );
@@ -573,10 +579,11 @@ describe('pullRequestPlan', () => {
     expect(ghProvisioner.runGhProvisioner).toHaveBeenCalledWith(
       {
         mainCr: feature,
-        deps: { repo },
+        deps: withSelfOutputs({ repo }),
       },
       { plan: true },
     );
+    expect(resolveSecretRef).toHaveBeenCalledWith('default', feature, getSecret);
     expect(
       (getItemByItemPath as jest.Mock).mock.calls.map(([path]) => path),
     ).not.toContain('default/githubrepositories/repo-a');
@@ -623,7 +630,7 @@ describe('pullRequestPlan', () => {
     expect(ghProvisioner.runGhProvisioner).toHaveBeenCalledWith(
       {
         mainCr: repo,
-        deps: { dep: true },
+        deps: withSelfOutputs({ dep: true }),
       },
       { plan: true },
     );
@@ -712,7 +719,7 @@ describe('pullRequestPlan', () => {
     expect(ghProvisioner.runGhProvisioner).toHaveBeenCalledWith(
       {
         mainCr: feature,
-        deps: { repo },
+        deps: withSelfOutputs({ repo }),
       },
       { planDestroy: true },
     );
@@ -781,7 +788,7 @@ describe('pullRequestPlan', () => {
     expect(ghProvisioner.runGhProvisioner).toHaveBeenCalledWith(
       {
         mainCr: secrets,
-        deps: { repo },
+        deps: withSelfOutputs({ repo }),
       },
       { planDestroy: true },
     );
@@ -908,7 +915,7 @@ describe('pullRequestPlan', () => {
     expect(ghProvisioner.runGhProvisioner).toHaveBeenCalledWith(
       {
         mainCr: repo,
-        deps: { dep: true },
+        deps: withSelfOutputs({ dep: true }),
       },
       { planDestroy: true },
     );
@@ -979,7 +986,7 @@ describe('pullRequestPlan', () => {
     expect(ghProvisioner.runGhProvisioner).toHaveBeenCalledWith(
       {
         mainCr: group,
-        deps: { member },
+        deps: withSelfOutputs({ member }),
       },
       { plan: true },
     );
@@ -1021,10 +1028,11 @@ describe('pullRequestPlan', () => {
     expect(ghProvisioner.runGhProvisioner).toHaveBeenCalledWith(
       {
         mainCr: cr,
-        deps: { dep: true },
+        deps: withSelfOutputs({ dep: true }),
       },
       { plan: true },
     );
+    expect(resolveSecretRef).not.toHaveBeenCalled();
     expect(publishPlan).toHaveBeenCalledWith(
       cr,
       'plan output',
