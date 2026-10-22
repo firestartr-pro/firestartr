@@ -21,10 +21,6 @@ export class EntityGroup extends Entity {
 
   async loadResources(): Promise<void> {
     try {
-      const parentTeam = this.cr.spec.parentTeam
-        ? this.resolveRef(this.cr.spec.parentTeam.ref)
-        : null;
-
       this.patchData({
         path: '/config/group',
 
@@ -41,13 +37,18 @@ export class EntityGroup extends Entity {
 
       log.debug(`[gh-provisioner] ${this.k8sId} loaded its data`);
 
-      if (parentTeam !== null) {
+      if (this.cr.spec.parentTeam) {
+        const parentTeamId = this.requireOutput(
+          this.cr.spec.parentTeam.ref,
+          'id',
+        );
+
         log.info(`[gh-provisioner] ${this.k8sId} has a parentTeam`);
 
         this.patchData({
           path: '/config/group/parentTeamId',
           op: PatchOperations.add,
-          value: parentTeam.getOutput('id'),
+          value: parentTeamId,
         });
       }
 
@@ -103,7 +104,7 @@ export class EntityGroup extends Entity {
 
     for (const member of this.cr.spec.members) {
       if (member.ref.kind === 'FirestartrGithubMembership') {
-        const memberRef = this.resolveRef(member.ref);
+        const memberRef = this.requireRef(member.ref);
 
         const memberData = {
           username: memberRef.getDepName(),

@@ -84,6 +84,42 @@ export abstract class Entity {
     return resolveRefIn(this._deps, ref);
   }
 
+  /**
+   * Resolves a ref this execution cannot work without. An unresolved ref
+   * throws a readable error here instead of surfacing later as a TypeError
+   * from a null dereference.
+   */
+  requireRef(ref: Ref): ResolvedRef {
+    const resolved = this.resolveRef(ref);
+
+    if (!resolved) {
+      throw new Error(
+        `[gh-provisioner] ${this.k8sId} could not resolve ${ref.kind}/${ref.name} ref from its dependencies`,
+      );
+    }
+
+    return resolved;
+  }
+
+  /**
+   * Resolves a ref and one of its required outputs. Throws a readable error
+   * when either the ref itself or the output key is absent, instead of
+   * provisioning `undefined`.
+   */
+  requireOutput(ref: Ref, key: string): any {
+    const resolved = this.requireRef(ref);
+
+    const value = resolved.getOutput(key);
+
+    if (value === undefined) {
+      throw new Error(
+        `[gh-provisioner] ${this.k8sId} could not resolve output '${key}' of ${ref.kind}/${ref.name} from its dependencies`,
+      );
+    }
+
+    return value;
+  }
+
   abstract loadResources(tfOp: string): Promise<void>;
 
   abstract postProvision(tfOp: string): Promise<void>;
@@ -202,11 +238,11 @@ export abstract class Entity {
   }
 
   get backend() {
-    return this.resolveRef(this.cr.spec.context.backend.ref);
+    return this.requireRef(this.cr.spec.context.backend.ref);
   }
 
   get provider() {
-    return this.resolveRef(this.cr.spec.context.provider.ref);
+    return this.requireRef(this.cr.spec.context.provider.ref);
   }
 
   async runWithGithubProvider(fn: Function) {
@@ -221,10 +257,12 @@ export abstract class Entity {
     const envGH = {};
 
     for (const name in providerRef.cr.spec.secrets) {
-      envGH[name] = this.resolveRef({
-        ...providerRef.cr.spec.secrets[name].secretRef,
-        kind: 'Secret',
-      }).getOutput(providerRef.cr.spec.secrets[name].secretRef.key);
+      const secretRef = providerRef.cr.spec.secrets[name].secretRef;
+
+      envGH[name] = this.requireOutput(
+        { ...secretRef, kind: 'Secret' },
+        secretRef.key,
+      );
     }
 
     return envGH;

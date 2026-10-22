@@ -29,7 +29,7 @@ export class EntityGHFeature extends Entity {
   async loadResources(tfOp: string): Promise<void> {
     log.info(`[gh-provisioner] running ${tfOp} on ${this.k8sId}`);
 
-    const repoRef = this.resolveRef(this.cr.spec.repositoryTarget.ref);
+    const repoRef = this.requireRef(this.cr.spec.repositoryTarget.ref);
 
     this.patchData({
       path: '/config/repository',
@@ -107,7 +107,7 @@ export class EntityGHFeature extends Entity {
    * User-managed files are intentionally excluded (see ADR 0005).
    */
   async loadAddressesToImport(): Promise<void> {
-    const repoRef = this.resolveRef(this.cr.spec.repositoryTarget.ref);
+    const repoRef = this.requireRef(this.cr.spec.repositoryTarget.ref);
 
     const repoName = repoRef.getDepName();
 

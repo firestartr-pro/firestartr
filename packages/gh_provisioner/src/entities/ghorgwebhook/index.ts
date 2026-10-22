@@ -23,10 +23,10 @@ export class EntityGHOrgWebHook extends Entity {
     try {
       const cr = this.cr;
 
-      const secretRef = this.resolveRef({
-        kind: 'Secret',
-        ...cr.spec.webhook.secretRef,
-      });
+      const webhookSecret = this.requireOutput(
+        { kind: 'Secret', ...cr.spec.webhook.secretRef },
+        cr.spec.webhook.secretRef.key,
+      );
 
       this.patchData({
         path: '/config/webhook',
@@ -39,7 +39,7 @@ export class EntityGHOrgWebHook extends Entity {
           configuration: {
             url: cr.spec.webhook.url,
             contentType: cr.spec.webhook.contentType,
-            secret: secretRef.getOutput(cr.spec.webhook.secretRef.key),
+            secret: webhookSecret,
             insecureSsl: cr.spec.webhook.insecureSsl ?? false,
           },
         },
