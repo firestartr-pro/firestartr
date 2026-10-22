@@ -42,7 +42,17 @@ export class ResolvedRef {
   }
 
   getOutput(key: string) {
-    return this.secrets.outputs[key];
+    const outputs = this.secrets.outputs;
+
+    // Indexing an ordinary object also finds inherited Object.prototype
+    // members, so an absent key such as 'constructor' or 'toString' would
+    // otherwise resolve to a function and reach provisioning as a valid
+    // value. Only own properties are real outputs.
+    if (!Object.prototype.hasOwnProperty.call(outputs, key)) {
+      return undefined;
+    }
+
+    return outputs[key];
   }
 
   get cr() {
@@ -64,10 +74,15 @@ export class ResolvedRef {
   private flattenOutputs(outputs: Record<string, any>): Record<string, any> {
     const flattened: Record<string, any> = {};
 
+    const has = (obj: Record<string, any>, key: string) =>
+      Object.prototype.hasOwnProperty.call(obj, key);
+
     for (const key in outputs) {
+      if (!has(outputs, key)) continue;
+
       const value = outputs[key];
 
-      if (isRecord(value) && 'value' in value) {
+      if (isRecord(value) && has(value, 'value')) {
         flattened[key] = value.value;
       } else {
         flattened[key] = value;
@@ -80,23 +95,28 @@ export class ResolvedRef {
   private normalizeOutputs(outputs: Record<string, any>): Record<string, any> {
     const normalized: Record<string, any> = { ...outputs };
 
+    const has = (obj: Record<string, any>, key: string) =>
+      Object.prototype.hasOwnProperty.call(obj, key);
+
     for (const key in outputs) {
+      if (!has(outputs, key)) continue;
+
       const camelKey = this.toCamelCase(key);
 
-      if (!(camelKey in normalized)) {
+      if (!has(normalized, camelKey)) {
         normalized[camelKey] = outputs[key];
       }
     }
 
-    if (!('id' in normalized) && 'team_id' in normalized) {
+    if (!has(normalized, 'id') && has(normalized, 'team_id')) {
       normalized.id = normalized.team_id;
     }
 
-    if (!('slug' in normalized) && 'team_slug' in normalized) {
+    if (!has(normalized, 'slug') && has(normalized, 'team_slug')) {
       normalized.slug = normalized.team_slug;
     }
 
-    if (!('nodeId' in normalized) && 'node_id' in normalized) {
+    if (!has(normalized, 'nodeId') && has(normalized, 'node_id')) {
       normalized.nodeId = normalized.node_id;
     }
 
@@ -108,7 +128,10 @@ export class ResolvedRef {
       return null;
     }
 
-    if ('outputs' in value && isRecord(value.outputs)) {
+    const has = (obj: Record<string, any>, key: string) =>
+      Object.prototype.hasOwnProperty.call(obj, key);
+
+    if (has(value, 'outputs') && isRecord(value.outputs)) {
       return this.normalizeOutputs(this.flattenOutputs(value.outputs));
     }
 
