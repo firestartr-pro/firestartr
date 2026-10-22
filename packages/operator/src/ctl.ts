@@ -591,7 +591,10 @@ export async function getSecret(namespace: string, secretName: string) {
     return secret;
   } catch (e: any) {
     if (e.code === 404 || e.statusCode === 404) {
-      log.error(
+      // Absence is an expected condition here (first apply, or a dependency
+      // that has not published outputs yet): stay quiet and let the caller
+      // decide whether it is fatal, logging once with full context.
+      log.debug(
         `The ctl could not find the secret '${secretName}' in namespace '${namespace}'.`,
       );
       return null;
