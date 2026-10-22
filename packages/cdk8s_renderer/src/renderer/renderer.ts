@@ -49,7 +49,7 @@ export async function render(
   try {
     validateSubReferences(data.renderClaims);
     validateComponentPagesPath(data.renderClaims);
-    validateTfStateKeyUniqueness(result);
+    validateTfStateKeyUniqueness(fullCrSet);
     validateGithubOrgSettingsSingleton(fullCrSet);
     validateGithubOrgVariableSectionSingleton(fullCrSet);
     validateActionsVariablesUniqueness(result);

@@ -335,6 +335,100 @@ describe('CDK8s Renderer', () => {
     }
   });
 
+  it('Is able to detect a copied claim reusing a persisted tfStateKey', async () => {
+    const nContext = await createTestContext({
+      onlyFiles: ['group_a', 'user_a'],
+    });
+
+    try {
+      const tfStateKey = '11111111-2222-4333-8444-555555555555';
+
+      await nContext.applyPatches('group_a', [
+        {
+          op: 'add',
+          path: '/providers/github/tfStateKey',
+          value: tfStateKey,
+        },
+      ]);
+
+      await nContext.renderClaims(undefined, {
+        crsPath: rendererTestFixtures.noCrs,
+      });
+
+      await nContext.duplicateFile('group_a', 'group_a_copy');
+      await nContext.applyPatches('group_a_copy', [
+        {
+          op: 'replace',
+          path: '/name',
+          value: 'group_a_copy',
+        },
+        {
+          op: 'replace',
+          path: '/providers/github/name',
+          value: 'group-a-copy',
+        },
+        {
+          op: 'add',
+          path: '/providers/github/tfStateKey',
+          value: tfStateKey,
+        },
+      ]);
+
+      await expect(
+        nContext.renderClaims(
+          { claimRefs: ['GroupClaim-group_a_copy'] },
+          { crsPath: nContext.getResourcesOutDir() },
+        ),
+      ).rejects.toMatchObject({
+        message: expect.stringContaining(
+          'Check the following Claims to ensure that the tfStateKey is unique',
+        ),
+      });
+    } finally {
+      await nContext.destroy();
+    }
+  });
+
+  it('Is able to re-render a claim against its own persisted CRs', async () => {
+    const nContext = await createTestContext({
+      onlyFiles: ['group_a', 'user_a'],
+    });
+
+    try {
+      const tfStateKey = '11111111-2222-4333-8444-555555555555';
+
+      await nContext.applyPatches('group_a', [
+        {
+          op: 'add',
+          path: '/providers/github/tfStateKey',
+          value: tfStateKey,
+        },
+      ]);
+
+      const first = await nContext.renderClaims(undefined, {
+        crsPath: rendererTestFixtures.noCrs,
+      });
+
+      const firstGroup = Object.values(first.renderedMap).find(
+        (cr: any) => cr.kind === 'FirestartrGithubGroup',
+      ) as any;
+
+      const second = await nContext.renderClaims(
+        { claimRefs: ['GroupClaim-group_a'] },
+        { crsPath: nContext.getResourcesOutDir() },
+      );
+
+      const secondGroup = Object.values(second.renderedMap).find(
+        (cr: any) => cr.kind === 'FirestartrGithubGroup',
+      ) as any;
+
+      expect(secondGroup.metadata.name).toBe(firstGroup.metadata.name);
+      expect(secondGroup.spec.firestartr.tfStateKey).toBe(tfStateKey);
+    } finally {
+      await nContext.destroy();
+    }
+  });
+
   it('Is able to detect missconfiguration between policy and syncpolicy', async () => {
     await context.applyPatches('workspace_b', [
       {
