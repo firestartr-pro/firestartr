@@ -74,9 +74,9 @@ import { addPlanStatusCheck, getItemByItemPath, getSecret } from '../src/ctl';
 import { publishPlan } from '../src/user-feedback-ops/user-feedback-ops';
 import { pullRequestPlan } from '../src/pull-request-plan';
 
-const withSelfOutputs = (deps: Record<string, any>) => ({
+const withSelfOutputs = (deps: Record<string, any>, cr?: any) => ({
   ...deps,
-  'self-outputs': { cr: undefined },
+  'self-outputs': { cr },
 });
 
 describe('pullRequestPlan', () => {
@@ -94,6 +94,7 @@ describe('pullRequestPlan', () => {
     jest.clearAllMocks();
     githubMock.pulls.getPrBaseSHA.mockResolvedValue('base-sha');
     (resolve as jest.Mock).mockImplementation(async () => ({ dep: true }));
+    (resolveSecretRef as jest.Mock).mockResolvedValue(undefined);
   });
 
   it('keeps planning modified Terraform workspaces with terraform_provisioner', async () => {
@@ -546,6 +547,20 @@ describe('pullRequestPlan', () => {
       'FirestartrGithubRepositoryFeature',
       'feature-a',
     );
+    const outputsSecret = {
+      apiVersion: 'v1',
+      kind: 'Secret',
+      metadata: {
+        name: 'firestartrgithubrepositoryfeature-feature-a-outputs',
+      },
+      data: {
+        outputs: Buffer.from(
+          JSON.stringify({
+            installed_managed_files: ['.github/build_images.yaml/main'],
+          }),
+        ).toString('base64'),
+      },
+    };
     feature.spec.repositoryTarget = {
       ref: {
         kind: 'FirestartrGithubRepository',
@@ -573,13 +588,19 @@ describe('pullRequestPlan', () => {
 
       return {};
     });
+    (resolveSecretRef as jest.Mock).mockImplementation(
+      async (_namespace: string, cr: any) =>
+        cr.kind === 'FirestartrGithubRepositoryFeature'
+          ? outputsSecret
+          : undefined,
+    );
 
     await pullRequestPlan(opts);
 
     expect(ghProvisioner.runGhProvisioner).toHaveBeenCalledWith(
       {
         mainCr: feature,
-        deps: withSelfOutputs({ repo }),
+        deps: withSelfOutputs({ repo }, outputsSecret),
       },
       { plan: true },
     );
