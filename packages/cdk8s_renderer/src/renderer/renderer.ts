@@ -1,6 +1,9 @@
 import { Construct } from 'constructs';
 import { IRenameResult, loadClaimsList } from '../loader/loader';
-import { validateTfStateKeyUniqueness } from '../validations/references';
+import {
+  validateClaimRefOwnership,
+  validateTfStateKeyUniqueness,
+} from '../validations/references';
 import { validateCrSizes } from '../validations/crSize';
 import { validatePermissionsUniqueness } from '../validations/permissions';
 import { validateNoBackstageAnnotationsInK8sCrs } from '../validations/backstageAnnotations';
@@ -49,6 +52,7 @@ export async function render(
   try {
     validateSubReferences(data.renderClaims);
     validateComponentPagesPath(data.renderClaims);
+    validateClaimRefOwnership(data.fullCrs, result);
     validateTfStateKeyUniqueness(fullCrSet);
     validateGithubOrgSettingsSingleton(fullCrSet);
     validateGithubOrgVariableSectionSingleton(fullCrSet);

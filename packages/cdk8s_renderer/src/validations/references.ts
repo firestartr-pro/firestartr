@@ -47,6 +47,30 @@ Check the following Claims to ensure that the tfStateKey is unique:
   }
 }
 
+export function validateClaimRefOwnership(
+  previousCrs: any,
+  renderedCrs: any,
+): void {
+  for (const crKey of Object.keys(renderedCrs)) {
+    const previous = previousCrs[crKey];
+
+    if (!previous) continue;
+
+    const previousClaimRef =
+      previous.metadata?.annotations?.['firestartr.dev/claim-ref'];
+    const renderedClaimRef =
+      renderedCrs[crKey].metadata?.annotations?.['firestartr.dev/claim-ref'];
+
+    if (previousClaimRef === renderedClaimRef) continue;
+
+    const cr = renderedCrs[crKey];
+
+    throw new Error(
+      `The rendered ${cr.kind} ${cr.metadata?.name} would overwrite an existing resource owned by ${previousClaimRef ?? '<unknown claim>'} (rendered by ${renderedClaimRef ?? '<unknown claim>'})`,
+    );
+  }
+}
+
 export function isCatalogEntity(cr: any): boolean {
   return [
     'Component',
