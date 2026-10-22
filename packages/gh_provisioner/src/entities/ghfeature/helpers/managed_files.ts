@@ -55,7 +55,7 @@ export async function provisionManagedFiles(
 
   const repoInfo: any = cr.spec.repositoryTarget;
 
-  const repoRef = ghFeature.resolveRef(cr.spec.repositoryTarget.ref);
+  const repoRef = ghFeature.requireRef(cr.spec.repositoryTarget.ref);
 
   // Read the accumulated list of previously provisioned user-managed file addresses
   // from the entity's output secrets. Defaults to [] on first apply.

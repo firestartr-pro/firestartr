@@ -104,7 +104,7 @@ function getRefContextFromCr(
 
     const { key, name } = value.secretRef;
 
-    const secret: any = entity.resolveRef({
+    const secret: any = entity.requireRef({
       kind: 'Secret',
       name: name,
     });
@@ -113,12 +113,19 @@ function getRefContextFromCr(
       `[${providerFromItem.getDepName()}] Resolving secret with key ${key} for ${name}`,
     );
 
-    if (secret.cr.data[key] === undefined)
-      throw new Error(`Secret ${name} does not contain key ${key}`);
+    const body: any = secret.cr;
 
-    secrets[objectKey] = Buffer.from(secret.cr.data[key], 'base64').toString(
-      'utf8',
-    );
+    const data = body && body.data;
+
+    // A Secret ref can resolve to a dep with no body, or to a body with no
+    // `data` field: index it only once it is known to be there, so a bare
+    // Secret cannot surface as a TypeError from the credential lookup below.
+    if (!data || data[key] === undefined)
+      throw new Error(
+        `[gh-provisioner] ${entity.k8sId} could not resolve output '${key}' of Secret/${name} from its dependencies: the Secret has no such key`,
+      );
+
+    secrets[objectKey] = Buffer.from(data[key], 'base64').toString('utf8');
   }
   return secrets;
 }

@@ -1369,7 +1369,7 @@ function adaptBackend(item: any, deps: any) {
  * @param deps  - Dependencies
  * @description Resolves references to secrets, provided by the user in the CR
  */
-function resolveReferences(item: any, deps: any) {
+export function resolveReferences(item: any, deps: any) {
   try {
     const references: any = {};
 
@@ -1379,19 +1379,19 @@ function resolveReferences(item: any, deps: any) {
     for (const iRef of itemReferences) {
       const ref = deps[`${iRef.ref.kind}-${iRef.ref.name}`];
 
-      if (iRef.ref.kind === 'Secret') {
-        ref.secret = ref.cr;
-      }
-
       if (!ref) {
         throw new Error(
           `Reference ${iRef.ref.kind}-${iRef.ref.name} not found`,
         );
       }
 
+      if (iRef.ref.kind === 'Secret') {
+        ref.secret = ref.cr;
+      }
+
       if (!ref.secret || !ref.secret.data) {
         throw new Error(
-          `❌ No outputs secret found in reference ${iRef.ref.name}`,
+          `❌ No outputs secret found in reference ${iRef.ref.kind}-${iRef.ref.name}, needed by ${item.kind}/${item.metadata?.name}`,
         );
       }
 

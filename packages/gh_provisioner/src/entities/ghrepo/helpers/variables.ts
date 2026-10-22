@@ -20,18 +20,10 @@ export async function provisionVariables(fsGithubRepository: EntityGHRepo) {
           log.info(`Provisioning repo var ${repoVar.name} for ${cr.name}`);
 
           if ('ref' in repoVar) {
-            const secretRef = fsGithubRepository.resolveRef({
-              name: repoVar.ref.name,
-              kind: 'Secret',
-            });
-
-            if (!secretRef) {
-              throw new Error(
-                `[gh-provisioner] ${fsGithubRepository.k8sId} could not resolve secret ref ${repoVar.ref.name}, aborting instead of provisioning ${repoVar.name} without it`,
-              );
-            }
-
-            plainTextSecret = secretRef.getOutput(repoVar.ref.key);
+            plainTextSecret = fsGithubRepository.requireOutput(
+              { name: repoVar.ref.name, kind: 'Secret' },
+              repoVar.ref.key,
+            );
           }
 
           await provisionRepositoryVar(
