@@ -17,7 +17,7 @@ RUN npm ci \
     && mv packages/operator/external_tsconfig.json packages/operator/tsconfig.json \
     && npm run build-external --workspace packages/operator
 
-FROM ghcr.io/prefapp/gitops-k8s:run-aws
+FROM ghcr.io/firestartr-pro/firestartr:run-aws
 
 WORKDIR /library
 
