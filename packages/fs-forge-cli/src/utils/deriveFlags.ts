@@ -274,8 +274,7 @@ export function deriveVariantGroups(
 ): VariantGroup[] {
   const groups: VariantGroup[] = [];
   const union = (schema.oneOf ?? schema.anyOf) as
-    | Record<string, unknown>[]
-    | undefined;
+    Record<string, unknown>[] | undefined;
 
   if (Array.isArray(union) && union.length > 1) {
     const branchProperties = union.map((branch) =>
