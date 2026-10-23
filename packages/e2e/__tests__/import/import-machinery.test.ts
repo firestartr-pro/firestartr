@@ -135,8 +135,7 @@ function expectClaimFile(claimFiles: string[], claimName: string): void {
 
 function getFirestartrTfStateKey(resource: K8sResource): string {
   const spec = resource.spec as
-    | { firestartr?: { tfStateKey?: unknown } }
-    | undefined;
+    { firestartr?: { tfStateKey?: unknown } } | undefined;
   const tfStateKey = spec?.firestartr?.tfStateKey;
 
   if (typeof tfStateKey !== 'string' || tfStateKey.length === 0) {

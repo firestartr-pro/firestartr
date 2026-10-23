@@ -109,9 +109,7 @@ export function createPermissionFor(
  */
 export function createPermissionsListFor(
   claimRefs: (
-    | `group:${string}`
-    | `user:${string}`
-    | `collaborator:${string}`
+    `group:${string}` | `user:${string}` | `collaborator:${string}`
   )[],
 
   permission: 'admin' | 'push' | 'pull' | 'maintain',
