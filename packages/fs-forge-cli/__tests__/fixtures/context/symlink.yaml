@@ -1,0 +1,5 @@
+# /srv/acme-link is a symlink to /srv/acme; the suite mocks realpath to say so.
+organizations:
+  - name: acme
+    paths:
+      - /srv/acme-link

@@ -1,5 +1,44 @@
 {
   "commands": {
+    "context": {
+      "aliases": [],
+      "args": {},
+      "description": "Resolve and print the effective context: organization, repos, CLI version, and auth source",
+      "examples": [
+        "<%= config.bin %> <%= command.id %>",
+        "<%= config.bin %> <%= command.id %> --json",
+        "<%= config.bin %> <%= command.id %> --org my-org"
+      ],
+      "flags": {
+        "org": {
+          "description": "GitHub organization (default: FSCRT_ORG, then the config path match)",
+          "name": "org",
+          "hasDynamicHelp": false,
+          "multiple": false,
+          "type": "option"
+        },
+        "json": {
+          "description": "Output as JSON",
+          "name": "json",
+          "allowNo": false,
+          "type": "boolean"
+        }
+      },
+      "hasDynamicHelp": false,
+      "hiddenAliases": [],
+      "id": "context",
+      "pluginAlias": "@firestartr/fs-forge-cli",
+      "pluginName": "@firestartr/fs-forge-cli",
+      "pluginType": "core",
+      "strict": true,
+      "enableJsonFlag": false,
+      "isESM": true,
+      "relativePath": [
+        "dist",
+        "commands",
+        "context.js"
+      ]
+    },
     "delete": {
       "aliases": [],
       "args": {
@@ -38,15 +77,17 @@
       },
       "description": "Delete (unprovision) an existing claim. Network access requires GITHUB_TOKEN authentication.",
       "examples": [
+        "<%= config.bin %> <%= command.id %> component my-svc",
         "<%= config.bin %> <%= command.id %> component my-svc --org my-org",
         "<%= config.bin %> <%= command.id %> component my-svc --org my-org --commit",
         "<%= config.bin %> <%= command.id %> tfworkspace my-tf --org my-org --no-include-variants --commit"
       ],
       "flags": {
         "org": {
-          "description": "GitHub organization containing the claims repo",
+          "description": "GitHub organization containing the claims repo (default: FSCRT_ORG, then the config entry matching the current directory)",
           "env": "FSCRT_ORG",
           "name": "org",
+          "noCacheDefault": true,
           "hasDynamicHelp": false,
           "multiple": false,
           "type": "option"
@@ -1106,9 +1147,10 @@
           "type": "option"
         },
         "org": {
-          "description": "GitHub organization containing the claims repo",
+          "description": "GitHub organization containing the claims repo (default: FSCRT_ORG, then the config entry matching the current directory)",
           "env": "FSCRT_ORG",
           "name": "org",
+          "noCacheDefault": true,
           "hasDynamicHelp": false,
           "multiple": false,
           "type": "option"
@@ -1225,6 +1267,7 @@
       "args": {},
       "description": "Check claim and provider availability before creating, editing, or deleting a claim",
       "examples": [
+        "<%= config.bin %> <%= command.id %> --create --kind repo --name my-service",
         "<%= config.bin %> <%= command.id %> --create --kind repo --name my-service --org my-org",
         "<%= config.bin %> <%= command.id %> --create --kind repo --name my-service --scope claims --org my-org",
         "<%= config.bin %> <%= command.id %> --create --kind repo --name my-service --org my-org --json",
@@ -1281,9 +1324,10 @@
           "type": "option"
         },
         "org": {
-          "description": "GitHub organization",
+          "description": "GitHub organization containing the claims repo (default: FSCRT_ORG, then the config entry matching the current directory)",
           "env": "FSCRT_ORG",
           "name": "org",
+          "noCacheDefault": true,
           "hasDynamicHelp": false,
           "multiple": false,
           "type": "option"
@@ -1382,15 +1426,17 @@
       },
       "description": "Watch wet PR check runs for reconciliation status. Supports watch mode (default) and current mode (--current).",
       "examples": [
+        "<%= config.bin %> <%= command.id %> ComponentClaim-my-app",
         "<%= config.bin %> <%= command.id %> ComponentClaim-my-app --org my-org",
         "<%= config.bin %> <%= command.id %> ComponentClaim-my-app --org my-org --current",
         "<%= config.bin %> <%= command.id %> ComponentClaim-my-app --org my-org --timeout 600"
       ],
       "flags": {
         "org": {
-          "description": "GitHub organization containing the claims repo",
+          "description": "GitHub organization containing the claims repo (default: FSCRT_ORG, then the config entry matching the current directory)",
           "env": "FSCRT_ORG",
           "name": "org",
+          "noCacheDefault": true,
           "hasDynamicHelp": false,
           "multiple": false,
           "type": "option"
@@ -1606,9 +1652,10 @@
           "type": "option"
         },
         "org": {
-          "description": "GitHub organization containing the claims repo",
+          "description": "GitHub organization containing the claims repo (default: FSCRT_ORG, then the config entry matching the current directory)",
           "env": "FSCRT_ORG",
           "name": "org",
+          "noCacheDefault": true,
           "hasDynamicHelp": false,
           "multiple": false,
           "type": "option"
@@ -2263,9 +2310,10 @@
           "type": "option"
         },
         "org": {
-          "description": "GitHub organization containing the claims repo",
+          "description": "GitHub organization containing the claims repo (default: FSCRT_ORG, then the config entry matching the current directory)",
           "env": "FSCRT_ORG",
           "name": "org",
+          "noCacheDefault": true,
           "hasDynamicHelp": false,
           "multiple": false,
           "type": "option"
@@ -2806,9 +2854,10 @@
           "type": "option"
         },
         "org": {
-          "description": "GitHub organization containing the claims repo",
+          "description": "GitHub organization containing the claims repo (default: FSCRT_ORG, then the config entry matching the current directory)",
           "env": "FSCRT_ORG",
           "name": "org",
+          "noCacheDefault": true,
           "hasDynamicHelp": false,
           "multiple": false,
           "type": "option"
@@ -3058,9 +3107,10 @@
           "type": "option"
         },
         "org": {
-          "description": "GitHub organization containing the claims repo",
+          "description": "GitHub organization containing the claims repo (default: FSCRT_ORG, then the config entry matching the current directory)",
           "env": "FSCRT_ORG",
           "name": "org",
+          "noCacheDefault": true,
           "hasDynamicHelp": false,
           "multiple": false,
           "type": "option"
@@ -3508,9 +3558,10 @@
           "type": "option"
         },
         "org": {
-          "description": "GitHub organization containing the claims repo",
+          "description": "GitHub organization containing the claims repo (default: FSCRT_ORG, then the config entry matching the current directory)",
           "env": "FSCRT_ORG",
           "name": "org",
+          "noCacheDefault": true,
           "hasDynamicHelp": false,
           "multiple": false,
           "type": "option"
@@ -3969,9 +4020,10 @@
           "type": "option"
         },
         "org": {
-          "description": "GitHub organization containing the claims repo",
+          "description": "GitHub organization containing the claims repo (default: FSCRT_ORG, then the config entry matching the current directory)",
           "env": "FSCRT_ORG",
           "name": "org",
+          "noCacheDefault": true,
           "hasDynamicHelp": false,
           "multiple": false,
           "type": "option"
@@ -4291,9 +4343,10 @@
           "type": "option"
         },
         "org": {
-          "description": "GitHub organization containing the claims repo",
+          "description": "GitHub organization containing the claims repo (default: FSCRT_ORG, then the config entry matching the current directory)",
           "env": "FSCRT_ORG",
           "name": "org",
+          "noCacheDefault": true,
           "hasDynamicHelp": false,
           "multiple": false,
           "type": "option"
@@ -4557,9 +4610,10 @@
           "type": "option"
         },
         "org": {
-          "description": "GitHub organization containing the claims repo",
+          "description": "GitHub organization containing the claims repo (default: FSCRT_ORG, then the config entry matching the current directory)",
           "env": "FSCRT_ORG",
           "name": "org",
+          "noCacheDefault": true,
           "hasDynamicHelp": false,
           "multiple": false,
           "type": "option"
@@ -4886,9 +4940,10 @@
           "type": "option"
         },
         "org": {
-          "description": "GitHub organization containing the claims repo",
+          "description": "GitHub organization containing the claims repo (default: FSCRT_ORG, then the config entry matching the current directory)",
           "env": "FSCRT_ORG",
           "name": "org",
+          "noCacheDefault": true,
           "hasDynamicHelp": false,
           "multiple": false,
           "type": "option"
@@ -5209,9 +5264,10 @@
           "type": "option"
         },
         "org": {
-          "description": "GitHub organization containing the claims repo",
+          "description": "GitHub organization containing the claims repo (default: FSCRT_ORG, then the config entry matching the current directory)",
           "env": "FSCRT_ORG",
           "name": "org",
+          "noCacheDefault": true,
           "hasDynamicHelp": false,
           "multiple": false,
           "type": "option"
@@ -5359,9 +5415,10 @@
       ],
       "flags": {
         "org": {
-          "description": "GitHub organization containing the claims repo",
+          "description": "GitHub organization containing the claims repo (default: FSCRT_ORG, then the config entry matching the current directory)",
           "env": "FSCRT_ORG",
           "name": "org",
+          "noCacheDefault": true,
           "hasDynamicHelp": false,
           "multiple": false,
           "type": "option"
@@ -5401,9 +5458,10 @@
       ],
       "flags": {
         "org": {
-          "description": "GitHub organization containing the claims repo",
+          "description": "GitHub organization containing the claims repo (default: FSCRT_ORG, then the config entry matching the current directory)",
           "env": "FSCRT_ORG",
           "name": "org",
+          "noCacheDefault": true,
           "hasDynamicHelp": false,
           "multiple": false,
           "type": "option"
@@ -5446,9 +5504,10 @@
       ],
       "flags": {
         "org": {
-          "description": "GitHub organization containing the claims repo",
+          "description": "GitHub organization containing the claims repo (default: FSCRT_ORG, then the config entry matching the current directory)",
           "env": "FSCRT_ORG",
           "name": "org",
+          "noCacheDefault": true,
           "hasDynamicHelp": false,
           "multiple": false,
           "type": "option"
@@ -5522,9 +5581,10 @@
       ],
       "flags": {
         "org": {
-          "description": "GitHub organization containing the claims repo",
+          "description": "GitHub organization containing the claims repo (default: FSCRT_ORG, then the config entry matching the current directory)",
           "env": "FSCRT_ORG",
           "name": "org",
+          "noCacheDefault": true,
           "hasDynamicHelp": false,
           "multiple": false,
           "type": "option"
@@ -5608,14 +5668,14 @@
           "description": "GitHub organization owning the claims repo",
           "env": "FSCRT_ORG",
           "name": "org",
+          "noCacheDefault": true,
           "hasDynamicHelp": false,
           "multiple": false,
           "type": "option"
         },
         "claims-repo": {
-          "description": "Repository name for the claims repo",
+          "description": "Repository name for the claims repo (default: config, then claims)",
           "name": "claims-repo",
-          "default": "claims",
           "hasDynamicHelp": false,
           "multiple": false,
           "type": "option"
@@ -5807,9 +5867,10 @@
           "type": "option"
         },
         "org": {
-          "description": "GitHub organization containing the claims repo",
+          "description": "GitHub organization containing the claims repo (default: FSCRT_ORG, then the config entry matching the current directory)",
           "env": "FSCRT_ORG",
           "name": "org",
+          "noCacheDefault": true,
           "hasDynamicHelp": false,
           "multiple": false,
           "type": "option"
@@ -6022,9 +6083,10 @@
           "type": "option"
         },
         "org": {
-          "description": "GitHub organization containing the claims repo",
+          "description": "GitHub organization containing the claims repo (default: FSCRT_ORG, then the config entry matching the current directory)",
           "env": "FSCRT_ORG",
           "name": "org",
+          "noCacheDefault": true,
           "hasDynamicHelp": false,
           "multiple": false,
           "type": "option"
@@ -6098,9 +6160,10 @@
           "type": "option"
         },
         "org": {
-          "description": "GitHub organization containing the claims repo",
+          "description": "GitHub organization containing the claims repo (default: FSCRT_ORG, then the config entry matching the current directory)",
           "env": "FSCRT_ORG",
           "name": "org",
+          "noCacheDefault": true,
           "hasDynamicHelp": false,
           "multiple": false,
           "type": "option"
@@ -6171,9 +6234,10 @@
           "type": "option"
         },
         "org": {
-          "description": "GitHub organization containing the claims repo",
+          "description": "GitHub organization containing the claims repo (default: FSCRT_ORG, then the config entry matching the current directory)",
           "env": "FSCRT_ORG",
           "name": "org",
+          "noCacheDefault": true,
           "hasDynamicHelp": false,
           "multiple": false,
           "type": "option"
