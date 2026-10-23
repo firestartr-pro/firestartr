@@ -1,6 +1,6 @@
 import github from 'github';
 import common from 'catalog_common';
-import { resolve } from '../resolver';
+import { resolve, resolveSecretRef } from '../resolver';
 import { addPlanStatusCheck, getItemByItemPath, getSecret } from '../ctl';
 import { runTerraformProvisioner } from 'terraform_provisioner';
 import { buildProvisionerContext } from '../tfworkspaces/process-operation';
@@ -357,6 +357,16 @@ async function planGithubResource(cr: any, status: string, opts: PlanContext) {
     getSecret,
     opts.namespace,
   );
+
+  deps['self-outputs'] = {
+    cr: cr?.metadata?.name
+      ? await resolveSecretRef(
+          cr.metadata.namespace || opts.namespace,
+          cr,
+          getSecret,
+        )
+      : undefined,
+  };
 
   fDebug('Running GitHub provisioner plan');
   return await ghProvisioner.runGhProvisioner(
