@@ -1,5 +1,16 @@
 # Changelog
 
+## [3.1.1](https://github.com/firestartr-pro/firestartr/compare/v3.1.0...v3.1.1) (2026-10-23)
+
+
+### Bug Fixes
+
+* **`cdk8s_renderer`:** validate a claim's explicit `tfStateKey` ([#127](https://github.com/firestartr-pro/firestartr/issues/127)) ([d59ce44](https://github.com/firestartr-pro/firestartr/commit/d59ce44d6273fb3279b150713e54d10fe004195e))
+* **deps-dev:** bump eslint from 10.12.0 to 10.13.0 ([#117](https://github.com/firestartr-pro/firestartr/issues/117)) ([4ceff78](https://github.com/firestartr-pro/firestartr/commit/4ceff78cb889f3ff7400359fc460f704ab68fe77))
+* **deps-dev:** bump prettier from 3.8.3 to 3.9.10 ([#100](https://github.com/firestartr-pro/firestartr/issues/100)) ([2553aa6](https://github.com/firestartr-pro/firestartr/commit/2553aa6013039390dcaf81a5db1a8e90a5f8b72d))
+* removed Octokit stale dependency ([#129](https://github.com/firestartr-pro/firestartr/issues/129)) ([4711bbf](https://github.com/firestartr-pro/firestartr/commit/4711bbf25637cb2b4c1de17b9668bc709b9f2771))
+* set proper registry for firestartr docker image in deploy scripts([#142](https://github.com/firestartr-pro/firestartr/issues/142)) ([6ae6e82](https://github.com/firestartr-pro/firestartr/commit/6ae6e82108b652b1c907c44f7f32a808d7fdddee))
+
 ## [3.1.0](https://github.com/firestartr-pro/firestartr/compare/v3.0.2...v3.1.0) (2026-10-22)
 
 
