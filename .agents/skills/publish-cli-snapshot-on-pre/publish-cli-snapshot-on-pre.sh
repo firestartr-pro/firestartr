@@ -34,7 +34,7 @@ elif [[ "$ENV_FILE" != /* ]]; then
   ENV_FILE="$GITOPS_DIR/$ENV_FILE"
 fi
 
-GITOPS_REPO="prefapp/gitops-k8s"
+GITOPS_REPO="firestartr-pro/firestartr"
 WORKFLOW="npm_publish_cli.yaml"
 STAGE_INDEX=0
 TOTAL_STAGES=4
