@@ -1,5 +1,12 @@
 # Changelog
 
+## [2.0.2](https://github.com/firestartr-pro/firestartr/compare/fs-forge-cli-v2.0.1...fs-forge-cli-v2.0.2) (2026-10-23)
+
+
+### Bug Fixes
+
+* **deps-dev:** bump prettier from 3.8.3 to 3.9.10 ([#100](https://github.com/firestartr-pro/firestartr/issues/100)) ([2553aa6](https://github.com/firestartr-pro/firestartr/commit/2553aa6013039390dcaf81a5db1a8e90a5f8b72d))
+
 ## [2.0.1](https://github.com/firestartr-pro/firestartr/compare/fs-forge-cli-v2.0.0...fs-forge-cli-v2.0.1) (2026-10-02)
 
 
