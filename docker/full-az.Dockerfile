@@ -18,7 +18,7 @@ RUN npm ci \
     && npm run build-external --workspace packages/operator
 
 
-FROM ghcr.io/prefapp/gitops-k8s:run-az
+FROM ghcr.io/firestartr-pro/firestartr:run-az
 
 WORKDIR /library
 
