@@ -73,8 +73,7 @@ export class TestReporter {
   }): Promise<SnapshotEntry>;
   async snapshot(
     optionsOrNamespace?:
-      | string
-      | { namespace?: string; includeGithub?: boolean },
+      string | { namespace?: string; includeGithub?: boolean },
   ): Promise<SnapshotEntry> {
     const opts =
       typeof optionsOrNamespace === 'string'
