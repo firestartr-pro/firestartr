@@ -281,8 +281,7 @@ export default class Preflight extends Command {
     } catch (error) {
       if (error instanceof Errors.CLIError) throw error;
       const status = (error as Record<string, unknown>)?.status as
-        | number
-        | undefined;
+        number | undefined;
       if (status === 401 || status === 403) {
         if (json) {
           jsonOutput(this, 4, {
