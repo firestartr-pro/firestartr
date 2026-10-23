@@ -34,7 +34,7 @@
     "@types/uuid": "^9.0.6",
     "debug": "^4.3.4",
     "dotenv": "^18.0.8",
-    "eslint": "^10.12.0",
+    "eslint": "^10.13.0",
     "eslint-plugin-prettier": "5.5.7",
     "fast-json-patch": "^3.1.1",
     "globals": "^17.13.0",
