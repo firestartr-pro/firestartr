@@ -30,7 +30,7 @@
     "@octokit/rest": "^22.0.0",
     "@types/libsodium-wrappers": "^0.8.2",
     "catalog_common": "file:../catalog_common",
-    "octokit": "^5.0.3"
+    "octokit": "^5.0.5"
   },
   "dependencies": {
     "@octokit/plugin-paginate-graphql": "^6.0.0",
