@@ -48,6 +48,8 @@ export default class FeaturesAdd extends FeatureSchemaCommand {
         org: flags.org,
         commit: flags.commit,
         noWait: flags['no-wait'],
+        waitForChecks: flags['wait-for-checks'],
+        stateRepos: flags['state-repos'],
         json: flags.json,
         feature,
         featureSchema: this.featureSchema,
