@@ -5,10 +5,60 @@ import { E2EState } from './state';
 
 import type {
   GhApi,
+  GhFeatureRepoRateLimit,
   GhOrgSettings,
   GhOrgVariable,
   GhOrgWebhook,
 } from '../types';
+
+// Feature commit resolution downloads from prefapp/features, and the auth
+// strategy in `github` routes every repos/prefapp/features URL through the
+// shared PAT, so a request to it observes the quota that 403s.
+const FEATURE_REPO_OWNER = 'prefapp';
+const FEATURE_REPO_NAME = 'features';
+
+type RateLimitHeaders = Record<string, unknown> | null | undefined;
+
+function readFeatureRepoRateLimit(
+  headers: RateLimitHeaders,
+  status: number | null,
+  errorMessage: string | null,
+): GhFeatureRepoRateLimit | null {
+  const rawLimit = headers?.['x-ratelimit-limit'];
+  const rawRemaining = headers?.['x-ratelimit-remaining'];
+  const rawReset = headers?.['x-ratelimit-reset'];
+
+  if (
+    typeof rawLimit !== 'string' ||
+    typeof rawRemaining !== 'string' ||
+    typeof rawReset !== 'string'
+  ) {
+    return null;
+  }
+
+  const limit = Number(rawLimit);
+  const remaining = Number(rawRemaining);
+  const reset = Number(rawReset);
+  if (
+    !Number.isFinite(limit) ||
+    !Number.isFinite(remaining) ||
+    !Number.isFinite(reset)
+  ) {
+    return null;
+  }
+
+  // GitHub's 403 body names the exhausted principal, e.g.
+  // "API rate limit exceeded for user ID 00000000."
+  const subject =
+    /rate limit exceeded for ([^.]+)/i.exec(errorMessage ?? '')?.[1]?.trim() ??
+    null;
+
+  const exhausted =
+    (status === 403 || status === 429) &&
+    /rate limit exceeded/i.test(errorMessage ?? '');
+
+  return { limit, remaining, reset, subject, exhausted };
+}
 
 type RawOrgSettings = Record<string, unknown>;
 
@@ -419,6 +469,32 @@ export function createGhApi(state: E2EState): GhApi {
           reset: core.reset,
         },
       };
+    },
+
+    async probeFeatureRepoRateLimit() {
+      try {
+        const octokit = await github.getOctokitForOrg(state.org, true);
+        const response = await octokit.rest.repos.listTags({
+          owner: FEATURE_REPO_OWNER,
+          repo: FEATURE_REPO_NAME,
+          per_page: 1,
+        });
+        return readFeatureRepoRateLimit(
+          response.headers,
+          response.status,
+          null,
+        );
+      } catch (err) {
+        const error = err as {
+          status?: number;
+          response?: { status?: number; headers?: Record<string, unknown> };
+        };
+        return readFeatureRepoRateLimit(
+          error.response?.headers,
+          error.status ?? error.response?.status ?? null,
+          err instanceof Error ? err.message : null,
+        );
+      }
     },
 
     getRepoFile,
