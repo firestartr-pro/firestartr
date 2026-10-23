@@ -4,11 +4,25 @@ export function validateTfStateKeyUniqueness(crs: any) {
   for (const crKey of Object.keys(crs)) {
     const cr = crs[crKey];
 
-    if (!isTerraformWorkspace(cr)) continue;
+    if (!cr.spec?.firestartr?.tfStateKey) continue;
 
     const tfKey = cr.spec.firestartr.tfStateKey;
+    const claimRef = cr.metadata?.annotations?.['firestartr.dev/claim-ref'];
 
-    if (tfStateKeys[tfKey]) {
+    const existing = tfStateKeys[tfKey];
+
+    if (existing) {
+      const existingClaimRef =
+        existing.metadata?.annotations?.['firestartr.dev/claim-ref'];
+
+      const sameClaim = claimRef !== undefined && existingClaimRef === claimRef;
+      const workspaceInvolved =
+        isTerraformWorkspace(cr) || isTerraformWorkspace(existing);
+
+      if (sameClaim && !workspaceInvolved) {
+        continue;
+      }
+
       throw new Error(
         `❗❗ ❌ RENDER ERROR ❌ ❗❗
 
@@ -16,20 +30,44 @@ The tfStateKey ${tfKey} is not unique,
 
 It is being used by the following CRs:
 
-- ${tfStateKeys[tfKey].kind} ${tfStateKeys[tfKey].metadata.name}
+- ${existing.kind} ${existing.metadata.name}
 
 - ${cr.kind} ${cr.metadata.name}
 
 Check the following Claims to ensure that the tfStateKey is unique:
 
-- ${tfStateKeys[tfKey].metadata.annotations['firestartr.dev/claim-ref']}
+- ${existingClaimRef}
 
-- ${cr.metadata.annotations['firestartr.dev/claim-ref']}
+- ${claimRef}
 `,
       );
     }
 
     tfStateKeys[cr.spec.firestartr.tfStateKey] = cr;
+  }
+}
+
+export function validateClaimRefOwnership(
+  previousCrs: any,
+  renderedCrs: any,
+): void {
+  for (const crKey of Object.keys(renderedCrs)) {
+    const previous = previousCrs[crKey];
+
+    if (!previous) continue;
+
+    const previousClaimRef =
+      previous.metadata?.annotations?.['firestartr.dev/claim-ref'];
+    const renderedClaimRef =
+      renderedCrs[crKey].metadata?.annotations?.['firestartr.dev/claim-ref'];
+
+    if (previousClaimRef === renderedClaimRef) continue;
+
+    const cr = renderedCrs[crKey];
+
+    throw new Error(
+      `The rendered ${cr.kind} ${cr.metadata?.name} would overwrite an existing resource owned by ${previousClaimRef ?? '<unknown claim>'} (rendered by ${renderedClaimRef ?? '<unknown claim>'})`,
+    );
   }
 }
 
