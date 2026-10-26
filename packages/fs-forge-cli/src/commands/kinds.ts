@@ -2,7 +2,7 @@ import { Command, Flags } from '@oclif/core';
 
 import {
   KIND_CAPABILITIES,
-  KIND_CAPABILITIES_JSON,
+  kindCapabilitiesJson,
 } from '../claims/kindRegistry.js';
 
 function writeLine(value: string): void {
@@ -20,7 +20,7 @@ export default class Kinds extends Command {
     const { flags } = await this.parse(Kinds);
 
     if (flags.json) {
-      writeLine(JSON.stringify(KIND_CAPABILITIES_JSON, null, 2));
+      writeLine(JSON.stringify(kindCapabilitiesJson(), null, 2));
       return;
     }
 

@@ -26,7 +26,7 @@ function rows(capability: KindCapability): Array<[string, string]> {
     ['catalog only', capability.catalogOnly ? 'yes' : 'no'],
     ['org field', text(capability.orgField)],
     ['hydration', hydrationText(capability)],
-    ['delete', text(capability.delete.workflow)],
+    ['delete', text(capability.deleteWorkflow)],
     ['variants', capability.variants ? 'yes' : 'no'],
     ['preflight', text(capability.preflight)],
     ['state repo', text(capability.stateRepo)],

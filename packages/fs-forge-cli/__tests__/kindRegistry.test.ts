@@ -303,9 +303,10 @@ describe('kind capabilities against the claim schemas', () => {
 
       expect(capability.hydration?.workflow ?? null).toBe(wanted.hydration);
       expect(capability.hydration?.inputs ?? []).toEqual(wanted.inputs ?? []);
-      expect(capability.hydration?.key ?? 'name').toBe('name');
-      expect(capability.delete.workflow).toBe(wanted.deletion);
-      expect(capability.delete.supported).toBe(wanted.deletion !== null);
+      expect(capability.hydration?.key ?? null).toBe(
+        wanted.hydration === null ? null : 'name',
+      );
+      expect(capability.deleteWorkflow).toBe(wanted.deletion);
       expect(capability.stateRepo).toBe(wanted.stateRepo);
     }
   });

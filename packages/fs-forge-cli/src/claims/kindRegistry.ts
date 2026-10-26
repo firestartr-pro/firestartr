@@ -21,30 +21,42 @@ export interface KindDelete {
   workflow: string | null;
 }
 
-/**
- * Facts about a claim kind that the CLI owns rather than the claim schema:
- * where the kind lives in the claims repo, how it hydrates and deletes, and
- * which preflight provider vocabulary it maps to.
- */
+/** Facts about a claim kind that the CLI owns rather than the claim schema. */
 interface KindOverrides {
   /** Directory under `claims/`; null when `--path` is required. */
   claimsDirectory: string | null;
   /** Produces only Backstage catalog entities; skips hydration. */
   catalogOnly: boolean;
   preflight: PreflightKindId | null;
-  /** Dotted path of the claim's organization field; null when it has none. */
   orgField: string | null;
-  /** Hydration this kind gets; null when no workflow hydrates it. */
   hydration: KindHydration | null;
-  /** Claims-repo workflow that unprovisions this kind; null when none does. */
   deleteWorkflow: string | null;
-  /** Whether the kind's provider supports variant claims. */
+  /** The kind's provider clones one CR per variant. */
   variants: boolean;
-  /** State repo that holds the kind's provisioned state; null when it has none. */
+  /** Repo that holds the kind's provisioned state. */
   stateRepo: string | null;
   /** Dotted claim fields pointing at other claims; arrays end in `[]`. */
   references: readonly string[];
 }
+
+const GITHUB_HYDRATION: KindHydration = {
+  workflow: 'hydrate-github-claim.yaml',
+  key: 'name',
+  inputs: ['kind', 'name'],
+};
+const GITHUB_DELETE = 'delete-github-claim.yaml';
+const SECRETS_HYDRATION: KindHydration = {
+  workflow: 'hydrate-secrets-claim.yaml',
+  key: 'name',
+  inputs: ['name'],
+};
+const SECRETS_DELETE = 'delete-secrets-claim.yaml';
+const TFWORKSPACE_HYDRATION: KindHydration = {
+  workflow: 'hydrate-tfworkspace-claim.yaml',
+  key: 'name',
+  inputs: ['name'],
+};
+const TFWORKSPACE_DELETE = 'delete-tfworkspace-claim.yaml';
 
 /**
  * The one hand-written kind table. `satisfies Record<ClaimKindName, …>` makes
@@ -68,12 +80,8 @@ const KIND_OVERRIDES = {
     catalogOnly: false,
     preflight: 'repo',
     orgField: 'providers.github.org',
-    hydration: {
-      workflow: 'hydrate-github-claim.yaml',
-      key: 'name',
-      inputs: ['kind', 'name'],
-    },
-    deleteWorkflow: 'delete-github-claim.yaml',
+    hydration: GITHUB_HYDRATION,
+    deleteWorkflow: GITHUB_DELETE,
     variants: false,
     stateRepo: 'state-github',
     references: [
@@ -100,12 +108,8 @@ const KIND_OVERRIDES = {
     catalogOnly: false,
     preflight: 'team',
     orgField: 'providers.github.org',
-    hydration: {
-      workflow: 'hydrate-github-claim.yaml',
-      key: 'name',
-      inputs: ['kind', 'name'],
-    },
-    deleteWorkflow: 'delete-github-claim.yaml',
+    hydration: GITHUB_HYDRATION,
+    deleteWorkflow: GITHUB_DELETE,
     variants: false,
     stateRepo: 'state-github',
     references: ['parent', 'children[]', 'members[]'],
@@ -126,12 +130,8 @@ const KIND_OVERRIDES = {
     catalogOnly: false,
     preflight: null,
     orgField: null,
-    hydration: {
-      workflow: 'hydrate-github-claim.yaml',
-      key: 'name',
-      inputs: ['kind', 'name'],
-    },
-    deleteWorkflow: 'delete-github-claim.yaml',
+    hydration: GITHUB_HYDRATION,
+    deleteWorkflow: GITHUB_DELETE,
     variants: false,
     stateRepo: 'state-github',
     references: ['system', 'owner'],
@@ -141,12 +141,8 @@ const KIND_OVERRIDES = {
     catalogOnly: false,
     preflight: null,
     orgField: null,
-    hydration: {
-      workflow: 'hydrate-secrets-claim.yaml',
-      key: 'name',
-      inputs: ['name'],
-    },
-    deleteWorkflow: 'delete-secrets-claim.yaml',
+    hydration: SECRETS_HYDRATION,
+    deleteWorkflow: SECRETS_DELETE,
     variants: false,
     stateRepo: 'state-infra',
     references: ['system', 'owner'],
@@ -167,12 +163,8 @@ const KIND_OVERRIDES = {
     catalogOnly: false,
     preflight: 'tfworkspace',
     orgField: null,
-    hydration: {
-      workflow: 'hydrate-tfworkspace-claim.yaml',
-      key: 'name',
-      inputs: ['name'],
-    },
-    deleteWorkflow: 'delete-tfworkspace-claim.yaml',
+    hydration: TFWORKSPACE_HYDRATION,
+    deleteWorkflow: TFWORKSPACE_DELETE,
     variants: true,
     stateRepo: 'state-infra',
     references: ['system', 'owner'],
@@ -182,39 +174,29 @@ const KIND_OVERRIDES = {
     catalogOnly: false,
     preflight: 'user',
     orgField: 'providers.github.org',
-    hydration: {
-      workflow: 'hydrate-github-claim.yaml',
-      key: 'name',
-      inputs: ['kind', 'name'],
-    },
-    deleteWorkflow: 'delete-github-claim.yaml',
+    hydration: GITHUB_HYDRATION,
+    deleteWorkflow: GITHUB_DELETE,
     variants: false,
     stateRepo: 'state-github',
     references: [],
   },
 } satisfies Record<ClaimKindName, KindOverrides>;
 
-export interface KindCapability extends Omit<KindOverrides, 'deleteWorkflow'> {
+export interface KindCapability extends KindOverrides {
   kind: ClaimKindName;
   id: string;
   icon: { emoji: string; ascii: string };
   summary: string;
-  /** Derived: the kind has no `claimsDirectory`, so `--path` is required. */
   requiresPath: boolean;
-  delete: KindDelete;
 }
 
-/** Joins a kind's generated metadata with its hand-written overrides. */
 function kindCapability(kind: ClaimKindName): KindCapability {
-  const { claimsDirectory, deleteWorkflow, ...overrides } =
-    KIND_OVERRIDES[kind];
+  const overrides = KIND_OVERRIDES[kind];
   return {
     kind,
     ...CLAIM_KINDS[kind],
     ...overrides,
-    claimsDirectory,
-    requiresPath: claimsDirectory === null,
-    delete: { supported: deleteWorkflow !== null, workflow: deleteWorkflow },
+    requiresPath: overrides.claimsDirectory === null,
   };
 }
 
@@ -256,7 +238,10 @@ export function toKindCapabilityJson(
     catalogOnly: capability.catalogOnly,
     orgField: capability.orgField,
     hydration: capability.hydration,
-    delete: capability.delete,
+    delete: {
+      supported: capability.deleteWorkflow !== null,
+      workflow: capability.deleteWorkflow,
+    },
     variants: capability.variants,
     preflight: capability.preflight,
     stateRepo: capability.stateRepo,
@@ -264,8 +249,9 @@ export function toKindCapabilityJson(
   };
 }
 
-export const KIND_CAPABILITIES_JSON: readonly KindCapabilityJson[] =
-  KIND_CAPABILITIES.map(toKindCapabilityJson);
+export function kindCapabilitiesJson(): readonly KindCapabilityJson[] {
+  return KIND_CAPABILITIES.map(toKindCapabilityJson);
+}
 
 /** Values accepted by `--kind`-style options: short id and full kind. */
 export const CLAIM_KIND_OPTIONS: string[] = KIND_CAPABILITIES.flatMap(

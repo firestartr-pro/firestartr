@@ -15,8 +15,7 @@ import {
 import { ORG_FLAG, requireOrg } from '../mutations/support.js';
 import { waitForDispatch } from '../utils/waitForDispatch.js';
 
-/** Kinds whose provider clones variant CRs, from the kind registry. */
-const VARIANT_KINDS = KIND_CAPABILITIES.filter(({ variants }) => variants)
+const VARIANT_KIND_LABEL = KIND_CAPABILITIES.filter(({ variants }) => variants)
   .map(({ kind }) => kind)
   .join(', ');
 
@@ -45,7 +44,7 @@ export default class Delete extends Command {
   static flags = {
     org: ORG_FLAG,
     'include-variants': Flags.boolean({
-      description: `Also delete variant CRs (${VARIANT_KINDS} only)`,
+      description: `Also delete variant CRs (${VARIANT_KIND_LABEL} only)`,
       default: true,
       allowNo: true,
     }),

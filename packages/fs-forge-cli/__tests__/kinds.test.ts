@@ -77,6 +77,7 @@ it('carries the full per-kind capability shape for every kind', async () => {
       ]);
     }
     expect(Object.keys(entry.delete).sort()).toEqual(['supported', 'workflow']);
+    expect(entry.delete.supported).toBe(entry.delete.workflow !== null);
     expect(Array.isArray(entry.references)).toBe(true);
   }
 });
