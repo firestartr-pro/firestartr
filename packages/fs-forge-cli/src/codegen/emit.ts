@@ -145,7 +145,10 @@ ${hasFeatureReferences ? "    for (const value of flags.feature ?? []) {\n      
 export function emitKindsCommand(): string {
   return `import { Command, Flags } from '@oclif/core';
 
-import { KIND_CAPABILITIES } from '../claims/kindRegistry.js';
+import {
+  KIND_CAPABILITIES,
+  KIND_CAPABILITIES_JSON,
+} from '../claims/kindRegistry.js';
 
 function writeLine(value: string): void {
   process.stdout.write(value + '\\n');
@@ -162,17 +165,7 @@ export default class Kinds extends Command {
     const { flags } = await this.parse(Kinds);
 
     if (flags.json) {
-      writeLine(
-        JSON.stringify(
-          KIND_CAPABILITIES.map(({ id, kind, summary }) => ({
-            id,
-            kind,
-            description: summary,
-          })),
-          null,
-          2,
-        ),
-      );
+      writeLine(JSON.stringify(KIND_CAPABILITIES_JSON, null, 2));
       return;
     }
 
