@@ -4,6 +4,7 @@ FROM node:22-bookworm
 
 ENV LERNA_VERSION=8.1.9
 ENV TSX_VERSION=4.19.3
+ENV NPM_VERSION=12.2.1
 
 # Copy the OpenTofu binary and later symlink it to "terraform" to maintain
 # backward compatibility with existing scripts/tools that expect a terraform binary.
@@ -15,6 +16,7 @@ RUN \
     terraform --version &&  \
     npm install -g lerna@${LERNA_VERSION} && \
     npm install -g tsx@${TSX_VERSION} && \
+    npm install -g npm@${NPM_VERSION} && \
     rm -rf /root/.npm/
 
 WORKDIR /home/app

@@ -2,8 +2,9 @@ FROM node:22-bookworm AS builder
 
 ENV LERNA="8.1.9"
 ENV NCC="0.38.3"
+ENV NPM_VERSION="12.2.1"
 
-RUN npm install -g lerna@${LERNA} @vercel/ncc@${NCC}
+RUN npm install -g lerna@${LERNA} @vercel/ncc@${NCC} npm@${NPM_VERSION}
 
 WORKDIR /library/
 

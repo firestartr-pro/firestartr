@@ -52,10 +52,14 @@ selection is explicit: each job installs npm itself.
   narrow Node range can turn `npm ci` red for reasons unrelated to npm.
 - The lockfile was renormalized once with npm 12.2.1. The diff is exactly the five
   workspace `dev` markers; no resolved version, `resolved` URL or integrity hash changed.
-- `docker/slim.Dockerfile` and `docker/full-aws.Dockerfile` keep the base image's npm for
-  `npm ci`. Deliberate: `npm ci` never regenerates the lockfile, so the version cannot
-  cause drift, and installing npm in the image would add a registry download to every
-  build.
+- The Docker images install the pinned npm in the layer that already installs lerna and
+  ncc: `docker/slim.Dockerfile`, `docker/full-aws.Dockerfile`, `docker/full-az.Dockerfile`
+  and `docker/dev.Dockerfile` (the development container, which mounts the repository).
+  They copy the root `package.json` and `.npmrc`, so with `engine-strict=true` the npm 10
+  bundled with `node:22` cannot run `npm ci` at all (`EBADENGINE … Required:
+  {"npm":"12.2.1"} Actual: {"npm":"10.9.9"}`). Passing `--no-engine-strict` to those
+  installs was rejected: `npm ci` never rewrites the lockfile, but exempting the image
+  builds would leave one place where the declared version does not apply.
 - Feature-managed workflows are not edited by hand. The npm calls in `make_dispatches`,
   `trigger_deployment` and `build_images_summary_reusable` run in a workspace with no
   manifest, so they are outside this decision.
