@@ -1220,6 +1220,66 @@
         "kinds.js"
       ]
     },
+    "kinds:show": {
+      "aliases": [],
+      "args": {
+        "kind": {
+          "description": "Claim kind (short ID; full *Claim names remain supported)",
+          "name": "kind",
+          "options": [
+            "argodeploy",
+            "ArgoDeployClaim",
+            "component",
+            "ComponentClaim",
+            "domain",
+            "DomainClaim",
+            "group",
+            "GroupClaim",
+            "orgsettings",
+            "OrgSettingsClaim",
+            "orgwebhook",
+            "OrgWebhookClaim",
+            "secrets",
+            "SecretsClaim",
+            "system",
+            "SystemClaim",
+            "tfworkspace",
+            "TFWorkspaceClaim",
+            "user",
+            "UserClaim"
+          ],
+          "required": true
+        }
+      },
+      "description": "Show what one claim kind supports",
+      "examples": [
+        "<%= config.bin %> <%= command.id %> component",
+        "<%= config.bin %> <%= command.id %> ComponentClaim --json"
+      ],
+      "flags": {
+        "json": {
+          "description": "Output as JSON",
+          "name": "json",
+          "allowNo": false,
+          "type": "boolean"
+        }
+      },
+      "hasDynamicHelp": false,
+      "hiddenAliases": [],
+      "id": "kinds:show",
+      "pluginAlias": "@firestartr/fs-forge-cli",
+      "pluginName": "@firestartr/fs-forge-cli",
+      "pluginType": "core",
+      "strict": true,
+      "enableJsonFlag": false,
+      "isESM": true,
+      "relativePath": [
+        "dist",
+        "commands",
+        "kinds",
+        "show.js"
+      ]
+    },
     "preflight": {
       "aliases": [],
       "args": {},
