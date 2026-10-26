@@ -10,10 +10,7 @@ export type ContextSource = 'config' | 'flag' | 'env';
 
 /** Stable codes for the ways the context cannot be resolved. */
 export type ContextErrorCode =
-  | 'NO_CONFIG'
-  | 'NO_MATCH'
-  | 'AMBIGUOUS_MATCH'
-  | 'NO_AUTH';
+  'NO_CONFIG' | 'NO_MATCH' | 'AMBIGUOUS_MATCH' | 'NO_AUTH';
 
 export class ContextError extends Error {
   readonly code: ContextErrorCode;
