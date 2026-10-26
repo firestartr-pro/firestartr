@@ -10,15 +10,17 @@ const HEAD = 'fs-forge/ComponentClaim-my-component';
 const BASE = 'main';
 const RUN_URL = 'https://github.com/my-org/claims/actions/runs/9';
 
-function open(
-  options: AuditTrailOptions = {},
-  operation: 'create' | 'edit' | 'delete' = 'create',
-) {
+function open(options: AuditTrailOptions = {}) {
   const api = new MemoryGitHubApi();
   const repo = claimsRepo(api, 'my-org');
   const run = <T>(step: (trail: AuditTrail) => Promise<T>) =>
     withAuditTrail(
-      { repo, operation, kind: 'ComponentClaim', name: 'my-component' },
+      {
+        repo,
+        operation: 'create',
+        kind: 'ComponentClaim',
+        name: 'my-component',
+      },
       options,
       step,
     );

@@ -23,7 +23,7 @@ interface DispatchInput {
   inputs: Record<string, string | boolean>;
 }
 
-export interface MemoryIssue {
+interface MemoryIssue {
   number: number;
   title: string;
   body: string;
@@ -31,7 +31,7 @@ export interface MemoryIssue {
   htmlUrl: string;
 }
 
-export interface MemoryIssueComment {
+interface MemoryIssueComment {
   ref: RepoRef;
   issue: number;
   body: string;

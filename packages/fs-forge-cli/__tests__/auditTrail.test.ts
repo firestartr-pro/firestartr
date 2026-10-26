@@ -100,7 +100,6 @@ beforeAll(() => {
 
 afterEach(() => {
   MockCreateGitHubApi.mockClear();
-  process.exitCode = 0;
   if (ORIGINAL_ORG === undefined) {
     delete process.env.FSCRT_ORG;
   } else {
@@ -141,7 +140,7 @@ describe('--issue', () => {
     );
   });
 
-  it('links the claim PR created by edit --commit and keeps the existing body', async () => {
+  it('links the claim PR created by edit --commit', async () => {
     const api = mockClient();
 
     const { result } = await run(
