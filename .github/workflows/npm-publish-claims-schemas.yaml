@@ -37,8 +37,10 @@ jobs:
         cache: "npm"
         cache-dependency-path: "package-lock.json"
 
-    - name: Update npm
-      run: npm install -g npm@11.5.1
+    # npm comes from the root package.json "packageManager" pin. Publishing
+    # over OIDC requires npm >= 11.5.1, so never pin below that.
+    - name: Enable Corepack
+      run: corepack enable
 
     - name: Install
       run: |
