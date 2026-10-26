@@ -4,13 +4,13 @@ import { readFile } from 'fs/promises';
 import {
   claimsRepo,
   loadClaimsMap,
-  publishClaim,
   resolveClaim,
 } from '../claims/claimsRepo.js';
 import { deterministicPath } from '../claims/deterministicPath.js';
 import { serializeClaim } from '../claims/keyOrdering.js';
 import { createGitHubApi } from '../github/index.js';
-import { createAuditTrail } from '../mutations/auditIssue.js';
+import { withAuditTrail } from '../mutations/auditIssue.js';
+import { publishClaimAndWait } from '../mutations/publish.js';
 import { parseClaimYaml, requireOrg } from '../mutations/support.js';
 import { mergeObjects } from '../utils/mutateClaim.js';
 import { createClaimValidator } from '../utils/ajvValidation.js';
@@ -19,33 +19,33 @@ import {
   getFeatureReferences,
   mutateFeatureReference,
 } from '../utils/features.js';
-import { waitForDispatch } from '../utils/waitForDispatch.js';
 
-import type { AuditIssueOptions, AuditTrail } from '../mutations/auditIssue.js';
-import type { ClaimsRepo, WorkflowDispatch } from '../claims/claimsRepo.js';
+import type {
+  AuditOperation,
+  AuditTrailOptions,
+} from '../mutations/auditIssue.js';
+import type { ClaimsRepo } from '../claims/claimsRepo.js';
 import type { FeatureReference } from '../utils/features.js';
 
-export interface ComponentPublish {
-  dispatch: WorkflowDispatch;
-  repo: ClaimsRepo;
+/** Where a commit writes the claim, and the sha it replaces. */
+interface ComponentDestination {
+  path: string;
+  existingSha?: string;
 }
 
 export interface ComponentTarget {
   claim: Record<string, unknown>;
   name: string;
-  /** Resolves the claims repo, when the operation is committed. */
-  repo?: () => ClaimsRepo;
-  publish(
-    output: string,
-    audit?: AuditTrail,
-  ): Promise<ComponentPublish | undefined>;
+  /** The claims repo this target already resolved, if any. */
+  repo?: ClaimsRepo;
+  /** The claims-repo destination of a commit; resolved only when committing. */
+  destination(repo: ClaimsRepo): Promise<ComponentDestination>;
 }
 
 export async function loadComponentTarget(options: {
   component?: string;
   file?: string;
   org?: string;
-  commit?: boolean;
   repo?: ClaimsRepo;
 }): Promise<ComponentTarget> {
   if (Boolean(options.component) === Boolean(options.file)) {
@@ -54,46 +54,28 @@ export async function loadComponentTarget(options: {
     );
   }
 
-  let cached: ClaimsRepo | undefined;
-  const repo = () =>
-    (cached ??=
-      options.repo ?? claimsRepo(createGitHubApi(), requireOrg(options.org)));
-
   if (options.file) {
     const claim = parseClaimYaml(await readFile(options.file, 'utf8'));
     const name = assertComponentClaim(claim);
     return {
       claim,
       name,
-      repo: options.commit ? repo : undefined,
-      publish: async (output, audit) => {
-        if (!options.commit) return undefined;
-        const target = repo();
+      repo: options.repo,
+      async destination(repo) {
         const path = deterministicPath('ComponentClaim', name);
-        const branch = await target.api.getDefaultBranch(target.ref);
-        const current = await target.api.readFile(target.ref, path, branch);
-        return {
-          repo: target,
-          dispatch: await publishClaim(
-            target,
-            {
-              kind: 'ComponentClaim',
-              name,
-              path,
-              yaml: output,
-              existingSha: current?.sha,
-            },
-            audit,
-          ),
-        };
+        const branch = await repo.api.getDefaultBranch(repo.ref);
+        const current = await repo.api.readFile(repo.ref, path, branch);
+        // A local file may already exist in the claims repo: replace that copy.
+        return { path, existingSha: current?.sha };
       },
     };
   }
 
-  const target = repo();
-  const map = await loadClaimsMap(target);
+  const repo =
+    options.repo ?? claimsRepo(createGitHubApi(), requireOrg(options.org));
+  const map = await loadClaimsMap(repo);
   const source = await resolveClaim(
-    target,
+    repo,
     map,
     `ComponentClaim-${options.component}`,
   );
@@ -102,24 +84,10 @@ export async function loadComponentTarget(options: {
   return {
     claim,
     name,
-    repo: options.commit ? () => target : undefined,
-    publish: async (output, audit) =>
-      options.commit
-        ? {
-            repo: target,
-            dispatch: await publishClaim(
-              target,
-              {
-                kind: 'ComponentClaim',
-                name,
-                path: source.filePath,
-                yaml: output,
-                existingSha: source.sha,
-              },
-              audit,
-            ),
-          }
-        : undefined,
+    repo,
+    async destination() {
+      return { path: source.filePath, existingSha: source.sha };
+    },
   };
 }
 
@@ -164,13 +132,7 @@ function mergeFeatureReference(
   return merged;
 }
 
-const AUDIT_OPERATIONS = {
-  add: 'create',
-  edit: 'edit',
-  remove: 'delete',
-} as const;
-
-export interface FeatureMutationRequest extends AuditIssueOptions {
+export interface FeatureMutationRequest extends AuditTrailOptions {
   operation: 'add' | 'edit' | 'remove';
   component?: string;
   file?: string;
@@ -188,6 +150,16 @@ export interface FeatureMutationResult {
   publishUrl?: string;
 }
 
+/** A Feature operation audits the claim as the matching claim operation. */
+const AUDIT_OPERATIONS: Record<
+  FeatureMutationRequest['operation'],
+  AuditOperation
+> = {
+  add: 'create',
+  edit: 'edit',
+  remove: 'delete',
+};
+
 /**
  * The Feature mutation pipeline shared by `features add`, `features edit` and
  * `features remove`: load the ComponentClaim, mutate one Feature reference,
@@ -201,7 +173,6 @@ export async function runFeatureMutation(
     component: request.component,
     file: request.file,
     org: request.org,
-    commit: request.commit,
     repo: deps.repo,
   });
 
@@ -241,41 +212,43 @@ export async function runFeatureMutation(
 
   const output = serializeClaim(claim);
   process.stdout.write(`${formatClaim(claim, request.json)}\n`);
+  if (!request.commit) return { claim, output };
 
-  const claims = target.repo?.();
-  const audit = claims
-    ? createAuditTrail(
-        {
-          repo: claims,
-          operation: AUDIT_OPERATIONS[request.operation],
-          kind: 'ComponentClaim',
-          name: target.name,
-        },
-        request,
-      )
-    : undefined;
-
+  const repo =
+    target.repo ?? claimsRepo(createGitHubApi(), requireOrg(request.org));
   try {
-    await audit?.begin();
-    const published = await target.publish(output, audit);
-    if (!published) return { claim, output };
-
-    const publishUrl = await waitForDispatch(
-      published.repo.api,
-      published.repo.ref,
-      published.dispatch,
+    const { publishUrl } = await withAuditTrail(
       {
-        noWait: request.noWait,
-        claimType: 'ComponentClaim',
-        claimName: target.name,
-        label: 'Provisioning',
-        extra: audit?.result(),
+        repo,
+        operation: AUDIT_OPERATIONS[request.operation],
+        kind: 'ComponentClaim',
+        name: target.name,
+      },
+      request,
+      async (audit) => {
+        const destination = await target.destination(repo);
+        return publishClaimAndWait(
+          {
+            repo,
+            kind: 'ComponentClaim',
+            name: target.name,
+            output,
+            path: destination.path,
+            existingSha: destination.existingSha,
+            noWait: Boolean(request.noWait),
+            waitForChecks: false,
+            audit,
+          },
+          {
+            // The mutation output was already presented above.
+            output: () => {},
+            diagnostic: (line) => process.stderr.write(line),
+          },
+        );
       },
     );
-    await audit?.commentRunUrl(publishUrl);
     return { claim, output, publishUrl };
   } catch (error) {
-    await audit?.fail(error);
     Errors.error(error instanceof Error ? error.message : String(error));
   }
 }

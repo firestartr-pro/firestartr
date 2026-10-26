@@ -2,14 +2,14 @@ import { claimsRepo } from '../claims/claimsRepo.js';
 import { deterministicPath } from '../claims/deterministicPath.js';
 import { serializeClaim } from '../claims/keyOrdering.js';
 import { createGitHubApi } from '../github/index.js';
-import { createAuditTrail } from './auditIssue.js';
+import { withAuditTrail } from './auditIssue.js';
 import { publishClaimAndWait } from './publish.js';
 import { requireOrg } from './support.js';
 
-import type { AuditIssueOptions } from './auditIssue.js';
+import type { AuditTrailOptions } from './auditIssue.js';
 import type { ClaimKind } from './definitions.js';
 
-export interface ClaimCreationOptions extends AuditIssueOptions {
+export interface ClaimCreationOptions extends AuditTrailOptions {
   org?: string;
   kind: ClaimKind;
   name: string;
@@ -57,33 +57,27 @@ export async function runClaimCreation(
       return { output };
     }
 
-    const audit = createAuditTrail(
+    const { publishUrl } = await withAuditTrail(
       { repo, operation: 'create', kind, name },
       options,
+      (audit) =>
+        publishClaimAndWait(
+          {
+            repo,
+            kind,
+            name,
+            output,
+            path: destinationPath,
+            noWait,
+            waitForChecks,
+            stateRepos,
+            audit,
+            rejectExistingClaim: true,
+          },
+          { output: writeOutput, diagnostic: writeDiagnostic },
+        ),
     );
-    try {
-      await audit.begin();
-      const { publishUrl } = await publishClaimAndWait(
-        {
-          repo,
-          kind,
-          name,
-          output,
-          path: destinationPath,
-          noWait,
-          waitForChecks,
-          stateRepos,
-          audit,
-          rejectExistingClaim: true,
-        },
-        { output: writeOutput, diagnostic: writeDiagnostic },
-      );
-      await audit.commentRunUrl(publishUrl);
-      return { output, publishUrl };
-    } catch (error) {
-      await audit.fail(error);
-      throw error;
-    }
+    return { output, publishUrl };
   } catch (error) {
     if (error instanceof Error) throw error;
     throw new Error(`Claim creation failed: ${String(error)}`);

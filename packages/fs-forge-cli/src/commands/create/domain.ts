@@ -6,6 +6,7 @@ import { runClaimCreation } from '../../mutations/creation.js';
 import {
   AUDIT_TRAIL_FLAGS,
   MUTATION_CONTROL_FLAGS,
+  auditTrailOptions,
 } from '../../mutations/support.js';
 import { createClaimValidator } from '../../utils/ajvValidation.js';
 import { buildClaimFromFlags } from '../../utils/buildClaim.js';
@@ -134,10 +135,7 @@ export default class CreateDomain extends Command {
       commit: flags.commit,
       waitForChecks: flags['wait-for-checks'],
       stateRepos: flags['state-repos'],
-      issue: flags.issue,
-      createIssue: flags['create-issue'],
-      issueTitle: flags['issue-title'],
-      issueBody: flags['issue-body'],
+      ...auditTrailOptions(flags),
       path: flags.path,
       writeOutput: (output) => this.log(output),
       writeDiagnostic: (output) => process.stderr.write(output),

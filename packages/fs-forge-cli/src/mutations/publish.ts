@@ -113,5 +113,8 @@ export async function publishClaimAndWait(
     }
   }
 
+  // Only a successful publish has a run to record; failures are reported by
+  // the caller's audit trail.
+  await audit?.commentRunUrl(publishUrl);
   return { publishUrl };
 }

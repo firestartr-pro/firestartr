@@ -7,6 +7,7 @@ import {
 } from '../../utils/featureCommand.js';
 import { FEATURE_REFERENCE_SPECS } from '../../features/dynamicFlags.js';
 import { runFeatureMutation } from '../../features/mutation.js';
+import { auditTrailOptions } from '../../mutations/support.js';
 import { buildFeatureReference } from '../../utils/features.js';
 
 export default class FeaturesAdd extends FeatureSchemaCommand {
@@ -48,10 +49,7 @@ export default class FeaturesAdd extends FeatureSchemaCommand {
         org: flags.org,
         commit: flags.commit,
         noWait: flags['no-wait'],
-        issue: flags.issue,
-        createIssue: flags['create-issue'],
-        issueTitle: flags['issue-title'],
-        issueBody: flags['issue-body'],
+        ...auditTrailOptions(flags),
         json: flags.json,
         feature,
         featureSchema: this.featureSchema,

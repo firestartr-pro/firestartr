@@ -10,6 +10,7 @@ import {
 import {
   AUDIT_TRAIL_FLAGS,
   MUTATION_CONTROL_FLAGS,
+  auditTrailOptions,
   requireOrg,
 } from '../mutations/support.js';
 import {
@@ -77,10 +78,7 @@ export default class Edit extends Command {
       noWait: flags['no-wait'],
       waitForChecks: flags['wait-for-checks'],
       stateRepos: flags['state-repos'],
-      issue: flags.issue,
-      createIssue: flags['create-issue'],
-      issueTitle: flags['issue-title'],
-      issueBody: flags['issue-body'],
+      ...auditTrailOptions(flags),
       transform: (claim) => {
         for (const value of flags['add-feature'] ?? []) {
           claim = mutateFeatureReference(

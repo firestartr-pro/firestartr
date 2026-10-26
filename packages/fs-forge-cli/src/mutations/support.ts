@@ -5,6 +5,7 @@ import YAML from 'yaml';
 
 import { deriveVariantGroups } from '../utils/deriveFlags.js';
 
+import type { AuditTrailOptions } from './auditIssue.js';
 import type { ClaimKind } from './definitions.js';
 import type { VariantGroup } from '../utils/deriveFlags.js';
 
@@ -68,6 +69,21 @@ export const AUDIT_TRAIL_FLAGS = {
     dependsOn: ['create-issue'],
   }),
 };
+
+/** Maps the parsed `--issue*` flags onto the audit-trail options. */
+export function auditTrailOptions(flags: {
+  issue?: number;
+  'create-issue'?: boolean;
+  'issue-title'?: string;
+  'issue-body'?: string;
+}): AuditTrailOptions {
+  return {
+    issue: flags.issue,
+    createIssue: flags['create-issue'],
+    issueTitle: flags['issue-title'],
+    issueBody: flags['issue-body'],
+  };
+}
 
 export function requireOrg(org: string | undefined): string {
   if (!org) throw new Error('--org or FSCRT_ORG is required');

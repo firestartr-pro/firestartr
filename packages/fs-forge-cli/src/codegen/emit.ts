@@ -76,7 +76,11 @@ import { join } from 'path';
 
 import { assertCreatePath } from '../../claims/deterministicPath.js';
 import { runClaimCreation } from '../../mutations/creation.js';
-import { AUDIT_TRAIL_FLAGS, MUTATION_CONTROL_FLAGS } from '../../mutations/support.js';
+import {
+  AUDIT_TRAIL_FLAGS,
+  MUTATION_CONTROL_FLAGS,
+  auditTrailOptions,
+} from '../../mutations/support.js';
 import { createClaimValidator } from '../../utils/ajvValidation.js';
 import { buildClaimFromFlags } from '../../utils/buildClaim.js';
 ${hasFeatureReferences ? "import { mutateFeatureReference, parseFeatureReference } from '../../utils/features.js';\n" : ''}import { runtimeFlags } from '../../utils/runtimeFlags.js';
@@ -134,10 +138,7 @@ ${hasFeatureReferences ? "    for (const value of flags.feature ?? []) {\n      
       commit: flags.commit,
       waitForChecks: flags['wait-for-checks'],
       stateRepos: flags['state-repos'],
-      issue: flags.issue,
-      createIssue: flags['create-issue'],
-      issueTitle: flags['issue-title'],
-      issueBody: flags['issue-body'],
+      ...auditTrailOptions(flags),
       path: flags.path,
       writeOutput: (output) => this.log(output),
       writeDiagnostic: (output) => process.stderr.write(output),
