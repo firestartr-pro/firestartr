@@ -10,8 +10,7 @@ import { ChartRenderError } from '../base';
 
 export class GithubOrgVariableSectionChart extends BaseGithubChart {
   public template():
-    | FirestartrGithubOrganizationVariableSectionProps
-    | IUnitializedStateKey {
+    FirestartrGithubOrganizationVariableSectionProps | IUnitializedStateKey {
     const claim: IGithubOrgSettingsClaim = this.get('claim');
     const firestartrId: string | null = this.get('firestartrId');
     const githubProvider = claim.providers.github;
