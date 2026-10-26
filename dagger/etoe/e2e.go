@@ -12,6 +12,7 @@ func (m *Etoe) PrepareTestContainer(
 ) (*dagger.Container, error) {
 	ctn, err := kindContainer.
 		WithExec([]string{"apk", "add", "npm", "nodejs", "python3", "build-base"}).
+		WithExec([]string{"npm", "install", "-g", "npm@12.2.1"}).
 		WithMountedDirectory("/library", projectDir).
 		WithWorkdir("/library").
 		WithExec([]string{

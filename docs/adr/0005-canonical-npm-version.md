@@ -60,6 +60,11 @@ selection is explicit: each job installs npm itself.
   {"npm":"12.2.1"} Actual: {"npm":"10.9.9"}`). Passing `--no-engine-strict` to those
   installs was rejected: `npm ci` never rewrites the lockfile, but exempting the image
   builds would leave one place where the declared version does not apply.
+- The e2e Dagger module does the same in `PrepareTestContainer` (`dagger/etoe/e2e.go`):
+  it installs Alpine's npm and then runs `npm install` on the mounted repository. Alpine
+  3.22 already ships Node 22.23.4 but only npm 11.6.4, so the container upgrades npm
+  before the workspace install, in its own `WithExec`. Its later `npm run …` test commands
+  are unaffected either way.
 - Feature-managed workflows are not edited by hand. The npm calls in `make_dispatches`,
   `trigger_deployment` and `build_images_summary_reusable` run in a workspace with no
   manifest, so they are outside this decision.
