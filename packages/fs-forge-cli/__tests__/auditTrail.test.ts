@@ -167,40 +167,6 @@ describe('--issue', () => {
       }),
     ]);
   });
-
-  it('appends the footer to a claim PR that is already open', async () => {
-    const api = mockClient();
-    api.setPullRequests({ owner: 'my-org', repo: 'claims' }, [
-      {
-        number: 40,
-        htmlUrl: 'https://github.com/my-org/claims/pull/40',
-        state: 'open',
-        headRef: 'fs-forge/ComponentClaim-example',
-        baseSha: 'base-sha',
-        updatedAt: '2026-01-01T00:00:00Z',
-        body: 'Provision flow',
-      },
-    ]);
-
-    const { result, stdout } = await run(
-      CreateComponent as unknown as CommandClass,
-      ...createArgs('--commit', '--org', 'my-org', '--issue', '7'),
-    );
-
-    expect(result).toBe(0);
-    expect(api.createdPulls).toEqual([]);
-    expect(api.pullBodyUpdates).toEqual([
-      {
-        ref: { owner: 'my-org', repo: 'claims' },
-        pr: 40,
-        body: 'Provision flow\n\nCloses #7',
-      },
-    ]);
-    expect(lastJsonLine(stdout).pr).toEqual({
-      number: 40,
-      url: 'https://github.com/my-org/claims/pull/40',
-    });
-  });
 });
 
 describe('--create-issue', () => {

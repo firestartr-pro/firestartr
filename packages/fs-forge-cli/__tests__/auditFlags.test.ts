@@ -67,7 +67,7 @@ afterEach(() => {
 });
 
 describe('audit-trail flags', () => {
-  it('reaches every --commit command', () => {
+  it('carries the audit flags on every --commit command, tied to --commit and to each other', () => {
     const commands = commitCommands();
 
     expect([...commands.keys()]).toEqual(
@@ -81,7 +81,15 @@ describe('audit-trail flags', () => {
       ]),
     );
     for (const [id, flags] of commands) {
-      expect({ id, flags: Object.keys(flags).sort() }).toEqual({
+      expect({
+        id,
+        flags: Object.keys(flags).sort(),
+        issue: flags.issue.dependsOn,
+        createIssue: flags['create-issue'].dependsOn,
+        exclusive: flags.issue.exclusive,
+        title: flags['issue-title'].dependsOn,
+        body: flags['issue-body'].dependsOn,
+      }).toEqual({
         id,
         flags: expect.arrayContaining([
           'commit',
@@ -90,30 +98,10 @@ describe('audit-trail flags', () => {
           'issue-body',
           'issue-title',
         ]),
-      });
-    }
-  });
-
-  it('ties the audit flags to --commit and to each other', () => {
-    for (const [id, flags] of commitCommands()) {
-      expect({ id, issue: flags.issue.dependsOn }).toEqual({
-        id,
         issue: ['commit'],
-      });
-      expect({ id, createIssue: flags['create-issue'].dependsOn }).toEqual({
-        id,
         createIssue: ['commit'],
-      });
-      expect({ id, issue: flags.issue.exclusive }).toEqual({
-        id,
-        issue: ['create-issue'],
-      });
-      expect({ id, title: flags['issue-title'].dependsOn }).toEqual({
-        id,
+        exclusive: ['create-issue'],
         title: ['create-issue'],
-      });
-      expect({ id, body: flags['issue-body'].dependsOn }).toEqual({
-        id,
         body: ['create-issue'],
       });
     }
