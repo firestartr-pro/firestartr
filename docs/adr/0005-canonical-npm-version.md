@@ -43,8 +43,13 @@ selection is explicit: each job installs npm itself.
   places and becomes the declared version.
 - `engines.node` moves to `>=22.22.2` because npm 12.2.1 requires
   `^22.22.2 || ^24.15.0 || >=26.0.0`; CI's `node-version: "22"` resolves to the latest
-  22.x and satisfies it. `engines.npm` is advisory: another npm only produces an
-  `EBADENGINE` warning, and the gate catches the resulting lockfile drift.
+  22.x and satisfies it. `engine-strict=true` in `.npmrc` turns both `engines` entries
+  into hard errors on a developer machine: running npm 11 here fails with
+  `Unsupported engine … Required: {"node":">=22.22.2","npm":"12.2.1"}` instead of quietly
+  rewriting the lockfile. Global installs are exempt, so the `npm install -g npm@12.2.1`
+  step of a job is not blocked by the check it is about to fix. Caveat: `engine-strict`
+  also applies to the `engines` of every dependency, so a transitive package with a
+  narrow Node range can turn `npm ci` red for reasons unrelated to npm.
 - The lockfile was renormalized once with npm 12.2.1. The diff is exactly the five
   workspace `dev` markers; no resolved version, `resolved` URL or integrity hash changed.
 - `docker/slim.Dockerfile` and `docker/full-aws.Dockerfile` keep the base image's npm for
