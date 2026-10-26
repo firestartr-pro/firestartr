@@ -130,20 +130,15 @@ The mechanisms by which fs-forge reads from and writes to a claims repo:
 Implemented by `src/claims/claimsRepo.ts` over the GitHub port.
 
 **Claim PR**:
-The pull request on branch `fs-forge/<Kind>-<name>` in the claims repo. The
-Provision workflow opens it, unless an audit issue is in play: then the CLI
-opens it (or adds the footer to a PR already open on that head) after the
-commit and before dispatching, and the workflow reuses it.
+The pull request on branch `fs-forge/<Kind>-<name>` in the claims repo that
+carries a claim to the default branch. Opened by the Provision workflow, or
+reused when the CLI opened it for an audit issue. Defined in
+`src/claims/claimsRepo.ts`.
 
 **Audit issue**:
-An issue in the claims repo recording one committed claim operation.
-`--issue <N>` adopts an existing issue; `--create-issue` opens one from a
-built-in template, with `--issue-title`/`--issue-body` as overrides. The claim
-PR carries a `Closes #N` footer, so merging it closes the issue; `delete` has
-no claim PR and closes the issue once the unprovision run succeeds. A failed
-commit comments the error on the issue it created and leaves it open. The
-flags live on every `--commit` command, `--issue` and `--create-issue` are
-mutually exclusive, and both require `--commit`.
+The claims-repo issue recording one committed claim operation: adopted with
+`--issue <N>`, or opened from a built-in template by `--create-issue`. Defined
+in `src/mutations/auditIssue.ts`.
 
 **GitHub port**:
 The `src/github/api.ts` interface describing the GitHub operations fs-forge
