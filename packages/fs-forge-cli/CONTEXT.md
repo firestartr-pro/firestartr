@@ -35,6 +35,14 @@ The type of a claim — `ArgoDeployClaim`, `ComponentClaim`, `DomainClaim`,
 `GroupClaim`, `OrgSettingsClaim`, `OrgWebhookClaim`, `SecretsClaim`,
 `SystemClaim`, `TFWorkspaceClaim`, `UserClaim`.
 
+**Kind capability**:
+What one kind supports beyond its schema: its claims directory (or that `--path`
+is required), whether it is catalog-only, its org field, the hydration and delete
+workflows a claims repo dispatches, variants, preflight, state repo and the
+claim fields it references. `KIND_OVERRIDES` in `src/claims/kindRegistry.ts` is
+the single source; `kinds` and `kinds show` render it.
+_Avoid_: kind metadata, kind config
+
 **Codegen**:
 The metadata-driven code generation process
 (`src/codegen/generateCommands.ts`) that reads schemas and produces oclif
