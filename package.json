@@ -3,7 +3,8 @@
   "version": "3.1.1",
   "packageManager": "npm@12.2.1",
   "engines": {
-    "node": ">=22"
+    "node": ">=22.22.2",
+    "npm": "12.2.1"
   },
   "description": "A monorepo for firestartr",
   "main": "index.js",

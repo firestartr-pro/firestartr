@@ -7,10 +7,9 @@
 version: 2
 updates:
   - package-ecosystem: "npm"
-    # Dependabot routes every npm command through Corepack using the root
-    # package.json "packageManager" pin, so it runs the same npm as CI and the
-    # publish workflows. That pin must stay >= 11.5.1: publishing over OIDC
-    # (trusted publishing) needs it. Bump it in a reviewed PR, never here.
+    # Dependabot reads the root package.json "packageManager" pin and commits the
+    # lockfile with that npm. Our workflows install the same version explicitly,
+    # so keep the two in sync. Never go below 11.5.1: publishing over OIDC needs it.
     directories:
       - "/"
     schedule:

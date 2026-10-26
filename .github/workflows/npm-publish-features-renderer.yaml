@@ -44,10 +44,10 @@ jobs:
           results = script({core});
           return results;
 
-    # npm comes from the root package.json "packageManager" pin. Publishing
-    # over OIDC requires npm >= 11.5.1, so never pin below that.
-    - name: Enable Corepack npm shim
-      run: corepack enable npm
+    # Keep this version in step with the package.json "packageManager" pin.
+    # Publishing over OIDC requires npm >= 11.5.1, so never go below that.
+    - name: Install npm
+      run: npm install -g npm@12.2.1
 
     - name: Build @firestartr/features_renderer package
       run: |

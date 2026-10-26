@@ -58,10 +58,10 @@ jobs:
           cache: "npm"
           cache-dependency-path: "gitops/package-lock.json"
 
-      # The npm commands below run inside the gitops checkout, so Corepack
-      # resolves that repository's packageManager pin (or its default).
-      - name: Enable Corepack npm shim
-        run: corepack enable npm
+      # The npm commands below run inside the gitops checkout, so this global
+      # install is the npm they use.
+      - name: Install npm
+        run: npm install -g npm@12.2.1
 
       - name: Install deps
         working-directory: gitops
