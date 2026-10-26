@@ -1,12 +1,18 @@
 import { posix } from 'path';
 
-import { CLAIM_PATH_CAPABILITIES } from './kindRegistry.js';
+import { CLAIM_PATH_CAPABILITIES, KIND_CAPABILITIES } from './kindRegistry.js';
 
 import type { ClaimKindName } from './kinds.js';
 
 export type ClaimPathCapability =
   | { readonly requiresExplicitPath: true }
   | { readonly directory: string; readonly requiresExplicitPath: false };
+
+const PATH_ONLY_MESSAGE = `--path is only supported for ${KIND_CAPABILITIES.filter(
+  ({ requiresPath }) => requiresPath,
+)
+  .map(({ kind }) => kind)
+  .join(' and ')}`;
 
 function pathCapability(kind: string): ClaimPathCapability | undefined {
   return CLAIM_PATH_CAPABILITIES[kind as ClaimKindName];
@@ -19,9 +25,7 @@ export function assertCreatePath(
 ): void {
   const capability = pathCapability(kind);
   if (explicitPath && capability?.requiresExplicitPath === false) {
-    throw new Error(
-      '--path is only supported for TFWorkspaceClaim and SecretsClaim',
-    );
+    throw new Error(PATH_ONLY_MESSAGE);
   }
   if (commit === true && capability?.requiresExplicitPath && !explicitPath) {
     throw new Error(`--path is required when committing a ${kind}`);
@@ -56,9 +60,7 @@ export function deterministicPath(
   }
 
   if (explicitPath) {
-    throw new Error(
-      '--path is only supported for TFWorkspaceClaim and SecretsClaim',
-    );
+    throw new Error(PATH_ONLY_MESSAGE);
   }
 
   if (!capability) throw new Error(`Unsupported claim kind: ${kind}`);
