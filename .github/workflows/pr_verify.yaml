@@ -49,9 +49,9 @@ jobs:
           cache: "npm"
           cache-dependency-path: "package-lock.json"
 
-      - name: Enable Corepack
+      - name: Enable Corepack npm shim
         if: steps.changes.outputs.changed == 'true'
-        run: corepack enable
+        run: corepack enable npm
 
       - name: Make sure package-lock.json is in sync with the package.json files
         if: steps.changes.outputs.changed == 'true'
@@ -75,8 +75,8 @@ jobs:
           cache: "npm"
           cache-dependency-path: "package-lock.json"
 
-      - name: Enable Corepack
-        run: corepack enable
+      - name: Enable Corepack npm shim
+        run: corepack enable npm
 
       - name: Linter
         env:
@@ -139,8 +139,8 @@ jobs:
           cache: "npm"
           cache-dependency-path: "package-lock.json"
 
-      - name: Enable Corepack
-        run: corepack enable
+      - name: Enable Corepack npm shim
+        run: corepack enable npm
 
       - name: Install dependencies
         env:

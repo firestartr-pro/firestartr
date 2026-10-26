@@ -46,8 +46,8 @@ jobs:
 
     # npm comes from the root package.json "packageManager" pin. Publishing
     # over OIDC requires npm >= 11.5.1, so never pin below that.
-    - name: Enable Corepack
-      run: corepack enable
+    - name: Enable Corepack npm shim
+      run: corepack enable npm
 
     - name: Build @firestartr/features_renderer package
       run: |

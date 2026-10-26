@@ -167,8 +167,8 @@ jobs:
           node-version: "22"
           cache: "npm"
 
-      - name: Enable Corepack
-        run: corepack enable
+      - name: Enable Corepack npm shim
+        run: corepack enable npm
 
       - name: Install dependencies
         run: npm ci

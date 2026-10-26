@@ -29,14 +29,19 @@ the PR was about (#144).
   `^npm@(\d+\.\d+\.\d+)` (`package_manager.rb#requested_version`). With `npm@12` the bot
   would find no version and silently keep its image npm, which is the opposite of failing
   closed.
-- Every workflow that runs npm against this repository enables Corepack right after
-  `actions/setup-node`: the three `pr_verify` jobs, the four npm publish workflows, and
-  `e2e`'s `unit-tests` job. In the publish workflows `corepack enable` replaces
+- Every workflow that runs npm against this repository runs `corepack enable npm` right
+  after `actions/setup-node`: the three `pr_verify` jobs, the four npm publish workflows,
+  and `e2e`'s `unit-tests` job. In the publish workflows that replaces
   `npm install -g npm@11.5.1`, so the OIDC floor stops being a pin scattered across
   workflows and becomes a constraint on the declared version.
-- `promote_docs` and `promote_claims_schema` enable Corepack too, but their `npm ci` runs
-  inside the separate `gitops` checkout, so it follows that repository's pin, not this
-  one.
+- The package manager is named explicitly. `corepack enable` with no arguments installs
+  shims for every supported manager *except* npm (`SupportedPackageManagerSetWithoutNpm`
+  in corepack 0.35), because npm ships with Node. The bare form leaves the bundled npm
+  active, so the gate keeps normalizing with npm 10, the five `dev` markers come back and
+  publishing loses the `>= 11.5.1` npm. Name the shim.
+- `promote_docs` and `promote_claims_schema` enable the npm shim too, but their `npm ci`
+  runs inside the separate `gitops` checkout, so it follows that repository's pin, not
+  this one.
 - The lockfile was renormalized once with npm 12.2.1. The diff is exactly the five
   workspace `dev` markers; no resolved version, `resolved` URL or integrity hash changed.
 - `docker/slim.Dockerfile` and `docker/full-aws.Dockerfile` keep the base image's npm for
@@ -64,7 +69,7 @@ the PR was about (#144).
   until someone bumps the pin in a PR. When it drops the pinned major, that bump becomes
   mandatory.
 - Node 25+ no longer bundles Corepack. If `node-version` moves there, every
-  `corepack enable` step needs a replacement.
+  `corepack enable npm` step needs a replacement.
 - npm 12 blocks install scripts that are not covered by `allowScripts`; here that skips
   the `esbuild` and `unrs-resolver` postinstalls. Lint, the TypeScript builds and the
   unit tests pass without them, so no `allowScripts` entry was added. If a future
