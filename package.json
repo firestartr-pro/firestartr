@@ -33,7 +33,7 @@
     "@types/node": "^22.13.14",
     "@types/uuid": "^9.0.6",
     "debug": "^4.3.4",
-    "dotenv": "^18.0.8",
+    "dotenv": "^18.0.9",
     "eslint": "^10.13.0",
     "eslint-plugin-prettier": "5.5.7",
     "fast-json-patch": "^3.1.1",
