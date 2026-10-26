@@ -18,6 +18,8 @@ export interface WaitForDispatchOptions {
   claimType: string;
   claimName: string;
   label?: string;
+  /** Extra JSON keys reported with every outcome, e.g. the audit issue. */
+  extra?: Record<string, unknown>;
   presentation?: Partial<DispatchPresentation>;
   pollOptions?: Partial<PollOptions>;
 }
@@ -88,6 +90,7 @@ export async function waitForDispatch(
           url: `https://github.com/${ref.owner}/${ref.repo}/actions/workflows/${dispatchResult.workflowId}`,
           claimType: options.claimType,
           claimName: options.claimName,
+          ...options.extra,
         })}\n`,
       );
     }
@@ -103,6 +106,7 @@ export async function waitForDispatch(
         status: 'timeout',
         claimType: options.claimType,
         claimName: options.claimName,
+        ...options.extra,
       };
       if (outcome.runUrl) payload.runUrl = outcome.runUrl;
       presentation.stdout(`${JSON.stringify(payload)}\n`);
@@ -122,6 +126,7 @@ export async function waitForDispatch(
         claimType: options.claimType,
         claimName: options.claimName,
         conclusion: outcome.conclusion,
+        ...options.extra,
       })}\n`,
     );
   }

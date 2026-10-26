@@ -44,6 +44,7 @@ async function present(options: {
   api: MemoryGitHubApi;
   isTty: boolean;
   noWait?: boolean;
+  extra?: Record<string, unknown>;
   pollOptions?: Partial<PollOptions>;
 }): Promise<Presented> {
   const stderrChunks: string[] = [];
@@ -58,6 +59,7 @@ async function present(options: {
         noWait: options.noWait,
         claimType: 'ComponentClaim',
         claimName: 'api',
+        extra: options.extra,
         presentation: {
           isTty: options.isTty,
           stderr: (line) => void stderrChunks.push(line),
@@ -104,6 +106,31 @@ describe('waitForDispatch presentation', () => {
         conclusion: 'success',
       })}\n`,
     );
+  });
+
+  it('appends extra keys to the JSON outcome', async () => {
+    const api = new MemoryGitHubApi();
+    api.setWorkflowRuns(REF, WORKFLOW, BRANCH, [run()]);
+
+    const presented = await present({
+      api,
+      isTty: false,
+      extra: {
+        issue: { number: 7, url: 'https://github.com/example/claims/issues/7' },
+        pr: { number: 8, url: 'https://github.com/example/claims/pull/8' },
+      },
+    });
+
+    expect(JSON.parse(presented.stdout)).toEqual({
+      status: 'ok',
+      runUrl: RUN_URL,
+      runId: 42,
+      claimType: 'ComponentClaim',
+      claimName: 'api',
+      conclusion: 'success',
+      issue: { number: 7, url: 'https://github.com/example/claims/issues/7' },
+      pr: { number: 8, url: 'https://github.com/example/claims/pull/8' },
+    });
   });
 
   it('writes the dispatch URL in no-wait mode', async () => {
