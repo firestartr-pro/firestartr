@@ -333,6 +333,39 @@ describe('features audit trail', () => {
     },
   );
 
+  it('names the feature when a committed feature change fails', async () => {
+    const { api, repo } = featureRepo();
+    api.commitFile = async () => {
+      throw new Error('Resource not accessible by integration');
+    };
+
+    await expect(
+      captureOutput(async () => {
+        await runFeatureMutation(
+          {
+            operation: 'remove',
+            component: 'my-component',
+            json: false,
+            commit: true,
+            createIssue: true,
+            feature: { name: 'feature_a' },
+          },
+          { repo, schemasDir: join(ROOT, 'schemas') },
+        );
+        return 0;
+      }),
+    ).resolves.toEqual(
+      expect.objectContaining({
+        error: expect.objectContaining({
+          message: expect.stringContaining('Resource not accessible'),
+        }),
+      }),
+    );
+    expect(api.issueComments[0].body).toMatch(
+      /^Remove feature feature_a from component my-component failed; this issue stays open\./,
+    );
+  });
+
   it('links the claims PR opened by a committed feature add', async () => {
     const api = new MemoryGitHubApi();
     api.autoCompleteDispatches = true;

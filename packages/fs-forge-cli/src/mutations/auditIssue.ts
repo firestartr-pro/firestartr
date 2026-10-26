@@ -221,7 +221,7 @@ async function openAudit(
     async reportFailure(error) {
       if (!created || !issue) return;
       const body = [
-        `The ${context.operation} of ${context.kind}-${context.name} failed; this issue stays open.`,
+        `${context.change?.title ?? `The ${context.operation} of ${context.kind}-${context.name}`} failed; this issue stays open.`,
         '',
         redactTokens(error instanceof Error ? error.message : String(error)),
       ].join('\n');
