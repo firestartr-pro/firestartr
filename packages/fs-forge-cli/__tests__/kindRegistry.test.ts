@@ -70,6 +70,23 @@ function loadSchema(kind: string): Schema {
   ) as Schema;
 }
 
+/**
+ * Claim fields whose own — or, for arrays, item — pattern names claim kinds.
+ * Array fields keep the `[]` suffix the registry uses.
+ */
+function referenceFields(schema: Schema): string[] {
+  const namesClaimKinds = (node: unknown): boolean =>
+    isRecord(node) &&
+    typeof node.pattern === 'string' &&
+    CLAIM_REFERENCE_PATTERN.test(node.pattern);
+
+  return Object.entries(schemaProperties(schema)).flatMap(([name, value]) => {
+    if (namesClaimKinds(value)) return [name];
+    if (namesClaimKinds(value.items)) return [`${name}[]`];
+    return [];
+  });
+}
+
 async function schemaKindOrder(): Promise<string[]> {
   return (await readdir(join(ROOT, 'schemas')))
     .filter((file) => file.endsWith('Claim.json'))
@@ -202,14 +219,13 @@ describe('kind capabilities against the claim schemas', () => {
       }
       expect(new Set(fields).size).toBe(fields.length);
 
-      const patterned = Object.entries(schemaProperties(schema))
-        .filter(
-          ([, value]) =>
-            typeof value.pattern === 'string' &&
-            CLAIM_REFERENCE_PATTERN.test(value.pattern),
-        )
-        .map(([name]) => name);
-      expect(patterned.filter((name) => !fields.includes(name))).toEqual([]);
+      // The registry may list a reference the schema constrains without a
+      // pattern; a schema reference the registry omits is a missing capability.
+      expect(
+        referenceFields(schema).filter(
+          (field) => !capability.references.includes(field),
+        ),
+      ).toEqual([]);
     }
   });
 
