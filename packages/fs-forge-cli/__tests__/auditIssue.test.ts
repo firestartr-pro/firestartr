@@ -59,6 +59,15 @@ describe('createAuditTrail', () => {
     });
   });
 
+  it('rejects an --issue number that cannot exist', async () => {
+    const { api, trail } = setup({ issue: 0 });
+
+    await expect(trail.begin()).rejects.toThrow(
+      '--issue must be a positive issue number',
+    );
+    expect(api.calls).toEqual([]);
+  });
+
   it('opens the audit issue from the built-in template', async () => {
     const { api, trail } = setup({ createIssue: true });
 

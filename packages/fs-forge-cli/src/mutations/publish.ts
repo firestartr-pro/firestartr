@@ -4,6 +4,7 @@ import { findWetPr, parseStateRepos } from '../claims/wetPr.js';
 import { watchCheckRuns } from '../claims/checkRuns.js';
 import { waitForDispatch } from '../utils/waitForDispatch.js';
 
+import type { AuditTrail } from './auditIssue.js';
 import type { ClaimsRepo } from '../claims/claimsRepo.js';
 import type { ClaimKindName } from '../claims/kinds.js';
 
@@ -17,6 +18,8 @@ export interface ClaimPublishRequest {
   noWait: boolean;
   waitForChecks: boolean;
   stateRepos?: string;
+  /** Opens or links the audit issue around the claim PR. */
+  audit?: AuditTrail;
   /** Create only: reject a claim that already exists in the claims map. */
   rejectExistingClaim?: boolean;
 }
@@ -49,6 +52,7 @@ export async function publishClaimAndWait(
     noWait,
     waitForChecks,
     stateRepos,
+    audit,
     rejectExistingClaim,
   } = request;
 
@@ -66,19 +70,24 @@ export async function publishClaimAndWait(
     );
   }
 
-  const dispatch = await publishClaim(repo, {
-    kind,
-    name,
-    path,
-    yaml: output,
-    existingSha,
-  });
+  const dispatch = await publishClaim(
+    repo,
+    {
+      kind,
+      name,
+      path,
+      yaml: output,
+      existingSha,
+    },
+    audit,
+  );
 
   const publishUrl = await waitForDispatch(repo.api, repo.ref, dispatch, {
     noWait,
     claimType: kind,
     claimName: name,
     label: 'Provisioning',
+    extra: audit?.result(),
   });
 
   if (waitForChecks && !noWait) {

@@ -2,12 +2,14 @@ import { claimsRepo } from '../claims/claimsRepo.js';
 import { deterministicPath } from '../claims/deterministicPath.js';
 import { serializeClaim } from '../claims/keyOrdering.js';
 import { createGitHubApi } from '../github/index.js';
+import { createAuditTrail } from './auditIssue.js';
 import { publishClaimAndWait } from './publish.js';
 import { requireOrg } from './support.js';
 
+import type { AuditIssueOptions } from './auditIssue.js';
 import type { ClaimKind } from './definitions.js';
 
-export interface ClaimCreationOptions {
+export interface ClaimCreationOptions extends AuditIssueOptions {
   org?: string;
   kind: ClaimKind;
   name: string;
@@ -55,21 +57,33 @@ export async function runClaimCreation(
       return { output };
     }
 
-    const { publishUrl } = await publishClaimAndWait(
-      {
-        repo,
-        kind,
-        name,
-        output,
-        path: destinationPath,
-        noWait,
-        waitForChecks,
-        stateRepos,
-        rejectExistingClaim: true,
-      },
-      { output: writeOutput, diagnostic: writeDiagnostic },
+    const audit = createAuditTrail(
+      { repo, operation: 'create', kind, name },
+      options,
     );
-    return { output, publishUrl };
+    try {
+      await audit.begin();
+      const { publishUrl } = await publishClaimAndWait(
+        {
+          repo,
+          kind,
+          name,
+          output,
+          path: destinationPath,
+          noWait,
+          waitForChecks,
+          stateRepos,
+          audit,
+          rejectExistingClaim: true,
+        },
+        { output: writeOutput, diagnostic: writeDiagnostic },
+      );
+      await audit.commentRunUrl(publishUrl);
+      return { output, publishUrl };
+    } catch (error) {
+      await audit.fail(error);
+      throw error;
+    }
   } catch (error) {
     if (error instanceof Error) throw error;
     throw new Error(`Claim creation failed: ${String(error)}`);

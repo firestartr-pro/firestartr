@@ -40,7 +40,8 @@
       "examples": [
         "<%= config.bin %> <%= command.id %> component my-svc --org my-org",
         "<%= config.bin %> <%= command.id %> component my-svc --org my-org --commit",
-        "<%= config.bin %> <%= command.id %> tfworkspace my-tf --org my-org --no-include-variants --commit"
+        "<%= config.bin %> <%= command.id %> tfworkspace my-tf --org my-org --no-include-variants --commit",
+        "<%= config.bin %> <%= command.id %> component my-svc --org my-org --commit --create-issue"
       ],
       "flags": {
         "org": {
@@ -74,6 +75,51 @@
           "name": "no-wait",
           "allowNo": false,
           "type": "boolean"
+        },
+        "issue": {
+          "dependsOn": [
+            "commit"
+          ],
+          "description": "Link the commit to an existing claims-repo issue (adds \"Closes #N\" to the claim PR)",
+          "exclusive": [
+            "create-issue"
+          ],
+          "name": "issue",
+          "hasDynamicHelp": false,
+          "multiple": false,
+          "type": "option"
+        },
+        "create-issue": {
+          "dependsOn": [
+            "commit"
+          ],
+          "description": "Open an issue in the claims repo before committing, then link it to the claim PR",
+          "exclusive": [
+            "issue"
+          ],
+          "name": "create-issue",
+          "allowNo": false,
+          "type": "boolean"
+        },
+        "issue-title": {
+          "dependsOn": [
+            "create-issue"
+          ],
+          "description": "Title for the issue opened by --create-issue",
+          "name": "issue-title",
+          "hasDynamicHelp": false,
+          "multiple": false,
+          "type": "option"
+        },
+        "issue-body": {
+          "dependsOn": [
+            "create-issue"
+          ],
+          "description": "Body for the issue opened by --create-issue",
+          "name": "issue-body",
+          "hasDynamicHelp": false,
+          "multiple": false,
+          "type": "option"
         }
       },
       "hasDynamicHelp": false,
@@ -103,7 +149,8 @@
       "description": "Edit an existing claim. Network access requires GITHUB_TOKEN authentication.",
       "examples": [
         "<%= config.bin %> <%= command.id %> ComponentClaim-api --owner group:platform --org my-org",
-        "<%= config.bin %> <%= command.id %> ComponentClaim-api --owner group:platform --org my-org --diff"
+        "<%= config.bin %> <%= command.id %> ComponentClaim-api --owner group:platform --org my-org --diff",
+        "<%= config.bin %> <%= command.id %> ComponentClaim-api --owner group:platform --org my-org --commit --issue 42"
       ],
       "flags": {
         "description": {
@@ -1163,6 +1210,51 @@
           "multiple": false,
           "type": "option"
         },
+        "issue": {
+          "dependsOn": [
+            "commit"
+          ],
+          "description": "Link the commit to an existing claims-repo issue (adds \"Closes #N\" to the claim PR)",
+          "exclusive": [
+            "create-issue"
+          ],
+          "name": "issue",
+          "hasDynamicHelp": false,
+          "multiple": false,
+          "type": "option"
+        },
+        "create-issue": {
+          "dependsOn": [
+            "commit"
+          ],
+          "description": "Open an issue in the claims repo before committing, then link it to the claim PR",
+          "exclusive": [
+            "issue"
+          ],
+          "name": "create-issue",
+          "allowNo": false,
+          "type": "boolean"
+        },
+        "issue-title": {
+          "dependsOn": [
+            "create-issue"
+          ],
+          "description": "Title for the issue opened by --create-issue",
+          "name": "issue-title",
+          "hasDynamicHelp": false,
+          "multiple": false,
+          "type": "option"
+        },
+        "issue-body": {
+          "dependsOn": [
+            "create-issue"
+          ],
+          "description": "Body for the issue opened by --create-issue",
+          "name": "issue-body",
+          "hasDynamicHelp": false,
+          "multiple": false,
+          "type": "option"
+        },
         "add-feature": {
           "description": "Attach name@version:{...} or name#ref:{...}",
           "name": "add-feature",
@@ -1628,6 +1720,51 @@
         "state-repos": {
           "description": "Comma-separated state repos for --wait-for-checks (default: <org>/state-github,<org>/state-infra)",
           "name": "state-repos",
+          "hasDynamicHelp": false,
+          "multiple": false,
+          "type": "option"
+        },
+        "issue": {
+          "dependsOn": [
+            "commit"
+          ],
+          "description": "Link the commit to an existing claims-repo issue (adds \"Closes #N\" to the claim PR)",
+          "exclusive": [
+            "create-issue"
+          ],
+          "name": "issue",
+          "hasDynamicHelp": false,
+          "multiple": false,
+          "type": "option"
+        },
+        "create-issue": {
+          "dependsOn": [
+            "commit"
+          ],
+          "description": "Open an issue in the claims repo before committing, then link it to the claim PR",
+          "exclusive": [
+            "issue"
+          ],
+          "name": "create-issue",
+          "allowNo": false,
+          "type": "boolean"
+        },
+        "issue-title": {
+          "dependsOn": [
+            "create-issue"
+          ],
+          "description": "Title for the issue opened by --create-issue",
+          "name": "issue-title",
+          "hasDynamicHelp": false,
+          "multiple": false,
+          "type": "option"
+        },
+        "issue-body": {
+          "dependsOn": [
+            "create-issue"
+          ],
+          "description": "Body for the issue opened by --create-issue",
+          "name": "issue-body",
           "hasDynamicHelp": false,
           "multiple": false,
           "type": "option"
@@ -2289,6 +2426,51 @@
           "multiple": false,
           "type": "option"
         },
+        "issue": {
+          "dependsOn": [
+            "commit"
+          ],
+          "description": "Link the commit to an existing claims-repo issue (adds \"Closes #N\" to the claim PR)",
+          "exclusive": [
+            "create-issue"
+          ],
+          "name": "issue",
+          "hasDynamicHelp": false,
+          "multiple": false,
+          "type": "option"
+        },
+        "create-issue": {
+          "dependsOn": [
+            "commit"
+          ],
+          "description": "Open an issue in the claims repo before committing, then link it to the claim PR",
+          "exclusive": [
+            "issue"
+          ],
+          "name": "create-issue",
+          "allowNo": false,
+          "type": "boolean"
+        },
+        "issue-title": {
+          "dependsOn": [
+            "create-issue"
+          ],
+          "description": "Title for the issue opened by --create-issue",
+          "name": "issue-title",
+          "hasDynamicHelp": false,
+          "multiple": false,
+          "type": "option"
+        },
+        "issue-body": {
+          "dependsOn": [
+            "create-issue"
+          ],
+          "description": "Body for the issue opened by --create-issue",
+          "name": "issue-body",
+          "hasDynamicHelp": false,
+          "multiple": false,
+          "type": "option"
+        },
         "path": {
           "description": "Destination path for TFWorkspaceClaim or SecretsClaim",
           "name": "path",
@@ -2832,6 +3014,51 @@
           "multiple": false,
           "type": "option"
         },
+        "issue": {
+          "dependsOn": [
+            "commit"
+          ],
+          "description": "Link the commit to an existing claims-repo issue (adds \"Closes #N\" to the claim PR)",
+          "exclusive": [
+            "create-issue"
+          ],
+          "name": "issue",
+          "hasDynamicHelp": false,
+          "multiple": false,
+          "type": "option"
+        },
+        "create-issue": {
+          "dependsOn": [
+            "commit"
+          ],
+          "description": "Open an issue in the claims repo before committing, then link it to the claim PR",
+          "exclusive": [
+            "issue"
+          ],
+          "name": "create-issue",
+          "allowNo": false,
+          "type": "boolean"
+        },
+        "issue-title": {
+          "dependsOn": [
+            "create-issue"
+          ],
+          "description": "Title for the issue opened by --create-issue",
+          "name": "issue-title",
+          "hasDynamicHelp": false,
+          "multiple": false,
+          "type": "option"
+        },
+        "issue-body": {
+          "dependsOn": [
+            "create-issue"
+          ],
+          "description": "Body for the issue opened by --create-issue",
+          "name": "issue-body",
+          "hasDynamicHelp": false,
+          "multiple": false,
+          "type": "option"
+        },
         "path": {
           "description": "Destination path for TFWorkspaceClaim or SecretsClaim",
           "name": "path",
@@ -3080,6 +3307,51 @@
         "state-repos": {
           "description": "Comma-separated state repos for --wait-for-checks (default: <org>/state-github,<org>/state-infra)",
           "name": "state-repos",
+          "hasDynamicHelp": false,
+          "multiple": false,
+          "type": "option"
+        },
+        "issue": {
+          "dependsOn": [
+            "commit"
+          ],
+          "description": "Link the commit to an existing claims-repo issue (adds \"Closes #N\" to the claim PR)",
+          "exclusive": [
+            "create-issue"
+          ],
+          "name": "issue",
+          "hasDynamicHelp": false,
+          "multiple": false,
+          "type": "option"
+        },
+        "create-issue": {
+          "dependsOn": [
+            "commit"
+          ],
+          "description": "Open an issue in the claims repo before committing, then link it to the claim PR",
+          "exclusive": [
+            "issue"
+          ],
+          "name": "create-issue",
+          "allowNo": false,
+          "type": "boolean"
+        },
+        "issue-title": {
+          "dependsOn": [
+            "create-issue"
+          ],
+          "description": "Title for the issue opened by --create-issue",
+          "name": "issue-title",
+          "hasDynamicHelp": false,
+          "multiple": false,
+          "type": "option"
+        },
+        "issue-body": {
+          "dependsOn": [
+            "create-issue"
+          ],
+          "description": "Body for the issue opened by --create-issue",
+          "name": "issue-body",
           "hasDynamicHelp": false,
           "multiple": false,
           "type": "option"
@@ -3530,6 +3802,51 @@
         "state-repos": {
           "description": "Comma-separated state repos for --wait-for-checks (default: <org>/state-github,<org>/state-infra)",
           "name": "state-repos",
+          "hasDynamicHelp": false,
+          "multiple": false,
+          "type": "option"
+        },
+        "issue": {
+          "dependsOn": [
+            "commit"
+          ],
+          "description": "Link the commit to an existing claims-repo issue (adds \"Closes #N\" to the claim PR)",
+          "exclusive": [
+            "create-issue"
+          ],
+          "name": "issue",
+          "hasDynamicHelp": false,
+          "multiple": false,
+          "type": "option"
+        },
+        "create-issue": {
+          "dependsOn": [
+            "commit"
+          ],
+          "description": "Open an issue in the claims repo before committing, then link it to the claim PR",
+          "exclusive": [
+            "issue"
+          ],
+          "name": "create-issue",
+          "allowNo": false,
+          "type": "boolean"
+        },
+        "issue-title": {
+          "dependsOn": [
+            "create-issue"
+          ],
+          "description": "Title for the issue opened by --create-issue",
+          "name": "issue-title",
+          "hasDynamicHelp": false,
+          "multiple": false,
+          "type": "option"
+        },
+        "issue-body": {
+          "dependsOn": [
+            "create-issue"
+          ],
+          "description": "Body for the issue opened by --create-issue",
+          "name": "issue-body",
           "hasDynamicHelp": false,
           "multiple": false,
           "type": "option"
@@ -3995,6 +4312,51 @@
           "multiple": false,
           "type": "option"
         },
+        "issue": {
+          "dependsOn": [
+            "commit"
+          ],
+          "description": "Link the commit to an existing claims-repo issue (adds \"Closes #N\" to the claim PR)",
+          "exclusive": [
+            "create-issue"
+          ],
+          "name": "issue",
+          "hasDynamicHelp": false,
+          "multiple": false,
+          "type": "option"
+        },
+        "create-issue": {
+          "dependsOn": [
+            "commit"
+          ],
+          "description": "Open an issue in the claims repo before committing, then link it to the claim PR",
+          "exclusive": [
+            "issue"
+          ],
+          "name": "create-issue",
+          "allowNo": false,
+          "type": "boolean"
+        },
+        "issue-title": {
+          "dependsOn": [
+            "create-issue"
+          ],
+          "description": "Title for the issue opened by --create-issue",
+          "name": "issue-title",
+          "hasDynamicHelp": false,
+          "multiple": false,
+          "type": "option"
+        },
+        "issue-body": {
+          "dependsOn": [
+            "create-issue"
+          ],
+          "description": "Body for the issue opened by --create-issue",
+          "name": "issue-body",
+          "hasDynamicHelp": false,
+          "multiple": false,
+          "type": "option"
+        },
         "path": {
           "description": "Destination path for TFWorkspaceClaim or SecretsClaim",
           "name": "path",
@@ -4317,6 +4679,51 @@
           "multiple": false,
           "type": "option"
         },
+        "issue": {
+          "dependsOn": [
+            "commit"
+          ],
+          "description": "Link the commit to an existing claims-repo issue (adds \"Closes #N\" to the claim PR)",
+          "exclusive": [
+            "create-issue"
+          ],
+          "name": "issue",
+          "hasDynamicHelp": false,
+          "multiple": false,
+          "type": "option"
+        },
+        "create-issue": {
+          "dependsOn": [
+            "commit"
+          ],
+          "description": "Open an issue in the claims repo before committing, then link it to the claim PR",
+          "exclusive": [
+            "issue"
+          ],
+          "name": "create-issue",
+          "allowNo": false,
+          "type": "boolean"
+        },
+        "issue-title": {
+          "dependsOn": [
+            "create-issue"
+          ],
+          "description": "Title for the issue opened by --create-issue",
+          "name": "issue-title",
+          "hasDynamicHelp": false,
+          "multiple": false,
+          "type": "option"
+        },
+        "issue-body": {
+          "dependsOn": [
+            "create-issue"
+          ],
+          "description": "Body for the issue opened by --create-issue",
+          "name": "issue-body",
+          "hasDynamicHelp": false,
+          "multiple": false,
+          "type": "option"
+        },
         "path": {
           "description": "Destination path for TFWorkspaceClaim or SecretsClaim",
           "name": "path",
@@ -4579,6 +4986,51 @@
         "state-repos": {
           "description": "Comma-separated state repos for --wait-for-checks (default: <org>/state-github,<org>/state-infra)",
           "name": "state-repos",
+          "hasDynamicHelp": false,
+          "multiple": false,
+          "type": "option"
+        },
+        "issue": {
+          "dependsOn": [
+            "commit"
+          ],
+          "description": "Link the commit to an existing claims-repo issue (adds \"Closes #N\" to the claim PR)",
+          "exclusive": [
+            "create-issue"
+          ],
+          "name": "issue",
+          "hasDynamicHelp": false,
+          "multiple": false,
+          "type": "option"
+        },
+        "create-issue": {
+          "dependsOn": [
+            "commit"
+          ],
+          "description": "Open an issue in the claims repo before committing, then link it to the claim PR",
+          "exclusive": [
+            "issue"
+          ],
+          "name": "create-issue",
+          "allowNo": false,
+          "type": "boolean"
+        },
+        "issue-title": {
+          "dependsOn": [
+            "create-issue"
+          ],
+          "description": "Title for the issue opened by --create-issue",
+          "name": "issue-title",
+          "hasDynamicHelp": false,
+          "multiple": false,
+          "type": "option"
+        },
+        "issue-body": {
+          "dependsOn": [
+            "create-issue"
+          ],
+          "description": "Body for the issue opened by --create-issue",
+          "name": "issue-body",
           "hasDynamicHelp": false,
           "multiple": false,
           "type": "option"
@@ -4912,6 +5364,51 @@
           "multiple": false,
           "type": "option"
         },
+        "issue": {
+          "dependsOn": [
+            "commit"
+          ],
+          "description": "Link the commit to an existing claims-repo issue (adds \"Closes #N\" to the claim PR)",
+          "exclusive": [
+            "create-issue"
+          ],
+          "name": "issue",
+          "hasDynamicHelp": false,
+          "multiple": false,
+          "type": "option"
+        },
+        "create-issue": {
+          "dependsOn": [
+            "commit"
+          ],
+          "description": "Open an issue in the claims repo before committing, then link it to the claim PR",
+          "exclusive": [
+            "issue"
+          ],
+          "name": "create-issue",
+          "allowNo": false,
+          "type": "boolean"
+        },
+        "issue-title": {
+          "dependsOn": [
+            "create-issue"
+          ],
+          "description": "Title for the issue opened by --create-issue",
+          "name": "issue-title",
+          "hasDynamicHelp": false,
+          "multiple": false,
+          "type": "option"
+        },
+        "issue-body": {
+          "dependsOn": [
+            "create-issue"
+          ],
+          "description": "Body for the issue opened by --create-issue",
+          "name": "issue-body",
+          "hasDynamicHelp": false,
+          "multiple": false,
+          "type": "option"
+        },
         "path": {
           "description": "Destination path for TFWorkspaceClaim or SecretsClaim",
           "name": "path",
@@ -5231,6 +5728,51 @@
         "state-repos": {
           "description": "Comma-separated state repos for --wait-for-checks (default: <org>/state-github,<org>/state-infra)",
           "name": "state-repos",
+          "hasDynamicHelp": false,
+          "multiple": false,
+          "type": "option"
+        },
+        "issue": {
+          "dependsOn": [
+            "commit"
+          ],
+          "description": "Link the commit to an existing claims-repo issue (adds \"Closes #N\" to the claim PR)",
+          "exclusive": [
+            "create-issue"
+          ],
+          "name": "issue",
+          "hasDynamicHelp": false,
+          "multiple": false,
+          "type": "option"
+        },
+        "create-issue": {
+          "dependsOn": [
+            "commit"
+          ],
+          "description": "Open an issue in the claims repo before committing, then link it to the claim PR",
+          "exclusive": [
+            "issue"
+          ],
+          "name": "create-issue",
+          "allowNo": false,
+          "type": "boolean"
+        },
+        "issue-title": {
+          "dependsOn": [
+            "create-issue"
+          ],
+          "description": "Title for the issue opened by --create-issue",
+          "name": "issue-title",
+          "hasDynamicHelp": false,
+          "multiple": false,
+          "type": "option"
+        },
+        "issue-body": {
+          "dependsOn": [
+            "create-issue"
+          ],
+          "description": "Body for the issue opened by --create-issue",
+          "name": "issue-body",
           "hasDynamicHelp": false,
           "multiple": false,
           "type": "option"
@@ -5831,6 +6373,51 @@
           "name": "no-wait",
           "allowNo": false,
           "type": "boolean"
+        },
+        "issue": {
+          "dependsOn": [
+            "commit"
+          ],
+          "description": "Link the commit to an existing claims-repo issue (adds \"Closes #N\" to the claim PR)",
+          "exclusive": [
+            "create-issue"
+          ],
+          "name": "issue",
+          "hasDynamicHelp": false,
+          "multiple": false,
+          "type": "option"
+        },
+        "create-issue": {
+          "dependsOn": [
+            "commit"
+          ],
+          "description": "Open an issue in the claims repo before committing, then link it to the claim PR",
+          "exclusive": [
+            "issue"
+          ],
+          "name": "create-issue",
+          "allowNo": false,
+          "type": "boolean"
+        },
+        "issue-title": {
+          "dependsOn": [
+            "create-issue"
+          ],
+          "description": "Title for the issue opened by --create-issue",
+          "name": "issue-title",
+          "hasDynamicHelp": false,
+          "multiple": false,
+          "type": "option"
+        },
+        "issue-body": {
+          "dependsOn": [
+            "create-issue"
+          ],
+          "description": "Body for the issue opened by --create-issue",
+          "name": "issue-body",
+          "hasDynamicHelp": false,
+          "multiple": false,
+          "type": "option"
         }
       },
       "hasDynamicHelp": false,
@@ -6046,6 +6633,51 @@
           "name": "no-wait",
           "allowNo": false,
           "type": "boolean"
+        },
+        "issue": {
+          "dependsOn": [
+            "commit"
+          ],
+          "description": "Link the commit to an existing claims-repo issue (adds \"Closes #N\" to the claim PR)",
+          "exclusive": [
+            "create-issue"
+          ],
+          "name": "issue",
+          "hasDynamicHelp": false,
+          "multiple": false,
+          "type": "option"
+        },
+        "create-issue": {
+          "dependsOn": [
+            "commit"
+          ],
+          "description": "Open an issue in the claims repo before committing, then link it to the claim PR",
+          "exclusive": [
+            "issue"
+          ],
+          "name": "create-issue",
+          "allowNo": false,
+          "type": "boolean"
+        },
+        "issue-title": {
+          "dependsOn": [
+            "create-issue"
+          ],
+          "description": "Title for the issue opened by --create-issue",
+          "name": "issue-title",
+          "hasDynamicHelp": false,
+          "multiple": false,
+          "type": "option"
+        },
+        "issue-body": {
+          "dependsOn": [
+            "create-issue"
+          ],
+          "description": "Body for the issue opened by --create-issue",
+          "name": "issue-body",
+          "hasDynamicHelp": false,
+          "multiple": false,
+          "type": "option"
         }
       },
       "hasDynamicHelp": false,
@@ -6195,6 +6827,51 @@
           "name": "no-wait",
           "allowNo": false,
           "type": "boolean"
+        },
+        "issue": {
+          "dependsOn": [
+            "commit"
+          ],
+          "description": "Link the commit to an existing claims-repo issue (adds \"Closes #N\" to the claim PR)",
+          "exclusive": [
+            "create-issue"
+          ],
+          "name": "issue",
+          "hasDynamicHelp": false,
+          "multiple": false,
+          "type": "option"
+        },
+        "create-issue": {
+          "dependsOn": [
+            "commit"
+          ],
+          "description": "Open an issue in the claims repo before committing, then link it to the claim PR",
+          "exclusive": [
+            "issue"
+          ],
+          "name": "create-issue",
+          "allowNo": false,
+          "type": "boolean"
+        },
+        "issue-title": {
+          "dependsOn": [
+            "create-issue"
+          ],
+          "description": "Title for the issue opened by --create-issue",
+          "name": "issue-title",
+          "hasDynamicHelp": false,
+          "multiple": false,
+          "type": "option"
+        },
+        "issue-body": {
+          "dependsOn": [
+            "create-issue"
+          ],
+          "description": "Body for the issue opened by --create-issue",
+          "name": "issue-body",
+          "hasDynamicHelp": false,
+          "multiple": false,
+          "type": "option"
         }
       },
       "hasDynamicHelp": false,

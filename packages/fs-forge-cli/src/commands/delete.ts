@@ -8,6 +8,7 @@ import {
 } from '../claims/claimsRepo.js';
 import { createGitHubApi } from '../github/index.js';
 import { CLAIM_KIND_OPTIONS, normalizeKind } from '../claims/kindRegistry.js';
+import { createAuditTrail } from '../mutations/auditIssue.js';
 import {
   AUDIT_TRAIL_FLAGS,
   ORG_FLAG,
@@ -35,6 +36,7 @@ export default class Delete extends Command {
     '<%= config.bin %> <%= command.id %> component my-svc --org my-org',
     '<%= config.bin %> <%= command.id %> component my-svc --org my-org --commit',
     '<%= config.bin %> <%= command.id %> tfworkspace my-tf --org my-org --no-include-variants --commit',
+    '<%= config.bin %> <%= command.id %> component my-svc --org my-org --commit --create-issue',
   ];
 
   static flags = {
@@ -97,21 +99,39 @@ export default class Delete extends Command {
       this.error(`Claim not found: ${kind}-${name}`);
     }
 
-    const workflowUrl = await dispatchUnprovision(repo, {
-      kind,
-      name,
-      includeVariants: flags['include-variants'],
-      waitForClaimChecks: flags['wait-for-checks'],
-    });
+    const audit = createAuditTrail(
+      { repo, operation: 'delete', kind, name },
+      {
+        issue: flags.issue,
+        createIssue: flags['create-issue'],
+        issueTitle: flags['issue-title'],
+        issueBody: flags['issue-body'],
+      },
+    );
 
     try {
-      await waitForDispatch(repo.api, repo.ref, workflowUrl, {
+      await audit.begin();
+      const workflowUrl = await dispatchUnprovision(repo, {
+        kind,
+        name,
+        includeVariants: flags['include-variants'],
+        waitForClaimChecks: flags['wait-for-checks'],
+      });
+      const runUrl = await waitForDispatch(repo.api, repo.ref, workflowUrl, {
         noWait: flags['no-wait'],
         claimType: kind,
         claimName: name,
         label: 'Unprovisioning',
+        extra: audit.result(),
       });
+      // Only once the run concluded: a delete that was merely dispatched may
+      // still fail, and the issue has to stay open for the operator.
+      if (!flags['no-wait']) {
+        await audit.commentRunUrl(runUrl);
+        await audit.closeIssue();
+      }
     } catch (error) {
+      await audit.fail(error);
       this.error(error instanceof Error ? error.message : String(error));
     }
   }

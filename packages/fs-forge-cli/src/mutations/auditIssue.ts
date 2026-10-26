@@ -37,6 +37,8 @@ export interface AuditPullRequestRef {
 export interface AuditResult {
   issue?: AuditIssueRef;
   pr?: AuditPullRequestRef;
+  /** Kept open so the result can be spread into other JSON payloads. */
+  [key: string]: unknown;
 }
 
 export interface AuditTrail {
@@ -146,7 +148,10 @@ export function createAuditTrail(
         if (!Number.isInteger(options.issue) || options.issue <= 0) {
           throw new Error('--issue must be a positive issue number');
         }
-        issue = { number: options.issue, url: issueUrl(context, options.issue) };
+        issue = {
+          number: options.issue,
+          url: issueUrl(context, options.issue),
+        };
         return;
       }
       if (!options.createIssue) return;
@@ -188,7 +193,11 @@ export function createAuditTrail(
     async commentRunUrl(runUrl) {
       if (!issue) return;
       await bestEffort(() =>
-        repo.api.commentOnIssue(repo.ref, issue!.number, `Workflow run: ${runUrl}`),
+        repo.api.commentOnIssue(
+          repo.ref,
+          issue!.number,
+          `Workflow run: ${runUrl}`,
+        ),
       );
     },
 
@@ -205,7 +214,9 @@ export function createAuditTrail(
         '',
         redactTokens(errorMessage(error)),
       ].join('\n');
-      await bestEffort(() => repo.api.commentOnIssue(repo.ref, issue!.number, body));
+      await bestEffort(() =>
+        repo.api.commentOnIssue(repo.ref, issue!.number, body),
+      );
     },
 
     result() {

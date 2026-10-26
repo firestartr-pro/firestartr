@@ -32,6 +32,7 @@ export default class Edit extends Command {
   static examples = [
     '<%= config.bin %> <%= command.id %> ComponentClaim-api --owner group:platform --org my-org',
     '<%= config.bin %> <%= command.id %> ComponentClaim-api --owner group:platform --org my-org --diff',
+    '<%= config.bin %> <%= command.id %> ComponentClaim-api --owner group:platform --org my-org --commit --issue 42',
   ];
 
   static flags = {
@@ -76,6 +77,10 @@ export default class Edit extends Command {
       noWait: flags['no-wait'],
       waitForChecks: flags['wait-for-checks'],
       stateRepos: flags['state-repos'],
+      issue: flags.issue,
+      createIssue: flags['create-issue'],
+      issueTitle: flags['issue-title'],
+      issueBody: flags['issue-body'],
       transform: (claim) => {
         for (const value of flags['add-feature'] ?? []) {
           claim = mutateFeatureReference(

@@ -111,8 +111,8 @@ pushes `claims-map.json` to the `claims-index` branch.
 
 **Provision workflow**:
 The GitHub Actions workflow at `.github/workflows/provision-claim.yaml` in the
-claims repo. Triggered by `workflow_dispatch`; opens a PR for the branch,
-runs verify, merges, dispatches hydration, and merges the wet PR. Takes
+claims repo. Triggered by `workflow_dispatch`; opens (or reuses) a PR for the
+branch, runs verify, merges, dispatches hydration, and merges the wet PR. Takes
 `claimType`, `claimName`, and optional `correlationId` as inputs.
 
 **Deterministic path**:
@@ -128,6 +128,22 @@ The mechanisms by which fs-forge reads from and writes to a claims repo:
 (create branch → commit claim → dispatch provision workflow), and
 **get defaults** (fetch `claims_defaults.yaml` for additive default application).
 Implemented by `src/claims/claimsRepo.ts` over the GitHub port.
+
+**Claim PR**:
+The pull request on branch `fs-forge/<Kind>-<name>` in the claims repo. The
+Provision workflow opens it, unless an audit issue is in play: then the CLI
+opens it (or adds the footer to a PR already open on that head) after the
+commit and before dispatching, and the workflow reuses it.
+
+**Audit issue**:
+An issue in the claims repo recording one committed claim operation.
+`--issue <N>` adopts an existing issue; `--create-issue` opens one from a
+built-in template, with `--issue-title`/`--issue-body` as overrides. The claim
+PR carries a `Closes #N` footer, so merging it closes the issue; `delete` has
+no claim PR and closes the issue once the unprovision run succeeds. A failed
+commit comments the error on the issue it created and leaves it open. The
+flags live on every `--commit` command, `--issue` and `--create-issue` are
+mutually exclusive, and both require `--commit`.
 
 **GitHub port**:
 The `src/github/api.ts` interface describing the GitHub operations fs-forge

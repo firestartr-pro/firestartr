@@ -10,6 +10,7 @@ import {
 import { deterministicPath } from '../claims/deterministicPath.js';
 import { serializeClaim } from '../claims/keyOrdering.js';
 import { createGitHubApi } from '../github/index.js';
+import { createAuditTrail } from '../mutations/auditIssue.js';
 import { parseClaimYaml, requireOrg } from '../mutations/support.js';
 import { mergeObjects } from '../utils/mutateClaim.js';
 import { createClaimValidator } from '../utils/ajvValidation.js';
@@ -20,6 +21,7 @@ import {
 } from '../utils/features.js';
 import { waitForDispatch } from '../utils/waitForDispatch.js';
 
+import type { AuditIssueOptions, AuditTrail } from '../mutations/auditIssue.js';
 import type { ClaimsRepo, WorkflowDispatch } from '../claims/claimsRepo.js';
 import type { FeatureReference } from '../utils/features.js';
 
@@ -31,7 +33,12 @@ export interface ComponentPublish {
 export interface ComponentTarget {
   claim: Record<string, unknown>;
   name: string;
-  publish(output: string): Promise<ComponentPublish | undefined>;
+  /** Resolves the claims repo, when the operation is committed. */
+  repo?: () => ClaimsRepo;
+  publish(
+    output: string,
+    audit?: AuditTrail,
+  ): Promise<ComponentPublish | undefined>;
 }
 
 export async function loadComponentTarget(options: {
@@ -47,8 +54,10 @@ export async function loadComponentTarget(options: {
     );
   }
 
+  let cached: ClaimsRepo | undefined;
   const repo = () =>
-    options.repo ?? claimsRepo(createGitHubApi(), requireOrg(options.org));
+    (cached ??=
+      options.repo ?? claimsRepo(createGitHubApi(), requireOrg(options.org)));
 
   if (options.file) {
     const claim = parseClaimYaml(await readFile(options.file, 'utf8'));
@@ -56,7 +65,8 @@ export async function loadComponentTarget(options: {
     return {
       claim,
       name,
-      publish: async (output) => {
+      repo: options.commit ? repo : undefined,
+      publish: async (output, audit) => {
         if (!options.commit) return undefined;
         const target = repo();
         const path = deterministicPath('ComponentClaim', name);
@@ -64,13 +74,17 @@ export async function loadComponentTarget(options: {
         const current = await target.api.readFile(target.ref, path, branch);
         return {
           repo: target,
-          dispatch: await publishClaim(target, {
-            kind: 'ComponentClaim',
-            name,
-            path,
-            yaml: output,
-            existingSha: current?.sha,
-          }),
+          dispatch: await publishClaim(
+            target,
+            {
+              kind: 'ComponentClaim',
+              name,
+              path,
+              yaml: output,
+              existingSha: current?.sha,
+            },
+            audit,
+          ),
         };
       },
     };
@@ -88,17 +102,22 @@ export async function loadComponentTarget(options: {
   return {
     claim,
     name,
-    publish: async (output) =>
+    repo: options.commit ? () => target : undefined,
+    publish: async (output, audit) =>
       options.commit
         ? {
             repo: target,
-            dispatch: await publishClaim(target, {
-              kind: 'ComponentClaim',
-              name,
-              path: source.filePath,
-              yaml: output,
-              existingSha: source.sha,
-            }),
+            dispatch: await publishClaim(
+              target,
+              {
+                kind: 'ComponentClaim',
+                name,
+                path: source.filePath,
+                yaml: output,
+                existingSha: source.sha,
+              },
+              audit,
+            ),
           }
         : undefined,
   };
@@ -145,7 +164,13 @@ function mergeFeatureReference(
   return merged;
 }
 
-export interface FeatureMutationRequest {
+const AUDIT_OPERATIONS = {
+  add: 'create',
+  edit: 'edit',
+  remove: 'delete',
+} as const;
+
+export interface FeatureMutationRequest extends AuditIssueOptions {
   operation: 'add' | 'edit' | 'remove';
   component?: string;
   file?: string;
@@ -217,10 +242,24 @@ export async function runFeatureMutation(
   const output = serializeClaim(claim);
   process.stdout.write(`${formatClaim(claim, request.json)}\n`);
 
-  const published = await target.publish(output);
-  if (!published) return { claim, output };
+  const claims = target.repo?.();
+  const audit = claims
+    ? createAuditTrail(
+        {
+          repo: claims,
+          operation: AUDIT_OPERATIONS[request.operation],
+          kind: 'ComponentClaim',
+          name: target.name,
+        },
+        request,
+      )
+    : undefined;
 
   try {
+    await audit?.begin();
+    const published = await target.publish(output, audit);
+    if (!published) return { claim, output };
+
     const publishUrl = await waitForDispatch(
       published.repo.api,
       published.repo.ref,
@@ -230,10 +269,13 @@ export async function runFeatureMutation(
         claimType: 'ComponentClaim',
         claimName: target.name,
         label: 'Provisioning',
+        extra: audit?.result(),
       },
     );
+    await audit?.commentRunUrl(publishUrl);
     return { claim, output, publishUrl };
   } catch (error) {
+    await audit?.fail(error);
     Errors.error(error instanceof Error ? error.message : String(error));
   }
 }
