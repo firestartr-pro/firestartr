@@ -45,6 +45,30 @@ export const MUTATION_CONTROL_FLAGS = {
   }),
 };
 
+/** The audit-trail flags every `--commit` command carries. */
+export const AUDIT_TRAIL_FLAGS = {
+  issue: Flags.integer({
+    description:
+      'Link the commit to an existing claims-repo issue (adds "Closes #N" to the claim PR)',
+    dependsOn: ['commit'],
+    exclusive: ['create-issue'],
+  }),
+  'create-issue': Flags.boolean({
+    description:
+      'Open an issue in the claims repo before committing, then link it to the claim PR',
+    dependsOn: ['commit'],
+    exclusive: ['issue'],
+  }),
+  'issue-title': Flags.string({
+    description: 'Title for the issue opened by --create-issue',
+    dependsOn: ['create-issue'],
+  }),
+  'issue-body': Flags.string({
+    description: 'Body for the issue opened by --create-issue',
+    dependsOn: ['create-issue'],
+  }),
+};
+
 export function requireOrg(org: string | undefined): string {
   if (!org) throw new Error('--org or FSCRT_ORG is required');
   return org;

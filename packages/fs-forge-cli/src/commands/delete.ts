@@ -8,7 +8,11 @@ import {
 } from '../claims/claimsRepo.js';
 import { createGitHubApi } from '../github/index.js';
 import { CLAIM_KIND_OPTIONS, normalizeKind } from '../claims/kindRegistry.js';
-import { ORG_FLAG, requireOrg } from '../mutations/support.js';
+import {
+  AUDIT_TRAIL_FLAGS,
+  ORG_FLAG,
+  requireOrg,
+} from '../mutations/support.js';
 import { waitForDispatch } from '../utils/waitForDispatch.js';
 
 export default class Delete extends Command {
@@ -52,6 +56,7 @@ export default class Delete extends Command {
     'no-wait': Flags.boolean({
       description: 'Skip waiting for the unprovision workflow to complete',
     }),
+    ...AUDIT_TRAIL_FLAGS,
   };
 
   async run(): Promise<void> {

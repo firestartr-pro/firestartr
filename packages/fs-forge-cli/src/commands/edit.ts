@@ -7,7 +7,11 @@ import {
   assertMutationFlags,
   mutationFlagsWithout,
 } from '../mutations/definitions.js';
-import { MUTATION_CONTROL_FLAGS, requireOrg } from '../mutations/support.js';
+import {
+  AUDIT_TRAIL_FLAGS,
+  MUTATION_CONTROL_FLAGS,
+  requireOrg,
+} from '../mutations/support.js';
 import {
   mutateFeatureReference,
   parseFeatureReference,
@@ -33,6 +37,7 @@ export default class Edit extends Command {
   static flags = {
     ...mutationFlagsWithout('kind', 'name', 'feature'),
     ...MUTATION_CONTROL_FLAGS,
+    ...AUDIT_TRAIL_FLAGS,
     'add-feature': Flags.string({
       description: 'Attach name@version:{...} or name#ref:{...}',
       multiple: true,
