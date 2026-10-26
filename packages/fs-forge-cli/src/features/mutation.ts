@@ -21,6 +21,7 @@ import {
 } from '../utils/features.js';
 
 import type {
+  AuditChange,
   AuditOperation,
   AuditTrailOptions,
 } from '../mutations/auditIssue.js';
@@ -161,6 +162,26 @@ const AUDIT_OPERATIONS: Record<
 };
 
 /**
+ * The default audit wording of a Feature change: the claim alone does not name
+ * which Feature the run touches.
+ */
+function featureChange(
+  operation: FeatureMutationRequest['operation'],
+  feature: string,
+  component: string,
+): AuditChange {
+  const wording = {
+    add: { verb: 'Add', preposition: 'to', gerund: 'adding' },
+    edit: { verb: 'Edit', preposition: 'in', gerund: 'editing' },
+    remove: { verb: 'Remove', preposition: 'from', gerund: 'removing' },
+  }[operation];
+  return {
+    title: `${wording.verb} feature ${feature} ${wording.preposition} component ${component}`,
+    goal: `Audit trail for ${wording.gerund} feature \`${feature}\` ${wording.preposition} \`ComponentClaim-${component}\`.`,
+  };
+}
+
+/**
  * The Feature mutation pipeline shared by `features add`, `features edit` and
  * `features remove`: load the ComponentClaim, mutate one Feature reference,
  * validate, present, and optionally publish and wait.
@@ -176,14 +197,16 @@ export async function runFeatureMutation(
     repo: deps.repo,
   });
 
+  const featureName = request.feature?.name;
   let claim: Record<string, unknown>;
   if (request.operation === 'remove') {
-    const name = request.feature?.name;
-    if (!name) throw new Error('A Feature name is required');
-    claim = mutateFeatureReference(target.claim, 'remove', { name });
+    if (!featureName) throw new Error('A Feature name is required');
+    claim = mutateFeatureReference(target.claim, 'remove', {
+      name: featureName,
+    });
   } else {
     const feature = request.feature;
-    if (!feature?.name) throw new Error('A Feature name is required');
+    if (!featureName || !feature) throw new Error('A Feature name is required');
     let resolved = feature;
     if (request.operation === 'edit') {
       const existing = getFeatureReferences(target.claim).find(
@@ -223,6 +246,7 @@ export async function runFeatureMutation(
         operation: AUDIT_OPERATIONS[request.operation],
         kind: 'ComponentClaim',
         name: target.name,
+        change: featureChange(request.operation, featureName, target.name),
       },
       request,
       async (audit) => {

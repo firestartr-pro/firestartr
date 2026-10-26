@@ -10,12 +10,25 @@ export interface AuditTrailOptions {
   issueBody?: string;
 }
 
+/**
+ * The audit wording for a mutation that reaches past the claim itself, such as
+ * a Feature change inside a ComponentClaim.
+ */
+export interface AuditChange {
+  /** The issue title, e.g. `Add feature logging to component app`. */
+  title: string;
+  /** The Goal sentence naming what the run changes. */
+  goal: string;
+}
+
 export interface AuditTrailContext {
   /** The claims repo the command already resolved. */
   repo: ClaimsRepo;
   operation: AuditOperation;
   kind: string;
   name: string;
+  /** Defaults to the claim itself when the mutation only touches it. */
+  change?: AuditChange;
 }
 
 /** What the JSON result reports about the audit trail. */
@@ -79,14 +92,18 @@ function closesFooter(body: string, issue: number): string {
 }
 
 function defaultTitle(context: AuditTrailContext): string {
-  return `${VERBS[context.operation]} ${shortKind(context.kind)} ${context.name}`;
+  return (
+    context.change?.title ??
+    `${VERBS[context.operation]} ${shortKind(context.kind)} ${context.name}`
+  );
 }
 
 function defaultBody(context: AuditTrailContext): string {
   const repo = `${context.repo.ref.owner}/${context.repo.ref.repo}`;
   return [
     '## Goal',
-    `Audit trail for the ${context.operation} of \`${context.kind}-${context.name}\`.`,
+    context.change?.goal ??
+      `Audit trail for the ${context.operation} of \`${context.kind}-${context.name}\`.`,
     '',
     '## Requested change',
     `- **Kind:** \`${context.kind}\``,

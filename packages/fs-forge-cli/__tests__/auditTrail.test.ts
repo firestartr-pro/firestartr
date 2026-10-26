@@ -15,6 +15,9 @@ import { runFeatureMutation } from '../src/features/mutation';
 import { createGitHubApi } from '../src/github/index';
 import { MemoryGitHubApi } from './fixtures/memoryGitHubApi';
 
+import type { ClaimsRepo } from '../src/claims/claimsRepo';
+import type { FeatureMutationRequest } from '../src/features/mutation';
+import type { FeatureReference } from '../src/utils/features';
 import type { RepoRef } from '../src/github/api';
 
 const ROOT = process.cwd();
@@ -247,7 +250,90 @@ describe('--create-issue', () => {
   });
 });
 
+const FEATURE_CLAIM_YAML = `${CLAIM_YAML}    features:
+      - name: feature_a
+        version: 1.0.0
+`;
+
+function featureRepo(): { api: MemoryGitHubApi; repo: ClaimsRepo } {
+  const api = new MemoryGitHubApi();
+  api.autoCompleteDispatches = true;
+  const repo = claimsRepo(api, 'my-org');
+  api.setDefaultBranch(repo.ref, 'main');
+  api.setBranchHeadSha(repo.ref, 'main', 'base-sha');
+  api.setFile(
+    repo.ref,
+    'claims-map.json',
+    JSON.stringify(CLAIMS_MAP),
+    'map-file-sha',
+  );
+  api.setFile(
+    repo.ref,
+    'claims/components/my-component.yaml',
+    FEATURE_CLAIM_YAML,
+    'claim-sha',
+  );
+  return { api, repo };
+}
+
+type FeatureAuditCase = [
+  FeatureMutationRequest['operation'],
+  FeatureReference,
+  string,
+  string,
+];
+
 describe('features audit trail', () => {
+  const cases: FeatureAuditCase[] = [
+    [
+      'add',
+      { name: 'feature_b', version: '1.0.0' },
+      'Add feature feature_b to component my-component',
+      'Audit trail for adding feature `feature_b` to `ComponentClaim-my-component`.',
+    ],
+    [
+      'edit',
+      { name: 'feature_a', version: '2.0.0' },
+      'Edit feature feature_a in component my-component',
+      'Audit trail for editing feature `feature_a` in `ComponentClaim-my-component`.',
+    ],
+    [
+      'remove',
+      { name: 'feature_a' },
+      'Remove feature feature_a from component my-component',
+      'Audit trail for removing feature `feature_a` from `ComponentClaim-my-component`.',
+    ],
+  ];
+
+  it.each(cases)(
+    'states the %s feature change in the default issue',
+    async (operation, feature, title, goal) => {
+      const { api, repo } = featureRepo();
+
+      await captureOutput(async () => {
+        await runFeatureMutation(
+          {
+            operation,
+            component: 'my-component',
+            json: false,
+            commit: true,
+            createIssue: true,
+            feature,
+          },
+          { repo, schemasDir: join(ROOT, 'schemas') },
+        );
+        return 0;
+      });
+
+      expect(api.issues[0].title).toBe(title);
+      expect(api.issues[0].body).toContain('## Goal');
+      expect(api.issues[0].body).toContain(goal);
+      expect(api.issues[0].body).toContain('## Requested change');
+      expect(api.issues[0].body).toContain('- **Kind:** `ComponentClaim`');
+      expect(api.issues[0].body).toContain('- **Name:** `my-component`');
+    },
+  );
+
   it('links the claims PR opened by a committed feature add', async () => {
     const api = new MemoryGitHubApi();
     api.autoCompleteDispatches = true;
