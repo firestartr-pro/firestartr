@@ -15,6 +15,8 @@ import {
 } from '../src/claims/kindRegistry';
 import { PREFLIGHT_KINDS } from '../src/commands/preflight';
 
+import type { ClaimKindName } from '../src/claims/kinds';
+
 const ROOT = process.cwd();
 
 type Schema = Record<string, unknown>;
@@ -248,7 +250,7 @@ describe('kind capabilities against the claim schemas', () => {
 
   it('hydrates, deletes and stores state with the workflow a claims repo dispatches', () => {
     const expected: Record<
-      string,
+      ClaimKindName,
       {
         hydration: string | null;
         inputs?: string[];
@@ -315,7 +317,7 @@ describe('kind capabilities against the claim schemas', () => {
     };
 
     for (const capability of KIND_CAPABILITIES) {
-      const wanted = expected[capability.kind]!;
+      const wanted = expected[capability.kind];
 
       expect(capability.hydration?.workflow ?? null).toBe(wanted.hydration);
       expect(capability.hydration?.inputs ?? []).toEqual(wanted.inputs ?? []);
