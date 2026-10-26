@@ -33,6 +33,8 @@ export interface PullRequestSummary {
   headRef: string;
   baseSha: string;
   updatedAt: string;
+  /** PR description; absent when the adapter has no body to report. */
+  body?: string;
 }
 
 export interface PullRequestFile {
@@ -54,6 +56,12 @@ export interface WorkflowRunSummary {
   status: string;
   conclusion: string | null;
   displayTitle: string;
+}
+
+/** A created issue or pull request, reduced to what the CLI reports. */
+export interface CreatedItem {
+  number: number;
+  htmlUrl: string;
 }
 
 export interface GitHubApi {
@@ -115,6 +123,21 @@ export interface GitHubApi {
     ref: RepoRef,
     pr: number,
   ): Promise<CheckRunSummary[]>;
+  createPullRequest(
+    ref: RepoRef,
+    input: { head: string; base: string; title: string; body: string },
+  ): Promise<CreatedItem>;
+  updatePullRequest(
+    ref: RepoRef,
+    pr: number,
+    input: { body: string },
+  ): Promise<void>;
+  createIssue(
+    ref: RepoRef,
+    input: { title: string; body: string },
+  ): Promise<CreatedItem>;
+  commentOnIssue(ref: RepoRef, issue: number, body: string): Promise<void>;
+  closeIssue(ref: RepoRef, issue: number): Promise<void>;
   searchFiles(
     ref: RepoRef,
     query: string,

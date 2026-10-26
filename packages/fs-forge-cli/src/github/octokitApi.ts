@@ -143,6 +143,7 @@ export function createOctokitApi(octokit: Octokit): GitHubApi {
             headRef: pr.head.ref,
             baseSha: pr.base.sha,
             updatedAt: pr.updated_at,
+            body: pr.body ?? '',
           })),
         );
         if (data.length < 100) break;
@@ -205,6 +206,55 @@ export function createOctokitApi(octokit: Octokit): GitHubApi {
         },
         htmlUrl: run.html_url,
       }));
+    },
+
+    async createPullRequest(ref, input) {
+      const { data } = await octokit.rest.pulls.create({
+        owner: ref.owner,
+        repo: ref.repo,
+        head: input.head,
+        base: input.base,
+        title: input.title,
+        body: input.body,
+      });
+      return { number: data.number, htmlUrl: data.html_url };
+    },
+
+    async updatePullRequest(ref, pr, input) {
+      await octokit.rest.pulls.update({
+        owner: ref.owner,
+        repo: ref.repo,
+        pull_number: pr,
+        body: input.body,
+      });
+    },
+
+    async createIssue(ref, input) {
+      const { data } = await octokit.rest.issues.create({
+        owner: ref.owner,
+        repo: ref.repo,
+        title: input.title,
+        body: input.body,
+      });
+      return { number: data.number, htmlUrl: data.html_url };
+    },
+
+    async commentOnIssue(ref, issue, body) {
+      await octokit.rest.issues.createComment({
+        owner: ref.owner,
+        repo: ref.repo,
+        issue_number: issue,
+        body,
+      });
+    },
+
+    async closeIssue(ref, issue) {
+      await octokit.rest.issues.update({
+        owner: ref.owner,
+        repo: ref.repo,
+        issue_number: issue,
+        state: 'closed',
+      });
     },
 
     async searchFiles(ref, query) {
