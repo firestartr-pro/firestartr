@@ -42,6 +42,13 @@ describe('Plan mode activation', () => {
     },
   );
 
+  it('refuses to start combined with import mode', () => {
+    expect(() =>
+      resolvePlanModeConfig({ env: 'true', importMode: true }),
+    ).toThrow('Plan mode cannot be combined with --importMode');
+    expect(resolvePlanModeConfig({ importMode: true }).enabled).toBe(false);
+  });
+
   it('uses --plan-output-dir when given', () => {
     expect(resolvePlanModeConfig({ outputDir: '/data/plans' }).outputDir).toBe(
       '/data/plans',

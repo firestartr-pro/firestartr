@@ -9,6 +9,7 @@ export type PlanModeInput = {
   flag?: boolean;
   env?: string;
   outputDir?: string;
+  importMode?: boolean;
 };
 
 export class InvalidPlanModeError extends Error {
@@ -28,8 +29,18 @@ export function resolvePlanModeConfig(input: PlanModeInput): PlanModeConfig {
     throw new InvalidPlanModeError(env);
   }
 
+  const enabled = flag === true || env === 'true';
+
+  // Import mode turns creations into imports of existing resources; Plan
+  // mode previews imports from annotations only, so its plans would differ
+  if (enabled && input.importMode) {
+    throw new Error(
+      'Plan mode cannot be combined with --importMode or --importModeSkipPlan; refusing to start',
+    );
+  }
+
   return Object.freeze({
-    enabled: flag === true || env === 'true',
+    enabled,
     outputDir: outputDir || DEFAULT_PLAN_OUTPUT_DIR,
   });
 }

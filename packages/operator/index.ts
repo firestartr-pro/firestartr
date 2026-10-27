@@ -73,6 +73,7 @@ export function runOperator(opts: any) {
       common.types.envVars.operatorPlanMode,
     ),
     outputDir: planOutputDir,
+    importMode: Boolean(importMode || importModeSkipPlan),
   });
 
   if (planModeConfig.enabled) {
