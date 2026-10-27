@@ -11,3 +11,17 @@ export function planRecordsSync(operation: OperationType): boolean {
     operation !== OperationType.NOTHING
   );
 }
+
+/**
+ * The retry for a failed plan, from the plan that failed (Plan mode never
+ * writes ERROR): a failed sync retries as RETRY_SYNC, so the sync-policy
+ * check still applies.
+ */
+export function planRetryOperation(
+  failedOperation: OperationType | undefined,
+): OperationType {
+  return failedOperation === OperationType.SYNC ||
+    failedOperation === OperationType.RETRY_SYNC
+    ? OperationType.RETRY_SYNC
+    : OperationType.RETRY;
+}

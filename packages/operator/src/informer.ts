@@ -38,7 +38,7 @@ import log from './logger';
 import { logActivity } from './activity-log';
 import { isPlanMode } from './plan-mode/config';
 import { planStartupOperation } from './plan-mode/startup';
-import { planRecordsSync } from './plan-mode/work-items';
+import { planRecordsSync, planRetryOperation } from './plan-mode/work-items';
 import { needsDeletionBlocking } from './dependants';
 
 import { OperationType, WorkStatus } from './definitions';
@@ -636,7 +636,7 @@ async function inform(
       );
       // Plan mode retries its own failed plans, not the live operator's errors
       const retryOp = isPlanMode()
-        ? OperationType.RETRY
+        ? planRetryOperation(workItem?.operation)
         : retryOpForReason(errorCondition?.reason);
 
       workItem = {

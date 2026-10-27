@@ -11,7 +11,10 @@ import { getItemByItemPath } from '../src/ctl';
 import { OperationType } from '../src/definitions';
 import { initPlanMode } from '../src/plan-mode/config';
 import { planStartupOperation } from '../src/plan-mode/startup';
-import { planRecordsSync } from '../src/plan-mode/work-items';
+import {
+  planRecordsSync,
+  planRetryOperation,
+} from '../src/plan-mode/work-items';
 import { updateSyncTransition } from '../src/status';
 import {
   createWatcherForItem,
@@ -90,5 +93,16 @@ describe('Plan mode synchronization', () => {
     expect(planRecordsSync(OperationType.SYNC)).toBe(true);
     expect(planRecordsSync(OperationType.UPDATED)).toBe(true);
     expect(planRecordsSync(OperationType.MARKED_TO_DELETION)).toBe(false);
+  });
+
+  it('retries a failed sync plan as RETRY_SYNC and anything else as RETRY', () => {
+    expect(planRetryOperation(OperationType.SYNC)).toBe(
+      OperationType.RETRY_SYNC,
+    );
+    expect(planRetryOperation(OperationType.RETRY_SYNC)).toBe(
+      OperationType.RETRY_SYNC,
+    );
+    expect(planRetryOperation(OperationType.UPDATED)).toBe(OperationType.RETRY);
+    expect(planRetryOperation(undefined)).toBe(OperationType.RETRY);
   });
 });
