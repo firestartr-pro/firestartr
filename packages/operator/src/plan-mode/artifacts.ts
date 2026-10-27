@@ -46,7 +46,14 @@ export function renderPlanMarkdown(record: PlanRecord): string {
   ];
 
   if (record.result.status === 'PLANNED') {
-    lines.push('', '## Plan', record.result.text.trimEnd());
+    const text = record.result.text.trimEnd();
+    const longestRun = Math.max(
+      0,
+      ...(text.match(/`+/g) ?? []).map((run) => run.length),
+    );
+    const fence = '`'.repeat(Math.max(3, longestRun + 1));
+
+    lines.push('', '## Plan', `${fence}text`, text, fence);
   }
 
   return `${lines.join('\n')}\n`;

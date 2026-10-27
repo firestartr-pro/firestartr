@@ -194,7 +194,7 @@ describe('Plan mode: Terraform workspaces', () => {
     expect(md).toContain(`- Operation: ${op}   Policy: full-control   Planned at: `);
     expect(md).toContain('Lock: none');
     expect(md).toContain('- Result: ~2 change, +0 add, -0 destroy');
-    expect(md).toContain(`## Plan\n${PLAN_TEXT.trimEnd()}`);
+    expect(md).toContain(`## Plan\n\`\`\`text\n${PLAN_TEXT.trimEnd()}\n\`\`\`\n`);
     expect(json).toMatchObject({
       kind: 'FirestartrTerraformWorkspace',
       name: 'ws',
