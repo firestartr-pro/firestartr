@@ -37,6 +37,7 @@ import { resolveSecretRef } from './resolver';
 import log from './logger';
 import { logActivity } from './activity-log';
 import { isPlanMode } from './plan-mode/config';
+import { planStartupOperation } from './plan-mode/startup';
 
 import { OperationType, WorkStatus } from './definitions';
 import type { WorkItemHandler, WorkItem } from './definitions';
@@ -691,6 +692,20 @@ async function inform(
         };
 
         return workItem;
+      }
+
+      if (isPlanMode()) {
+        return {
+          operation: planStartupOperation(item),
+
+          item,
+
+          workStatus: WorkStatus.PENDING,
+
+          onDelete: function () {},
+
+          upsertTime: Date.now(),
+        };
       }
 
       return null;
