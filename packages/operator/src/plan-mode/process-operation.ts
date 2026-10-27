@@ -101,7 +101,19 @@ export function decideTerraformPlan(
 export function decideGithubPlan(item: any, op: OperationType): PlanDecision {
   if (op === OperationType.NOTHING) return { nothing: true };
 
-  return planFor(isDestroy(item, op));
+  const destroy = isDestroy(item, op);
+
+  // The live reimport wipes the Terraform state first; a read-only plan
+  // against the current state would preview a different operation
+  if (
+    !destroy &&
+    annotation(item, common.generic.getFirestartrAnnotation('import')) &&
+    annotation(item, common.generic.getFirestartrAnnotation('needs-re-import'))
+  ) {
+    return { skip: 'reimport cannot be previewed without resetting state' };
+  }
+
+  return planFor(destroy);
 }
 
 function processCtl(item: any, handler: any) {

@@ -395,6 +395,23 @@ describe('Plan mode: GitHub kinds', () => {
     expect(mockGh.mock.calls[0][1]).not.toHaveProperty('delete');
   });
 
+  it('records SKIPPED for a CR the live operator would reimport', async () => {
+    const item = ghItem({
+      annotations: {
+        'firestartr.dev/import': 'true',
+        'firestartr.dev/needs-re-import': 'true',
+      },
+    });
+
+    await drain(planGithubOperation(item, OperationType.UPDATED, handler()));
+
+    expect(mockGh).not.toHaveBeenCalled();
+    expect(readArtifacts('FirestartrGithubRepository', 'repo').json.result).toMatchObject({
+      status: 'SKIPPED',
+      reason: 'reimport cannot be previewed without resetting state',
+    });
+  });
+
   it('records NOTHING without running the provisioner', async () => {
     await drain(planGithubOperation(ghItem(), OperationType.NOTHING, handler()));
 
