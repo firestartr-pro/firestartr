@@ -38,6 +38,7 @@ import log from './logger';
 import { logActivity } from './activity-log';
 import { isPlanMode } from './plan-mode/config';
 import { planStartupOperation } from './plan-mode/startup';
+import { needsDeletionBlocking } from './dependants';
 
 import { OperationType, WorkStatus } from './definitions';
 import type { WorkItemHandler, WorkItem } from './definitions';
@@ -57,12 +58,6 @@ const kindsWithFinalizer = [
   'FirestartrGithubOrganizationSettings',
   'FirestartrGithubOrganizationVariableSection',
   'FirestartrGithubRepositorySecretsSection',
-];
-
-const kindsWithDependants = [
-  'FirestartrDummyA',
-  'FirestartrDummyB',
-  'FirestartrGithubRepository',
 ];
 
 /**
@@ -405,51 +400,26 @@ function enqueue(
       return customTimeout;
     },
     needsBlocking: (item: any, operation: OperationType) => {
-      if (kindsWithDependants.indexOf(item.kind) === -1) {
-        return false;
-      }
-
-      // only for delete operations
-      if (operation !== OperationType.MARKED_TO_DELETION) {
-        if (
-          operation === OperationType.RETRY ||
-          operation === OperationType.RETRY_SYNC
-        ) {
-          // is the retry a delete operation?
-          if (!('deletionTimestamp' in workItem.item.metadata)) {
-            return false;
-          }
-        } else {
-          return false;
-        }
-      }
-
-      if (
-        item.metadata.finalizers &&
-        (item.metadata.finalizers.indexOf('foregroundDeletion') !== -1 ||
-          item.metadata.finalizers.indexOf(
-            'firestartr.dev/foreground-deletion',
-          ) !== -1)
-      ) {
-        // it will block for five seconds
-        workItem.isBlocked = true;
-
-        const tTimeout = setTimeout(() => {
-          workItem.isBlocked = false;
-        }, 1000 * 5);
-
-        workItem.fUnblock = () => {
-          clearTimeout(tTimeout);
-
-          workItem.isBlocked = false;
-        };
-
-        return true;
-      } else {
+      if (!needsDeletionBlocking(item, operation)) {
         workItem.isBlocked = false;
 
         return false;
       }
+
+      // it will block for five seconds
+      workItem.isBlocked = true;
+
+      const tTimeout = setTimeout(() => {
+        workItem.isBlocked = false;
+      }, 1000 * 5);
+
+      workItem.fUnblock = () => {
+        clearTimeout(tTimeout);
+
+        workItem.isBlocked = false;
+      };
+
+      return true;
     },
 
     getSlotInfo: () => null,

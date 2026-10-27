@@ -5,6 +5,7 @@ import { runTerraformProvisioner } from 'terraform_provisioner';
 import type { PlanArtifact } from 'terraform_provisioner';
 
 import { OperationType } from '../definitions';
+import { deletionWaitsForDependants } from '../dependants';
 import log from '../logger';
 import { ResolverError } from '../resolver';
 import { policyAllowsOp } from '../tfworkspaces/policies';
@@ -194,6 +195,12 @@ async function* planOperation(
   planner: Planner,
 ) {
   let result: PlanResult;
+
+  if (deletionWaitsForDependants(item, op)) {
+    decision = {
+      skip: 'deletion waits for its dependants (foreground-deletion finalizer)',
+    };
+  }
 
   if ('skip' in decision) {
     result = { status: 'SKIPPED', reason: decision.skip };
