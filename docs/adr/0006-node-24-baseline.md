@@ -15,8 +15,11 @@ Before this decision every job asked `actions/setup-node` for `node-version: "22
 every image was built `FROM node:22-bookworm(-slim)`, so the repository floated on the
 latest 22.x patch. Node 22 is in maintenance LTS (security fixes only, end of life April
 2027) while Node 24 has been Active LTS since October 2025 and is supported until April
-2028. The 22.x line already satisfies npm 12.2.1 (`22.22.2` is its floor), so nothing was
-broken — the repository was simply building on the older line.
+2028. Node 26 was released in April 2026 and takes over the Active LTS slot in October
+2026; this decision deliberately stays one major behind the newest line, which is
+supported until April 2028 regardless. The 22.x line already satisfies npm 12.2.1
+(`22.22.2` is its floor), so nothing was broken — the repository was simply building on
+the older line.
 
 Node 24 had to be validated against the code, not assumed: a major bump can change module
 resolution, timing and native addon behaviour, and this repository builds and tests a
@@ -38,11 +41,12 @@ is made explicit rather than left to drift.
   `docker/dev.Dockerfile`, `docker/build.Dockerfile`, `docker/run-slim.Dockerfile`,
   `docker/run-aws.Dockerfile` and `docker/run-az.Dockerfile`. This moves the published
   CLI runtime images, not just the builders.
-- `engines.node` narrows to `^24.15.0 || >=26.0.0`: the lines npm 12.2.1 supports, minus
-  22. The suite still passes on Node 22.23.4, but no job tests that line, and the only
-  Node 22 consumer inside the repository was the e2e container — `PrepareTestContainer`
-  now installs Node 24 explicitly. The published packages keep their own `>=22` engines;
-  only the repository manifest narrows.
+- `engines.node` is `^24.15.0`: the single line CI tests. npm 12.2.1 would also run on
+  Node 26, but no job tests it, so it is not advertised. The suite still passes on Node
+  22.23.4, yet that line is not supported either: the only Node 22 consumer inside the
+  repository was the e2e container, and `PrepareTestContainer` now installs Node 24
+  explicitly. The published packages keep their own `>=22` engines; only the repository
+  manifest narrows.
 - `@types/node` stays at `^22` in the root manifest and in `packages/fs-forge-cli`. The
   root `tsconfig.json` compiles with `target: "ES2020"` and no explicit `lib`, so it only
   typechecks against the ES2020 library — except that `@types/node@22` ships a deprecated
@@ -61,7 +65,8 @@ is made explicit rather than left to drift.
   `EBADENGINE`): one line is supported and tested here. Published packages still declare
   `>=22`; narrowing those stays a consumer-facing decision.
 - Node 25 is not supported: npm 12.2.1 does not run on it and `engines.node` does not
-  admit it. Node 26 is already admitted by the range, mirroring npm.
+  admit it. Node 26 is not admitted either, even though npm 12.2.1 runs there: moving to
+  it is a manifest and CI change, not an npm one.
 - The upgrade was verified before the change landed, on a detached worktree at the merge
   base, with npm 12.2.1:
   - `npm ci`, `npm run lint`, and the `cli` and `fs-forge-cli` builds pass on Node 24 with

@@ -25,11 +25,11 @@ selection is explicit: each job installs npm itself.
 ## Decision
 
 - The root `package.json` declares `"packageManager": "npm@12.2.1"` and
-  `engines: { node: "^24.15.0 || >=26.0.0", npm: "12.2.1" }`. The `packageManager` field
-  exists for Dependabot, which reads it to pick the npm that regenerates the lockfile. No
-  workflow runs Corepack and no contributor is asked to enable it. The node range is npm's
-  supported lines minus 22: CI, the images and the e2e container run Node 24 (ADR 0006),
-  and a wider range would only advertise versions nobody tests.
+  `engines: { node: "^24.15.0", npm: "12.2.1" }`. The `packageManager` field exists for
+  Dependabot, which reads it to pick the npm that regenerates the lockfile. No workflow
+  runs Corepack and no contributor is asked to enable it. The node range is the single
+  line CI tests: CI, the images and the e2e container run Node 24 (ADR 0006), and a wider
+  range would only advertise versions nobody tests.
 - The pin is an exact semver, not a major. Corepack validates the field wherever it is
   enabled, so `"npm@12"` makes every npm command fail on a machine that has Corepack
   shims on `PATH` (`Invalid package manager specification in package.json (npm@12);
@@ -44,10 +44,9 @@ selection is explicit: each job installs npm itself.
   old `npm install -g npm@11.5.1`, so the OIDC floor stops being a pin hidden in four
   places and becomes the declared version.
 - `engines.npm` is pinned exactly because the npm version dictates which lockfile npm
-  writes, and `engines.node` is `^24.15.0 || >=26.0.0`. `engine-strict=true` in `.npmrc`
-  turns both `engines` entries into hard errors on a developer machine: running npm 11
-  here fails with
-  `Unsupported engine … Required: {"node":"^24.15.0 || >=26.0.0","npm":"12.2.1"}`
+  writes, and `engines.node` is `^24.15.0`. `engine-strict=true` in `.npmrc` turns both
+  `engines` entries into hard errors on a developer machine: running npm 11 here fails
+  with `Unsupported engine … Required: {"node":"^24.15.0","npm":"12.2.1"}`
   instead of quietly rewriting the lockfile. Global installs are exempt, so the
   `npm install -g npm@12.2.1` step of a job is not blocked by the check it is about to
   fix. Caveat: `engine-strict` also applies to the `engines` of every dependency, so a
