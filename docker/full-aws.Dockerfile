@@ -1,4 +1,4 @@
-FROM node:22-bookworm AS builder
+FROM node:24-bookworm AS builder
 
 ENV LERNA="8.1.9"
 ENV NCC="0.38.3"

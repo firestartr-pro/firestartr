@@ -1,6 +1,6 @@
 FROM ghcr.io/opentofu/opentofu:1.10-minimal AS opentofu
 
-FROM node:22-bookworm
+FROM node:24-bookworm
 
 ENV LERNA_VERSION=8.1.9
 ENV TSX_VERSION=4.19.3

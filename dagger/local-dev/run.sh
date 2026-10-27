@@ -171,7 +171,7 @@ build_and_load_image() {
         echo "✅ nginx:alpine loaded into kind."
     fi
 
-    # For the dev pod (Node 22 + tofu + tsx): build from docker/dev.Dockerfile
+    # For the dev pod (Node 24 + tofu + tsx): build from docker/dev.Dockerfile
     if image_loaded_in_kind "${IMAGE_TAG}"; then
         echo "✅ Dev image ${IMAGE_TAG} already loaded in kind, skipping."
     else
