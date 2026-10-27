@@ -42,10 +42,7 @@ export const operatorSubcommands: Subcommand = {
         `OPERATOR_PLAN_MODE must be 'true' or 'false' (or unset), got '${planModeEnv}'; refusing to start`,
       );
     }
-    if (
-      (options['plan-mode'] || planModeEnv === 'true') &&
-      options['apply']
-    )
+    if ((options['plan-mode'] || planModeEnv === 'true') && options['apply'])
       throw 'Error: --plan-mode cannot be combined with --apply';
 
     if (options['plan'] || options['apply']) {
