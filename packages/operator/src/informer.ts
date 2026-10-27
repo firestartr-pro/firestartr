@@ -38,6 +38,7 @@ import log from './logger';
 import { logActivity } from './activity-log';
 import { isPlanMode } from './plan-mode/config';
 import { planStartupOperation } from './plan-mode/startup';
+import { planRecordsSync } from './plan-mode/work-items';
 import { needsDeletionBlocking } from './dependants';
 
 import { OperationType, WorkStatus } from './definitions';
@@ -433,7 +434,7 @@ function enqueue(
     if (isPlanMode()) {
       yield* compute(item, operation, handler);
 
-      if (operation !== OperationType.MARKED_TO_DELETION) {
+      if (planRecordsSync(operation)) {
         await setSyncStatus(
           workItem.handler.itemPath(),
           operation,

@@ -8,7 +8,10 @@ jest.mock('../src/status', () => ({
 }));
 
 import { getItemByItemPath } from '../src/ctl';
+import { OperationType } from '../src/definitions';
 import { initPlanMode } from '../src/plan-mode/config';
+import { planStartupOperation } from '../src/plan-mode/startup';
+import { planRecordsSync } from '../src/plan-mode/work-items';
 import { updateSyncTransition } from '../src/status';
 import {
   createWatcherForItem,
@@ -18,6 +21,7 @@ import {
 } from '../src/syncCtl';
 
 const ITEM_PATH = 'default/firestartrterraformworkspaces/ws';
+const OTHER_ITEM_PATH = 'default/firestartrterraformworkspaces/ws-2';
 
 const overdueHourlyCr = {
   kind: 'FirestartrTerraformWorkspace',
@@ -71,5 +75,20 @@ describe('Plan mode synchronization', () => {
     );
 
     await destroyWatcherForItem(watcher);
+  });
+
+  it('keeps an overdue sync due when startup only writes a NOTHING artifact', async () => {
+    const operation = planStartupOperation(overdueHourlyCr);
+
+    expect(operation).toBe(OperationType.NOTHING);
+    expect(planRecordsSync(operation)).toBe(false);
+
+    expect((await getSyncStatus(OTHER_ITEM_PATH)).intervalLapsed).toBe(true);
+  });
+
+  it('records a sync for every other finished plan except deletions', () => {
+    expect(planRecordsSync(OperationType.SYNC)).toBe(true);
+    expect(planRecordsSync(OperationType.UPDATED)).toBe(true);
+    expect(planRecordsSync(OperationType.MARKED_TO_DELETION)).toBe(false);
   });
 });
