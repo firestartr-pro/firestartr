@@ -307,6 +307,10 @@ function enqueue(
 
   workItem.isDeadLetter = false;
 
+  // Plan mode: whether the plan in flight reported a failure to the retry
+  // controller, which then owns the next attempt
+  let planFailed = false;
+
   workItem.handler = {
     finalize: unsetFinalizer,
 
@@ -369,7 +373,11 @@ function enqueue(
 
     itemPath: () => itemPath(pluralKind, workItem.item),
 
-    error: () => retryCtl.errorReconciling(itemPath(pluralKind, workItem.item)),
+    error: () => {
+      planFailed = true;
+
+      return retryCtl.errorReconciling(itemPath(pluralKind, workItem.item));
+    },
 
     success: () =>
       retryCtl.successReconciling(itemPath(pluralKind, workItem.item)),
@@ -432,7 +440,26 @@ function enqueue(
     handler: any,
   ) {
     if (isPlanMode()) {
-      yield* compute(item, operation, handler);
+      planFailed = false;
+
+      // A failed plan must not rearm periodic sync: a new SYNC would clear
+      // the pending retry and reset its budget, bypassing backoff and the
+      // retry limit. The sync is rearmed when a later plan succeeds.
+      const suspendSync = () => syncCtl.deleteItem(itemPath(pluralKind, item));
+
+      try {
+        yield* compute(item, operation, handler);
+      } catch (e) {
+        suspendSync();
+
+        throw e;
+      }
+
+      if (planFailed) {
+        suspendSync();
+
+        return;
+      }
 
       if (planRecordsSync(operation, item)) {
         await setSyncStatus(
