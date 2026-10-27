@@ -56,6 +56,14 @@ export class EntityGHFeature extends Entity {
           await this.preApplyStateRm(installedManagedFiles);
         }
 
+        // A forward plan models preApplyStateRm by excluding the same
+        // addresses from the plan, leaving the live state untouched
+        if (tfOp === 'plan') {
+          this.planExcludes = await this.preApplyStateRmAddresses(
+            installedManagedFiles,
+          );
+        }
+
         if (tfOp === 'destroy') {
           await this.keepUntrackedFiles(tfOp);
         }
@@ -142,41 +150,10 @@ export class EntityGHFeature extends Entity {
    * feature definition or are still under user control from a previous apply.
    */
   async preApplyStateRm(installedManagedFiles: string[]): Promise<void> {
-    if (installedManagedFiles.length === 0) return;
-
     try {
-      const stateListOutput = await runOnTerraform(this, 'custom-command', [
-        'state',
-        'list',
-      ]);
-
-      const stateAddresses = parseStateList(stateListOutput);
-
-      // Files that are transitioning from userManaged:true → false must NOT be
-      // state-rm'd because Terraform needs them in state to manage them going forward.
-      const transitioningToManaged = new Set(
-        (this.cr.spec.files ?? [])
-          .filter((f: any) => !f.userManaged)
-          .map(
-            (f: any) =>
-              `${f.path}/${f.targetBranch || this.cr.spec.repositoryTarget.branch}`,
-          ),
+      const addressesToRemove = await this.preApplyStateRmAddresses(
+        installedManagedFiles,
       );
-
-      const addressesToRemove = stateAddresses.filter((addr) => {
-        const match = addr.match(
-          /^github_repository_file\.user_managed\["(.+)"\]$/,
-        );
-
-        if (!match) return false;
-
-        const fileAddress = match[1];
-
-        return (
-          installedManagedFiles.includes(fileAddress) &&
-          !transitioningToManaged.has(fileAddress)
-        );
-      });
 
       if (addressesToRemove.length > 0) {
         log.info(
@@ -194,6 +171,44 @@ export class EntityGHFeature extends Entity {
         `[gh-provisioner] ${this.k8sId} pre-apply state rm failed: ${err}`,
       );
     }
+  }
+
+  /** Addresses preApplyStateRm removes from state (read-only). */
+  async preApplyStateRmAddresses(
+    installedManagedFiles: string[],
+  ): Promise<string[]> {
+    if (installedManagedFiles.length === 0) return [];
+
+    const stateListOutput = await runOnTerraform(this, 'custom-command', [
+      'state',
+      'list',
+    ]);
+
+    // Files that are transitioning from userManaged:true → false must NOT be
+    // state-rm'd because Terraform needs them in state to manage them going forward.
+    const transitioningToManaged = new Set(
+      (this.cr.spec.files ?? [])
+        .filter((f: any) => !f.userManaged)
+        .map(
+          (f: any) =>
+            `${f.path}/${f.targetBranch || this.cr.spec.repositoryTarget.branch}`,
+        ),
+    );
+
+    return parseStateList(stateListOutput).filter((addr) => {
+      const match = addr.match(
+        /^github_repository_file\.user_managed\["(.+)"\]$/,
+      );
+
+      if (!match) return false;
+
+      const fileAddress = match[1];
+
+      return (
+        installedManagedFiles.includes(fileAddress) &&
+        !transitioningToManaged.has(fileAddress)
+      );
+    });
   }
 
   /**

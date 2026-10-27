@@ -308,6 +308,23 @@ describe('EntityGHFeature – provision-once-then-untrack', () => {
       );
       expect(stateRm).toHaveLength(0);
     });
+
+    it('plan excludes legacy installed user-managed files instead of removing them from state', async () => {
+      mockRunOnTerraform.mockResolvedValue(
+        'github_repository_file.managed["ci.yml/main"]\n' +
+          'github_repository_file.user_managed["README.md/main"]',
+      );
+
+      await entity.loadResources('plan');
+
+      expect(entity.planExcludes).toEqual([
+        'github_repository_file.user_managed["README.md/main"]',
+      ]);
+      const stateRm = mockRunOnTerraform.mock.calls.filter(
+        ([, cmd, args]: any) => cmd === 'custom-command' && args?.[1] === 'rm',
+      );
+      expect(stateRm).toHaveLength(0);
+    });
   });
 
   // -------------------------------------------------------------------------
@@ -461,6 +478,32 @@ describe('EntityGHFeature – provision-once-then-untrack', () => {
       expect(stateRmCall![2]).not.toContain(
         'github_repository_file.user_managed["README.md/main"]',
       );
+    });
+
+    it('plan keeps the transitioning file out of the exclusions', async () => {
+      entity = createEntity(['README.md/main', 'CONTRIBUTING.md/main'], [
+        {
+          path: 'README.md',
+          content: Buffer.from('# Hello').toString('base64'),
+          userManaged: false,
+        },
+        {
+          path: 'CONTRIBUTING.md',
+          content: Buffer.from('# Contributing').toString('base64'),
+          userManaged: true,
+        },
+      ]);
+
+      mockRunOnTerraform.mockResolvedValue(
+        'github_repository_file.user_managed["README.md/main"]\n' +
+          'github_repository_file.user_managed["CONTRIBUTING.md/main"]',
+      );
+
+      await entity.loadResources('plan');
+
+      expect(entity.planExcludes).toEqual([
+        'github_repository_file.user_managed["CONTRIBUTING.md/main"]',
+      ]);
     });
   });
 
