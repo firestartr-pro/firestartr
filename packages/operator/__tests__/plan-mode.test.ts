@@ -351,6 +351,21 @@ describe('Plan mode: Terraform workspaces', () => {
       'NOTHING',
     );
   });
+
+  it('writes artifacts owner-only, even over a leftover world-readable temp file', async () => {
+    const dir = path.join(outputDir, 'FirestartrTerraformWorkspace');
+    fs.mkdirSync(dir, { recursive: true });
+    for (const ext of ['md', 'json']) {
+      fs.writeFileSync(path.join(dir, `ws.${ext}.tmp`), 'stale', { mode: 0o644 });
+    }
+
+    await drain(planTerraformOperation(tfItem(), OperationType.UPDATED, handler()));
+
+    for (const ext of ['md', 'json']) {
+      expect(fs.statSync(path.join(dir, `ws.${ext}`)).mode & 0o777).toBe(0o600);
+      expect(fs.existsSync(path.join(dir, `ws.${ext}.tmp`))).toBe(false);
+    }
+  });
 });
 
 describe('Plan mode: GitHub kinds', () => {

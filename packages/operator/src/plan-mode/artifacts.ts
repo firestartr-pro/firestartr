@@ -93,7 +93,11 @@ export function planSummaryLine(
 async function writeFileAtomically(file: string, content: string) {
   const tmp = `${file}.tmp`;
 
-  await fs.writeFile(tmp, content);
+  // Plans can hold sensitive values: never reuse a leftover temp file, and
+  // create it owner-only before any content lands in it.
+  await fs.rm(tmp, { force: true });
+
+  await fs.writeFile(tmp, content, { mode: 0o600, flag: 'wx' });
 
   await fs.rename(tmp, file);
 }
