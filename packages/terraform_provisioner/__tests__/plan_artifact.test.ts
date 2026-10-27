@@ -1,6 +1,7 @@
 import { EventEmitter } from 'events';
 import { PassThrough } from 'stream';
 import { planArtifact, PLAN_ARTIFACT_FILE } from '../src/utils';
+import log from '../src/logger';
 
 jest.mock('child_process', () => ({
   ...jest.requireActual('child_process'),
@@ -102,5 +103,55 @@ describe('planArtifact', () => {
 
     await expect(planArtifact('/tmp/fake', [], false)).rejects.toThrow('boom');
     expect(spawn).toHaveBeenCalledTimes(1);
+  });
+
+  describe('keeps the JSON rendering out of logs and errors', () => {
+    const SECRET = 's3cr3t-value';
+    const SECRET_JSON = JSON.stringify({ ...PLAN_JSON, variables: { token: { value: SECRET } } });
+
+    function loggedText(): string {
+      return [infoSpy, errorSpy]
+        .flatMap((spy) => spy.mock.calls)
+        .map((call) => call.join(' '))
+        .join('\n');
+    }
+
+    let infoSpy: jest.SpyInstance;
+    let errorSpy: jest.SpyInstance;
+
+    beforeEach(() => {
+      infoSpy = jest.spyOn(log, 'info');
+      errorSpy = jest.spyOn(log, 'error');
+    });
+
+    afterEach(() => jest.restoreAllMocks());
+
+    it('on success, while still returning the JSON', async () => {
+      (spawn as jest.Mock).mockImplementation((_bin: string, args: string[]) => {
+        if (args[0] === 'plan') return fakeTofuProcess(0, 'planned\n');
+        if (args.includes('-json')) return fakeTofuProcess(0, SECRET_JSON);
+        return fakeTofuProcess(0, PLAN_TEXT);
+      });
+
+      const artifact = await planArtifact('/tmp/fake', [], false);
+
+      expect(artifact.json.variables.token.value).toBe(SECRET);
+      expect(loggedText()).not.toContain(SECRET);
+    });
+
+    it('on failure', async () => {
+      (spawn as jest.Mock).mockImplementation((_bin: string, args: string[]) => {
+        if (args[0] === 'plan') return fakeTofuProcess(0, 'planned\n');
+        if (args.includes('-json')) return fakeTofuProcess(1, SECRET_JSON);
+        return fakeTofuProcess(0, PLAN_TEXT);
+      });
+
+      const error = await planArtifact('/tmp/fake', [], false).catch((e) => e);
+
+      expect(error).toBeInstanceOf(Error);
+      expect(String(error.message)).not.toContain(SECRET);
+      expect(JSON.stringify(error)).not.toContain(SECRET);
+      expect(loggedText()).not.toContain(SECRET);
+    });
   });
 });

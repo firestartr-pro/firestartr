@@ -247,6 +247,7 @@ export async function planArtifact(
       [],
       undefined,
       ctl,
+      { quiet: true },
     )) as string,
   );
 
@@ -331,6 +332,8 @@ export async function output(path: string, secrets: any[]) {
   return await tfExec(path, ['output', '-json'], secrets, []);
 }
 
+export type TfExecOptions = { quiet?: boolean };
+
 export async function tfExec(
   path: string,
   args: Array<string>,
@@ -338,8 +341,12 @@ export async function tfExec(
   extraArgs = ['-input=false'],
   stream?: PassThrough,
   ctl?: ProcessHandler,
+  opts: TfExecOptions = {},
 ) {
   const env: any = {};
+  // Quiet runs keep stdout out of logs and errors: it may hold sensitive values.
+  const shown = (output: string, outputErrors: string) =>
+    opts.quiet ? outputErrors : [output, outputErrors].join('');
   const tfCacheDir =
     typeof ctl?.tfCacheDir === 'string' && ctl.tfCacheDir.trim() !== ''
       ? ctl.tfCacheDir
@@ -417,12 +424,10 @@ export async function tfExec(
       // this process has been killed/terminated
       // by timeout (not in our control)
       if (processTimeout) {
-        log.error(
-          `Terraform output ${path}: ${[output, outputErrors].join('')}`,
-        );
+        log.error(`Terraform output ${path}: ${shown(output, outputErrors)}`);
         ko(
           common.generic.buildCommandExecutionError(
-            [output, outputErrors, '\n<PROCESS TIMEOUT>'].join(''),
+            shown(output, outputErrors) + '\n<PROCESS TIMEOUT>',
             common.generic.normalizeExitCode(code),
             args.concat(extraArgs),
             {
@@ -436,12 +441,10 @@ export async function tfExec(
       }
 
       if (code !== 0) {
-        log.error(
-          `Terraform output ${path}: ${[output, outputErrors].join('')}`,
-        );
+        log.error(`Terraform output ${path}: ${shown(output, outputErrors)}`);
         ko(
           common.generic.buildCommandExecutionError(
-            [output, outputErrors].join(''),
+            shown(output, outputErrors),
             common.generic.normalizeExitCode(code),
             args.concat(extraArgs),
             {
@@ -451,7 +454,11 @@ export async function tfExec(
           ),
         );
       } else {
-        log.info(`Terraform output ${path}: ${output}`);
+        log.info(
+          opts.quiet
+            ? `Terraform output ${path}: <${output.length} bytes, not logged>`
+            : `Terraform output ${path}: ${output}`,
+        );
         ok(output);
       }
     });
