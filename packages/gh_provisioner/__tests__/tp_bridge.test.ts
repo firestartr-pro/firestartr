@@ -79,7 +79,39 @@ describe('runOnTerraform apply routing', () => {
     mockRunTerraformProvisioner.mockResolvedValue('apply output');
   });
 
-  it('runs single apply with importMode=true when import entries are pending', async () => {
+  it.each(['apply', 'plan-artifact'])(
+    'runs %s with importMode=true when import entries are pending',
+    async (command) => {
+      entity.patchImportData({
+        op: PatchOperations.add,
+        path: '/imports/-',
+        value: {
+          to: 'github_issue_label.this["label1"]',
+          id: 'test-repo:label1',
+        },
+      });
+
+      await runOnTerraform(entity, command);
+
+      expect(mockRunTerraformProvisioner).toHaveBeenCalledTimes(1);
+      expect(mockRunTerraformProvisioner).toHaveBeenCalledWith(
+        expect.objectContaining({ importMode: true }),
+        command,
+        null,
+        expect.objectContaining({
+          imports: [
+            expect.objectContaining({
+              to: 'github_issue_label.this["label1"]',
+              id: 'test-repo:label1',
+            }),
+          ],
+        }),
+        undefined,
+      );
+    },
+  );
+
+  it('does not carry imports into a destroy artifact plan', async () => {
     entity.patchImportData({
       op: PatchOperations.add,
       path: '/imports/-',
@@ -89,21 +121,13 @@ describe('runOnTerraform apply routing', () => {
       },
     });
 
-    await runOnTerraform(entity, 'apply');
+    await runOnTerraform(entity, 'plan-destroy-artifact');
 
-    expect(mockRunTerraformProvisioner).toHaveBeenCalledTimes(1);
     expect(mockRunTerraformProvisioner).toHaveBeenCalledWith(
-      expect.objectContaining({ importMode: true }),
-      'apply',
+      expect.objectContaining({ importMode: false }),
+      'plan-destroy-artifact',
       null,
-      expect.objectContaining({
-        imports: [
-          expect.objectContaining({
-            to: 'github_issue_label.this["label1"]',
-            id: 'test-repo:label1',
-          }),
-        ],
-      }),
+      undefined,
       undefined,
     );
   });
