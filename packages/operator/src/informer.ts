@@ -36,6 +36,7 @@ import { resolveSecretRef } from './resolver';
 
 import log from './logger';
 import { logActivity } from './activity-log';
+import { isPlanMode } from './plan-mode/config';
 
 import { OperationType, WorkStatus } from './definitions';
 import type { WorkItemHandler, WorkItem } from './definitions';
@@ -126,8 +127,10 @@ export async function observeKind(
         `The informer has detected a new item, '${item.metadata.name}', for '${pluralKind}' in namespace '${namespace}'.`,
       );
 
-      await handleUpsertFinalizer(pluralKind, namespace, item);
-      await upsertInitialStatus(pluralKind, namespace, item);
+      if (!isPlanMode()) {
+        await handleUpsertFinalizer(pluralKind, namespace, item);
+        await upsertInitialStatus(pluralKind, namespace, item);
+      }
 
       const workItem: WorkItem | null = await inform(
         pluralKind,
@@ -234,7 +237,9 @@ export async function observeKind(
             common.types.controller.FirestartrLabelOldName
           ];
 
-        await handleUnsetFinalizer(pluralKind, namespace, item);
+        if (!isPlanMode()) {
+          await handleUnsetFinalizer(pluralKind, namespace, item);
+        }
 
         // Remove the old item from the syncer, only new item will should be provisioned
         syncCtl.deleteItem(
@@ -454,6 +459,12 @@ function enqueue(
     operation: OperationType,
     handler: any,
   ) {
+    if (isPlanMode()) {
+      yield* compute(item, operation, handler);
+
+      return;
+    }
+
     const needsUpdateSyncConditions =
       operation === OperationType.RENAMED ||
       operation === OperationType.UPDATED ||
@@ -640,7 +651,10 @@ async function inform(
       const errorCondition = item.status?.conditions?.find(
         (c: any) => c.type === 'ERROR' && c.status === 'True',
       );
-      const retryOp = retryOpForReason(errorCondition?.reason);
+      // Plan mode retries its own failed plans, not the live operator's errors
+      const retryOp = isPlanMode()
+        ? OperationType.RETRY
+        : retryOpForReason(errorCondition?.reason);
 
       workItem = {
         operation: retryOp,

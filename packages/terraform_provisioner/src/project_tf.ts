@@ -5,6 +5,7 @@ import {
   init,
   output,
   plan,
+  planArtifact,
   validate,
 } from './utils';
 import { WriterAdditionalFiles } from './writer_additional_files';
@@ -394,6 +395,20 @@ export class TFProjectManager {
       this.stream,
       this.ctl,
     );
+  }
+
+  async planArtifact(destroy: boolean) {
+    await this.__init();
+
+    this.tfOutput = await planArtifact(
+      this.projectPath,
+      this.secrets,
+      destroy,
+      this.stream,
+      this.ctl,
+    );
+
+    if (this.stream) this.stream.end();
   }
 
   async apply() {

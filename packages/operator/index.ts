@@ -24,6 +24,13 @@ import metricsServer from './src/metricsServer';
 
 import { getOperatorEnvSnapshot } from './src/operator-env';
 
+import { initPlanMode, isPlanMode } from './src/plan-mode/config';
+import {
+  planGithubOperation,
+  planTerraformOperation,
+  planUnsupportedOperation,
+} from './src/plan-mode/process-operation';
+
 import { initActivityLog } from './src/activity-log';
 import log from './src/logger';
 
@@ -43,12 +50,6 @@ export function isImportModeSkipPlan() {
   return importModeSkipPlanActive;
 }
 
-let observeModeActive = false;
-
-export function isObserveModeActive() {
-  return observeModeActive;
-}
-
 // ---- TFM Mirror Startup Coordination ----
 // ----------------------------------------------------------
 // (warmup and legacy provisioner code replaced by TFM mirror system)
@@ -61,9 +62,24 @@ export function runOperator(opts: any) {
     kindList,
     importMode,
     importModeSkipPlan,
-    observeMode,
     withMetrics,
+    planMode,
+    planOutputDir,
   } = opts;
+
+  const planModeConfig = initPlanMode({
+    flag: planMode,
+    env: common.environment.getFromEnvironment(
+      common.types.envVars.operatorPlanMode,
+    ),
+    outputDir: planOutputDir,
+  });
+
+  if (planModeConfig.enabled) {
+    log.info(
+      `operator running in Plan mode: nothing will be applied or written; plans go to ${planModeConfig.outputDir}`,
+    );
+  }
 
   const implementedKinds = filterImplementedKinds(kindList);
 
@@ -75,8 +91,6 @@ export function runOperator(opts: any) {
       kindList.filter((k: string) => !implementedKinds.includes(k)),
     ),
   );
-
-  if (observeMode) observeModeActive = true;
 
   if (withMetrics) withMetricsMode = true;
 
@@ -95,23 +109,25 @@ export function runOperator(opts: any) {
     config: getOperatorEnvSnapshot(),
   });
 
-  const run = ignoreLease
-    ? async (_namespace: string, cb: Function) => {
-        await configureTFMMirrors();
-        await cb();
-      }
-    : async (namespace: string, cb: Function) => {
-        // Start tfm mirror warmup and lease acquisition concurrently, then await warmup before callback
-        const mirrorsPromise = configureTFMMirrors();
-        const leasePromise = new Promise<void>((resolve) => {
-          void acquireLease(namespace, async () => {
-            await mirrorsPromise;
-            resolve();
-            await cb();
+  // Plan mode never competes with the live operator for leadership
+  const run =
+    ignoreLease || planModeConfig.enabled
+      ? async (_namespace: string, cb: Function) => {
+          await configureTFMMirrors();
+          await cb();
+        }
+      : async (namespace: string, cb: Function) => {
+          // Start tfm mirror warmup and lease acquisition concurrently, then await warmup before callback
+          const mirrorsPromise = configureTFMMirrors();
+          const leasePromise = new Promise<void>((resolve) => {
+            void acquireLease(namespace, async () => {
+              await mirrorsPromise;
+              resolve();
+              await cb();
+            });
           });
-        });
-        await leasePromise;
-      };
+          await leasePromise;
+        };
 
   if (withMetricsMode) {
     void metricsServer(implementedKinds, namespace);
@@ -208,6 +224,21 @@ export function runOperator(opts: any) {
   })();
 }
 
+const planImplementations = {
+  terraformworkspaces: planTerraformOperation,
+  githubgroups: planGithubOperation,
+  githubrepositories: planGithubOperation,
+  githubrepositorysecretssections: planGithubOperation,
+  githubrepositoryfeatures: planGithubOperation,
+  githubmemberships: planGithubOperation,
+  githuborgwebhooks: planGithubOperation,
+  githuborganizationsettings: planGithubOperation,
+  githuborganizationvariablesections: planGithubOperation,
+  fsdummiesa: planUnsupportedOperation,
+  fsdummiesb: planUnsupportedOperation,
+  fsdummiesc: planUnsupportedOperation,
+};
+
 const provisionImplementations = {
   terraformworkspaces: processOperationTerraform,
   githubgroups: processOperationGH,
@@ -235,8 +266,12 @@ export function filterImplementedKinds(kindList: string[]): string[] {
 }
 
 function getProvisionImplementation(plural: string) {
+  const implementations = isPlanMode()
+    ? planImplementations
+    : provisionImplementations;
+
   const implementation =
-    provisionImplementations[plural as keyof typeof provisionImplementations];
+    implementations[plural as keyof typeof implementations];
 
   if (!implementation) throw new Error(`No implementation found for ${plural}`);
 

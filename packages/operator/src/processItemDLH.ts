@@ -1,6 +1,7 @@
 import { WorkItem, WorkStatus } from './informer';
 
 import log from './logger';
+import { isPlanMode } from './plan-mode/config';
 
 import { updateTransition } from './status';
 
@@ -21,6 +22,9 @@ export async function deadLetterHandler(workItem: WorkItem) {
   workItem.isDeadLetter = true;
 
   incrementDiagnosticErrorCount();
+
+  // Plan mode never writes status; the failure is already in the logs
+  if (isPlanMode()) return;
 
   // we try to put the CR in a correct state
   try {

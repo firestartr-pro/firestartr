@@ -12,7 +12,8 @@ export const operatorSubcommands: Subcommand = {
     { name: 'start', alias: 's', type: String },
     { name: 'importMode', type: Boolean, defaultValue: false },
     { name: 'importModeSkipPlan', type: Boolean, defaultValue: false },
-    { name: 'observeMode', type: Boolean, defaultValue: false },
+    { name: 'plan-mode', type: Boolean, defaultValue: false },
+    { name: 'plan-output-dir', type: String },
     { name: 'withMetrics', type: Boolean },
     { name: 'plan', type: Boolean },
     { name: 'apply', type: Boolean },
@@ -71,6 +72,8 @@ export const operatorSubcommands: Subcommand = {
         dummyExec,
         namespace,
         kindList,
+        planMode: options['plan-mode'],
+        planOutputDir: options['plan-output-dir'],
         ...options,
       });
     }

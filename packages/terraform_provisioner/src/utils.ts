@@ -1,6 +1,8 @@
 import { spawn } from 'child_process';
 import common from 'catalog_common';
 import { planGet } from './tf/analyzer';
+import { countPlanDocumentChanges } from './tf/plan_document';
+import type { PlanChangeCounts } from './tf/plan_document';
 
 import { PassThrough } from 'stream';
 
@@ -191,6 +193,64 @@ export async function plan(
   }
 
   return plan;
+}
+
+export const PLAN_ARTIFACT_FILE = 'firestartr-plan.out';
+
+export type PlanArtifact = {
+  text: string;
+  json: any;
+  summary: PlanChangeCounts;
+};
+
+/**
+ * Plans once into a plan file, without taking the state lock, and renders
+ * that same file as text and as JSON. The plan is advisory: it may read the
+ * state in the middle of a concurrent apply.
+ */
+export async function planArtifact(
+  path: string,
+  secrets: any[],
+  destroy: boolean,
+  stream?: PassThrough,
+  ctl?: ProcessHandler,
+): Promise<PlanArtifact> {
+  log.info(
+    `Running a lock-free terraform plan${destroy ? ' -destroy' : ''} into ${PLAN_ARTIFACT_FILE} in path ${path}`,
+  );
+
+  await tfExec(
+    path,
+    ['plan', `-out=${PLAN_ARTIFACT_FILE}`, '-lock=false'].concat(
+      destroy ? ['-destroy'] : [],
+    ),
+    secrets,
+    ['-input=false'],
+    stream,
+    ctl,
+  );
+
+  const text = (await tfExec(
+    path,
+    ['show', '-no-color', PLAN_ARTIFACT_FILE],
+    secrets,
+    [],
+    undefined,
+    ctl,
+  )) as string;
+
+  const json = JSON.parse(
+    (await tfExec(
+      path,
+      ['show', '-json', PLAN_ARTIFACT_FILE],
+      secrets,
+      [],
+      undefined,
+      ctl,
+    )) as string,
+  );
+
+  return { text, json, summary: countPlanDocumentChanges(json) };
 }
 
 export async function apply(

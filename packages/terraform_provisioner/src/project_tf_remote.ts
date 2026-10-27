@@ -5,6 +5,7 @@ import {
   initFromModule,
   output,
   plan,
+  planArtifact,
   validate,
   customCommand,
 } from './utils';
@@ -305,6 +306,20 @@ export class TFProjectManagerRemote {
         this.ctl,
       );
     }
+
+    if (this.stream) this.stream.end();
+  }
+
+  async planArtifact(destroy: boolean) {
+    await this.__init();
+
+    this.tfOutput = await planArtifact(
+      this.projectPath,
+      this.secrets,
+      destroy,
+      this.stream,
+      this.ctl,
+    );
 
     if (this.stream) this.stream.end();
   }

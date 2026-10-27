@@ -110,7 +110,7 @@ export async function runGhProvisioner(data: any, opts: any) {
     entity._terraformHasRun = true;
     const operationOutputs = await runOnTerraform(
       entity,
-      tfOp,
+      opts.planArtifact && isPlanOperation(tfOp) ? `${tfOp}-artifact` : tfOp,
       undefined,
       opts,
     );

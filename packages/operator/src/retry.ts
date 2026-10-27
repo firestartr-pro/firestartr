@@ -1,6 +1,7 @@
 import { getItemByItemPath } from './ctl';
 import { initRetryDebug, writeEventIfNew } from './retry.debug';
 import log from './logger';
+import { isPlanMode } from './plan-mode/config';
 
 type RetryWatcher = {
   itemPath: string;
@@ -146,6 +147,10 @@ export async function loop(enqueueIfNeeded: Function) {
 async function getItemIfNeededRetry(watcher: any) {
   try {
     const item: any = await getItemByItemPath(watcher.itemPath);
+
+    // In Plan mode the retry state is in memory only: the CR status belongs
+    // to the live operator and says nothing about our failed plan
+    if (isPlanMode()) return item;
 
     const isProvisioning = item.status?.conditions?.find(
       (condition: any) =>
