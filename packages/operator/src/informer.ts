@@ -463,6 +463,17 @@ function enqueue(
     if (isPlanMode()) {
       yield* compute(item, operation, handler);
 
+      if (operation !== OperationType.MARKED_TO_DELETION) {
+        await setSyncStatus(
+          workItem.handler.itemPath(),
+          operation,
+          'True',
+          'Plan process finished',
+        );
+
+        void syncCtl.updateItem(itemPath(pluralKind, item));
+      }
+
       return;
     }
 

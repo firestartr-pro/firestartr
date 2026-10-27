@@ -10,7 +10,12 @@ import log from './logger';
 
 import { SYNC_DEFAULT_ERROR_MESSAGE } from './utils/operationErrorMessages';
 
+import { isPlanMode } from './plan-mode/config';
+
 const DEFAULT_REVISION_TIME = '1m';
+
+/** Plan mode's in-memory SYNCHRONIZED condition per item path. */
+const planSyncShadow = new Map<string, Condition>();
 
 export type SyncMode = 'Scheduled' | 'Period' | 'NotSyncable';
 
@@ -151,10 +156,9 @@ export async function getSyncStatus(
 ): Promise<SyncStatus> {
   const item: any = itemCR ?? (await getItemByItemPath(itemPath));
 
-  const syncCondition = getConditionByType(
-    item.status?.conditions ?? [],
-    'SYNCHRONIZED',
-  );
+  const syncCondition =
+    (isPlanMode() && planSyncShadow.get(itemPath)) ||
+    getConditionByType(item.status?.conditions ?? [], 'SYNCHRONIZED');
 
   // no sync condition present
   if (!syncCondition) {
@@ -204,6 +208,13 @@ export async function setSyncStatus(
 
   syncStatus.itemPath = itemPath;
   syncStatus.syncStatusPresent = true;
+
+  if (isPlanMode()) {
+    // Plan mode never writes CR status: the syncer rearms from this shadow
+    planSyncShadow.set(itemPath, syncStatus.conditions[0]);
+
+    return syncStatus;
+  }
 
   log.info(
     `Setting sync status for ${itemPath}: ${JSON.stringify(syncStatus)}`,
