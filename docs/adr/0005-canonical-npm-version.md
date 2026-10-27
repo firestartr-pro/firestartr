@@ -25,12 +25,11 @@ selection is explicit: each job installs npm itself.
 ## Decision
 
 - The root `package.json` declares `"packageManager": "npm@12.2.1"` and
-  `engines: { node: "^22.22.2 || ^24.15.0 || >=26.0.0", npm: "12.2.1" }`. The
-  `packageManager` field exists for Dependabot, which reads it to pick the npm that
-  regenerates the lockfile. No workflow runs Corepack and no contributor is asked to
-  enable it. CI and the images run Node 24 (ADR 0006); `engines.node` repeats npm's own
-  support range rather than `>=22`, because a wider range would advertise Node versions
-  npm 12.2.1 cannot run on.
+  `engines: { node: "^24.15.0 || >=26.0.0", npm: "12.2.1" }`. The `packageManager` field
+  exists for Dependabot, which reads it to pick the npm that regenerates the lockfile. No
+  workflow runs Corepack and no contributor is asked to enable it. The node range is npm's
+  supported lines minus 22: CI, the images and the e2e container run Node 24 (ADR 0006),
+  and a wider range would only advertise versions nobody tests.
 - The pin is an exact semver, not a major. Corepack validates the field wherever it is
   enabled, so `"npm@12"` makes every npm command fail on a machine that has Corepack
   shims on `PATH` (`Invalid package manager specification in package.json (npm@12);
@@ -44,10 +43,11 @@ selection is explicit: each job installs npm itself.
   `promote_docs` and `promote_claims_schema`. In the publish workflows this replaces the
   old `npm install -g npm@11.5.1`, so the OIDC floor stops being a pin hidden in four
   places and becomes the declared version.
-- `engines.node` is npm 12.2.1's own range because the npm version is what dictates the
-  Node versions it can run on. `engine-strict=true` in `.npmrc` turns both `engines`
-  entries into hard errors on a developer machine: running npm 11 here fails with
-  `Unsupported engine … Required: {"node":"^22.22.2 || ^24.15.0 || >=26.0.0","npm":"12.2.1"}`
+- `engines.npm` is pinned exactly because the npm version dictates which lockfile npm
+  writes, and `engines.node` is `^24.15.0 || >=26.0.0`. `engine-strict=true` in `.npmrc`
+  turns both `engines` entries into hard errors on a developer machine: running npm 11
+  here fails with
+  `Unsupported engine … Required: {"node":"^24.15.0 || >=26.0.0","npm":"12.2.1"}`
   instead of quietly rewriting the lockfile. Global installs are exempt, so the
   `npm install -g npm@12.2.1` step of a job is not blocked by the check it is about to
   fix. Caveat: `engine-strict` also applies to the `engines` of every dependency, so a
@@ -63,13 +63,15 @@ selection is explicit: each job installs npm itself.
   {"npm":"12.2.1"} Actual: {"npm":"11.19.1"}`). Passing `--no-engine-strict` to those
   installs was rejected: `npm ci` never rewrites the lockfile, but exempting the image
   builds would leave one place where the declared version does not apply.
-- The e2e Dagger module does the same in `PrepareTestContainer` (`dagger/etoe/e2e.go`):
-  it installs Alpine's npm and then runs `npm install` on the mounted repository. Alpine
-  3.22 already ships Node 22.23.4 but only npm 11.6.4, so the container upgrades npm
-  before the workspace install, in its own `WithExec`. Its later `npm run …` test commands
-  are unaffected either way. That container is the reason `engines.node` keeps admitting
-  22: the image comes from the upstream `firestartr-core` module and its Alpine Node is
-  not ours to bump.
+- The e2e Dagger module needs the same Node, and its container is the one place we do not
+  build ourselves: it comes from the upstream `firestartr-core` module, which starts from
+  `alpine:latest`. `PrepareTestContainer` (`dagger/etoe/e2e.go`) installs Alpine's `npm`,
+  `python3` and `build-base`, then Node 24 from the pinned Alpine v3.24 repository
+  (`nodejs~24`) — Alpine 3.22, still what a stale `latest` can resolve to, only packages
+  Node 22 — then npm 12.2.1, and only then runs `npm install` on the mounted repository,
+  which reads the root `.npmrc` and therefore enforces `engine-strict`. Pinning the
+  repository keeps the runtime at 24 while `alpine:latest` moves; moving to Node 26 means
+  editing that line.
 - Feature-managed workflows are not edited by hand. The npm calls in `make_dispatches`,
   `trigger_deployment` and `build_images_summary_reusable` run in a workspace with no
   manifest, so they are outside this decision.
@@ -82,9 +84,10 @@ selection is explicit: each job installs npm itself.
   editing `package.json`, those ten steps and the lockfile together; a repository variable
   would remove the repetition but also the review, so it was rejected. A future check
   could assert that every `npm install -g npm@…` matches `package.json`.
-- `engines.node` admits Node 22 but CI only exercises Node 24 (ADR 0006). A developer on
-  Node 22.23 can still install and run, on a version no job tests — the trade accepted to
-  keep consumers of the published packages and the e2e container working.
+- `engines.node` starts at 24.15.0, so Node 22 no longer installs here even though npm
+  12.2.1 can run there: the repository tests one line, and 22 was only kept for the e2e
+  container. The published packages keep their own `>=22` engines; narrowing those is a
+  consumer-facing decision, not this one.
 - Dependabot's certainty is at major level. It runs
   `corepack install npm@12.2.1 --global --cache-only` inside its own image; when that
   exact release is missing from the image cache, `recover_from_failed_install` degrades to

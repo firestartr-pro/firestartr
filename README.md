@@ -14,7 +14,7 @@
   <a href="https://github.com/firestartr-pro/firestartr/actions/workflows/e2e.yaml"><img src="https://img.shields.io/github/actions/workflow/status/firestartr-pro/firestartr/e2e.yaml?branch=main&amp;style=flat-square&amp;label=e2e" alt="e2e" /></a>
   <a href="https://github.com/firestartr-pro/firestartr/blob/main/LICENSE"><img src="https://img.shields.io/github/license/firestartr-pro/firestartr?style=flat-square&amp;color=a6e3a1&amp;cacheSeconds=3600"" alt="Apache-2.0 license" /></a>
   <img src="https://img.shields.io/badge/TypeScript-5-89b4fa?style=flat-square&amp;logo=typescript" alt="TypeScript 5" />
-  <img src="https://img.shields.io/badge/Node-22%20%7C%2024-a6e3a1?style=flat-square&amp;logo=nodedotjs" alt="Node 22 or 24" />
+  <img src="https://img.shields.io/badge/Node-24-a6e3a1?style=flat-square&amp;logo=nodedotjs" alt="Node 24" />
   <img src="https://img.shields.io/badge/Go-Dagger%20e2e-89b4fa?style=flat-square&amp;logo=go" alt="Go and Dagger for e2e" />
 </p>
 
@@ -104,11 +104,18 @@ synced by Argo CD → reconciled by the **operator** → provisioned through
 
 ## Getting started
 
-Requirements: Node ≥ 22 and Docker. To run the operator locally you also
-need [kind](https://kind.sigs.k8s.io/) and `kubectl`. The e2e suites also need
-Go and [Dagger](https://dagger.io/).
+Requirements: Node 24, 24.15.0 or later (CI runs the latest 24.x), and Docker.
+
+The repository pins npm 12.2.1 and sets `engine-strict=true`, so install that
+npm before anything else. `packageManager` only switches npm when Corepack is
+enabled, and this repository does not use Corepack; any other npm makes `npm ci`
+fail with `EBADENGINE`.
+
+To run the operator locally you also need [kind](https://kind.sigs.k8s.io/) and
+`kubectl`. The e2e suites also need Go and [Dagger](https://dagger.io/).
 
 ```sh
+npm install -g npm@12.2.1     # pinned; npm ci fails with EBADENGINE otherwise
 npm ci                        # install every workspace
 make build                    # build all packages
 cd packages/<name>
