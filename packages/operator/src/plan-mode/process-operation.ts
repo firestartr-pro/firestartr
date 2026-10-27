@@ -259,6 +259,16 @@ async function* planOperation(
 ) {
   let result: PlanResult;
 
+  // A new reconciliation starts with a fresh retry budget; only RETRY and
+  // RETRY_SYNC continue the one the earlier failure opened
+  if (op !== OperationType.RETRY && op !== OperationType.RETRY_SYNC) {
+    try {
+      if (handler.removeFromRetry) handler.removeFromRetry();
+    } catch (e) {
+      log.warn(`Failed to clear retry watcher: ${e}`);
+    }
+  }
+
   if (deletionWaitsForDependants(item, op)) {
     decision = {
       skip: 'deletion waits for its dependants (foreground-deletion finalizer)',

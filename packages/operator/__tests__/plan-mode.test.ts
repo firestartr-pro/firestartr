@@ -386,6 +386,49 @@ describe('Plan mode: Terraform workspaces', () => {
     expect(h.success).not.toHaveBeenCalled();
   });
 
+  it.each([
+    OperationType.CREATED,
+    OperationType.UPDATED,
+    OperationType.SYNC,
+    OperationType.MARKED_TO_DELETION,
+  ])('clears the stale retry watcher before planning %s', async (op) => {
+    const removeFromRetry = jest.fn();
+    const h = handler({ removeFromRetry });
+
+    await drain(planTerraformOperation(tfItem(), op, h));
+
+    expect(removeFromRetry).toHaveBeenCalledTimes(1);
+  });
+
+  it.each([OperationType.RETRY, OperationType.RETRY_SYNC])(
+    'keeps the retry watcher when planning %s',
+    async (op) => {
+      const removeFromRetry = jest.fn();
+      const h = handler({ removeFromRetry });
+
+      await drain(planTerraformOperation(tfItem(), op, h));
+      await drain(planGithubOperation(ghItem(), op, h));
+
+      expect(removeFromRetry).not.toHaveBeenCalled();
+    },
+  );
+
+  it('clears the stale retry watcher before the new plan can fail', async () => {
+    mockTf.mockImplementation(async (_ctx: any, command: string) => {
+      if (command === 'tear-up-project') return { tornUp: true };
+      throw new Error('provider exploded');
+    });
+    const order: string[] = [];
+    const h = handler({
+      removeFromRetry: jest.fn(() => order.push('remove')),
+      error: jest.fn(() => order.push('error')),
+    });
+
+    await drain(planTerraformOperation(tfItem(), OperationType.UPDATED, h));
+
+    expect(order).toEqual(['remove', 'error']);
+  });
+
   it('schedules the retry before propagating an artifact write failure', async () => {
     const h = handler();
     const failure = new Error('ENOSPC: no space left on device');
