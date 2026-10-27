@@ -30,6 +30,9 @@ export const operatorSubcommands: Subcommand = {
     // This will show the command line options passed to the command
     console.table(options);
 
+    if (options['plan-mode'] && options['apply'])
+      throw 'Error: --plan-mode cannot be combined with --apply';
+
     if (options['plan'] || options['apply']) {
       if (!options['claim']) throw 'Error: Missing arg: --claim';
 
