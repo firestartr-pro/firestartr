@@ -406,6 +406,7 @@ export class TFProjectManager {
       destroy,
       this.stream,
       this.ctl,
+      this.ctx.planExcludes ?? [],
     );
 
     if (this.stream) this.stream.end();

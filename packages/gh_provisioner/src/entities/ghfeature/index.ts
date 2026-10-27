@@ -59,6 +59,12 @@ export class EntityGHFeature extends Entity {
         if (tfOp === 'destroy') {
           await this.keepUntrackedFiles(tfOp);
         }
+
+        // A destroy plan models keepUntrackedFiles by excluding the same
+        // addresses from the plan, leaving the live state untouched
+        if (tfOp === 'plan-destroy') {
+          this.planExcludes = await this.userManagedStateAddresses();
+        }
       }
 
       log.debug(`[gh-provisioner] ${this.k8sId} loaded its data`);
@@ -204,24 +210,7 @@ export class EntityGHFeature extends Entity {
         `[gh-provisioner] ${this.k8sId} loaded untrack files ${this.k8sId}`,
       );
 
-      // Propagate session fields from parent if present
-      if (this.parent) {
-        this.sessionId = this.parent.sessionId;
-        this.sessionProjectPath = this.parent.sessionProjectPath;
-        this.__ghProvisionerSessionWorkspaceInitialized =
-          this.parent.__ghProvisionerSessionWorkspaceInitialized;
-      }
-
-      const stateListOutput = await runOnTerraform(this, 'custom-command', [
-        'state',
-        'list',
-      ]);
-
-      const stateAddresses = parseStateList(stateListOutput);
-
-      const untrackedFiles = stateAddresses.filter((addr) =>
-        /^github_repository_file\.user_managed\[".+"\]$/.test(addr),
-      );
+      const untrackedFiles = await this.userManagedStateAddresses();
 
       log.info(
         `[gh-provisioner] ${this.k8sId} keeping the following files [${untrackedFiles.join(', ')}]`,
@@ -247,6 +236,26 @@ export class EntityGHFeature extends Entity {
         `[gh-provisioner] ${this.k8sId} on untracking files: ${err}`,
       );
     }
+  }
+
+  /** User-managed file addresses currently in state (read-only). */
+  async userManagedStateAddresses(): Promise<string[]> {
+    // Propagate session fields from parent if present
+    if (this.parent) {
+      this.sessionId = this.parent.sessionId;
+      this.sessionProjectPath = this.parent.sessionProjectPath;
+      this.__ghProvisionerSessionWorkspaceInitialized =
+        this.parent.__ghProvisionerSessionWorkspaceInitialized;
+    }
+
+    const stateListOutput = await runOnTerraform(this, 'custom-command', [
+      'state',
+      'list',
+    ]);
+
+    return parseStateList(stateListOutput).filter((addr) =>
+      /^github_repository_file\.user_managed\[".+"\]$/.test(addr),
+    );
   }
 
   async getFileContentFromProvider(

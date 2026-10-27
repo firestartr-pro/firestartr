@@ -291,6 +291,23 @@ describe('EntityGHFeature – provision-once-then-untrack', () => {
         ]),
       );
     });
+
+    it('plan-destroy excludes user-managed files from the plan instead of removing them from state', async () => {
+      mockRunOnTerraform.mockResolvedValue(
+        'github_repository_file.managed["ci.yml/main"]\n' +
+          'github_repository_file.user_managed["README.md/main"]',
+      );
+
+      await entity.loadResources('plan-destroy');
+
+      expect(entity.planExcludes).toEqual([
+        'github_repository_file.user_managed["README.md/main"]',
+      ]);
+      const stateRm = mockRunOnTerraform.mock.calls.filter(
+        ([, cmd, args]: any) => cmd === 'custom-command' && args?.[1] === 'rm',
+      );
+      expect(stateRm).toHaveLength(0);
+    });
   });
 
   // -------------------------------------------------------------------------

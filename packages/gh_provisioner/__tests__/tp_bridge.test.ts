@@ -111,6 +111,20 @@ describe('runOnTerraform apply routing', () => {
     },
   );
 
+  it('passes the entity plan excludes in the provisioner context', async () => {
+    entity.planExcludes = ['github_repository_file.user_managed["README.md/main"]'];
+
+    await runOnTerraform(entity, 'plan-destroy-artifact');
+
+    expect(mockRunTerraformProvisioner).toHaveBeenCalledWith(
+      expect.objectContaining({ planExcludes: entity.planExcludes }),
+      'plan-destroy-artifact',
+      null,
+      undefined,
+      undefined,
+    );
+  });
+
   it('does not carry imports into a destroy artifact plan', async () => {
     entity.patchImportData({
       op: PatchOperations.add,

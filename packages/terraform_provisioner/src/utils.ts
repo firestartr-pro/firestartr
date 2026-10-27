@@ -214,6 +214,7 @@ export async function planArtifact(
   destroy: boolean,
   stream?: PassThrough,
   ctl?: ProcessHandler,
+  excludes: string[] = [],
 ): Promise<PlanArtifact> {
   log.info(
     `Running a lock-free terraform plan${destroy ? ' -destroy' : ''} into ${PLAN_ARTIFACT_FILE} in path ${path}`,
@@ -221,9 +222,9 @@ export async function planArtifact(
 
   await tfExec(
     path,
-    ['plan', `-out=${PLAN_ARTIFACT_FILE}`, '-lock=false'].concat(
-      destroy ? ['-destroy'] : [],
-    ),
+    ['plan', `-out=${PLAN_ARTIFACT_FILE}`, '-lock=false']
+      .concat(destroy ? ['-destroy'] : [])
+      .concat(excludes.map((address) => `-exclude=${address}`)),
     secrets,
     ['-input=false'],
     stream,

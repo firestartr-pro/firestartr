@@ -167,6 +167,7 @@ export function buildContext(
     projectPath,
     reuseExistingProject: reuseExistingProjectOverride ? true : undefined, // only set if true
     importMode: importMode === true,
+    planExcludes: entity.planExcludes,
   };
 }
 

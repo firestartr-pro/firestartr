@@ -96,6 +96,16 @@ describe('planArtifact', () => {
     );
   });
 
+  it('leaves excluded addresses out of the plan', async () => {
+    await planArtifact('/tmp/fake', [], true, undefined, undefined, [
+      'github_repository_file.user_managed["README.md/main"]',
+    ]);
+
+    expect(tofuArgsOfCall(0)).toContain(
+      '-exclude=github_repository_file.user_managed["README.md/main"]',
+    );
+  });
+
   it('fails without rendering when the plan fails', async () => {
     (spawn as jest.Mock).mockImplementation(() =>
       fakeTofuProcess(1, 'Error: boom\n'),

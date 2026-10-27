@@ -51,6 +51,10 @@ export abstract class Entity {
     imports: [],
   };
 
+  // Addresses an artifact plan leaves out, to model state cleanup that the
+  // live operation would do first (e.g. `state rm`), without touching state
+  planExcludes: string[] = [];
+
   // Dependencies of this execution only: every ref this entity resolves
   // is looked up here, never in module state.
   _deps: Dependencies = {};
