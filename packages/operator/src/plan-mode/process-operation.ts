@@ -129,7 +129,13 @@ function processCtl(item: any, handler: any, planDecision: PlanDecision) {
   // instead of the 10-second NOTHING timeout. Preserve explicit custom timeouts.
   const isExecutablePlan = 'plan' in planDecision;
   const recommendedTimeout = handler.recommendedTimeout();
-  const isNothingTimeout = recommendedTimeout === 10;
+  const customTimeout = annotation(
+    item,
+    common.generic.getFirestartrAnnotation('test-custom-timeout'),
+  );
+  const isNothingTimeout =
+    recommendedTimeout === 10 &&
+    (customTimeout === undefined || isNaN(parseInt(customTimeout)));
 
   const hardTimeout =
     isExecutablePlan && isNothingTimeout ? 24 * 60 * 60 : recommendedTimeout; // DAY_SECONDS for planning
