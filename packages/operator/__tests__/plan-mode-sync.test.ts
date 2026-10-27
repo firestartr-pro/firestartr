@@ -84,15 +84,26 @@ describe('Plan mode synchronization', () => {
     const operation = planStartupOperation(overdueHourlyCr);
 
     expect(operation).toBe(OperationType.NOTHING);
-    expect(planRecordsSync(operation)).toBe(false);
+    expect(planRecordsSync(operation, overdueHourlyCr)).toBe(false);
 
     expect((await getSyncStatus(OTHER_ITEM_PATH)).intervalLapsed).toBe(true);
   });
 
   it('records a sync for every other finished plan except deletions', () => {
-    expect(planRecordsSync(OperationType.SYNC)).toBe(true);
-    expect(planRecordsSync(OperationType.UPDATED)).toBe(true);
-    expect(planRecordsSync(OperationType.MARKED_TO_DELETION)).toBe(false);
+    const live = { metadata: {} };
+
+    expect(planRecordsSync(OperationType.SYNC, live)).toBe(true);
+    expect(planRecordsSync(OperationType.UPDATED, live)).toBe(true);
+    expect(planRecordsSync(OperationType.MARKED_TO_DELETION, live)).toBe(false);
+  });
+
+  it('never rearms sync after a retried deletion plan', () => {
+    const deleting = {
+      metadata: { deletionTimestamp: '2026-01-01T00:00:00Z' },
+    };
+
+    expect(planRecordsSync(OperationType.RETRY, deleting)).toBe(false);
+    expect(planRecordsSync(OperationType.RETRY_SYNC, deleting)).toBe(false);
   });
 
   it('retries a failed sync plan as RETRY_SYNC and anything else as RETRY', () => {

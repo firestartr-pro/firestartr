@@ -434,7 +434,7 @@ function enqueue(
     if (isPlanMode()) {
       yield* compute(item, operation, handler);
 
-      if (planRecordsSync(operation)) {
+      if (planRecordsSync(operation, item)) {
         await setSyncStatus(
           workItem.handler.itemPath(),
           operation,
