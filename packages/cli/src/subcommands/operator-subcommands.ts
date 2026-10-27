@@ -42,8 +42,12 @@ export const operatorSubcommands: Subcommand = {
         `OPERATOR_PLAN_MODE must be 'true' or 'false' (or unset), got '${planModeEnv}'; refusing to start`,
       );
     }
-    if ((options['plan-mode'] || planModeEnv === 'true') && options['apply'])
-      throw 'Error: --plan-mode cannot be combined with --apply';
+    if (options['plan-mode'] || planModeEnv === 'true') {
+      for (const command of ['apply', 'plan', 'pull-request-plan']) {
+        if (options[command])
+          throw `Error: --plan-mode cannot be combined with --${command}`;
+      }
+    }
 
     if (options['plan'] || options['apply']) {
       if (!options['claim']) throw 'Error: Missing arg: --claim';
