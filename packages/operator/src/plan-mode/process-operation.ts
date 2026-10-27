@@ -22,6 +22,7 @@ import {
 import { extractErrorDetails } from '../utils';
 
 import {
+  PlanArtifactPaths,
   PlanRecord,
   PlanResult,
   planSummaryLine,
@@ -278,7 +279,17 @@ async function* planOperation(
     result,
   };
 
-  const paths = await writePlanArtifacts(record);
+  let paths: PlanArtifactPaths;
+
+  try {
+    paths = await writePlanArtifacts(record);
+  } catch (e) {
+    // The dead-letter handler finishes the work item: the retry has to be
+    // scheduled before the write error propagates, or this CR gets no artifact
+    handler.error();
+
+    throw e;
+  }
 
   const line = planSummaryLine(record, paths);
 

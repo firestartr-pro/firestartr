@@ -340,6 +340,20 @@ describe('Plan mode: Terraform workspaces', () => {
     expect(h.success).not.toHaveBeenCalled();
   });
 
+  it('schedules the retry before propagating an artifact write failure', async () => {
+    const h = handler();
+    const failure = new Error('ENOSPC: no space left on device');
+    const mkdir = jest.spyOn(fs.promises, 'mkdir').mockRejectedValueOnce(failure);
+
+    await expect(
+      drain(planTerraformOperation(tfItem(), OperationType.UPDATED, h)),
+    ).rejects.toBe(failure);
+
+    mkdir.mockRestore();
+    expect(h.error).toHaveBeenCalledTimes(1);
+    expect(h.success).not.toHaveBeenCalled();
+  });
+
   it('overwrites the previous artifacts of the same CR', async () => {
     await drain(planTerraformOperation(tfItem(), OperationType.UPDATED, handler()));
     await drain(planTerraformOperation(tfItem(), OperationType.NOTHING, handler()));

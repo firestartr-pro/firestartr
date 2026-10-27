@@ -1,6 +1,7 @@
 import ffast from 'fast-json-patch';
 
 import log from './logger';
+import { foregroundFinalizerCleared } from './dependants';
 
 export class Store {
   kind: string;
@@ -53,6 +54,12 @@ export class Store {
     }
 
     return updated;
+  }
+
+  deletionUnblocked(item: any) {
+    const previous = this.getItem(item)?.item;
+
+    return previous !== undefined && foregroundFinalizerCleared(previous, item);
   }
 
   modified(item: any) {

@@ -30,8 +30,26 @@ export function deletionWaitsForDependants(
 
   if (!isDeletion) return false;
 
+  return hasForegroundFinalizer(item);
+}
+
+function hasForegroundFinalizer(item: any): boolean {
   return (item.metadata.finalizers ?? []).some((f: string) =>
     FOREGROUND_FINALIZERS.includes(f),
+  );
+}
+
+/**
+ * Whether an update of a terminating item removed the foreground finalizer
+ * that made its deletion wait for dependants.
+ */
+export function foregroundFinalizerCleared(previous: any, current: any) {
+  return (
+    kindsWithDependants.includes(current.kind) &&
+    'deletionTimestamp' in previous.metadata &&
+    'deletionTimestamp' in current.metadata &&
+    hasForegroundFinalizer(previous) &&
+    !hasForegroundFinalizer(current)
   );
 }
 
