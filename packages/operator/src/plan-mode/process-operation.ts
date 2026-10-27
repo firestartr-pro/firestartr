@@ -157,6 +157,22 @@ const planGithubResource: Planner = async (item, handler, destroy) => {
   );
 };
 
+/**
+ * Only a dependency confirmed absent (no CR, no outputs secret, or a 404
+ * lookup) is a skip; any other lookup failure is an error to retry.
+ */
+function isMissingDependency(error: ResolverError): boolean {
+  if (error.cause === undefined) return true;
+
+  const cause: any = error.cause;
+
+  return (
+    cause?.code === 404 ||
+    cause?.statusCode === 404 ||
+    /: Not Found$/.test(String(cause?.message ?? ''))
+  );
+}
+
 function missingParent(error: ResolverError): string {
   const separator = error.refKey.indexOf('-');
 
@@ -201,7 +217,7 @@ async function* planOperation(
       };
     } catch (e: any) {
       result =
-        e instanceof ResolverError
+        e instanceof ResolverError && isMissingDependency(e)
           ? { status: 'SKIPPED', reason: missingParent(e) }
           : {
               status: 'ERROR',

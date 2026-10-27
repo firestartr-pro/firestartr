@@ -285,6 +285,45 @@ describe('Plan mode: Terraform workspaces', () => {
     expect(h.error).not.toHaveBeenCalled();
   });
 
+  it('records SKIPPED when the parent lookup is a 404', async () => {
+    const h = handler({
+      resolveReferences: jest.fn(async () => {
+        throw new ResolverError(
+          'FirestartrTerraformWorkspace-parent-ws',
+          'lookup failed',
+          new Error('Error on getItemByItemPath: default/x/parent-ws: Not Found'),
+        );
+      }),
+    });
+
+    await drain(planTerraformOperation(tfItem(), OperationType.CREATED, h));
+
+    expect(readArtifacts('FirestartrTerraformWorkspace', 'ws').json.result.status).toBe(
+      'SKIPPED',
+    );
+    expect(h.error).not.toHaveBeenCalled();
+  });
+
+  it('records ERROR and retries when the parent lookup fails otherwise', async () => {
+    const h = handler({
+      resolveReferences: jest.fn(async () => {
+        throw new ResolverError(
+          'FirestartrTerraformWorkspace-parent-ws',
+          "depends on 'FirestartrTerraformWorkspace/parent-ws' but looking it up failed: Gateway Timeout",
+          new Error('Error on getItemByItemPath: default/x/parent-ws: Gateway Timeout'),
+        );
+      }),
+    });
+
+    await drain(planTerraformOperation(tfItem(), OperationType.CREATED, h));
+
+    const { json } = readArtifacts('FirestartrTerraformWorkspace', 'ws');
+    expect(json.result.status).toBe('ERROR');
+    expect(json.result.reason).toContain('Gateway Timeout');
+    expect(h.error).toHaveBeenCalled();
+    expect(h.success).not.toHaveBeenCalled();
+  });
+
   it('records an ERROR artifact and schedules an in-memory retry on failure', async () => {
     mockTf.mockImplementation(async (_ctx: any, command: string) => {
       if (command === 'tear-up-project') return { tornUp: true };
