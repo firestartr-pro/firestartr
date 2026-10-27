@@ -124,7 +124,7 @@ export class EntityGHRepo extends Entity {
 
       await provisionPermissions(this);
 
-      await provisionLabels(this, repoAlreadyExists);
+      await provisionLabels(this, repoAlreadyExists, tfOp);
 
       this.synthMessage('Synth finished');
 
