@@ -25,9 +25,7 @@ import {
 const TF_CACHES_PATH = '/tmp/tfcaches';
 
 export type PlanDecision =
-  | { plan: 'plan' | 'plan-destroy' }
-  | { nothing: true }
-  | { skip: string };
+  { plan: 'plan' | 'plan-destroy' } | { nothing: true } | { skip: string };
 
 type Planner = (
   item: any,
