@@ -269,6 +269,52 @@ describe('Plan mode: Terraform workspaces', () => {
     expect(tfCommands()[0]).toBe('plan-artifact');
   });
 
+  it('uses planning timeout for observe policy instead of NOTHING timeout', async () => {
+    // An already-provisioned workspace starts as NOTHING operation, but the
+    // observe policy should still run Terraform. The timeout should be extended
+    // from 10 seconds (NOTHING) to a full day (for planning), unless overridden.
+    const h = handler({ recommendedTimeout: () => 10 });
+    let receivedCtl: any;
+
+    mockTf.mockImplementationOnce(async (_ctx: any, command: string, _n: any, _u: any, ctl: any) => {
+      receivedCtl = ctl;
+      return ARTIFACT;
+    });
+
+    await drain(
+      planTerraformOperation(
+        tfItem({ 'firestartr.dev/policy': 'observe' }),
+        OperationType.NOTHING,
+        h,
+      ),
+    );
+
+    // Should use planning timeout (DAY_SECONDS = 86400) not NOTHING timeout (10)
+    expect(receivedCtl.hardTimeout).toBe(24 * 60 * 60);
+  });
+
+  it('preserves explicit custom timeouts via annotation', async () => {
+    const customTimeout = 300;
+    const h = handler({ recommendedTimeout: () => customTimeout });
+    let receivedCtl: any;
+
+    mockTf.mockImplementationOnce(async (_ctx: any, command: string, _n: any, _u: any, ctl: any) => {
+      receivedCtl = ctl;
+      return ARTIFACT;
+    });
+
+    await drain(
+      planTerraformOperation(
+        tfItem({ 'firestartr.dev/policy': 'observe' }),
+        OperationType.NOTHING,
+        h,
+      ),
+    );
+
+    // Should preserve custom timeout when recommendedTimeout() is not 10
+    expect(receivedCtl.hardTimeout).toBe(customTimeout);
+  });
+
   it('records SKIPPED naming the parent when its outputs are missing', async () => {
     const h = handler({
       resolveReferences: jest.fn(async () => {

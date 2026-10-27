@@ -38,6 +38,7 @@ type Planner = (
   item: any,
   handler: any,
   destroy: boolean,
+  decision: PlanDecision,
 ) => Promise<PlanArtifact>;
 
 function annotation(item: any, name: string): string | undefined {
@@ -122,13 +123,23 @@ export function decideGithubPlan(item: any, op: OperationType): PlanDecision {
   return planFor(destroy);
 }
 
-function processCtl(item: any, handler: any) {
+function processCtl(item: any, handler: any, planDecision: PlanDecision) {
+  // For executable plans with NOTHING timeouts (e.g., observe, observe-only,
+  // or no policy with an already-provisioned workspace), use a planning timeout
+  // instead of the 10-second NOTHING timeout. Preserve explicit custom timeouts.
+  const isExecutablePlan = 'plan' in planDecision;
+  const recommendedTimeout = handler.recommendedTimeout();
+  const isNothingTimeout = recommendedTimeout === 10;
+
+  const hardTimeout =
+    isExecutablePlan && isNothingTimeout ? 24 * 60 * 60 : recommendedTimeout; // DAY_SECONDS for planning
+
   return {
     tfCacheDir: path.join(
       TF_CACHES_PATH,
       `slot_${handler.getSlotInfo().slotId}`,
     ),
-    hardTimeout: handler.recommendedTimeout(),
+    hardTimeout,
     processKilled: (killed: boolean) => {
       log.error(
         killed
@@ -139,7 +150,12 @@ function processCtl(item: any, handler: any) {
   };
 }
 
-const planTerraformWorkspace: Planner = async (item, handler, destroy) => {
+const planTerraformWorkspace: Planner = async (
+  item,
+  handler,
+  destroy,
+  decision,
+) => {
   const sessionId = generateSessionId();
 
   const deps = await handler.resolveReferences();
@@ -150,7 +166,7 @@ const planTerraformWorkspace: Planner = async (item, handler, destroy) => {
       destroy ? 'plan-destroy-artifact' : 'plan-artifact',
       null,
       undefined,
-      processCtl(item, handler),
+      processCtl(item, handler, decision),
     );
   } finally {
     await tearUpSessionWorkspace(item, deps, sessionId, 'plan');
@@ -173,7 +189,12 @@ function assertParentProvisioned(item: any, deps: any) {
   if (!isProvisioned(deps[key]?.cr)) throw new ResolverError(key);
 }
 
-const planGithubResource: Planner = async (item, handler, destroy) => {
+const planGithubResource: Planner = async (
+  item,
+  handler,
+  destroy,
+  decision,
+) => {
   const deps = await handler.resolveReferences();
 
   if (!destroy) {
@@ -187,7 +208,7 @@ const planGithubResource: Planner = async (item, handler, destroy) => {
     {
       planArtifact: true,
       ...(destroy ? { planDestroy: true } : { plan: true }),
-      ctl: processCtl(item, handler),
+      ctl: processCtl(item, handler, decision),
     },
   );
 };
@@ -248,6 +269,7 @@ async function* planOperation(
         item,
         handler,
         decision.plan === 'plan-destroy',
+        decision,
       );
 
       result = {
