@@ -261,6 +261,7 @@ export class EntityGHFeature extends Entity {
       this.sessionProjectPath = this.parent.sessionProjectPath;
       this.__ghProvisionerSessionWorkspaceInitialized =
         this.parent.__ghProvisionerSessionWorkspaceInitialized;
+      this.tfCtl = this.parent.tfCtl;
     }
 
     const stateListOutput = await runOnTerraform(this, 'custom-command', [

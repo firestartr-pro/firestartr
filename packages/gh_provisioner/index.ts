@@ -73,6 +73,8 @@ export async function runGhProvisioner(data: any, opts: any) {
       entity.streamGHProvisioner = opts.logStreamCallbacksGHProvisioner;
     }
 
+    entity.tfCtl = opts.ctl;
+
     if ('logStreamCallbacksTF' in opts) {
       entity.streamTFProvisioner = opts.logStreamCallbacksTF;
     }

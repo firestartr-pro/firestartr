@@ -304,11 +304,12 @@ export async function customCommand(
   secrets: any[],
   args: any[],
   stream?: PassThrough,
+  ctl?: ProcessHandler,
 ) {
   log.debug(
     `Running terraform customCommand in path ${path} ${args.join(',')}`,
   );
-  return await tfExec(path, args, secrets, [], stream);
+  return await tfExec(path, args, secrets, [], stream, ctl);
 }
 
 export async function destroy(

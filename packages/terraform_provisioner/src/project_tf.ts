@@ -437,6 +437,7 @@ export class TFProjectManager {
       this.secrets,
       this.customArgs,
       this.stream,
+      this.ctl,
     );
 
     if (this.stream) this.stream.end();
@@ -460,6 +461,7 @@ export class TFProjectManager {
         this.secrets,
         ['state', 'list'],
         this.stream,
+        this.ctl,
       )) as string
     )
       .split(/\n/)
@@ -475,6 +477,7 @@ export class TFProjectManager {
         this.secrets,
         ['state', 'rm'].concat(addressesList),
         this.stream,
+        this.ctl,
       );
 
       log.info(

@@ -180,6 +180,21 @@ describe('runOnTerraform apply routing', () => {
       undefined,
     );
   });
+
+  it("bounds discovery commands with the run's timeout controller", async () => {
+    const ctl = { hardTimeout: 10, processKilled: jest.fn() };
+    entity.tfCtl = ctl;
+
+    await runOnTerraform(entity, 'custom-command', ['state', 'list']);
+
+    expect(mockRunTerraformProvisioner).toHaveBeenCalledWith(
+      expect.anything(),
+      'custom-command',
+      null,
+      ['state', 'list'],
+      ctl,
+    );
+  });
 });
 
 describe('calculateTFStatePath', () => {

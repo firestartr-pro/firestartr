@@ -41,6 +41,8 @@ export async function runOnTerraform(
 
   const streaming = entity.streamTFProvisioner;
 
+  opts = { ...opts, ctl: opts.ctl ?? entity.tfCtl };
+
   if (command === 'import-with-reimport') {
     // Step 1: nuke the tf state via destroy-state-only
     await runTerraformProvisioner(
