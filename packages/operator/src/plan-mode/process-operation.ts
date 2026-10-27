@@ -4,9 +4,14 @@ import * as path from 'path';
 import { runTerraformProvisioner } from 'terraform_provisioner';
 import type { PlanArtifact } from 'terraform_provisioner';
 
-import { OperationType } from '../definitions';
+import { OperationType, WorkItem } from '../definitions';
 import { deletionWaitsForDependants } from '../dependants';
 import log from '../logger';
+import {
+  getParentRef,
+  isDependentKind,
+  isProvisioned,
+} from '../parentDependency';
 import { ResolverError } from '../resolver';
 import { policyAllowsOp } from '../tfworkspaces/policies';
 import {
@@ -151,10 +156,28 @@ const planTerraformWorkspace: Planner = async (item, handler, destroy) => {
   }
 };
 
+/**
+ * Plan mode dispatches dependents without waiting for their parent, and a
+ * parent ref with needsSecret: false resolves even when it is unprovisioned.
+ */
+function assertParentProvisioned(item: any, deps: any) {
+  if (!isDependentKind(item.kind)) return;
+
+  const parent = getParentRef({ item } as WorkItem);
+
+  if (!parent) return;
+
+  const key = `${parent.kind}-${parent.name}`;
+
+  if (!isProvisioned(deps[key]?.cr)) throw new ResolverError(key);
+}
+
 const planGithubResource: Planner = async (item, handler, destroy) => {
   const deps = await handler.resolveReferences();
 
   if (!destroy) {
+    assertParentProvisioned(item, deps);
+
     deps['self-outputs'] = { cr: await handler.resolveOwnOutputs() };
   }
 

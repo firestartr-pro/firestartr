@@ -46,7 +46,7 @@ import {
   planTerraformOperation,
   planUnsupportedOperation,
 } from '../src/plan-mode/process-operation';
-import { ResolverError } from '../src/resolver';
+import { resolve, ResolverError } from '../src/resolver';
 import {
   addDestroyCommitStatus,
   addPlanStatusCheck,
@@ -411,6 +411,44 @@ describe('Plan mode: GitHub kinds', () => {
       reason: 'reimport cannot be previewed without resetting state',
     });
   });
+
+  it.each([
+    ['unprovisioned', { status: { conditions: [{ type: 'PROVISIONED', status: 'False' }] } }, 'SKIPPED'],
+    ['provisioned', { status: { conditions: [{ type: 'PROVISIONED', status: 'True' }] } }, 'PLANNED'],
+  ])(
+    'plans a feature whose needsSecret:false parent is %s as %s',
+    async (_label, parentStatus, status) => {
+      const parent = {
+        kind: 'FirestartrGithubRepository',
+        metadata: { name: 'repo', namespace: 'default' },
+        spec: {},
+        ...parentStatus,
+      };
+      const feature = {
+        kind: 'FirestartrGithubRepositoryFeature',
+        metadata: { name: 'feat', namespace: 'default' },
+        spec: {
+          repositoryTarget: {
+            ref: { kind: 'FirestartrGithubRepository', name: 'repo', needsSecret: false },
+          },
+        },
+      };
+      const getSecret = jest.fn();
+      const h = handler({
+        resolveReferences: () => resolve(feature, async () => parent, getSecret),
+      });
+
+      await drain(planGithubOperation(feature, OperationType.CREATED, h));
+
+      expect(getSecret).not.toHaveBeenCalled();
+      const { json } = readArtifacts('FirestartrGithubRepositoryFeature', 'feat');
+      expect(json.result.status).toBe(status);
+      if (status === 'SKIPPED') {
+        expect(mockGh).not.toHaveBeenCalled();
+        expect(json.result.reason).toBe('parent FirestartrGithubRepository/repo not provisioned');
+      }
+    },
+  );
 
   it('records NOTHING without running the provisioner', async () => {
     await drain(planGithubOperation(ghItem(), OperationType.NOTHING, handler()));
