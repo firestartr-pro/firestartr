@@ -13,8 +13,7 @@ export interface FeaturePatchEnvelope {
 }
 
 let MOCK_FEATURES_FN:
-  | ((claim: unknown) => Promise<FeaturePatchEnvelope[]>)
-  | undefined;
+  ((claim: unknown) => Promise<FeaturePatchEnvelope[]>) | undefined;
 
 export function MOCK_STITCHING_FEATURES(
   mock?: (claim: unknown) => Promise<FeaturePatchEnvelope[]>,

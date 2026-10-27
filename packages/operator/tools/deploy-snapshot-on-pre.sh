@@ -213,14 +213,14 @@ snapshot_tag_exists() {
   chmod 600 "$netrc" || { rm -f -- "$netrc"; return 2; }
   printf 'machine ghcr.io\n  login x\n  password %s\n' "$gh_token" > "$netrc"
   token=$(curl -sS --netrc-file "$netrc" \
-    "https://ghcr.io/token?scope=repository:prefapp/gitops-k8s:pull&service=ghcr.io" 2>/dev/null \
+    "https://ghcr.io/token?scope=repository:firestartr-pro/firestartr:pull&service=ghcr.io" 2>/dev/null \
     | python3 -c 'import sys,json;print(json.load(sys.stdin).get("token",""))' 2>/dev/null || true)
   rm -f -- "$netrc"
   [[ -n "$token" ]] || return 2
   code=$(curl -sS -o /dev/null -w '%{http_code}' \
     -H "Authorization: Bearer $token" \
     -H "Accept: application/vnd.oci.image.index.v1+json,application/vnd.docker.distribution.manifest.list.v2+json,application/vnd.docker.distribution.manifest.v2+json" \
-    "https://ghcr.io/v2/prefapp/gitops-k8s/manifests/$tag" 2>/dev/null || true)
+    "https://ghcr.io/v2/firestartr-pro/firestartr/manifests/$tag" 2>/dev/null || true)
   [[ "$code" == "200" ]]
 }
 
@@ -320,7 +320,7 @@ while true; do
     AUTO_VERSION=""
     continue
   fi
-  NEW_IMG="ghcr.io/prefapp/gitops-k8s:${SNAPSHOT_VERSION}_${IMAGE_FLAVOR}"
+  NEW_IMG="ghcr.io/firestartr-pro/firestartr:${SNAPSHOT_VERSION}_${IMAGE_FLAVOR}"
   say "New image → $NEW_IMG"
   confirm "Is that the right image tag for '$SNAPSHOT_BRANCH'?" && break
   SNAPSHOT_VERSION=""
@@ -354,10 +354,10 @@ if [[ ! -f "$VALUES_FILE" ]]; then
   warn "values.yaml missing at $VALUES_FILE — fix the target and re-run"
   exit 1
 fi
-CURRENT_IMG=$(awk '$1 == "image:" && $2 ~ /^ghcr\.io\/prefapp\/gitops-k8s:/ { print $2; exit }' "$VALUES_FILE" 2>/dev/null || true)
+CURRENT_IMG=$(awk '$1 == "image:" && $2 ~ /^ghcr\.io\/firestartr-pro\/firestartr:/ { print $2; exit }' "$VALUES_FILE" 2>/dev/null || true)
 note "current image: ${CURRENT_IMG:-<none found>}"
 tmp=$(mktemp)
-sed -E "s|^([[:space:]]*image:[[:space:]]*)ghcr.io/prefapp/gitops-k8s:[^[:space:]]+|\1$NEW_IMG|" "$VALUES_FILE" > "$tmp" && mv "$tmp" "$VALUES_FILE"
+sed -E "s|^([[:space:]]*image:[[:space:]]*)ghcr.io/firestartr-pro/firestartr:[^[:space:]]+|\1$NEW_IMG|" "$VALUES_FILE" > "$tmp" && mv "$tmp" "$VALUES_FILE"
 if ! awk -v expected="$NEW_IMG" '$1 == "image:" && $2 == expected { found=1 } END { exit(found ? 0 : 1) }' "$VALUES_FILE"; then
   warn "failed to update image in $VALUES_FILE"
   exit 1

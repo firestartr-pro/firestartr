@@ -12,7 +12,7 @@ COPY . .
 RUN npm ci && \
     NODE_OPTIONS="--max-old-space-size=4096" npm run build --workspace packages/cli
 
-FROM ghcr.io/prefapp/gitops-k8s:run-slim
+FROM ghcr.io/firestartr-pro/firestartr:run-slim
 
 WORKDIR /library/
 

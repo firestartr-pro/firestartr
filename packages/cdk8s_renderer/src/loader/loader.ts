@@ -326,16 +326,14 @@ export async function loadCRsWithFullSet(
 
       const metadata = yamlData?.metadata;
 
-      if (
-        !(
-          yamlData &&
-          typeof yamlData === 'object' &&
-          'kind' in yamlData &&
-          metadata &&
-          typeof metadata === 'object' &&
-          'name' in metadata
-        )
-      ) {
+      if (!(
+        yamlData &&
+        typeof yamlData === 'object' &&
+        'kind' in yamlData &&
+        metadata &&
+        typeof metadata === 'object' &&
+        'name' in metadata
+      )) {
         log.warn(`Invalid CR file ${entry}`);
       } else {
         const crKey = `${yamlData.kind}-${metadata.name}`;
