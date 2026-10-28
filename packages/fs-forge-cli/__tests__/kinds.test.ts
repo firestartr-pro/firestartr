@@ -82,6 +82,21 @@ it('carries the full per-kind capability shape for every kind', async () => {
   }
 });
 
+it('reports nested component claim references', async () => {
+  const component = (await kindsJson()).find(
+    ({ kind }) => kind === 'ComponentClaim',
+  );
+
+  expect(component?.references).toEqual(
+    expect.arrayContaining([
+      'providers.github.additionalRules[].owners[]',
+      'providers.github.secrets.actions[].value',
+      'providers.github.secrets.codespaces[].value',
+      'providers.github.secrets.dependabot[].value',
+    ]),
+  );
+});
+
 it('describes the component kind with the facts the CLI dispatches', async () => {
   const entries = await kindsJson();
   const component = entries.find(({ kind }) => kind === 'ComponentClaim');
@@ -110,6 +125,10 @@ it('describes the component kind with the facts the CLI dispatches', async () =>
       'maintainedBy[]',
       'platformOwner',
       'subComponentOf',
+      'providers.github.additionalRules[].owners[]',
+      'providers.github.secrets.actions[].value',
+      'providers.github.secrets.codespaces[].value',
+      'providers.github.secrets.dependabot[].value',
     ],
   });
 });

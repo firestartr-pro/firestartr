@@ -40,6 +40,28 @@ describe('fs-forge kinds show', () => {
     expect(JSON.parse(stdout)).toEqual(listed);
   });
 
+  it('reports the repositories referenced by organization settings', async () => {
+    const { stdout } = await run(KindsShow, 'orgsettings', '--json');
+
+    expect(JSON.parse(stdout).references).toContain(
+      'providers.github.actions_variables[].selected_repositories[]',
+    );
+  });
+
+  it('reports the organization field for an organization webhook', async () => {
+    const { stdout } = await run(KindsShow, 'orgwebhook', '--json');
+
+    expect(JSON.parse(stdout).orgField).toBe('providers.github.orgName');
+  });
+
+  it('reports the secret referenced by an organization webhook', async () => {
+    const { stdout } = await run(KindsShow, 'orgwebhook', '--json');
+
+    expect(JSON.parse(stdout).references).toContain(
+      'providers.github.webhook.secretRef',
+    );
+  });
+
   it('accepts the short id and the full kind name', async () => {
     const byId = await run(KindsShow, 'component', '--json');
     const byKind = await run(KindsShow, 'ComponentClaim', '--json');

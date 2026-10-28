@@ -21,8 +21,9 @@ const ROOT = process.cwd();
 
 type Schema = Record<string, unknown>;
 
-/** A property pattern that names claim kinds: `^(user|group):…`, `^system:…`. */
-const CLAIM_REFERENCE_PATTERN = /^\^(\(([a-z]+(\|[a-z]+)*)\)|[a-z]+):/;
+/** A property pattern naming claim kinds or a SecretsClaim reference. */
+const CLAIM_REFERENCE_PATTERN =
+  /^\^(?:\([a-z]+(?:\|[a-z]+)*\):|ref:secretsclaim:|(?!ref:)[a-z]+:)/;
 
 function isRecord(value: unknown): value is Schema {
   return typeof value === 'object' && value !== null && !Array.isArray(value);
@@ -49,18 +50,24 @@ function schemaProperties(node: Schema): Record<string, Schema> {
 
 function schemaProperty(node: Schema, path: string): Schema | undefined {
   let current: Schema | undefined = node;
-  for (const segment of path.split('.')) {
+  const segments = path.split('.');
+  for (const [index, segment] of segments.entries()) {
     if (!current) return undefined;
-    current = schemaProperties(current)[segment];
+    const array = segment.endsWith('[]');
+    current = schemaProperties(current)[array ? segment.slice(0, -2) : segment];
+    if (array && current?.type !== 'array') return undefined;
+    if (array && index < segments.length - 1) {
+      current = isRecord(current?.items) ? current.items : undefined;
+    }
   }
   return current;
 }
 
-/** Every dotted path of a property literally named `org` in the schema. */
+/** Every dotted path of a property named `org` or `orgName` in the schema. */
 function orgPaths(node: Schema): string[] {
   const paths: string[] = [];
   for (const [name, value] of Object.entries(schemaProperties(node))) {
-    if (name === 'org') paths.push('org');
+    if (name === 'org' || name === 'orgName') paths.push(name);
     for (const nested of orgPaths(value)) paths.push(`${name}.${nested}`);
   }
   return paths;
@@ -84,8 +91,11 @@ function referenceFields(schema: Schema): string[] {
 
   return Object.entries(schemaProperties(schema)).flatMap(([name, value]) => {
     if (namesClaimKinds(value)) return [name];
-    if (namesClaimKinds(value.items)) return [`${name}[]`];
-    return [];
+    if (isRecord(value.items)) {
+      if (namesClaimKinds(value.items)) return [`${name}[]`];
+      return referenceFields(value.items).map((field) => `${name}[].${field}`);
+    }
+    return referenceFields(value).map((field) => `${name}.${field}`);
   });
 }
 
@@ -208,18 +218,16 @@ describe('kind capabilities against the claim schemas', () => {
   it('lists reference fields that exist in the kind schema, and no others', () => {
     for (const capability of KIND_CAPABILITIES) {
       const schema = loadSchema(capability.kind);
-      const fields = capability.references.map((reference) =>
-        reference.replace(/\[\]$/, ''),
-      );
-
-      for (const [index, reference] of capability.references.entries()) {
-        const property = schemaProperty(schema, fields[index]!);
+      for (const reference of capability.references) {
+        const property = schemaProperty(schema, reference);
         expect(property).toBeDefined();
         if (reference.endsWith('[]')) {
           expect(property?.type).toBe('array');
         }
       }
-      expect(new Set(fields).size).toBe(fields.length);
+      expect(new Set(capability.references).size).toBe(
+        capability.references.length,
+      );
 
       // The registry may list a reference the schema constrains without a
       // pattern; a schema reference the registry omits is a missing capability.
