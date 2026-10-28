@@ -45,9 +45,13 @@ jobs:
         if: steps.changes.outputs.changed == 'true'
         uses: actions/setup-node@v7
         with:
-          node-version: "22"
+          node-version: "24"
           cache: "npm"
           cache-dependency-path: "package-lock.json"
+
+      - name: Install npm
+        if: steps.changes.outputs.changed == 'true'
+        run: npm install -g "$(node -p "require('./package.json').packageManager")"
 
       - name: Make sure package-lock.json is in sync with the package.json files
         if: steps.changes.outputs.changed == 'true'
@@ -67,9 +71,12 @@ jobs:
       - name: Setup node
         uses: actions/setup-node@v7
         with:
-          node-version: "22"
+          node-version: "24"
           cache: "npm"
           cache-dependency-path: "package-lock.json"
+
+      - name: Install npm
+        run: npm install -g "$(node -p "require('./package.json').packageManager")"
 
       - name: Linter
         env:
@@ -126,11 +133,14 @@ jobs:
       - name: Setup node
         uses: actions/setup-node@v7
         with:
-          node-version: "22"
+          node-version: "24"
           registry-url: "https://registry.npmjs.org/"
           scope: "@firestartr"
           cache: "npm"
           cache-dependency-path: "package-lock.json"
+
+      - name: Install npm
+        run: npm install -g "$(node -p "require('./package.json').packageManager")"
 
       - name: Install dependencies
         env:

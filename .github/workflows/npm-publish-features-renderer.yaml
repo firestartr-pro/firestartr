@@ -26,11 +26,17 @@ jobs:
     - uses: actions/setup-node@v7
       name: Setup Node
       with:
-        node-version: 22
+        node-version: 24
         registry-url: https://registry.npmjs.org/
         scope: '@firestartr'
         cache: "npm"
         cache-dependency-path: "package-lock.json"
+
+    # Must run before the version-update script below: that script runs
+    # `npm install semver`, which rewrites the lockfile. Installs the npm declared
+    # in package.json "packageManager" (never below 11.5.1 for OIDC).
+    - name: Install npm
+      run: npm install -g "$(node -p "require('./package.json').packageManager")"
 
     - name: Update package.json version
       uses: actions/github-script@v9
@@ -43,10 +49,6 @@ jobs:
           const script = require('./.github/scripts/update-package-json-version.cjs');
           results = script({core});
           return results;
-
-      # Update npm to 11.5.1 to be able to authenticate with OIDC
-    - name: Update npm
-      run: npm install -g npm@11.5.1
 
     - name: Build @firestartr/features_renderer package
       run: |
