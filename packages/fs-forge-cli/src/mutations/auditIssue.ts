@@ -133,17 +133,16 @@ async function bestEffort(action: () => Promise<void>): Promise<void> {
 async function resolveIssue(
   context: AuditTrailContext,
   options: AuditTrailOptions,
-): Promise<{ ref?: AuditRef; created: boolean }> {
+): Promise<{ ref?: AuditRef }> {
   if (options.issue !== undefined) {
     if (!Number.isInteger(options.issue) || options.issue <= 0) {
       throw new Error('--issue must be a positive issue number');
     }
     return {
       ref: { number: options.issue, url: issueUrl(context, options.issue) },
-      created: false,
     };
   }
-  if (!options.createIssue) return { created: false };
+  if (!options.createIssue) return {};
 
   const { api, ref } = context.repo;
   const created = await api.createIssue(ref, {
@@ -152,13 +151,12 @@ async function resolveIssue(
   });
   return {
     ref: { number: created.number, url: created.htmlUrl },
-    created: true,
   };
 }
 
 interface OpenedAudit {
   trail: AuditTrail;
-  /** Comments the error on an issue this run created; adopted issues stay untouched. */
+  /** Comments the error on the audit issue, whether created or adopted. */
   reportFailure(error: unknown): Promise<void>;
 }
 
@@ -167,7 +165,7 @@ async function openAudit(
   options: AuditTrailOptions,
 ): Promise<OpenedAudit> {
   const { api, ref: repoRef } = context.repo;
-  const { ref: issue, created } = await resolveIssue(context, options);
+  const { ref: issue } = await resolveIssue(context, options);
   let pullRequest: AuditRef | undefined;
 
   const trail: AuditTrail = {
@@ -219,9 +217,9 @@ async function openAudit(
   return {
     trail,
     async reportFailure(error) {
-      if (!created || !issue) return;
+      if (!issue) return;
       const body = [
-        `${context.change?.title ?? `The ${context.operation} of ${context.kind}-${context.name}`} failed; this issue stays open.`,
+        `${context.change?.title ?? `The ${context.operation} of ${context.kind}-${context.name}`} failed.`,
         '',
         redactTokens(error instanceof Error ? error.message : String(error)),
       ].join('\n');
@@ -233,7 +231,7 @@ async function openAudit(
 /**
  * Runs the audited part of a `--commit` command: the issue is opened (or
  * adopted) before the step starts, so it exists before the first write, and a
- * failure is commented on an issue this run created. Recording the run is the
+ * failure is commented on the audit issue. Recording the run is the
  * step's business: only it knows whether a run concluded.
  */
 export async function withAuditTrail<T>(

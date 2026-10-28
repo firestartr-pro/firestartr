@@ -282,6 +282,45 @@ describe('create --wait-for-checks forwarding', () => {
     );
   });
 
+  it.each([
+    { issue: 'created', flag: ['--create-issue'], check: SUCCESS_CHECK, fails: false },
+    { issue: 'created', flag: ['--create-issue'], check: FAILURE_CHECK, fails: true },
+    { issue: 'adopted', flag: ['--issue', '1'], check: SUCCESS_CHECK, fails: false },
+    { issue: 'adopted', flag: ['--issue', '1'], check: FAILURE_CHECK, fails: true },
+  ])('records $issue audit issue outcomes when wet checks fail=$fails', async ({ issue, flag, check, fails }) => {
+    const api = mockCommitApi({ checkRuns: [check] });
+    const claims = { owner: 'my-org', repo: 'claims' };
+    if (issue === 'adopted') {
+      await api.createIssue(claims, { title: 'Existing issue', body: '' });
+      if (fails) await api.closeIssue(claims, 1);
+      api.calls.length = 0;
+    }
+
+    const { error, stderr } = await runCommand(CreateComponent, [
+      ...componentArgs(), '--commit', '--org', 'my-org', ...flag,
+      '--state-repos', 'my-org/custom-state',
+    ]);
+
+    if (fails) {
+      expect(error?.message).toContain('Wet PR checks failed: failure');
+    } else {
+      expect(error).toBeUndefined();
+      expect(stderr).toContain('All checks passed');
+    }
+    expect(api.issueComments).toEqual([
+      expect.objectContaining({ issue: 1, body: 'Workflow run: https://github.com/my-org/claims/actions/runs/1' }),
+      ...(fails ? [expect.objectContaining({ issue: 1, body: 'The create of ComponentClaim-example failed.\n\nWet PR checks failed: failure' })] : []),
+    ]);
+    const runComment = api.calls.indexOf('commentOnIssue my-org/claims#1');
+    const checkWatch = api.calls.indexOf(`listCheckRunsForPullRequest my-org/custom-state#${WET_PR_NUMBER}`);
+    expect(runComment).toBeGreaterThanOrEqual(0);
+    expect(checkWatch).toBeGreaterThan(runComment);
+    if (issue === 'adopted' && fails) {
+      expect(api.issues[0].state).toBe('closed');
+      expect(api.calls).not.toContain('closeIssue my-org/claims#1');
+    }
+  });
+
   it('fails the create when the wet PR checks fail', async () => {
     mockCommitApi({ checkRuns: [FAILURE_CHECK] });
     const args = componentArgs();

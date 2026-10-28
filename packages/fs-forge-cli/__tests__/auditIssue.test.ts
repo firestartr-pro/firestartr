@@ -230,7 +230,7 @@ describe('withAuditTrail', () => {
     expect(comment).toContain('***');
   });
 
-  it('does not comment a failure on an adopted issue', async () => {
+  it('comments a failure on an adopted issue without promising its state', async () => {
     const { api, run } = open({ issue: 7 });
 
     await expect(
@@ -239,7 +239,12 @@ describe('withAuditTrail', () => {
       }),
     ).rejects.toThrow('boom');
 
-    expect(api.issueComments).toEqual([]);
+    expect(api.issueComments).toEqual([
+      expect.objectContaining({
+        issue: 7,
+        body: 'The create of ComponentClaim-my-component failed.\n\nboom',
+      }),
+    ]);
   });
 
   it('does not mask the original error when the failure comment fails', async () => {

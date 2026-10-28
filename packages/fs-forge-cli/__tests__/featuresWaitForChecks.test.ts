@@ -155,6 +155,50 @@ describe('features add --commit wait-for-checks', () => {
     ).toBe(false);
   });
 
+  it.each([
+    { issue: 'created', flag: ['--create-issue'], check: SUCCESS_CHECK, fails: false },
+    { issue: 'created', flag: ['--create-issue'], check: FAILURE_CHECK, fails: true },
+    { issue: 'adopted', flag: ['--issue', '1'], check: SUCCESS_CHECK, fails: false },
+    { issue: 'adopted', flag: ['--issue', '1'], check: FAILURE_CHECK, fails: true },
+  ])('records $issue audit issue outcomes when wet checks fail=$fails', async ({ issue, flag, check, fails }) => {
+    const api = featureApi({ checkRuns: [check] });
+    if (issue === 'adopted') {
+      await api.createIssue({ owner: 'my-org', repo: 'claims' }, { title: 'Existing issue', body: '' });
+    }
+    if (issue === 'created' && fails) {
+      // A merged claims PR can close the issue before the wet checks finish.
+      const listChecks = api.listCheckRunsForPullRequest.bind(api);
+      api.listCheckRunsForPullRequest = async (ref, pr) => {
+        api.issues[0].state = 'closed';
+        return listChecks(ref, pr);
+      };
+    }
+    api.calls.length = 0;
+
+    const { error, stderr } = await runCommand(FeaturesAdd, [
+      ...addArgs(), ...flag, ...CUSTOM_STATE,
+    ]);
+
+    if (fails) {
+      expect(error?.message).toContain('Wet PR checks failed: failure');
+    } else {
+      expect(error).toBeUndefined();
+      expect(stderr).toContain('All checks passed');
+    }
+    expect(api.issueComments).toEqual([
+      expect.objectContaining({ issue: 1, body: 'Workflow run: https://github.com/my-org/claims/actions/runs/1' }),
+      ...(fails ? [expect.objectContaining({ issue: 1, body: 'Add feature feature_a to component my-component failed.\n\nWet PR checks failed: failure' })] : []),
+    ]);
+    const runComment = api.calls.indexOf('commentOnIssue my-org/claims#1');
+    const checkWatch = api.calls.indexOf(`listCheckRunsForPullRequest my-org/custom-state#${WET_PR_NUMBER}`);
+    expect(runComment).toBeGreaterThanOrEqual(0);
+    expect(checkWatch).toBeGreaterThan(runComment);
+    if (issue === 'created' && fails) {
+      expect(api.issues[0].state).toBe('closed');
+      expect(api.calls).not.toContain('closeIssue my-org/claims#1');
+    }
+  });
+
   it('fails the add when the wet PR checks fail', async () => {
     featureApi({ checkRuns: [FAILURE_CHECK] });
 

@@ -362,7 +362,7 @@ describe('features audit trail', () => {
       }),
     );
     expect(api.issueComments[0].body).toMatch(
-      /^Remove feature feature_a from component my-component failed; this issue stays open\./,
+      /^Remove feature feature_a from component my-component failed\./,
     );
   });
 

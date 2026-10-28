@@ -89,6 +89,10 @@ export async function publishClaimAndWait(
     extra: audit?.result(),
   });
 
+  // Only a successful publish has a run to record; failures are reported by
+  // the caller's audit trail.
+  await audit?.commentRunUrl(publishUrl);
+
   if (waitForChecks && !noWait) {
     await watchWetPrChecks(
       repo.api,
@@ -98,8 +102,5 @@ export async function publishClaimAndWait(
     );
   }
 
-  // Only a successful publish has a run to record; failures are reported by
-  // the caller's audit trail.
-  await audit?.commentRunUrl(publishUrl);
   return { publishUrl };
 }
