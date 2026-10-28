@@ -39,8 +39,10 @@ The type of a claim — `ArgoDeployClaim`, `ComponentClaim`, `DomainClaim`,
 What one kind supports beyond its schema: its claims directory (or that `--path`
 is required), whether it is catalog-only, its org field, the hydration and delete
 workflows a claims repo dispatches, variants, preflight, state repo and the
-claim fields it references. `KIND_OVERRIDES` in `src/claims/kindRegistry.ts` is
-the single source; `kinds` and `kinds show` render it.
+claim fields it references. Reference paths use `[]` for array items and `.**`
+for any field at any depth below that path. `KIND_OVERRIDES` in
+`src/claims/kindRegistry.ts` is the single source; `kinds` and `kinds show`
+render it.
 _Avoid_: kind metadata, kind config
 
 **Codegen**:

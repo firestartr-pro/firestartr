@@ -62,6 +62,17 @@ describe('fs-forge kinds show', () => {
     );
   });
 
+  it('reports the recursive workspace values reference location in both views', async () => {
+    const { stdout } = await run(KindsShow, 'tfworkspace', '--json');
+    const shown = JSON.parse(stdout);
+    const listed = (await kindsJson()).find(
+      ({ kind }) => kind === 'TFWorkspaceClaim',
+    );
+
+    expect(shown.references).toContain('providers.terraform.values.**');
+    expect(listed?.references).toEqual(shown.references);
+  });
+
   it('accepts the short id and the full kind name', async () => {
     const byId = await run(KindsShow, 'component', '--json');
     const byKind = await run(KindsShow, 'ComponentClaim', '--json');

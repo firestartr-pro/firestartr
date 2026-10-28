@@ -35,7 +35,7 @@ interface KindOverrides {
   variants: boolean;
   /** Repo that holds the kind's provisioned state. */
   stateRepo: string | null;
-  /** Dotted claim fields pointing at other claims; arrays end in `[]`. */
+  /** Dotted claim reference paths; `[]` is an array and `.**` is recursive. */
   references: readonly string[];
 }
 
@@ -174,7 +174,7 @@ const KIND_OVERRIDES = {
     deleteWorkflow: TFWORKSPACE_DELETE,
     variants: true,
     stateRepo: 'state-infra',
-    references: ['system', 'owner'],
+    references: ['system', 'owner', 'providers.terraform.values.**'],
   },
   UserClaim: {
     claimsDirectory: 'users',

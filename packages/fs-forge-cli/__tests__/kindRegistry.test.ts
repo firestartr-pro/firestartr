@@ -219,8 +219,13 @@ describe('kind capabilities against the claim schemas', () => {
     for (const capability of KIND_CAPABILITIES) {
       const schema = loadSchema(capability.kind);
       for (const reference of capability.references) {
-        const property = schemaProperty(schema, reference);
+        const recursive = reference.endsWith('.**');
+        const property = schemaProperty(
+          schema,
+          recursive ? reference.slice(0, -3) : reference,
+        );
         expect(property).toBeDefined();
+        if (recursive) expect(property?.type).toBe('object');
         if (reference.endsWith('[]')) {
           expect(property?.type).toBe('array');
         }
