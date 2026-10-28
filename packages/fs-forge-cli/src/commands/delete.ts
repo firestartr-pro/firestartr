@@ -42,8 +42,8 @@ export default class Delete extends Command {
     }),
     'wait-for-checks': Flags.boolean({
       description:
-        'Wait for PR Verify to pass before merging the claim PR (CR plan checks always wait)',
-      default: false,
+        'Wait for PR Verify to pass before merging the claim PR (CR plan checks always wait; --no-wait-for-checks to skip)',
+      default: true,
       allowNo: true,
     }),
     commit: Flags.boolean({

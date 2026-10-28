@@ -189,43 +189,66 @@ export function createOctokitApi(octokit: Octokit): GitHubApi {
     },
 
     async listCheckRunsForPullRequest(ref, pr) {
-      const { data } = await octokit.rest.checks.listForRef({
+      const { data: pull } = await octokit.rest.pulls.get({
         owner: ref.owner,
         repo: ref.repo,
-        ref: `refs/pull/${pr}/head`,
+        pull_number: pr,
       });
-      return data.check_runs.map((run) => ({
-        name: run.name,
-        conclusion: run.conclusion,
-        status: run.status,
-        output: {
-          title: run.output?.title ?? null,
-          summary: run.output?.summary ?? '',
-          text: run.output?.text ?? null,
-        },
-        htmlUrl: run.html_url,
-      }));
-    },
-
-    async searchFiles(ref, query) {
-      const results: Array<{ path: string; name: string }> = [];
-      let page = 1;
-      while (true) {
-        const { data } = await octokit.rest.search.code({
-          q: `${query} repo:${ref.owner}/${ref.repo}`,
-          per_page: 100,
-          page,
-        });
-        for (const item of data.items) {
-          if (item.repository.full_name === `${ref.owner}/${ref.repo}`) {
-            results.push({ path: item.path, name: item.name });
-          }
+      // The operator posts reconciliation checks on merge_commit_sha, which
+      // may differ from the PR head after merging.
+      const reconciliationSha = pull.merge_commit_sha ?? pull.head.sha;
+      const shas = new Set([pull.head.sha, reconciliationSha]);
+      const checks: Awaited<
+        ReturnType<GitHubApi['listCheckRunsForPullRequest']>
+      > = [];
+      let awaitingReconciliationChecks = false;
+      for (const sha of shas) {
+        let page = 1;
+        while (true) {
+          const { data } = await octokit.rest.checks.listForRef({
+            owner: ref.owner,
+            repo: ref.repo,
+            ref: sha,
+            per_page: 100,
+            page,
+          });
+          if (
+            page === 1 &&
+            data.check_runs.length === 0 &&
+            sha === reconciliationSha
+          )
+            awaitingReconciliationChecks = true;
+          checks.push(
+            ...data.check_runs.map((run) => ({
+              name: run.name,
+              conclusion: run.conclusion,
+              status: run.status,
+              output: {
+                title: run.output?.title ?? null,
+                summary: run.output?.summary ?? '',
+                text: run.output?.text ?? null,
+              },
+              htmlUrl: run.html_url,
+            })),
+          );
+          if (data.check_runs.length < 100) break;
+          page++;
         }
-        if (data.items.length < 100 || results.length >= data.total_count)
-          break;
-        page++;
       }
-      return results;
+      if (checks.length > 0 && awaitingReconciliationChecks) {
+        checks.push({
+          name: `Waiting for check runs on ${reconciliationSha}`,
+          conclusion: null,
+          status: 'queued',
+          output: {
+            title: null,
+            summary: 'No checks registered yet',
+            text: null,
+          },
+          htmlUrl: null,
+        });
+      }
+      return checks;
     },
 
     async repoExists(ref) {
