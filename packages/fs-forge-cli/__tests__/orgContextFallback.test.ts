@@ -20,6 +20,7 @@ import CreateComponent from '../src/commands/create/component';
 import Delete from '../src/commands/delete';
 import OrgElements from '../src/commands/discovery/org-elements';
 import Edit from '../src/commands/edit';
+import FeaturesRemove from '../src/commands/features/remove';
 import { captureEnv, contextFixture } from './fixtures/contextFixtures';
 import { MemoryGitHubApi } from './fixtures/memoryGitHubApi';
 
@@ -265,6 +266,40 @@ describe('--org defaults to the resolved context', () => {
     const outcome = await run(
       Edit,
       'ComponentClaim-my-component',
+      '--commit',
+      '--wait-for-checks',
+    );
+
+    expect(outcome.error).toBeUndefined();
+    expect(api.committed[0]).toEqual(expect.objectContaining({ ref }));
+    expect(api.calls).toContain(
+      'listOpenPullRequests acme/state-github-fork:automated',
+    );
+    expect(api.calls).toContain(
+      'listOpenPullRequests other/state-infra-fork:automated',
+    );
+  });
+
+  it('keeps state defaults attached to the selected org when mutating a Feature across owners', async () => {
+    process.env.FS_FORGE_CONFIG = contextFixture('repo-overrides.yaml');
+    const api = mockClient();
+    const ref = { owner: 'shared', repo: 'claims-fork' };
+    api.setDefaultBranch(ref, 'main');
+    api.setFile(ref, 'claims-map.json', JSON.stringify(CLAIMS_MAP));
+    api.setFile(
+      ref,
+      'claims/components/my-component.yaml',
+      readFileSync(
+        join(ROOT, '__tests__/fixtures/valid/component-with-features.yaml'),
+        'utf8',
+      ),
+    );
+
+    const outcome = await run(
+      FeaturesRemove,
+      'my-component',
+      '--name',
+      'feature_a',
       '--commit',
       '--wait-for-checks',
     );

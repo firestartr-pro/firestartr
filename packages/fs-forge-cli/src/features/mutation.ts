@@ -241,7 +241,7 @@ export async function runFeatureMutation(
         waitForChecks: request.waitForChecks,
         stateRepos: parseStateRepos(
           request.stateRepos,
-          published.repo.ref.owner,
+          requireOrg(request.org),
         ),
       },
       (line) => process.stderr.write(line),
