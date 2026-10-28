@@ -90,6 +90,7 @@ it('reports nested component claim references', async () => {
   expect(component?.references).toEqual(
     expect.arrayContaining([
       'providers.github.additionalRules[].owners[]',
+      'providers.github.vars.actions[].value',
       'providers.github.secrets.actions[].value',
       'providers.github.secrets.codespaces[].value',
       'providers.github.secrets.dependabot[].value',
@@ -126,6 +127,7 @@ it('describes the component kind with the facts the CLI dispatches', async () =>
       'platformOwner',
       'subComponentOf',
       'providers.github.additionalRules[].owners[]',
+      'providers.github.vars.actions[].value',
       'providers.github.secrets.actions[].value',
       'providers.github.secrets.codespaces[].value',
       'providers.github.secrets.dependabot[].value',

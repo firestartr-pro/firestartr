@@ -91,6 +91,7 @@ const KIND_OVERRIDES = {
       'platformOwner',
       'subComponentOf',
       'providers.github.additionalRules[].owners[]',
+      'providers.github.vars.actions[].value',
       'providers.github.secrets.actions[].value',
       'providers.github.secrets.codespaces[].value',
       'providers.github.secrets.dependabot[].value',
