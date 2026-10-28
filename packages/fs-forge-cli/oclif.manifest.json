@@ -59,7 +59,7 @@
           "type": "boolean"
         },
         "wait-for-checks": {
-          "description": "Wait for PR Verify to pass before merging the claim PR (CR plan checks always wait)",
+          "description": "Wait for PR Verify to pass before merging the claim PR (CR plan checks always wait; --no-wait-for-checks to skip)",
           "name": "wait-for-checks",
           "allowNo": true,
           "type": "boolean"
@@ -1198,9 +1198,9 @@
           "type": "boolean"
         },
         "wait-for-checks": {
-          "description": "After provisioning, watch wet PR check runs until completion (requires --commit)",
+          "description": "After provisioning, watch wet PR check runs until completion (requires --commit; --no-wait-for-checks to skip)",
           "name": "wait-for-checks",
-          "allowNo": false,
+          "allowNo": true,
           "type": "boolean"
         },
         "state-repos": {
@@ -1712,9 +1712,9 @@
           "type": "boolean"
         },
         "wait-for-checks": {
-          "description": "After provisioning, watch wet PR check runs until completion (requires --commit)",
+          "description": "After provisioning, watch wet PR check runs until completion (requires --commit; --no-wait-for-checks to skip)",
           "name": "wait-for-checks",
-          "allowNo": false,
+          "allowNo": true,
           "type": "boolean"
         },
         "state-repos": {
@@ -2414,9 +2414,9 @@
           "type": "boolean"
         },
         "wait-for-checks": {
-          "description": "After provisioning, watch wet PR check runs until completion (requires --commit)",
+          "description": "After provisioning, watch wet PR check runs until completion (requires --commit; --no-wait-for-checks to skip)",
           "name": "wait-for-checks",
-          "allowNo": false,
+          "allowNo": true,
           "type": "boolean"
         },
         "state-repos": {
@@ -3002,9 +3002,9 @@
           "type": "boolean"
         },
         "wait-for-checks": {
-          "description": "After provisioning, watch wet PR check runs until completion (requires --commit)",
+          "description": "After provisioning, watch wet PR check runs until completion (requires --commit; --no-wait-for-checks to skip)",
           "name": "wait-for-checks",
-          "allowNo": false,
+          "allowNo": true,
           "type": "boolean"
         },
         "state-repos": {
@@ -3299,9 +3299,9 @@
           "type": "boolean"
         },
         "wait-for-checks": {
-          "description": "After provisioning, watch wet PR check runs until completion (requires --commit)",
+          "description": "After provisioning, watch wet PR check runs until completion (requires --commit; --no-wait-for-checks to skip)",
           "name": "wait-for-checks",
-          "allowNo": false,
+          "allowNo": true,
           "type": "boolean"
         },
         "state-repos": {
@@ -3794,9 +3794,9 @@
           "type": "boolean"
         },
         "wait-for-checks": {
-          "description": "After provisioning, watch wet PR check runs until completion (requires --commit)",
+          "description": "After provisioning, watch wet PR check runs until completion (requires --commit; --no-wait-for-checks to skip)",
           "name": "wait-for-checks",
-          "allowNo": false,
+          "allowNo": true,
           "type": "boolean"
         },
         "state-repos": {
@@ -4300,9 +4300,9 @@
           "type": "boolean"
         },
         "wait-for-checks": {
-          "description": "After provisioning, watch wet PR check runs until completion (requires --commit)",
+          "description": "After provisioning, watch wet PR check runs until completion (requires --commit; --no-wait-for-checks to skip)",
           "name": "wait-for-checks",
-          "allowNo": false,
+          "allowNo": true,
           "type": "boolean"
         },
         "state-repos": {
@@ -4667,9 +4667,9 @@
           "type": "boolean"
         },
         "wait-for-checks": {
-          "description": "After provisioning, watch wet PR check runs until completion (requires --commit)",
+          "description": "After provisioning, watch wet PR check runs until completion (requires --commit; --no-wait-for-checks to skip)",
           "name": "wait-for-checks",
-          "allowNo": false,
+          "allowNo": true,
           "type": "boolean"
         },
         "state-repos": {
@@ -4978,9 +4978,9 @@
           "type": "boolean"
         },
         "wait-for-checks": {
-          "description": "After provisioning, watch wet PR check runs until completion (requires --commit)",
+          "description": "After provisioning, watch wet PR check runs until completion (requires --commit; --no-wait-for-checks to skip)",
           "name": "wait-for-checks",
-          "allowNo": false,
+          "allowNo": true,
           "type": "boolean"
         },
         "state-repos": {
@@ -5352,9 +5352,9 @@
           "type": "boolean"
         },
         "wait-for-checks": {
-          "description": "After provisioning, watch wet PR check runs until completion (requires --commit)",
+          "description": "After provisioning, watch wet PR check runs until completion (requires --commit; --no-wait-for-checks to skip)",
           "name": "wait-for-checks",
-          "allowNo": false,
+          "allowNo": true,
           "type": "boolean"
         },
         "state-repos": {
@@ -5720,9 +5720,9 @@
           "type": "boolean"
         },
         "wait-for-checks": {
-          "description": "After provisioning, watch wet PR check runs until completion (requires --commit)",
+          "description": "After provisioning, watch wet PR check runs until completion (requires --commit; --no-wait-for-checks to skip)",
           "name": "wait-for-checks",
-          "allowNo": false,
+          "allowNo": true,
           "type": "boolean"
         },
         "state-repos": {
@@ -6214,69 +6214,6 @@
         "org-elements.js"
       ]
     },
-    "schema:list": {
-      "aliases": [],
-      "args": {},
-      "description": "List machine-readable fs-forge output contracts",
-      "examples": [
-        "<%= config.bin %> <%= command.id %>",
-        "<%= config.bin %> <%= command.id %> --json"
-      ],
-      "flags": {
-        "json": {
-          "description": "Output as JSON",
-          "name": "json",
-          "allowNo": false,
-          "type": "boolean"
-        }
-      },
-      "hasDynamicHelp": false,
-      "hiddenAliases": [],
-      "id": "schema:list",
-      "pluginAlias": "@firestartr/fs-forge-cli",
-      "pluginName": "@firestartr/fs-forge-cli",
-      "pluginType": "core",
-      "strict": true,
-      "enableJsonFlag": false,
-      "isESM": true,
-      "relativePath": [
-        "dist",
-        "commands",
-        "schema",
-        "list.js"
-      ]
-    },
-    "schema:show": {
-      "aliases": [],
-      "args": {
-        "name": {
-          "description": "Contract name",
-          "name": "name",
-          "required": true
-        }
-      },
-      "description": "Print a machine-readable output contract verbatim",
-      "examples": [
-        "<%= config.bin %> <%= command.id %> CommandHelpJson",
-        "<%= config.bin %> <%= command.id %> RelationGraph"
-      ],
-      "flags": {},
-      "hasDynamicHelp": false,
-      "hiddenAliases": [],
-      "id": "schema:show",
-      "pluginAlias": "@firestartr/fs-forge-cli",
-      "pluginName": "@firestartr/fs-forge-cli",
-      "pluginType": "core",
-      "strict": true,
-      "enableJsonFlag": false,
-      "isESM": true,
-      "relativePath": [
-        "dist",
-        "commands",
-        "schema",
-        "show.js"
-      ]
-    },
     "features:add": {
       "aliases": [],
       "args": {
@@ -6415,6 +6352,19 @@
           ],
           "description": "Body for the issue opened by --create-issue",
           "name": "issue-body",
+          "hasDynamicHelp": false,
+          "multiple": false,
+          "type": "option"
+        },
+        "wait-for-checks": {
+          "description": "After provisioning, watch wet PR check runs until completion (requires --commit; --no-wait-for-checks to skip)",
+          "name": "wait-for-checks",
+          "allowNo": true,
+          "type": "boolean"
+        },
+        "state-repos": {
+          "description": "Comma-separated state repos for --wait-for-checks (default: <org>/state-github,<org>/state-infra)",
+          "name": "state-repos",
           "hasDynamicHelp": false,
           "multiple": false,
           "type": "option"
@@ -6678,6 +6628,19 @@
           "hasDynamicHelp": false,
           "multiple": false,
           "type": "option"
+        },
+        "wait-for-checks": {
+          "description": "After provisioning, watch wet PR check runs until completion (requires --commit; --no-wait-for-checks to skip)",
+          "name": "wait-for-checks",
+          "allowNo": true,
+          "type": "boolean"
+        },
+        "state-repos": {
+          "description": "Comma-separated state repos for --wait-for-checks (default: <org>/state-github,<org>/state-infra)",
+          "name": "state-repos",
+          "hasDynamicHelp": false,
+          "multiple": false,
+          "type": "option"
         }
       },
       "hasDynamicHelp": false,
@@ -6872,6 +6835,19 @@
           "hasDynamicHelp": false,
           "multiple": false,
           "type": "option"
+        },
+        "wait-for-checks": {
+          "description": "After provisioning, watch wet PR check runs until completion (requires --commit; --no-wait-for-checks to skip)",
+          "name": "wait-for-checks",
+          "allowNo": true,
+          "type": "boolean"
+        },
+        "state-repos": {
+          "description": "Comma-separated state repos for --wait-for-checks (default: <org>/state-github,<org>/state-infra)",
+          "name": "state-repos",
+          "hasDynamicHelp": false,
+          "multiple": false,
+          "type": "option"
         }
       },
       "hasDynamicHelp": false,
@@ -6900,6 +6876,69 @@
         "commands",
         "features",
         "remove.js"
+      ]
+    },
+    "schema:list": {
+      "aliases": [],
+      "args": {},
+      "description": "List machine-readable fs-forge output contracts",
+      "examples": [
+        "<%= config.bin %> <%= command.id %>",
+        "<%= config.bin %> <%= command.id %> --json"
+      ],
+      "flags": {
+        "json": {
+          "description": "Output as JSON",
+          "name": "json",
+          "allowNo": false,
+          "type": "boolean"
+        }
+      },
+      "hasDynamicHelp": false,
+      "hiddenAliases": [],
+      "id": "schema:list",
+      "pluginAlias": "@firestartr/fs-forge-cli",
+      "pluginName": "@firestartr/fs-forge-cli",
+      "pluginType": "core",
+      "strict": true,
+      "enableJsonFlag": false,
+      "isESM": true,
+      "relativePath": [
+        "dist",
+        "commands",
+        "schema",
+        "list.js"
+      ]
+    },
+    "schema:show": {
+      "aliases": [],
+      "args": {
+        "name": {
+          "description": "Contract name",
+          "name": "name",
+          "required": true
+        }
+      },
+      "description": "Print a machine-readable output contract verbatim",
+      "examples": [
+        "<%= config.bin %> <%= command.id %> CommandHelpJson",
+        "<%= config.bin %> <%= command.id %> RelationGraph"
+      ],
+      "flags": {},
+      "hasDynamicHelp": false,
+      "hiddenAliases": [],
+      "id": "schema:show",
+      "pluginAlias": "@firestartr/fs-forge-cli",
+      "pluginName": "@firestartr/fs-forge-cli",
+      "pluginType": "core",
+      "strict": true,
+      "enableJsonFlag": false,
+      "isESM": true,
+      "relativePath": [
+        "dist",
+        "commands",
+        "schema",
+        "show.js"
       ]
     }
   },

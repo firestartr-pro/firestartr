@@ -32,6 +32,8 @@ export default class FeaturesRemove extends Command {
         org: flags.org,
         commit: flags.commit,
         noWait: flags['no-wait'],
+        waitForChecks: flags['wait-for-checks'],
+        stateRepos: flags['state-repos'],
         ...auditTrailOptions(flags),
         json: flags.json,
         feature: { name: flags.name },

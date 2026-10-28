@@ -138,10 +138,6 @@ export interface GitHubApi {
   ): Promise<CreatedItem>;
   commentOnIssue(ref: RepoRef, issue: number, body: string): Promise<void>;
   closeIssue(ref: RepoRef, issue: number): Promise<void>;
-  searchFiles(
-    ref: RepoRef,
-    query: string,
-  ): Promise<Array<{ path: string; name: string }>>;
 
   repoExists(ref: RepoRef): Promise<boolean>;
   teamExists(org: string, teamSlug: string): Promise<boolean>;

@@ -4,7 +4,11 @@ import {
   applyDynamicFeatureFlags,
   resolveFeatureArgs,
 } from '../features/dynamicFlags.js';
-import { AUDIT_TRAIL_FLAGS, ORG_FLAG } from '../mutations/support.js';
+import {
+  AUDIT_TRAIL_FLAGS,
+  MUTATION_CONTROL_FLAGS,
+  ORG_FLAG,
+} from '../mutations/support.js';
 import { DEFAULT_FEATURE_SOURCE } from './featureSource.js';
 
 import type { FlagSpec } from './deriveFlags.js';
@@ -37,6 +41,8 @@ export const FEATURE_TARGET_FLAGS = {
     description: 'Skip waiting for the provision workflow to complete',
   }),
   ...AUDIT_TRAIL_FLAGS,
+  'wait-for-checks': MUTATION_CONTROL_FLAGS['wait-for-checks'],
+  'state-repos': MUTATION_CONTROL_FLAGS['state-repos'],
 };
 
 export const FEATURE_SCHEMA_FLAGS = {

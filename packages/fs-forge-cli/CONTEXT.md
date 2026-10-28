@@ -290,8 +290,9 @@ modes. **Watch mode** (default): discovers the wet PR for a claim in state
 repos, polls all check runs until completion, and reports per-CR
 reconciliation status. **Current mode** (`--current`): reads the rendered CR
 from the state repo's main branch, follows the `last-state-pr` annotation to
-find the PR, and reports its check run status plus CR content. Also available
-as an opt-in `--wait-for-checks` flag on `create`/`edit --commit`.
+find the PR, and reports its check run status plus CR content. Also run by
+default after `create`, `edit` and the `features add|edit|remove` mutations
+when `--commit` is given (`--no-wait-for-checks` skips it).
 
 **Last-state-pr annotation**:
 A YAML annotation (`firestartr.dev/last-state-pr: <repo>#<number>`) on

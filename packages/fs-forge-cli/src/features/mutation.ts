@@ -140,6 +140,8 @@ export interface FeatureMutationRequest extends AuditTrailOptions {
   org?: string;
   commit?: boolean;
   noWait?: boolean;
+  waitForChecks?: boolean;
+  stateRepos?: string;
   json: boolean;
   feature?: FeatureReference;
   featureSchema?: Record<string, unknown>;
@@ -260,7 +262,8 @@ export async function runFeatureMutation(
             path: destination.path,
             existingSha: destination.existingSha,
             noWait: Boolean(request.noWait),
-            waitForChecks: false,
+            waitForChecks: Boolean(request.waitForChecks),
+            stateRepos: request.stateRepos,
             audit,
           },
           {

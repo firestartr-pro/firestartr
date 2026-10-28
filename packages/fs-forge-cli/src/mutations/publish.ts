@@ -1,7 +1,6 @@
 import { claimExists } from '../claims/claimsMap.js';
 import { loadClaimsMap, publishClaim } from '../claims/claimsRepo.js';
-import { findWetPr, parseStateRepos } from '../claims/wetPr.js';
-import { watchCheckRuns } from '../claims/checkRuns.js';
+import { watchWetPrChecks } from '../claims/wetPrChecks.js';
 import { waitForDispatch } from '../utils/waitForDispatch.js';
 
 import type { AuditTrail } from './auditIssue.js';
@@ -91,26 +90,12 @@ export async function publishClaimAndWait(
   });
 
   if (waitForChecks && !noWait) {
-    const repos = parseStateRepos(stateRepos, repo.ref.owner);
-    const wetPr = await findWetPr(repo.api, repos, kind, name);
-
-    if (wetPr) {
-      pulse.diagnostic(`Watching wet PR ${wetPr.repo}#${wetPr.number}...\n`);
-      const watchRepoName = wetPr.repo.split('/')[1];
-      const result = await watchCheckRuns(
-        repo.api,
-        { owner: wetPr.owner, repo: watchRepoName },
-        wetPr.number,
-      );
-      if (result.overallConclusion !== 'success') {
-        throw new Error(`Wet PR checks failed: ${result.overallConclusion}`);
-      }
-      pulse.diagnostic('All checks passed ✓\n');
-    } else {
-      pulse.diagnostic(
-        'No wet PR found for this claim; skipping check watch.\n',
-      );
-    }
+    await watchWetPrChecks(
+      repo.api,
+      repo.ref,
+      { claimType: kind, claimName: name, stateRepos },
+      pulse.diagnostic,
+    );
   }
 
   // Only a successful publish has a run to record; failures are reported by
