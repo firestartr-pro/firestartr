@@ -37,26 +37,31 @@ selection is explicit: each job installs npm itself.
   only extracts a version with `^npm@(\d+\.\d+\.\d+)`
   (`package_manager.rb#requested_version`); a bare major is ignored and the bot silently
   keeps its image npm.
-- Every job that runs npm installs the declared version right after
-  `actions/setup-node`, with `- name: Install npm` / `run: npm install -g npm@12.2.1`:
-  the three `pr_verify` jobs, the four npm publish workflows, `e2e`'s `unit-tests` job,
-  `promote_docs` and `promote_claims_schema`. In the publish workflows this replaces the
-  old `npm install -g npm@11.5.1`, so the OIDC floor stops being a pin hidden in four
-  places and becomes the declared version.
+- `packageManager` is the one fixed point. Nothing else spells the version out: every
+  place that needs npm derives it with
+  `npm install -g "$(node -p "require('./package.json').packageManager")"` (the field's
+  value, `npm@X.Y.Z`, is already a valid install spec). Every job that runs npm on this repository does this
+  right after `actions/setup-node`, with `- name: Install npm` (reading
+  `./gitops/package.json` in the two `promote_*` workflows, which check the repository out
+  under `gitops/`): the three `pr_verify` jobs, the four npm publish workflows, `e2e`'s
+  `unit-tests` job, `promote_docs` and `promote_claims_schema`. In the publish workflows
+  this replaces the old `npm install -g npm@11.5.1`, so the OIDC floor stops being a pin
+  hidden in four places and becomes the declared version.
 - `engines.npm` is pinned exactly because the npm version dictates which lockfile npm
   writes, and `engines.node` is `^24.15.0`. `engine-strict=true` in `.npmrc` turns both
   `engines` entries into hard errors on a developer machine: running npm 11 here fails
   with `Unsupported engine … Required: {"node":"^24.15.0","npm":"12.2.1"}`
   instead of quietly rewriting the lockfile. Global installs are exempt, so the
-  `npm install -g npm@12.2.1` step of a job is not blocked by the check it is about to
-  fix. Caveat: `engine-strict` also applies to the `engines` of every dependency, so a
+  install step of a job is not blocked by the check it is about to fix. Caveat: `engine-strict` also applies to the `engines` of every dependency, so a
   transitive package with a narrow Node range can turn `npm ci` red for reasons unrelated
   to npm.
 - The lockfile was renormalized once with npm 12.2.1. The diff is exactly the five
   workspace `dev` markers; no resolved version, `resolved` URL or integrity hash changed.
-- The Docker images install the pinned npm in the layer that already installs lerna and
-  ncc: `docker/slim.Dockerfile`, `docker/full-aws.Dockerfile`, `docker/full-az.Dockerfile`
-  and `docker/dev.Dockerfile` (the development container, which mounts the repository).
+- The Docker images run the same command: `docker/slim.Dockerfile`,
+  `docker/full-aws.Dockerfile`, `docker/full-az.Dockerfile` (which copy `package.json`
+  alone, right before `COPY . .`, so the layer only rebuilds when `package.json` changes)
+  and `docker/dev.Dockerfile` (the development container, which mounts the repository and
+  uses a throwaway copy of `package.json`).
   They copy the root `package.json` and `.npmrc`, so with `engine-strict=true` the npm
   bundled with `node:24` (11.19.1) cannot run `npm ci` at all (`EBADENGINE … Required:
   {"npm":"12.2.1"} Actual: {"npm":"11.19.1"}`). Passing `--no-engine-strict` to those
@@ -67,7 +72,7 @@ selection is explicit: each job installs npm itself.
   `alpine:latest`. `PrepareTestContainer` (`dagger/etoe/e2e.go`) installs Alpine's `npm`,
   `python3` and `build-base`, then Node 24 from the pinned Alpine v3.24 repository
   (`nodejs~24`) — Alpine 3.22, still what a stale `latest` can resolve to, only packages
-  Node 22 — then npm 12.2.1, and only then runs `npm install` on the mounted repository,
+  Node 22 — then mounts the repository, runs the same command and only then runs `npm install`,
   which reads the root `.npmrc` and therefore enforces `engine-strict`. Pinning the
   repository keeps the runtime at 24 while `alpine:latest` moves; moving to Node 26 means
   editing that line.
@@ -79,10 +84,11 @@ selection is explicit: each job installs npm itself.
 
 - "The lockfile is in sync" has one meaning: the npm named in `package.json`. A Dependabot
   bump touches only the lines of the bumped dependency.
-- The version literal now appears in ten steps across eight workflows. Bumping npm means
-  editing `package.json`, those ten steps and the lockfile together; a repository variable
-  would remove the repetition but also the review, so it was rejected. A future check
-  could assert that every `npm install -g npm@…` matches `package.json`.
+- Bumping npm means editing `package.json` (`packageManager` and `engines.npm`, which
+  must match; the lockfile's root `engines` mirrors it) and regenerating the lockfile.
+  Workflows, images and the e2e container follow on their own. The only remaining
+  duplicate is `engines.npm` next to `packageManager`, because JSON cannot reference
+  itself; `engine-strict` fails loudly if they ever diverge from the installed npm.
 - `engines.node` starts at 24.15.0, so Node 22 no longer installs here even though npm
   12.2.1 can run there: the repository tests one line, and 22 was only kept for the e2e
   container. The published packages keep their own `>=22` engines; narrowing those is a

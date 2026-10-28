@@ -4,7 +4,9 @@ FROM node:24-bookworm
 
 ENV LERNA_VERSION=8.1.9
 ENV TSX_VERSION=4.19.3
-ENV NPM_VERSION=12.2.1
+
+# npm comes from package.json "packageManager".
+COPY package.json /opt/npm-pin/package.json
 
 # Copy the OpenTofu binary and later symlink it to "terraform" to maintain
 # backward compatibility with existing scripts/tools that expect a terraform binary.
@@ -16,7 +18,7 @@ RUN \
     terraform --version &&  \
     npm install -g lerna@${LERNA_VERSION} && \
     npm install -g tsx@${TSX_VERSION} && \
-    npm install -g npm@${NPM_VERSION} && \
-    rm -rf /root/.npm/
+    npm install -g "$(node -p "require('/opt/npm-pin/package.json').packageManager")" && \
+    rm -rf /root/.npm/ /opt/npm-pin
 
 WORKDIR /home/app

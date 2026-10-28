@@ -17,9 +17,9 @@ func (m *Etoe) PrepareTestContainer(
 		// carries Node 22). The repository requires Node 24 (ADR 0006). Take it from a
 		// pinned repository so the version does not drift with the moving base.
 		WithExec([]string{"apk", "add", "--no-cache", "--repository", "https://dl-cdn.alpinelinux.org/alpine/v3.24/main", "nodejs~24"}).
-		WithExec([]string{"npm", "install", "-g", "npm@12.2.1"}).
 		WithMountedDirectory("/library", projectDir).
 		WithWorkdir("/library").
+		WithExec([]string{"sh", "-c", `npm install -g "$(node -p "require('./package.json').packageManager")"`}).
 		WithExec([]string{
 			"npm", "install",
 		}).

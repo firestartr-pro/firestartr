@@ -2,11 +2,15 @@ FROM node:24-bookworm AS builder
 
 ENV LERNA="8.1.9"
 ENV NCC="0.38.3"
-ENV NPM_VERSION="12.2.1"
 
-RUN npm install -g lerna@${LERNA} @vercel/ncc@${NCC} npm@${NPM_VERSION}
+RUN npm install -g lerna@${LERNA} @vercel/ncc@${NCC}
 
 WORKDIR /library/
+
+# npm comes from package.json "packageManager"; copied alone so this layer
+# only rebuilds when that file changes.
+COPY package.json ./
+RUN npm install -g "$(node -p "require('./package.json').packageManager")"
 
 COPY . .
 

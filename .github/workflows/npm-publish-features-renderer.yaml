@@ -33,10 +33,10 @@ jobs:
         cache-dependency-path: "package-lock.json"
 
     # Must run before the version-update script below: that script runs
-    # `npm install semver`, which rewrites the lockfile. Keep this version in
-    # step with the package.json "packageManager" pin (never below 11.5.1 for OIDC).
+    # `npm install semver`, which rewrites the lockfile. Installs the npm declared
+    # in package.json "packageManager" (never below 11.5.1 for OIDC).
     - name: Install npm
-      run: npm install -g npm@12.2.1
+      run: npm install -g "$(node -p "require('./package.json').packageManager")"
 
     - name: Update package.json version
       uses: actions/github-script@v9

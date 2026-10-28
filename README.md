@@ -106,16 +106,17 @@ synced by Argo CD → reconciled by the **operator** → provisioned through
 
 Requirements: Node 24, 24.15.0 or later (CI runs the latest 24.x), and Docker.
 
-The repository pins npm 12.2.1 and sets `engine-strict=true`, so install that
-npm before anything else. `packageManager` only switches npm when Corepack is
-enabled, and this repository does not use Corepack; any other npm makes `npm ci`
-fail with `EBADENGINE`.
+The repository pins one npm version (the `packageManager` field of the root
+`package.json`) and sets `engine-strict=true`, so install that npm before
+anything else. `packageManager` only switches npm when Corepack is enabled, and
+this repository does not use Corepack; any other npm makes `npm ci` fail with
+`EBADENGINE`.
 
 To run the operator locally you also need [kind](https://kind.sigs.k8s.io/) and
 `kubectl`. The e2e suites also need Go and [Dagger](https://dagger.io/).
 
 ```sh
-npm install -g npm@12.2.1     # pinned; npm ci fails with EBADENGINE otherwise
+npm install -g "$(node -p "require('./package.json').packageManager")"   # pinned npm; npm ci fails with EBADENGINE otherwise
 npm ci                        # install every workspace
 make build                    # build all packages
 cd packages/<name>

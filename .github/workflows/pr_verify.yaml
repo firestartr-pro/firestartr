@@ -51,7 +51,7 @@ jobs:
 
       - name: Install npm
         if: steps.changes.outputs.changed == 'true'
-        run: npm install -g npm@12.2.1
+        run: npm install -g "$(node -p "require('./package.json').packageManager")"
 
       - name: Make sure package-lock.json is in sync with the package.json files
         if: steps.changes.outputs.changed == 'true'
@@ -76,7 +76,7 @@ jobs:
           cache-dependency-path: "package-lock.json"
 
       - name: Install npm
-        run: npm install -g npm@12.2.1
+        run: npm install -g "$(node -p "require('./package.json').packageManager")"
 
       - name: Linter
         env:
@@ -140,7 +140,7 @@ jobs:
           cache-dependency-path: "package-lock.json"
 
       - name: Install npm
-        run: npm install -g npm@12.2.1
+        run: npm install -g "$(node -p "require('./package.json').packageManager")"
 
       - name: Install dependencies
         env:
