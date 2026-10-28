@@ -1,0 +1,111 @@
+# ADR 0005: One canonical npm version, declared in `packageManager` and installed per job
+
+## Status
+
+Accepted
+
+## Context
+
+`package-lock.json` is validated against the `package.json` files by running npm
+(`lockfile-in-sync` in `pr_verify.yaml`), so "in sync" only means something relative to
+one npm version. Before this decision the repository used at least three: whatever Node
+22 shipped inside `pr_verify` (10.9.x, and it floated with every Node 22 patch), npm
+11.5.1 installed by hand in the four publish workflows (the OIDC floor), npm 12 inside
+Dependabot (its default for `lockfileVersion: 3`), and anything on developer machines.
+
+npm 12 marks workspace entries differently. Normalizing this lockfile with npm 12 removes
+five `"dev": true` lines under
+`packages/{crs_analyzer,crs_status_service,importer,operator,scaffolder}`; npm 10 and 11
+keep them. Every Dependabot PR therefore failed the gate with a diff unrelated to the bump
+the PR was about (#144).
+
+Corepack is not part of this repository's CI or contributor instructions. Version
+selection is explicit: each job installs npm itself.
+
+## Decision
+
+- The root `package.json` declares `"packageManager": "npm@12.2.1"` and
+  `engines: { node: "^24.15.0", npm: "12.2.1" }`. The `packageManager` field exists for
+  Dependabot, which reads it to pick the npm that regenerates the lockfile. No workflow
+  runs Corepack and no contributor is asked to enable it. The node range is the single
+  line CI tests: CI, the images and the e2e container run Node 24 (ADR 0006), and a wider
+  range would only advertise versions nobody tests.
+- The pin is an exact semver, not a major. Corepack validates the field wherever it is
+  enabled, so `"npm@12"` makes every npm command fail on a machine that has Corepack
+  shims on `PATH` (`Invalid package manager specification in package.json (npm@12);
+  expected a semver version`), even though our CI does not use Corepack. Dependabot also
+  only extracts a version with `^npm@(\d+\.\d+\.\d+)`
+  (`package_manager.rb#requested_version`); a bare major is ignored and the bot silently
+  keeps its image npm.
+- `packageManager` is the one fixed point. Nothing else spells the version out: every
+  place that needs npm derives it with
+  `npm install -g "$(node -p "require('./package.json').packageManager")"` (the field's
+  value, `npm@X.Y.Z`, is already a valid install spec). Every job that runs npm on this repository does this
+  right after `actions/setup-node`, with `- name: Install npm` (reading
+  `./gitops/package.json` in the two `promote_*` workflows, which check the repository out
+  under `gitops/`): the three `pr_verify` jobs, the four npm publish workflows, `e2e`'s
+  `unit-tests` job, `promote_docs` and `promote_claims_schema`. In the publish workflows
+  this replaces the old `npm install -g npm@11.5.1`, so the OIDC floor stops being a pin
+  hidden in four places and becomes the declared version.
+- `engines.npm` is pinned exactly because the npm version dictates which lockfile npm
+  writes, and `engines.node` is `^24.15.0`. `engine-strict=true` in `.npmrc` turns both
+  `engines` entries into hard errors on a developer machine: running npm 11 here fails
+  with `Unsupported engine … Required: {"node":"^24.15.0","npm":"12.2.1"}`
+  instead of quietly rewriting the lockfile. Global installs are exempt, so the
+  install step of a job is not blocked by the check it is about to fix. Caveat: `engine-strict` also applies to the `engines` of every dependency, so a
+  transitive package with a narrow Node range can turn `npm ci` red for reasons unrelated
+  to npm.
+- The lockfile was renormalized once with npm 12.2.1. The diff is exactly the five
+  workspace `dev` markers; no resolved version, `resolved` URL or integrity hash changed.
+- The Docker images run the same command: `docker/slim.Dockerfile`,
+  `docker/full-aws.Dockerfile`, `docker/full-az.Dockerfile` (which copy `package.json`
+  alone, right before `COPY . .`, so the layer only rebuilds when `package.json` changes)
+  and `docker/dev.Dockerfile` (the development container, which mounts the repository and
+  uses a throwaway copy of `package.json`).
+  They copy the root `package.json` and `.npmrc`, so with `engine-strict=true` the npm
+  bundled with `node:24` (11.19.1) cannot run `npm ci` at all (`EBADENGINE … Required:
+  {"npm":"12.2.1"} Actual: {"npm":"11.19.1"}`). Passing `--no-engine-strict` to those
+  installs was rejected: `npm ci` never rewrites the lockfile, but exempting the image
+  builds would leave one place where the declared version does not apply.
+- The e2e Dagger module needs the same Node, and its container is the one place we do not
+  build ourselves: it comes from the upstream `firestartr-core` module, which starts from
+  `alpine:latest`. `PrepareTestContainer` (`dagger/etoe/e2e.go`) installs Alpine's `npm`,
+  `python3` and `build-base`, then Node 24 from the pinned Alpine v3.24 repository
+  (`nodejs~24`) — Alpine 3.22, still what a stale `latest` can resolve to, only packages
+  Node 22 — then mounts the repository, runs the same command and only then runs `npm install`,
+  which reads the root `.npmrc` and therefore enforces `engine-strict`. Pinning the
+  repository keeps the runtime at 24 while `alpine:latest` moves; moving to Node 26 means
+  editing that line.
+- Feature-managed workflows are not edited by hand. The npm calls in `make_dispatches`,
+  `trigger_deployment` and `build_images_summary_reusable` run in a workspace with no
+  manifest, so they are outside this decision.
+
+## Consequences
+
+- "The lockfile is in sync" has one meaning: the npm named in `package.json`. A Dependabot
+  bump touches only the lines of the bumped dependency.
+- Bumping npm means editing `package.json` (`packageManager` and `engines.npm`, which
+  must match; the lockfile's root `engines` mirrors it) and regenerating the lockfile.
+  Workflows, images and the e2e container follow on their own. The only remaining
+  duplicate is `engines.npm` next to `packageManager`, because JSON cannot reference
+  itself; `engine-strict` fails loudly if they ever diverge from the installed npm.
+- `engines.node` starts at 24.15.0, so Node 22 no longer installs here even though npm
+  12.2.1 can run there: the repository tests one line, and 22 was only kept for the e2e
+  container. The published packages keep their own `>=22` engines; narrowing those is a
+  consumer-facing decision, not this one.
+- Dependabot's certainty is at major level. It runs
+  `corepack install npm@12.2.1 --global --cache-only` inside its own image; when that
+  exact release is missing from the image cache, `recover_from_failed_install` degrades to
+  the latest cached 12.x and raises if even that fails. Keep the pin on the major the bot
+  image carries (12 today), or the bot will start failing instead of drifting.
+- Because nothing uses Corepack, a `node-version` bump is safe: Node 25+ drops Corepack
+  and that no longer affects this repository.
+- npm 12 blocks install scripts that are not covered by `allowScripts`; here that skips
+  the `esbuild` and `unrs-resolver` postinstalls. Lint, the TypeScript builds and the
+  unit tests pass without them, so no `allowScripts` entry was added. If a future
+  dependency needs its postinstall, add it there rather than reinstalling npm by hand.
+- The claims-schemas publish builds its package under `/tmp` and runs npm there; the
+  globally installed 12.2.1 is what runs, so OIDC keeps working.
+- Unifying npm does not make every Dependabot PR mergeable: a dependency declared with
+  different specifiers across manifests still changes the lockfile (#134). That is a
+  separate decision.

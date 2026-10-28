@@ -43,7 +43,9 @@ export const MUTATION_CONTROL_FLAGS = {
   }),
   'wait-for-checks': Flags.boolean({
     description:
-      'After provisioning, watch wet PR check runs until completion (requires --commit)',
+      'After provisioning, watch wet PR check runs until completion (requires --commit; --no-wait-for-checks to skip)',
+    default: true,
+    allowNo: true,
   }),
   'state-repos': Flags.string({
     description:

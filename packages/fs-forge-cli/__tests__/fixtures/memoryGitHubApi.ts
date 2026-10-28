@@ -1,3 +1,6 @@
+import { Header } from 'tar';
+import { gzipSync } from 'zlib';
+
 import type {
   CheckRunSummary,
   GitHubApi,
@@ -50,10 +53,6 @@ export class MemoryGitHubApi implements GitHubApi {
   private readonly pulls = new Map<string, PullRequestSummary[]>();
   private readonly pullFiles = new Map<string, PullRequestFile[]>();
   private readonly checkRuns = new Map<string, CheckRunSummary[]>();
-  private readonly searchResults = new Map<
-    string,
-    Array<{ path: string; name: string }>
-  >();
 
   key(ref: RepoRef): string {
     return `${ref.owner}/${ref.repo}`;
@@ -99,13 +98,6 @@ export class MemoryGitHubApi implements GitHubApi {
     this.checkRuns.set(`${this.key(ref)}#${pr}`, runs);
   }
 
-  setSearchResults(
-    ref: RepoRef,
-    results: Array<{ path: string; name: string }>,
-  ): void {
-    this.searchResults.set(this.key(ref), results);
-  }
-
   addRepo(ref: RepoRef): void {
     this.existingRepos.add(this.key(ref));
   }
@@ -135,7 +127,26 @@ export class MemoryGitHubApi implements GitHubApi {
 
   async downloadTarball(ref: RepoRef, gitRef?: string): Promise<Buffer> {
     this.calls.push(`downloadTarball ${this.key(ref)}@${gitRef ?? 'HEAD'}`);
-    return this.tarball;
+    if (this.tarball.length > 0) return this.tarball;
+    const prefix = `${this.key(ref)}#`;
+    const directory = Buffer.alloc(512);
+    new Header({ path: 'repo/', type: 'Directory', mode: 0o755 }).encode(directory);
+    const blocks: Buffer[] = [directory];
+    for (const [key, file] of this.files) {
+      if (!key.startsWith(prefix)) continue;
+      const content = Buffer.from(file.content);
+      const header = new Header({
+        path: `repo/${key.slice(prefix.length)}`,
+        type: 'File',
+        size: content.length,
+        mode: 0o644,
+      });
+      const block = Buffer.alloc(512);
+      header.encode(block);
+      blocks.push(block, content, Buffer.alloc((512 - content.length % 512) % 512));
+    }
+    blocks.push(Buffer.alloc(1024));
+    return gzipSync(Buffer.concat(blocks));
   }
 
   async getDefaultBranch(ref: RepoRef): Promise<string> {
@@ -265,14 +276,6 @@ export class MemoryGitHubApi implements GitHubApi {
   ): Promise<CheckRunSummary[]> {
     this.calls.push(`listCheckRunsForPullRequest ${this.key(ref)}#${pr}`);
     return this.checkRuns.get(`${this.key(ref)}#${pr}`) ?? [];
-  }
-
-  async searchFiles(
-    ref: RepoRef,
-    query: string,
-  ): Promise<Array<{ path: string; name: string }>> {
-    this.calls.push(`searchFiles ${this.key(ref)}:${query}`);
-    return this.searchResults.get(this.key(ref)) ?? [];
   }
 
   async repoExists(ref: RepoRef): Promise<boolean> {

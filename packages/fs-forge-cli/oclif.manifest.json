@@ -99,7 +99,7 @@
           "type": "boolean"
         },
         "wait-for-checks": {
-          "description": "Wait for PR Verify to pass before merging the claim PR (CR plan checks always wait)",
+          "description": "Wait for PR Verify to pass before merging the claim PR (CR plan checks always wait; --no-wait-for-checks to skip)",
           "name": "wait-for-checks",
           "allowNo": true,
           "type": "boolean"
@@ -1193,9 +1193,9 @@
           "type": "boolean"
         },
         "wait-for-checks": {
-          "description": "After provisioning, watch wet PR check runs until completion (requires --commit)",
+          "description": "After provisioning, watch wet PR check runs until completion (requires --commit; --no-wait-for-checks to skip)",
           "name": "wait-for-checks",
-          "allowNo": false,
+          "allowNo": true,
           "type": "boolean"
         },
         "state-repos": {
@@ -1667,9 +1667,9 @@
           "type": "boolean"
         },
         "wait-for-checks": {
-          "description": "After provisioning, watch wet PR check runs until completion (requires --commit)",
+          "description": "After provisioning, watch wet PR check runs until completion (requires --commit; --no-wait-for-checks to skip)",
           "name": "wait-for-checks",
-          "allowNo": false,
+          "allowNo": true,
           "type": "boolean"
         },
         "state-repos": {
@@ -2325,9 +2325,9 @@
           "type": "boolean"
         },
         "wait-for-checks": {
-          "description": "After provisioning, watch wet PR check runs until completion (requires --commit)",
+          "description": "After provisioning, watch wet PR check runs until completion (requires --commit; --no-wait-for-checks to skip)",
           "name": "wait-for-checks",
-          "allowNo": false,
+          "allowNo": true,
           "type": "boolean"
         },
         "state-repos": {
@@ -2869,9 +2869,9 @@
           "type": "boolean"
         },
         "wait-for-checks": {
-          "description": "After provisioning, watch wet PR check runs until completion (requires --commit)",
+          "description": "After provisioning, watch wet PR check runs until completion (requires --commit; --no-wait-for-checks to skip)",
           "name": "wait-for-checks",
-          "allowNo": false,
+          "allowNo": true,
           "type": "boolean"
         },
         "state-repos": {
@@ -3122,9 +3122,9 @@
           "type": "boolean"
         },
         "wait-for-checks": {
-          "description": "After provisioning, watch wet PR check runs until completion (requires --commit)",
+          "description": "After provisioning, watch wet PR check runs until completion (requires --commit; --no-wait-for-checks to skip)",
           "name": "wait-for-checks",
-          "allowNo": false,
+          "allowNo": true,
           "type": "boolean"
         },
         "state-repos": {
@@ -3573,9 +3573,9 @@
           "type": "boolean"
         },
         "wait-for-checks": {
-          "description": "After provisioning, watch wet PR check runs until completion (requires --commit)",
+          "description": "After provisioning, watch wet PR check runs until completion (requires --commit; --no-wait-for-checks to skip)",
           "name": "wait-for-checks",
-          "allowNo": false,
+          "allowNo": true,
           "type": "boolean"
         },
         "state-repos": {
@@ -4035,9 +4035,9 @@
           "type": "boolean"
         },
         "wait-for-checks": {
-          "description": "After provisioning, watch wet PR check runs until completion (requires --commit)",
+          "description": "After provisioning, watch wet PR check runs until completion (requires --commit; --no-wait-for-checks to skip)",
           "name": "wait-for-checks",
-          "allowNo": false,
+          "allowNo": true,
           "type": "boolean"
         },
         "state-repos": {
@@ -4358,9 +4358,9 @@
           "type": "boolean"
         },
         "wait-for-checks": {
-          "description": "After provisioning, watch wet PR check runs until completion (requires --commit)",
+          "description": "After provisioning, watch wet PR check runs until completion (requires --commit; --no-wait-for-checks to skip)",
           "name": "wait-for-checks",
-          "allowNo": false,
+          "allowNo": true,
           "type": "boolean"
         },
         "state-repos": {
@@ -4625,9 +4625,9 @@
           "type": "boolean"
         },
         "wait-for-checks": {
-          "description": "After provisioning, watch wet PR check runs until completion (requires --commit)",
+          "description": "After provisioning, watch wet PR check runs until completion (requires --commit; --no-wait-for-checks to skip)",
           "name": "wait-for-checks",
-          "allowNo": false,
+          "allowNo": true,
           "type": "boolean"
         },
         "state-repos": {
@@ -4955,9 +4955,9 @@
           "type": "boolean"
         },
         "wait-for-checks": {
-          "description": "After provisioning, watch wet PR check runs until completion (requires --commit)",
+          "description": "After provisioning, watch wet PR check runs until completion (requires --commit; --no-wait-for-checks to skip)",
           "name": "wait-for-checks",
-          "allowNo": false,
+          "allowNo": true,
           "type": "boolean"
         },
         "state-repos": {
@@ -5279,9 +5279,9 @@
           "type": "boolean"
         },
         "wait-for-checks": {
-          "description": "After provisioning, watch wet PR check runs until completion (requires --commit)",
+          "description": "After provisioning, watch wet PR check runs until completion (requires --commit; --no-wait-for-checks to skip)",
           "name": "wait-for-checks",
-          "allowNo": false,
+          "allowNo": true,
           "type": "boolean"
         },
         "state-repos": {
@@ -5892,6 +5892,19 @@
           "name": "no-wait",
           "allowNo": false,
           "type": "boolean"
+        },
+        "wait-for-checks": {
+          "description": "After provisioning, watch wet PR check runs until completion (requires --commit; --no-wait-for-checks to skip)",
+          "name": "wait-for-checks",
+          "allowNo": true,
+          "type": "boolean"
+        },
+        "state-repos": {
+          "description": "Comma-separated state repos for --wait-for-checks (default: <org>/state-github,<org>/state-infra)",
+          "name": "state-repos",
+          "hasDynamicHelp": false,
+          "multiple": false,
+          "type": "option"
         }
       },
       "hasDynamicHelp": false,
@@ -6108,6 +6121,19 @@
           "name": "no-wait",
           "allowNo": false,
           "type": "boolean"
+        },
+        "wait-for-checks": {
+          "description": "After provisioning, watch wet PR check runs until completion (requires --commit; --no-wait-for-checks to skip)",
+          "name": "wait-for-checks",
+          "allowNo": true,
+          "type": "boolean"
+        },
+        "state-repos": {
+          "description": "Comma-separated state repos for --wait-for-checks (default: <org>/state-github,<org>/state-infra)",
+          "name": "state-repos",
+          "hasDynamicHelp": false,
+          "multiple": false,
+          "type": "option"
         }
       },
       "hasDynamicHelp": false,
@@ -6259,6 +6285,19 @@
           "name": "no-wait",
           "allowNo": false,
           "type": "boolean"
+        },
+        "wait-for-checks": {
+          "description": "After provisioning, watch wet PR check runs until completion (requires --commit; --no-wait-for-checks to skip)",
+          "name": "wait-for-checks",
+          "allowNo": true,
+          "type": "boolean"
+        },
+        "state-repos": {
+          "description": "Comma-separated state repos for --wait-for-checks (default: <org>/state-github,<org>/state-infra)",
+          "name": "state-repos",
+          "hasDynamicHelp": false,
+          "multiple": false,
+          "type": "option"
         }
       },
       "hasDynamicHelp": false,
