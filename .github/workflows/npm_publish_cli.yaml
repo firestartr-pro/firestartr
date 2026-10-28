@@ -31,14 +31,15 @@ jobs:
       - name: Setup Node.js
         uses: actions/setup-node@v7
         with:
-          node-version: "22"
+          node-version: "24"
           registry-url: "https://registry.npmjs.org"
           cache: "npm"
           cache-dependency-path: "package-lock.json"
 
-        # Update npm to 11.5.1 to be able to authenticate with OIDC
-      - name: Update npm
-        run: npm install -g npm@11.5.1
+      # Installs the npm declared in package.json "packageManager".
+      # Publishing over OIDC requires npm >= 11.5.1, so never pin below that.
+      - name: Install npm
+        run: npm install -g "$(node -p "require('./package.json').packageManager")"
 
       - name: Install
         run: |

@@ -115,10 +115,6 @@ export interface GitHubApi {
     ref: RepoRef,
     pr: number,
   ): Promise<CheckRunSummary[]>;
-  searchFiles(
-    ref: RepoRef,
-    query: string,
-  ): Promise<Array<{ path: string; name: string }>>;
 
   repoExists(ref: RepoRef): Promise<boolean>;
   teamExists(org: string, teamSlug: string): Promise<boolean>;

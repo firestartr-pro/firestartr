@@ -1,11 +1,12 @@
 import { claimExists } from '../claims/claimsMap.js';
 import { loadClaimsMap, publishClaim } from '../claims/claimsRepo.js';
-import { findWetPr, parseStateRepos } from '../claims/wetPr.js';
-import { watchCheckRuns } from '../claims/checkRuns.js';
+import { watchWetPrChecks } from '../claims/wetPrChecks.js';
 import { waitForDispatch } from '../utils/waitForDispatch.js';
 
-import type { ClaimsRepo } from '../claims/claimsRepo.js';
+import type { ClaimsRepo, WorkflowDispatch } from '../claims/claimsRepo.js';
 import type { ClaimKindName } from '../claims/kinds.js';
+import type { WetPrCheckWatch } from '../claims/wetPrChecks.js';
+import type { GitHubApi, RepoRef } from '../github/api.js';
 
 export interface ClaimPublishRequest {
   repo: ClaimsRepo;
@@ -28,6 +29,37 @@ export interface Pulse {
 
 export interface ClaimPublishResult {
   publishUrl: string;
+}
+
+export interface ProvisionWait extends WetPrCheckWatch {
+  noWait?: boolean;
+  waitForChecks?: boolean;
+}
+
+/**
+ * The wait that follows a publish, shared by the claim mutations and the
+ * Feature mutations: poll the provision workflow run, then watch the wet PR
+ * check runs it produced — skipped entirely by `--no-wait`.
+ */
+export async function waitForProvision(
+  api: GitHubApi,
+  ref: RepoRef,
+  dispatch: WorkflowDispatch,
+  wait: ProvisionWait,
+  diagnostic: (line: string) => void,
+): Promise<string> {
+  const publishUrl = await waitForDispatch(api, ref, dispatch, {
+    noWait: wait.noWait,
+    claimType: wait.claimType,
+    claimName: wait.claimName,
+    label: 'Provisioning',
+  });
+
+  if (wait.waitForChecks && !wait.noWait) {
+    await watchWetPrChecks(api, ref, wait, diagnostic);
+  }
+
+  return publishUrl;
 }
 
 /**
@@ -74,35 +106,13 @@ export async function publishClaimAndWait(
     existingSha,
   });
 
-  const publishUrl = await waitForDispatch(repo.api, repo.ref, dispatch, {
-    noWait,
-    claimType: kind,
-    claimName: name,
-    label: 'Provisioning',
-  });
-
-  if (waitForChecks && !noWait) {
-    const repos = parseStateRepos(stateRepos, repo.ref.owner);
-    const wetPr = await findWetPr(repo.api, repos, kind, name);
-
-    if (wetPr) {
-      pulse.diagnostic(`Watching wet PR ${wetPr.repo}#${wetPr.number}...\n`);
-      const watchRepoName = wetPr.repo.split('/')[1];
-      const result = await watchCheckRuns(
-        repo.api,
-        { owner: wetPr.owner, repo: watchRepoName },
-        wetPr.number,
-      );
-      if (result.overallConclusion !== 'success') {
-        throw new Error(`Wet PR checks failed: ${result.overallConclusion}`);
-      }
-      pulse.diagnostic('All checks passed ✓\n');
-    } else {
-      pulse.diagnostic(
-        'No wet PR found for this claim; skipping check watch.\n',
-      );
-    }
-  }
+  const publishUrl = await waitForProvision(
+    repo.api,
+    repo.ref,
+    dispatch,
+    { claimType: kind, claimName: name, noWait, waitForChecks, stateRepos },
+    pulse.diagnostic,
+  );
 
   return { publishUrl };
 }

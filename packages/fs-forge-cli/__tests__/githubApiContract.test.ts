@@ -77,9 +77,10 @@ function octokitScenario(): GitHubApi {
           if (repo === 'missing-repo') throw notFound();
           return { data: { default_branch: 'main' } };
         }),
-        downloadTarballArchive: jest.fn(async () => ({
-          data: Uint8Array.from([1, 2, 3]).buffer,
-        })),
+        downloadTarballArchive: jest.fn(async ({ ref }: { ref: string }) => {
+          octokitRequests.push(`repos.downloadTarballArchive ${ref}`);
+          return { data: Uint8Array.from([1, 2, 3]).buffer };
+        }),
       },
       git: {
         getTree: jest.fn(async () => ({
@@ -162,6 +163,8 @@ function octokitScenario(): GitHubApi {
             html_url: `https://github.com/example/state-github/pull/${pull_number}`,
             state: 'closed',
             merged: true,
+            head: { sha: 'head-sha' },
+            merge_commit_sha: 'head-sha',
           },
         })),
       },
@@ -170,25 +173,6 @@ function octokitScenario(): GitHubApi {
           octokitRequests.push(`checks.listForRef ${ref}`);
           return { data: { check_runs: CHECK_RUNS } };
         }),
-      },
-      search: {
-        code: jest.fn(async () => ({
-          data: {
-            total_count: 2,
-            items: [
-              {
-                path: 'cr.yaml',
-                name: 'cr.yaml',
-                repository: { full_name: 'example/claims' },
-              },
-              {
-                path: 'other.yaml',
-                name: 'other.yaml',
-                repository: { full_name: 'example/other' },
-              },
-            ],
-          },
-        })),
       },
       teams: {
         getByName: jest.fn(async ({ team_slug }: { team_slug: string }) => {
@@ -265,7 +249,6 @@ function memoryScenario(): GitHubApi {
       htmlUrl: run.html_url,
     })),
   );
-  api.setSearchResults(REF, [{ path: 'cr.yaml', name: 'cr.yaml' }]);
   api.tarball = Buffer.from([1, 2, 3]);
   api.addRepo(REF);
   api.addTeam('example', 'platform');
@@ -350,12 +333,12 @@ describe.each(ADAPTERS)('GitHubApi contract (%s)', (_name, makeApi) => {
     );
   });
 
-  it('filters search results to the target repository', async () => {
+  it('downloads a repository archive as a buffer at the requested ref', async () => {
     const api = makeApi();
 
-    await expect(api.searchFiles(REF, '"claim-ref"')).resolves.toEqual([
-      { path: 'cr.yaml', name: 'cr.yaml' },
-    ]);
+    await expect(api.downloadTarball(REF, 'trunk')).resolves.toEqual(
+      Buffer.from([1, 2, 3]),
+    );
   });
 
   it('lists workflow runs unfiltered and filtered by event', async () => {
@@ -414,10 +397,22 @@ describe.each(ADAPTERS)('GitHubApi contract (%s)', (_name, makeApi) => {
 });
 
 describe('octokit adapter request shapes', () => {
-  it('reads check runs through refs/pull/<n>/head', async () => {
+  it('downloads archives at the requested ref and defaults to HEAD', async () => {
+    const api = octokitScenario();
+
+    await api.downloadTarball(REF, 'trunk');
+    await api.downloadTarball(REF);
+
+    expect(octokitRequests).toEqual([
+      'repos.downloadTarballArchive trunk',
+      'repos.downloadTarballArchive HEAD',
+    ]);
+  });
+
+  it('reads check runs through the pull request head SHA', async () => {
     const api = octokitScenario();
     await api.listCheckRunsForPullRequest(REF, 7);
-    expect(octokitRequests).toContain('checks.listForRef refs/pull/7/head');
+    expect(octokitRequests).toEqual(['checks.listForRef head-sha']);
   });
 
   it('lists every open pull request and filters the head prefix locally', async () => {

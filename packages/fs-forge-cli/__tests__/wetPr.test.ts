@@ -125,6 +125,24 @@ describe('wetPr', () => {
       });
     });
 
+    it.each([
+      '|\n      other-org/state-github#200\n',
+      '>\n      other-org/state-github#200\n',
+      '"other-org/state-github#200"',
+      "'other-org/state-github#200'",
+    ])('parses a YAML annotation value %s', (value) => {
+      const content = `metadata:\n  annotations:\n    firestartr.dev/last-state-pr: ${value}`;
+      expect(extractLastStatePrFromContent(content, 'test-org')).toEqual({
+        owner: 'other-org',
+        repo: 'other-org/state-github',
+        number: 200,
+      });
+    });
+
+    it('returns null for malformed YAML', () => {
+      expect(extractLastStatePrFromContent('metadata: [', 'test-org')).toBeNull();
+    });
+
     it('returns null when annotation is missing', () => {
       const content =
         'apiVersion: firestartr.dev/v1\nkind: FirestartrGithubRepository';
