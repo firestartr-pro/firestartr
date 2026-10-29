@@ -148,6 +148,7 @@ describe('.firestartrignore', () => {
   });
 
   it('also excludes globals, initializers, and existing CR files', async () => {
+    context.configureRendererPaths();
     await context.addSupportFile('config/.firestartrignore', '');
     await context.addSupportFile(
       'config/global_github_repository.yaml',
