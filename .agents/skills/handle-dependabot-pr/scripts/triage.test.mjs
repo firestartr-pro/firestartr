@@ -4,6 +4,7 @@ import { readFileSync } from "node:fs";
 import { dirname, join } from "node:path";
 import { fileURLToPath } from "node:url";
 import {
+  pickSummary,
   parseLevels,
   parseState,
   nextState,
@@ -118,6 +119,17 @@ test("levelOf treats optional and peer dependencies as direct", () => {
   });
   assert.equal(levelOf("@kubernetes/client-node", l, levels), "critical");
   assert.equal(levelOf("cron-parser", l, levels), "runtime");
+});
+
+test("levelOf ignores cycles when a direct dependency gives a real level", () => {
+  const l = lock({
+    "": { devDependencies: { jest: "^29" } },
+    "node_modules/jest": { dependencies: { a: "^1" } },
+    "node_modules/a": { dependencies: { b: "^1" } },
+    "node_modules/b": { dependencies: { a: "^1" } },
+  });
+  assert.equal(levelOf("a", l, levels), "dev");
+  assert.equal(levelOf("b", l, levels), "dev");
 });
 
 test("levelOf walks up to the highest puller for indirect dependencies", () => {
@@ -261,4 +273,28 @@ test("nextState resets the checks when the replacement PR head changes", () => {
 test("parseState reads the replacement PR number", () => {
   const body = "head: abc\nreplacement: #170\nstep: e2e started";
   assert.deepEqual(parseState(body), { head: "abc", step: "e2e started", runs: "", replacement: 170 });
+});
+
+test("a recorded replacement PR keeps Path B and its checks on retriage", () => {
+  const t = buildTriage({
+    name: "typescript",
+    from: "5.4.0",
+    to: "5.4.1",
+    lock: lock({ "": { devDependencies: { typescript: "^5" } }, "node_modules/typescript": {} }),
+    levels,
+    socketResult: { alerts: [] },
+    replacement: 170,
+  });
+  assert.equal(t.path, "B");
+  assert.ok(t.labels.includes("path/B"));
+  assert.ok(t.checks.includes("Copilot review"));
+});
+
+test("pickSummary only trusts the operator's own summary comment", () => {
+  const comments = [
+    { id: 1, user: { login: "someone" }, body: "<!-- handle-dependabot-pr:summary -->\nstep: e2e done" },
+    { id: 2, user: { login: "operator" }, body: "<!-- handle-dependabot-pr:summary -->\nstep: triaged" },
+  ];
+  assert.equal(pickSummary(comments, "operator").id, 2);
+  assert.equal(pickSummary(comments.slice(0, 1), "operator"), null);
 });

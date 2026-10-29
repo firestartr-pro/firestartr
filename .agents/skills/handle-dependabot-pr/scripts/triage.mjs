@@ -119,24 +119,33 @@ export function levelOf(name, lock, levels) {
   const memo = new Map();
   const visiting = new Set();
 
+  // null means "no classified path yet" (a cycle cut). Only the top-level call
+  // turns that into unclassified, so a cycle can't outrank a real level.
   function resolve(pkg) {
     if (direct.has(pkg)) return classify(pkg, levels) ?? "unclassified";
     if (memo.has(pkg)) return memo.get(pkg);
     if (visiting.has(pkg)) return null;
+    const parents = pullers.get(pkg);
+    if (!parents || parents.size === 0) return "unclassified";
     visiting.add(pkg);
     let best = null;
-    for (const parent of pullers.get(pkg) ?? []) {
+    for (const parent of parents) {
       const level = resolve(parent);
       if (level === null) continue;
       if (best === null || RANK[level] > RANK[best]) best = level;
     }
     visiting.delete(pkg);
-    const result = best ?? "unclassified";
-    memo.set(pkg, result);
-    return result;
+    if (best !== null) memo.set(pkg, best);
+    return best;
   }
 
-  return resolve(name);
+  return resolve(name) ?? "unclassified";
+}
+
+// Only the operator's own summary is trusted. Anyone else can post the marker
+// and a fake state, so other authors' comments are ignored.
+export function pickSummary(comments, viewer) {
+  return comments.find((c) => c.body?.includes(MARKER) && c.user?.login === viewer) ?? null;
 }
 
 // Socket gate. Any alert found anywhere in the score output stops the flow.
@@ -171,9 +180,9 @@ export function requiredChecks(level, path, jump) {
   return ["Copilot review", "CI", "e2e with default suites"];
 }
 
-export function buildTriage({ name, from, to, lock, levels, socketResult }) {
+export function buildTriage({ name, from, to, lock, levels, socketResult, replacement = null }) {
   const jump = versionJump(from, to);
-  const path = pathFor(jump);
+  const path = replacement ? "B" : pathFor(jump);
   const level = levelOf(name, lock, levels);
   const socket = socketResult.alerts.length > 0 ? "alert" : "ok";
   return {
@@ -266,12 +275,12 @@ async function fileAt(slug, ref, path) {
   return Buffer.from(out.trim(), "base64").toString("utf8");
 }
 
-async function findSummary(slug, number) {
+async function findSummary(slug, number, viewer) {
   const pages = JSON.parse(await gh(["api", `repos/${slug}/issues/${number}/comments`, "--paginate", "--slurp"]));
-  return pages.flat().find((c) => c.body?.includes(MARKER)) ?? null;
+  return pickSummary(pages.flat(), viewer);
 }
 
-async function triagePr(number, { dryRun, slug, levels, replacementOverride }) {
+async function triagePr(number, { dryRun, slug, levels, replacementOverride, viewer }) {
   const pr = JSON.parse(
     await gh(["pr", "view", String(number), "--json", "number,title,headRefName,headRefOid,state"]),
   );
@@ -281,11 +290,11 @@ async function triagePr(number, { dryRun, slug, levels, replacementOverride }) {
 
   const lock = JSON.parse(await fileAt(slug, pr.headRefName, "package-lock.json"));
   const socketResult = await socketScore(bump.name, bump.to);
-  const t = buildTriage({ ...bump, lock, levels, socketResult });
 
-  const existing = await findSummary(slug, number);
+  const existing = await findSummary(slug, number, viewer);
   const previous = existing ? parseState(existing.body) : null;
   const replacement = replacementOverride ?? previous?.replacement ?? null;
+  const t = buildTriage({ ...bump, lock, levels, socketResult, replacement });
   const head = replacement
     ? (await gh(["pr", "view", String(replacement), "--json", "headRefOid", "-q", ".headRefOid"])).trim()
     : pr.headRefOid;
@@ -330,6 +339,7 @@ async function main(argv) {
   const args = argv.filter((a) => a !== "--dry-run");
   const levels = parseLevels(readFileSync(join(HERE, "..", "levels.yaml"), "utf8"));
   const slug = await repoSlug();
+  const viewer = (await gh(["api", "user", "--jq", ".login"])).trim();
 
   const repIdx = args.indexOf("--replacement");
   const replacementOverride = repIdx === -1 ? null : Number(args[repIdx + 1]);
@@ -353,7 +363,7 @@ async function main(argv) {
 
   const rows = [];
   for (const n of numbers) {
-    rows.push(await triagePr(n, { dryRun, slug, levels, replacementOverride }));
+    rows.push(await triagePr(n, { dryRun, slug, levels, replacementOverride, viewer }));
   }
   printTable(rows);
   if (numbers.length === 1 || dryRun) {
