@@ -30,7 +30,11 @@ script prints jump, level, path, Socket verdict, required checks and the squash
 subject. Those are the source of truth; don't recompute them.
 
 If `socket` is `alert`, the script sets `step: stopped: socket alert` and posts
-the findings. **Stop.** Report the findings to the user and wait.
+the blocking findings. **Stop.** Report the findings to the user and wait.
+A blocking finding is high or critical severity, malware, a vulnerability or a
+typosquat. Lower-severity findings (for example `shellAccess` or
+`networkAccess`) appear under "Socket notes" and don't stop the flow. Mention
+them in your report to the user.
 
 ## Path A: merge the Dependabot PR
 

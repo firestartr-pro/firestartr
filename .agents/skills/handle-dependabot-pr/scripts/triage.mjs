@@ -164,6 +164,26 @@ export function socketAlerts(node, found = []) {
   return found;
 }
 
+// Only high or critical findings, malware, vulnerabilities and typosquats stop
+// the flow. Lower-severity capability signals are posted but do not block.
+const BLOCKING_SEVERITY = new Set(["high", "critical"]);
+const BLOCKING_CATEGORY = new Set(["malware", "vulnerability"]);
+const BLOCKING_NAME = new Set(["typosquat"]);
+
+export function isBlockingAlert(alert) {
+  return (
+    BLOCKING_SEVERITY.has(alert?.severity) ||
+    BLOCKING_CATEGORY.has(alert?.category) ||
+    BLOCKING_NAME.has(alert?.name)
+  );
+}
+
+function describeAlert(alert) {
+  if (typeof alert === "string") return alert;
+  const where = alert.example ? ` (${alert.example})` : "";
+  return `${alert.name} · ${alert.severity} · ${alert.category}${where}`;
+}
+
 export function squashSubject(level, name, from, to) {
   const prefix = level === "dev" ? "chore" : "fix";
   return `${prefix}(deps): bump ${name} from ${from} to ${to}`;
@@ -184,7 +204,9 @@ export function buildTriage({ name, from, to, lock, levels, socketResult, replac
   const jump = versionJump(from, to);
   const path = replacement ? "B" : pathFor(jump);
   const level = levelOf(name, lock, levels);
-  const socket = socketResult.alerts.length > 0 ? "alert" : "ok";
+  const blocking = socketResult.alerts.filter(isBlockingAlert);
+  const notes = socketResult.alerts.filter((a) => !isBlockingAlert(a));
+  const socket = blocking.length > 0 ? "alert" : "ok";
   return {
     name,
     from,
@@ -196,7 +218,8 @@ export function buildTriage({ name, from, to, lock, levels, socketResult, replac
     labels: [`jump/${jump}`, `level/${level}`, `path/${path}`, `socket/${socket}`],
     checks: requiredChecks(level, path, jump),
     squash: squashSubject(level, name, from, to),
-    socketAlerts: socketResult.alerts,
+    socketAlerts: blocking,
+    socketNotes: notes,
   };
 }
 
@@ -230,9 +253,11 @@ export function renderComment(t, state) {
   ];
   if (t.socket === "alert") {
     lines.push("", "**Stopped: Socket alert.** Review the findings before going further.");
-    for (const alert of t.socketAlerts.slice(0, 20)) {
-      lines.push(`- ${typeof alert === "string" ? alert : JSON.stringify(alert)}`);
-    }
+    for (const alert of t.socketAlerts.slice(0, 20)) lines.push(`- ${describeAlert(alert)}`);
+  }
+  if (t.socketNotes.length > 0) {
+    lines.push("", "Socket notes (not blocking):");
+    for (const alert of t.socketNotes.slice(0, 20)) lines.push(`- ${describeAlert(alert)}`);
   }
   lines.push("", `head: ${state.head}`);
   if (state.replacement) lines.push(`replacement: #${state.replacement}`);

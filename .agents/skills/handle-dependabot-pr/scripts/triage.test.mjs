@@ -5,6 +5,8 @@ import { dirname, join } from "node:path";
 import { fileURLToPath } from "node:url";
 import {
   pickSummary,
+  isBlockingAlert,
+  renderComment,
   parseLevels,
   parseState,
   nextState,
@@ -208,7 +210,7 @@ test("buildTriage produces labels, squash subject and a stopping socket alert", 
     to: "4.18.1",
     lock: l,
     levels,
-    socketResult: { alerts: [{ type: "malware" }] },
+    socketResult: { alerts: [{ name: "malware", severity: "critical", category: "malware" }] },
   });
   assert.equal(t.jump, "minor");
   assert.equal(t.path, "A");
@@ -297,4 +299,32 @@ test("pickSummary only trusts summaries from authorized collaborators", () => {
   ];
   assert.equal(pickSummary(comments, new Set(["teammate"])).id, 2);
   assert.equal(pickSummary(comments.slice(0, 1), new Set(["teammate"])), null);
+});
+
+test("middle and low Socket findings are noted but do not stop the flow", () => {
+  const alerts = [
+    { name: "shellAccess", severity: "middle", category: "supplyChainRisk", example: "npm/cdk8s@2.70.114" },
+    { name: "networkAccess", severity: "low", category: "supplyChainRisk", example: "npm/x@1.0.0" },
+  ];
+  const t = buildTriage({
+    name: "typescript",
+    from: "5.4.0",
+    to: "5.4.1",
+    lock: lock({ "": { devDependencies: { typescript: "^5" } }, "node_modules/typescript": {} }),
+    levels,
+    socketResult: { alerts },
+  });
+  assert.equal(t.socket, "ok");
+  assert.equal(t.socketAlerts.length, 0);
+  assert.equal(t.socketNotes.length, 2);
+  assert.ok(!renderComment(t, { head: "h", step: "triaged", runs: "", replacement: null }).includes("Stopped: Socket alert"));
+});
+
+test("high or critical, malware, vulnerability and typosquat findings stop the flow", () => {
+  assert.equal(isBlockingAlert({ name: "x", severity: "high", category: "supplyChainRisk" }), true);
+  assert.equal(isBlockingAlert({ name: "x", severity: "critical", category: "quality" }), true);
+  assert.equal(isBlockingAlert({ name: "x", severity: "low", category: "malware" }), true);
+  assert.equal(isBlockingAlert({ name: "x", severity: "middle", category: "vulnerability" }), true);
+  assert.equal(isBlockingAlert({ name: "typosquat", severity: "low", category: "supplyChainRisk" }), true);
+  assert.equal(isBlockingAlert({ name: "shellAccess", severity: "middle", category: "supplyChainRisk" }), false);
 });
