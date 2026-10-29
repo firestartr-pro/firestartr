@@ -4,7 +4,11 @@
   "packages": {
     ".": {
       "include-component-in-tag": false,
-      "exclude-paths": ["packages/features_renderer", "packages/fs-forge-cli"]
+      "exclude-paths": [
+        "packages/features_renderer",
+        "packages/fs-forge-cli",
+        ".agents/skills/verify-fs-forge-cli"
+      ]
     },
     "packages/features_renderer": {
       "component": "features_renderer",
