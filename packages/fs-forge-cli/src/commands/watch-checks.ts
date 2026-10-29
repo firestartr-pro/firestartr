@@ -9,7 +9,12 @@ import {
   watchCheckRuns,
   type AggregatedCheckResult,
 } from '../claims/checkRuns.js';
-import { parseStateRepos, findWetPr, type WetPrInfo } from '../claims/wetPr.js';
+import {
+  parseStateRepos,
+  findWetPr,
+  type WetPrInfo,
+  type LastStatePrRedirect,
+} from '../claims/wetPr.js';
 import { ORG_FLAG } from '../mutations/support.js';
 import { resolveClaimReference } from '../claims/kindRegistry.js';
 import {
@@ -17,6 +22,15 @@ import {
   formatPrState,
   type CrInfo,
 } from '../claims/stateRepo.js';
+
+import type { GitHubApi } from '../github/api.js';
+
+interface LastStatePrInfo {
+  repo: string;
+  number: number;
+  state: string | null;
+  url: string | null;
+}
 
 interface JsonOutput {
   status: string;
@@ -34,12 +48,7 @@ interface JsonOutput {
     name: string;
     path: string;
     content: string;
-    lastStatePr: {
-      repo: string;
-      number: number;
-      state: string | null;
-      url: string | null;
-    } | null;
+    lastStatePr: LastStatePrInfo | null;
     checks: Array<{
       name: string;
       conclusion: string | null;
@@ -338,9 +347,11 @@ export default class WatchChecks extends Command {
     claimRef: string,
   ): Promise<JsonOutput> {
     const jsonCrs: NonNullable<JsonOutput['crs']> = [];
+    const prInfoByPr = new Map<string, LastStatePrInfo>();
     let overallStatus = 'ok';
 
     for (const cr of crs) {
+      let lastStatePr: LastStatePrInfo | null = null;
       let checks: Array<{
         name: string;
         conclusion: string | null;
@@ -348,6 +359,10 @@ export default class WatchChecks extends Command {
       }> = [];
 
       if (cr.lastStatePr) {
+        const key = `${cr.lastStatePr.repo}#${cr.lastStatePr.number}`;
+        lastStatePr =
+          prInfoByPr.get(key) ?? (await enrichPrInfo(repo.api, cr.lastStatePr));
+        prInfoByPr.set(key, lastStatePr);
         try {
           const result = await pointInTimeCheck(
             repo.api,
@@ -377,7 +392,7 @@ export default class WatchChecks extends Command {
         name: cr.name,
         path: cr.path,
         content: cr.content,
-        lastStatePr: cr.lastStatePr,
+        lastStatePr,
         checks,
       });
     }
@@ -428,6 +443,20 @@ export default class WatchChecks extends Command {
       }
       process.stdout.write('\n');
     }
+  }
+}
+
+async function enrichPrInfo(
+  api: GitHubApi,
+  parsed: LastStatePrRedirect,
+): Promise<LastStatePrInfo> {
+  const { owner, repo: repoSlug, number } = parsed;
+  const repo = repoSlug.slice(owner.length + 1);
+  try {
+    const pr = await api.getPullRequest({ owner, repo }, number);
+    return { repo: repoSlug, number, state: pr.state, url: pr.htmlUrl };
+  } catch {
+    return { repo: repoSlug, number, state: null, url: null };
   }
 }
 

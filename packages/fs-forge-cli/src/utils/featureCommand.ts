@@ -4,7 +4,7 @@ import {
   applyDynamicFeatureFlags,
   resolveFeatureArgs,
 } from '../features/dynamicFlags.js';
-import { ORG_FLAG } from '../mutations/support.js';
+import { ORG_FLAG, MUTATION_CONTROL_FLAGS } from '../mutations/support.js';
 import { DEFAULT_FEATURE_SOURCE } from './featureSource.js';
 
 import type { FlagSpec } from './deriveFlags.js';
@@ -36,6 +36,8 @@ export const FEATURE_TARGET_FLAGS = {
   'no-wait': Flags.boolean({
     description: 'Skip waiting for the provision workflow to complete',
   }),
+  'wait-for-checks': MUTATION_CONTROL_FLAGS['wait-for-checks'],
+  'state-repos': MUTATION_CONTROL_FLAGS['state-repos'],
 };
 
 export const FEATURE_SCHEMA_FLAGS = {
