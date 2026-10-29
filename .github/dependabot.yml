@@ -17,6 +17,11 @@ updates:
       interval: "daily"
     versioning-strategy: increase
     open-pull-requests-limit: 30
+    # fix(deps) triggers a release; chore(deps) is hidden from release-please.
+    # The handle-dependabot-pr skill overrides this per levels.yaml when they disagree.
+    commit-message:
+      prefix: fix
+      prefix-development: chore
     # Ignore these dependencies to allow manual review of possible errors and conflicts
     ignore:
       - dependency-name: "uuid"
