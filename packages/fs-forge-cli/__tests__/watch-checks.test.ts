@@ -389,6 +389,37 @@ describe('watch-checks current mode', () => {
     expect(outcome.stderr).toBe('');
   });
 
+  it('shows only the exact claim’s PR when another claim name has the same prefix', async () => {
+    const api = mockApi();
+    api.setFile(STATE_REPO, 'my-app.yaml', CR_CONTENT.replace('name: state-github', 'name: my-app-cr'));
+    api.setFile(STATE_REPO, 'my-app-v2.yaml', CR_CONTENT
+      .replace('name: state-github', 'name: my-app-v2-cr')
+      .replace('ComponentClaim/my-app', 'ComponentClaim/my-app-v2')
+      .replace('state-github#100', 'state-github#200'));
+    api.setPullRequests(STATE_REPO, [
+      pull(100, 'automated-componentclaim-my-app'),
+      pull(200, 'automated-componentclaim-my-app-v2'),
+    ]);
+    api.setCheckRuns(STATE_REPO, 100, [checkRun('apply-my-app', 'success')]);
+    api.setCheckRuns(STATE_REPO, 200, [checkRun('apply-my-app-v2', 'failure')]);
+
+    const outcome = await run(
+      'ComponentClaim-my-app', '--org', 'my-org',
+      '--state-repos', 'my-org/state-github', '--current', '--json',
+    );
+
+    expect(outcome.error?.oclif?.exit).toBe(0);
+    expect(JSON.parse(outcome.stdout)).toEqual(expect.objectContaining({
+      status: 'ok',
+      crs: [expect.objectContaining({
+        name: 'my-app-cr',
+        lastStatePr: expect.objectContaining({ number: 100 }),
+        checks: [expect.objectContaining({ name: 'apply-my-app', conclusion: 'success' })],
+      })],
+    }));
+    expect(outcome.stdout).not.toContain('my-app-v2');
+  });
+
   it.each(['open', 'merged', 'closed'])(
     'preserves the exact JSON output for an existing PR in state %s',
     async (state) => {
