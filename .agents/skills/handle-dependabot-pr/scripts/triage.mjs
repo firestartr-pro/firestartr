@@ -142,10 +142,10 @@ export function levelOf(name, lock, levels) {
   return resolve(name) ?? "unclassified";
 }
 
-// Only the operator's own summary is trusted. Anyone else can post the marker
-// and a fake state, so other authors' comments are ignored.
-export function pickSummary(comments, viewer) {
-  return comments.find((c) => c.body?.includes(MARKER) && c.user?.login === viewer) ?? null;
+// Only summaries written by authorized collaborators are trusted. Anyone else
+// can post the marker and a fake state, so their comments are ignored.
+export function pickSummary(comments, trusted) {
+  return comments.find((c) => c.body?.includes(MARKER) && trusted.has(c.user?.login)) ?? null;
 }
 
 // Socket gate. Any alert found anywhere in the score output stops the flow.
@@ -275,12 +275,29 @@ async function fileAt(slug, ref, path) {
   return Buffer.from(out.trim(), "base64").toString("utf8");
 }
 
-async function findSummary(slug, number, viewer) {
+async function findSummary(slug, number) {
   const pages = JSON.parse(await gh(["api", `repos/${slug}/issues/${number}/comments`, "--paginate", "--slurp"]));
-  return pickSummary(pages.flat(), viewer);
+  const comments = pages.flat().filter((c) => c.body?.includes(MARKER));
+  const authors = [...new Set(comments.map((c) => c.user?.login).filter(Boolean))];
+  const trusted = new Set();
+  for (const login of authors) {
+    if (await isWriter(slug, login)) trusted.add(login);
+  }
+  return pickSummary(comments, trusted);
 }
 
-async function triagePr(number, { dryRun, slug, levels, replacementOverride, viewer }) {
+async function isWriter(slug, login) {
+  try {
+    const permission = (
+      await gh(["api", `repos/${slug}/collaborators/${login}/permission`, "--jq", ".permission"])
+    ).trim();
+    return ["admin", "maintain", "write"].includes(permission);
+  } catch {
+    return false;
+  }
+}
+
+async function triagePr(number, { dryRun, slug, levels, replacementOverride }) {
   const pr = JSON.parse(
     await gh(["pr", "view", String(number), "--json", "number,title,headRefName,headRefOid,state"]),
   );
@@ -291,7 +308,7 @@ async function triagePr(number, { dryRun, slug, levels, replacementOverride, vie
   const lock = JSON.parse(await fileAt(slug, pr.headRefName, "package-lock.json"));
   const socketResult = await socketScore(bump.name, bump.to);
 
-  const existing = await findSummary(slug, number, viewer);
+  const existing = await findSummary(slug, number);
   const previous = existing ? parseState(existing.body) : null;
   const replacement = replacementOverride ?? previous?.replacement ?? null;
   const t = buildTriage({ ...bump, lock, levels, socketResult, replacement });
@@ -339,7 +356,6 @@ async function main(argv) {
   const args = argv.filter((a) => a !== "--dry-run");
   const levels = parseLevels(readFileSync(join(HERE, "..", "levels.yaml"), "utf8"));
   const slug = await repoSlug();
-  const viewer = (await gh(["api", "user", "--jq", ".login"])).trim();
 
   const repIdx = args.indexOf("--replacement");
   const replacementOverride = repIdx === -1 ? null : Number(args[repIdx + 1]);
@@ -363,7 +379,7 @@ async function main(argv) {
 
   const rows = [];
   for (const n of numbers) {
-    rows.push(await triagePr(n, { dryRun, slug, levels, replacementOverride, viewer }));
+    rows.push(await triagePr(n, { dryRun, slug, levels, replacementOverride }));
   }
   printTable(rows);
   if (numbers.length === 1 || dryRun) {

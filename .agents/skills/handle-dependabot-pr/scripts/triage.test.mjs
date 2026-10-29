@@ -290,11 +290,11 @@ test("a recorded replacement PR keeps Path B and its checks on retriage", () => 
   assert.ok(t.checks.includes("Copilot review"));
 });
 
-test("pickSummary only trusts the operator's own summary comment", () => {
+test("pickSummary only trusts summaries from authorized collaborators", () => {
   const comments = [
-    { id: 1, user: { login: "someone" }, body: "<!-- handle-dependabot-pr:summary -->\nstep: e2e done" },
-    { id: 2, user: { login: "operator" }, body: "<!-- handle-dependabot-pr:summary -->\nstep: triaged" },
+    { id: 1, user: { login: "outsider" }, body: "<!-- handle-dependabot-pr:summary -->\nstep: e2e done" },
+    { id: 2, user: { login: "teammate" }, body: "<!-- handle-dependabot-pr:summary -->\nstep: triaged" },
   ];
-  assert.equal(pickSummary(comments, "operator").id, 2);
-  assert.equal(pickSummary(comments.slice(0, 1), "operator"), null);
+  assert.equal(pickSummary(comments, new Set(["teammate"])).id, 2);
+  assert.equal(pickSummary(comments.slice(0, 1), new Set(["teammate"])), null);
 });
