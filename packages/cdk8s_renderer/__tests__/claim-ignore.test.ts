@@ -7,6 +7,8 @@ import {
   resolveClaimFilesList,
 } from '../src/utils/claimUtils';
 import { crawl } from '../src/crawler';
+import { TFWorkspaceNormalizer } from '../src/normalizers/tfworkspace';
+import { isIgnoredFile } from '../src/utils/fileIgnore';
 import { getPath, setPath } from '../src/config';
 import {
   loadGlobals,
@@ -77,7 +79,7 @@ describe('.firestartrignore', () => {
     expect(found).toContain('TFWorkspaceClaim-workspace_a');
   });
 
-  it('ignores every local file during generic crawling, but still visits children', async () => {
+  it('ignores only local YAML during generic crawling, but still visits children', async () => {
     await context.addSupportFile(
       'base_claims/tfworkspaces/.firestartrignore',
       '',
@@ -96,9 +98,40 @@ describe('.firestartrignore', () => {
       },
     );
     const ignoredDir = path.dirname(await context.getFilePath('workspace_a'));
-    expect(files.some((file) => path.dirname(file) === ignoredDir)).toBe(false);
+    expect(files).not.toContain(await context.getFilePath('workspace_a'));
+    expect(files).not.toContain(path.join(ignoredDir, '.firestartrignore'));
+    expect(files).toContain(path.join(ignoredDir, 'config.json'));
+    expect(files).toContain(path.join(ignoredDir, 'script.sh'));
+    expect(isIgnoredFile(path.join(ignoredDir, 'config.json'))).toBe(false);
+    expect(isIgnoredFile(path.join(ignoredDir, 'script.sh'))).toBe(false);
     expect(files).toContain(await context.getFilePath('workspace_c'));
     expect(files).toContain(await context.getFilePath('component_a'));
+  });
+
+  it('keeps Terraform source in marked children of an inline workspace', async () => {
+    const root = 'base_claims/tfworkspaces/workspace_c';
+    const main = 'output "dependency" { value = local.child_value }';
+    const resources = 'locals { child_value = "retained" }';
+    await context.addSupportFile(`${root}/main.tf`, main);
+    await context.addSupportFile(`${root}/child/.firestartrignore`, '');
+    await context.addSupportFile(`${root}/child/resources.tf`, resources);
+    await context.addSupportFile(`${root}/child/config.yaml`, '[invalid');
+    await context.addSupportFile(`${root}/child/config.yml`, '[invalid');
+
+    const claimPath = await context.getFilePath('workspace_c');
+    expect((await validateClaimAgainstSchema({ claimPath })).valid).toBe(true);
+    const claim = context.fromYaml(await context.getFile('workspace_c'));
+    const normalizer = new TFWorkspaceNormalizer({ path: claimPath });
+    let cr: any = { spec: { source: 'Inline' } };
+    for (const patch of await normalizer.patches(claim, null)) {
+      cr = await patch.apply(cr);
+    }
+    expect(cr.spec.module).toContain(main);
+    expect(cr.spec.module).toContain(resources);
+    expect(cr.spec.module).not.toContain('[invalid');
+    expect(await refs(path.dirname(claimPath))).toContain(
+      'TFWorkspaceClaim-workspace_c',
+    );
   });
 
   it('renders selected claims without parsing ignored matches during lazy lookup', async () => {

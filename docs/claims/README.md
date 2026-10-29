@@ -1,8 +1,8 @@
 # The firestartr renderer
 
-## Ignoring unrelated files
+## Ignoring unrelated YAML
 
-Place a `.firestartrignore` file in a directory to exclude every file
+Place a `.firestartrignore` file in a directory to exclude all `.yaml` and `.yml` files
 directly inside it from renderer discovery and loading. Only the
 marker's existence matters; its contents are never interpreted.
 
@@ -12,7 +12,7 @@ infra/
     .firestartrignore
     config.yaml           # ignored
     config.yml            # ignored
-    config.json           # ignored (all file types)
+    main.tf               # still collected for inline Terraform modules
     claims/
       workspace.yaml      # processed (no marker in claims/)
   claims/
@@ -20,12 +20,14 @@ infra/
 ```
 
 Markers do not apply to descendants. Subdirectories are always traversed and
-need their own marker to ignore their local files. Even valid claims in
+need their own marker to ignore their local YAML files. Even valid claims in
 a marked directory are ignored, including explicitly selected files and lazy
 reference lookups. Keep claims and unrelated YAML in separate directories.
 
-This also applies to globals, initializers, and existing rendered CRs. Do not
-place a marker in directories containing files that the renderer needs to load.
+This also applies to YAML globals, initializers, claim defaults, and existing
+rendered CRs. Do not place a marker in directories containing YAML that the
+renderer needs to load. Non-YAML files are unaffected, including `.tf` source
+in marked child directories collected into a parent workspace's inline module.
 
 ## Claims Documentation
 

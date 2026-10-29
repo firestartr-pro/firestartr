@@ -5,5 +5,8 @@ export const FIRESTARTR_IGNORE_FILE = '.firestartrignore';
 
 /** Only the file's own directory matters; markers are not inherited. */
 export function isIgnoredFile(file: string): boolean {
-  return existsSync(path.join(path.dirname(file), FIRESTARTR_IGNORE_FILE));
+  return (
+    /\.(yaml|yml)$/.test(file) &&
+    existsSync(path.join(path.dirname(file), FIRESTARTR_IGNORE_FILE))
+  );
 }

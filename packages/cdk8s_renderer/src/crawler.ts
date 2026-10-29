@@ -146,7 +146,10 @@ async function crawlDirectory(dirEnt: string, exec: Function) {
 
       if (testDir) {
         await crawlDirectory(entry, exec);
-      } else if (ignoreFiles) {
+      } else if (
+        path.basename(entry) === FIRESTARTR_IGNORE_FILE ||
+        (ignoreFiles && /\.(yaml|yml)$/.test(entry))
+      ) {
         continue;
       } else {
         await slurpFile(entry, exec);
