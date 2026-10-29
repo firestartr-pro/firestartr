@@ -41,6 +41,8 @@ export async function runOnTerraform(
 
   const streaming = entity.streamTFProvisioner;
 
+  opts = { ...opts, ctl: opts.ctl ?? entity.tfCtl };
+
   if (command === 'import-with-reimport') {
     // Step 1: nuke the tf state via destroy-state-only
     await runTerraformProvisioner(
@@ -98,11 +100,17 @@ export async function runOnTerraform(
     // state and reconciling them in one step.
     //
     // See ADR 0006: Apply-time adoption of existing GitHub resources via import blocks.
+    //
+    // Artifact plans carry the same import blocks so they predict the live
+    // apply's adoption. A lock-free plan only previews imports, never stores them.
     const importDoc = entity.importDocument;
-    if (command === 'apply' && importDoc.imports.length > 0) {
+    if (
+      (command === 'apply' || command === 'plan-artifact') &&
+      importDoc.imports.length > 0
+    ) {
       const importResult = await runTerraformProvisioner(
         buildContext(entity, reuseExistingProject, true),
-        'apply',
+        command,
         streaming,
         importDoc,
         opts.ctl,
@@ -161,6 +169,7 @@ export function buildContext(
     projectPath,
     reuseExistingProject: reuseExistingProjectOverride ? true : undefined, // only set if true
     importMode: importMode === true,
+    planExcludes: entity.planExcludes,
   };
 }
 

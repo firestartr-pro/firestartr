@@ -5,6 +5,7 @@ import {
   initFromModule,
   output,
   plan,
+  planArtifact,
   validate,
   customCommand,
 } from './utils';
@@ -309,6 +310,21 @@ export class TFProjectManagerRemote {
     if (this.stream) this.stream.end();
   }
 
+  async planArtifact(destroy: boolean) {
+    await this.__init();
+
+    this.tfOutput = await planArtifact(
+      this.projectPath,
+      this.secrets,
+      destroy,
+      this.stream,
+      this.ctl,
+      this.ctx.planExcludes ?? [],
+    );
+
+    if (this.stream) this.stream.end();
+  }
+
   async apply() {
     await this.__init();
 
@@ -334,6 +350,7 @@ export class TFProjectManagerRemote {
       this.secrets,
       this.customArgs,
       this.stream,
+      this.ctl,
     );
 
     if (this.stream) this.stream.end();
@@ -357,6 +374,7 @@ export class TFProjectManagerRemote {
         this.secrets,
         ['state', 'list'],
         this.stream,
+        this.ctl,
       )) as string
     )
       .split(/\n/)
@@ -372,6 +390,7 @@ export class TFProjectManagerRemote {
         this.secrets,
         ['state', 'rm'].concat(addressesList),
         this.stream,
+        this.ctl,
       );
 
       log.info(

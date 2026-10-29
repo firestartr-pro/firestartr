@@ -36,6 +36,10 @@ import { resolveSecretRef } from './resolver';
 
 import log from './logger';
 import { logActivity } from './activity-log';
+import { isPlanMode } from './plan-mode/config';
+import { planStartupOperation } from './plan-mode/startup';
+import { planRecordsSync, planRetryOperation } from './plan-mode/work-items';
+import { needsDeletionBlocking } from './dependants';
 
 import { OperationType, WorkStatus } from './definitions';
 import type { WorkItemHandler, WorkItem } from './definitions';
@@ -55,12 +59,6 @@ const kindsWithFinalizer = [
   'FirestartrGithubOrganizationSettings',
   'FirestartrGithubOrganizationVariableSection',
   'FirestartrGithubRepositorySecretsSection',
-];
-
-const kindsWithDependants = [
-  'FirestartrDummyA',
-  'FirestartrDummyB',
-  'FirestartrGithubRepository',
 ];
 
 /**
@@ -126,8 +124,10 @@ export async function observeKind(
         `The informer has detected a new item, '${item.metadata.name}', for '${pluralKind}' in namespace '${namespace}'.`,
       );
 
-      await handleUpsertFinalizer(pluralKind, namespace, item);
-      await upsertInitialStatus(pluralKind, namespace, item);
+      if (!isPlanMode()) {
+        await handleUpsertFinalizer(pluralKind, namespace, item);
+        await upsertInitialStatus(pluralKind, namespace, item);
+      }
 
       const workItem: WorkItem | null = await inform(
         pluralKind,
@@ -234,7 +234,9 @@ export async function observeKind(
             common.types.controller.FirestartrLabelOldName
           ];
 
-        await handleUnsetFinalizer(pluralKind, namespace, item);
+        if (!isPlanMode()) {
+          await handleUnsetFinalizer(pluralKind, namespace, item);
+        }
 
         // Remove the old item from the syncer, only new item will should be provisioned
         syncCtl.deleteItem(
@@ -305,6 +307,10 @@ function enqueue(
 
   workItem.isDeadLetter = false;
 
+  // Plan mode: whether the plan in flight reported a failure to the retry
+  // controller, which then owns the next attempt
+  let planFailed = false;
+
   workItem.handler = {
     finalize: unsetFinalizer,
 
@@ -367,7 +373,11 @@ function enqueue(
 
     itemPath: () => itemPath(pluralKind, workItem.item),
 
-    error: () => retryCtl.errorReconciling(itemPath(pluralKind, workItem.item)),
+    error: () => {
+      planFailed = true;
+
+      return retryCtl.errorReconciling(itemPath(pluralKind, workItem.item));
+    },
 
     success: () =>
       retryCtl.successReconciling(itemPath(pluralKind, workItem.item)),
@@ -399,51 +409,26 @@ function enqueue(
       return customTimeout;
     },
     needsBlocking: (item: any, operation: OperationType) => {
-      if (kindsWithDependants.indexOf(item.kind) === -1) {
-        return false;
-      }
-
-      // only for delete operations
-      if (operation !== OperationType.MARKED_TO_DELETION) {
-        if (
-          operation === OperationType.RETRY ||
-          operation === OperationType.RETRY_SYNC
-        ) {
-          // is the retry a delete operation?
-          if (!('deletionTimestamp' in workItem.item.metadata)) {
-            return false;
-          }
-        } else {
-          return false;
-        }
-      }
-
-      if (
-        item.metadata.finalizers &&
-        (item.metadata.finalizers.indexOf('foregroundDeletion') !== -1 ||
-          item.metadata.finalizers.indexOf(
-            'firestartr.dev/foreground-deletion',
-          ) !== -1)
-      ) {
-        // it will block for five seconds
-        workItem.isBlocked = true;
-
-        const tTimeout = setTimeout(() => {
-          workItem.isBlocked = false;
-        }, 1000 * 5);
-
-        workItem.fUnblock = () => {
-          clearTimeout(tTimeout);
-
-          workItem.isBlocked = false;
-        };
-
-        return true;
-      } else {
+      if (!needsDeletionBlocking(item, operation)) {
         workItem.isBlocked = false;
 
         return false;
       }
+
+      // it will block for five seconds
+      workItem.isBlocked = true;
+
+      const tTimeout = setTimeout(() => {
+        workItem.isBlocked = false;
+      }, 1000 * 5);
+
+      workItem.fUnblock = () => {
+        clearTimeout(tTimeout);
+
+        workItem.isBlocked = false;
+      };
+
+      return true;
     },
 
     getSlotInfo: () => null,
@@ -454,6 +439,42 @@ function enqueue(
     operation: OperationType,
     handler: any,
   ) {
+    if (isPlanMode()) {
+      planFailed = false;
+
+      // A failed plan must not rearm periodic sync: a new SYNC would clear
+      // the pending retry and reset its budget, bypassing backoff and the
+      // retry limit. The sync is rearmed when a later plan succeeds.
+      const suspendSync = () => syncCtl.deleteItem(itemPath(pluralKind, item));
+
+      try {
+        yield* compute(item, operation, handler);
+      } catch (e) {
+        suspendSync();
+
+        throw e;
+      }
+
+      if (planFailed) {
+        suspendSync();
+
+        return;
+      }
+
+      if (planRecordsSync(operation, item)) {
+        await setSyncStatus(
+          workItem.handler.itemPath(),
+          operation,
+          'True',
+          'Plan process finished',
+        );
+
+        void syncCtl.updateItem(itemPath(pluralKind, item));
+      }
+
+      return;
+    }
+
     const needsUpdateSyncConditions =
       operation === OperationType.RENAMED ||
       operation === OperationType.UPDATED ||
@@ -640,7 +661,10 @@ async function inform(
       const errorCondition = item.status?.conditions?.find(
         (c: any) => c.type === 'ERROR' && c.status === 'True',
       );
-      const retryOp = retryOpForReason(errorCondition?.reason);
+      // Plan mode retries its own failed plans, not the live operator's errors
+      const retryOp = isPlanMode()
+        ? planRetryOperation(workItem?.operation)
+        : retryOpForReason(errorCondition?.reason);
 
       workItem = {
         operation: retryOp,
@@ -677,6 +701,20 @@ async function inform(
         };
 
         return workItem;
+      }
+
+      if (isPlanMode()) {
+        return {
+          operation: planStartupOperation(item),
+
+          item,
+
+          workStatus: WorkStatus.PENDING,
+
+          onDelete: function () {},
+
+          upsertTime: Date.now(),
+        };
       }
 
       return null;

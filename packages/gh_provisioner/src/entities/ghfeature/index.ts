@@ -56,8 +56,22 @@ export class EntityGHFeature extends Entity {
           await this.preApplyStateRm(installedManagedFiles);
         }
 
+        // A forward plan models preApplyStateRm by excluding the same
+        // addresses from the plan, leaving the live state untouched
+        if (tfOp === 'plan') {
+          this.planExcludes = await this.preApplyStateRmAddresses(
+            installedManagedFiles,
+          );
+        }
+
         if (tfOp === 'destroy') {
           await this.keepUntrackedFiles(tfOp);
+        }
+
+        // A destroy plan models keepUntrackedFiles by excluding the same
+        // addresses from the plan, leaving the live state untouched
+        if (tfOp === 'plan-destroy') {
+          this.planExcludes = await this.userManagedStateAddresses();
         }
       }
 
@@ -136,41 +150,10 @@ export class EntityGHFeature extends Entity {
    * feature definition or are still under user control from a previous apply.
    */
   async preApplyStateRm(installedManagedFiles: string[]): Promise<void> {
-    if (installedManagedFiles.length === 0) return;
-
     try {
-      const stateListOutput = await runOnTerraform(this, 'custom-command', [
-        'state',
-        'list',
-      ]);
-
-      const stateAddresses = parseStateList(stateListOutput);
-
-      // Files that are transitioning from userManaged:true → false must NOT be
-      // state-rm'd because Terraform needs them in state to manage them going forward.
-      const transitioningToManaged = new Set(
-        (this.cr.spec.files ?? [])
-          .filter((f: any) => !f.userManaged)
-          .map(
-            (f: any) =>
-              `${f.path}/${f.targetBranch || this.cr.spec.repositoryTarget.branch}`,
-          ),
+      const addressesToRemove = await this.preApplyStateRmAddresses(
+        installedManagedFiles,
       );
-
-      const addressesToRemove = stateAddresses.filter((addr) => {
-        const match = addr.match(
-          /^github_repository_file\.user_managed\["(.+)"\]$/,
-        );
-
-        if (!match) return false;
-
-        const fileAddress = match[1];
-
-        return (
-          installedManagedFiles.includes(fileAddress) &&
-          !transitioningToManaged.has(fileAddress)
-        );
-      });
 
       if (addressesToRemove.length > 0) {
         log.info(
@@ -190,6 +173,44 @@ export class EntityGHFeature extends Entity {
     }
   }
 
+  /** Addresses preApplyStateRm removes from state (read-only). */
+  async preApplyStateRmAddresses(
+    installedManagedFiles: string[],
+  ): Promise<string[]> {
+    if (installedManagedFiles.length === 0) return [];
+
+    const stateListOutput = await runOnTerraform(this, 'custom-command', [
+      'state',
+      'list',
+    ]);
+
+    // Files that are transitioning from userManaged:true → false must NOT be
+    // state-rm'd because Terraform needs them in state to manage them going forward.
+    const transitioningToManaged = new Set(
+      (this.cr.spec.files ?? [])
+        .filter((f: any) => !f.userManaged)
+        .map(
+          (f: any) =>
+            `${f.path}/${f.targetBranch || this.cr.spec.repositoryTarget.branch}`,
+        ),
+    );
+
+    return parseStateList(stateListOutput).filter((addr) => {
+      const match = addr.match(
+        /^github_repository_file\.user_managed\["(.+)"\]$/,
+      );
+
+      if (!match) return false;
+
+      const fileAddress = match[1];
+
+      return (
+        installedManagedFiles.includes(fileAddress) &&
+        !transitioningToManaged.has(fileAddress)
+      );
+    });
+  }
+
   /**
    * Destroy path — removes user-managed file resources from TF state before
    * the destroy operation so Terraform does not delete them from GitHub.
@@ -204,24 +225,7 @@ export class EntityGHFeature extends Entity {
         `[gh-provisioner] ${this.k8sId} loaded untrack files ${this.k8sId}`,
       );
 
-      // Propagate session fields from parent if present
-      if (this.parent) {
-        this.sessionId = this.parent.sessionId;
-        this.sessionProjectPath = this.parent.sessionProjectPath;
-        this.__ghProvisionerSessionWorkspaceInitialized =
-          this.parent.__ghProvisionerSessionWorkspaceInitialized;
-      }
-
-      const stateListOutput = await runOnTerraform(this, 'custom-command', [
-        'state',
-        'list',
-      ]);
-
-      const stateAddresses = parseStateList(stateListOutput);
-
-      const untrackedFiles = stateAddresses.filter((addr) =>
-        /^github_repository_file\.user_managed\[".+"\]$/.test(addr),
-      );
+      const untrackedFiles = await this.userManagedStateAddresses();
 
       log.info(
         `[gh-provisioner] ${this.k8sId} keeping the following files [${untrackedFiles.join(', ')}]`,
@@ -247,6 +251,27 @@ export class EntityGHFeature extends Entity {
         `[gh-provisioner] ${this.k8sId} on untracking files: ${err}`,
       );
     }
+  }
+
+  /** User-managed file addresses currently in state (read-only). */
+  async userManagedStateAddresses(): Promise<string[]> {
+    // Propagate session fields from parent if present
+    if (this.parent) {
+      this.sessionId = this.parent.sessionId;
+      this.sessionProjectPath = this.parent.sessionProjectPath;
+      this.__ghProvisionerSessionWorkspaceInitialized =
+        this.parent.__ghProvisionerSessionWorkspaceInitialized;
+      this.tfCtl = this.parent.tfCtl;
+    }
+
+    const stateListOutput = await runOnTerraform(this, 'custom-command', [
+      'state',
+      'list',
+    ]);
+
+    return parseStateList(stateListOutput).filter((addr) =>
+      /^github_repository_file\.user_managed\[".+"\]$/.test(addr),
+    );
   }
 
   async getFileContentFromProvider(

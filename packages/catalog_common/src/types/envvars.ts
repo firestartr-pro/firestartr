@@ -46,6 +46,7 @@ export enum envVars {
   operatorIgnoreLease = 'OPERATOR_IGNORE_LEASE', // Operator dummy exec
   operatorDeploymentName = 'OPERATOR_DEPLOYMENT_NAME', // Operator deployment name
   operatorNumberOfMaxSlots = 'OPERATOR_NUMBER_OF_MAX_SLOTS', // Number of max slots for the operator to process items in parallel
+  operatorPlanMode = 'OPERATOR_PLAN_MODE', // 'true' runs the operator in Plan mode (plans only, never applies or writes)
   // ---- KUBERNETES VARIABLES -----------------------------------------------
   kubernetesServiceHost = 'KUBERNETES_SERVICE_HOST',
   kubernetesServicePort = 'KUBERNETES_SERVICE_PORT',

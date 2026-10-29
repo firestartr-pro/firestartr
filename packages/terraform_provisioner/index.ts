@@ -3,6 +3,7 @@ export {
   DEFAULT_MIRROR_WARMUP_LIST,
   initializeMirrors,
 } from './src';
+export type { PlanArtifact } from './src/utils';
 import Ajv from 'ajv';
 import schema from './src/schema';
 import { TFProjectManager } from './src';
@@ -172,6 +173,14 @@ async function execCommand(command: string, tfProject: TFProjectManager) {
 
     case 'plan-json':
       await tfProject.plan('json');
+      break;
+
+    case 'plan-artifact':
+      await tfProject.planArtifact(false);
+      break;
+
+    case 'plan-destroy-artifact':
+      await tfProject.planArtifact(true);
       break;
 
     case 'apply':

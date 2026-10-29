@@ -79,7 +79,53 @@ describe('runOnTerraform apply routing', () => {
     mockRunTerraformProvisioner.mockResolvedValue('apply output');
   });
 
-  it('runs single apply with importMode=true when import entries are pending', async () => {
+  it.each(['apply', 'plan-artifact'])(
+    'runs %s with importMode=true when import entries are pending',
+    async (command) => {
+      entity.patchImportData({
+        op: PatchOperations.add,
+        path: '/imports/-',
+        value: {
+          to: 'github_issue_label.this["label1"]',
+          id: 'test-repo:label1',
+        },
+      });
+
+      await runOnTerraform(entity, command);
+
+      expect(mockRunTerraformProvisioner).toHaveBeenCalledTimes(1);
+      expect(mockRunTerraformProvisioner).toHaveBeenCalledWith(
+        expect.objectContaining({ importMode: true }),
+        command,
+        null,
+        expect.objectContaining({
+          imports: [
+            expect.objectContaining({
+              to: 'github_issue_label.this["label1"]',
+              id: 'test-repo:label1',
+            }),
+          ],
+        }),
+        undefined,
+      );
+    },
+  );
+
+  it('passes the entity plan excludes in the provisioner context', async () => {
+    entity.planExcludes = ['github_repository_file.user_managed["README.md/main"]'];
+
+    await runOnTerraform(entity, 'plan-destroy-artifact');
+
+    expect(mockRunTerraformProvisioner).toHaveBeenCalledWith(
+      expect.objectContaining({ planExcludes: entity.planExcludes }),
+      'plan-destroy-artifact',
+      null,
+      undefined,
+      undefined,
+    );
+  });
+
+  it('does not carry imports into a destroy artifact plan', async () => {
     entity.patchImportData({
       op: PatchOperations.add,
       path: '/imports/-',
@@ -89,21 +135,13 @@ describe('runOnTerraform apply routing', () => {
       },
     });
 
-    await runOnTerraform(entity, 'apply');
+    await runOnTerraform(entity, 'plan-destroy-artifact');
 
-    expect(mockRunTerraformProvisioner).toHaveBeenCalledTimes(1);
     expect(mockRunTerraformProvisioner).toHaveBeenCalledWith(
-      expect.objectContaining({ importMode: true }),
-      'apply',
+      expect.objectContaining({ importMode: false }),
+      'plan-destroy-artifact',
       null,
-      expect.objectContaining({
-        imports: [
-          expect.objectContaining({
-            to: 'github_issue_label.this["label1"]',
-            id: 'test-repo:label1',
-          }),
-        ],
-      }),
+      undefined,
       undefined,
     );
   });
@@ -140,6 +178,21 @@ describe('runOnTerraform apply routing', () => {
       null,
       undefined,
       undefined,
+    );
+  });
+
+  it("bounds discovery commands with the run's timeout controller", async () => {
+    const ctl = { hardTimeout: 10, processKilled: jest.fn() };
+    entity.tfCtl = ctl;
+
+    await runOnTerraform(entity, 'custom-command', ['state', 'list']);
+
+    expect(mockRunTerraformProvisioner).toHaveBeenCalledWith(
+      expect.anything(),
+      'custom-command',
+      null,
+      ['state', 'list'],
+      ctl,
     );
   });
 });

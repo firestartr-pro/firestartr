@@ -4,6 +4,7 @@ import {
   OperationType,
   getPluralFromKind,
 } from './definitions';
+import { isPlanMode } from './plan-mode/config';
 
 const PARENT_KIND_MAP: Record<string, string> = {
   FirestartrGithubRepositoryFeature: 'FirestartrGithubRepository',
@@ -48,6 +49,14 @@ export function getParentRef(
   return null;
 }
 
+export function isProvisioned(cr: any): boolean {
+  return (
+    cr?.status?.conditions?.some(
+      (c: any) => c.type === 'PROVISIONED' && c.status === 'True',
+    ) ?? false
+  );
+}
+
 export function buildActiveParentKeys(queue: WorkItem[]): Set<string> {
   const keys = new Set<string>();
   for (const w of queue) {
@@ -83,6 +92,9 @@ export async function buildDeferredParentKeys(
   getItemByItemPath: (itemPath: string) => Promise<any>,
 ): Promise<Set<string>> {
   const deferred = new Set<string>();
+  // Plan mode never provisions parents: deferring would hold children forever.
+  // They are dispatched and the resolver records the missing parent instead.
+  if (isPlanMode()) return deferred;
   const checked = new Set<string>();
   for (const w of queue) {
     if (w.operation !== OperationType.CREATED) continue;
@@ -100,10 +112,7 @@ export async function buildDeferredParentKeys(
       const parentCr = await getItemByItemPath(
         `${namespace}/${pluralKind}/${parentRef.name}`,
       );
-      const isProvisioned = parentCr?.status?.conditions?.some(
-        (c: any) => c.type === 'PROVISIONED' && c.status === 'True',
-      );
-      if (!isProvisioned) {
+      if (!isProvisioned(parentCr)) {
         deferred.add(parentKey);
       }
     } catch {

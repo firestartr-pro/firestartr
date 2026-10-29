@@ -73,6 +73,8 @@ export async function runGhProvisioner(data: any, opts: any) {
       entity.streamGHProvisioner = opts.logStreamCallbacksGHProvisioner;
     }
 
+    entity.tfCtl = opts.ctl;
+
     if ('logStreamCallbacksTF' in opts) {
       entity.streamTFProvisioner = opts.logStreamCallbacksTF;
     }
@@ -98,6 +100,16 @@ export async function runGhProvisioner(data: any, opts: any) {
 
     await entity.loadResources(tfOp);
 
+    // An artifact plan previews the live import with its import blocks; a
+    // reimport resets the state first, which a read-only plan can't preview
+    if (
+      opts.planArtifact &&
+      tfOp === 'plan' &&
+      inferTFOperation(data.mainCr, {}) === 'import'
+    ) {
+      await entity.loadAddressesToImport();
+    }
+
     log.debug(
       `[gh-provisioner] resources loaded for resources: ${entity.k8sId}`,
     );
@@ -110,7 +122,7 @@ export async function runGhProvisioner(data: any, opts: any) {
     entity._terraformHasRun = true;
     const operationOutputs = await runOnTerraform(
       entity,
-      tfOp,
+      opts.planArtifact && isPlanOperation(tfOp) ? `${tfOp}-artifact` : tfOp,
       undefined,
       opts,
     );

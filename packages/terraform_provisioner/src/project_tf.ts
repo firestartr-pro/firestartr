@@ -5,6 +5,7 @@ import {
   init,
   output,
   plan,
+  planArtifact,
   validate,
 } from './utils';
 import { WriterAdditionalFiles } from './writer_additional_files';
@@ -396,6 +397,21 @@ export class TFProjectManager {
     );
   }
 
+  async planArtifact(destroy: boolean) {
+    await this.__init();
+
+    this.tfOutput = await planArtifact(
+      this.projectPath,
+      this.secrets,
+      destroy,
+      this.stream,
+      this.ctl,
+      this.ctx.planExcludes ?? [],
+    );
+
+    if (this.stream) this.stream.end();
+  }
+
   async apply() {
     await this.__init();
 
@@ -421,6 +437,7 @@ export class TFProjectManager {
       this.secrets,
       this.customArgs,
       this.stream,
+      this.ctl,
     );
 
     if (this.stream) this.stream.end();
@@ -444,6 +461,7 @@ export class TFProjectManager {
         this.secrets,
         ['state', 'list'],
         this.stream,
+        this.ctl,
       )) as string
     )
       .split(/\n/)
@@ -459,6 +477,7 @@ export class TFProjectManager {
         this.secrets,
         ['state', 'rm'].concat(addressesList),
         this.stream,
+        this.ctl,
       );
 
       log.info(
