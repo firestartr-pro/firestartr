@@ -1,5 +1,32 @@
 # The firestartr renderer
 
+## Ignoring unrelated files
+
+Place a `.firestartrignore` file in a directory to exclude every file
+directly inside it from renderer discovery and loading. Only the
+marker's existence matters; its contents are never interpreted.
+
+```text
+infra/
+  external/
+    .firestartrignore
+    config.yaml           # ignored
+    config.yml            # ignored
+    config.json           # ignored (all file types)
+    claims/
+      workspace.yaml      # processed (no marker in claims/)
+  claims/
+    component.yaml        # processed
+```
+
+Markers do not apply to descendants. Subdirectories are always traversed and
+need their own marker to ignore their local files. Even valid claims in
+a marked directory are ignored, including explicitly selected files and lazy
+reference lookups. Keep claims and unrelated YAML in separate directories.
+
+This also applies to globals, initializers, and existing rendered CRs. Do not
+place a marker in directories containing files that the renderer needs to load.
+
 ## Claims Documentation
 
 For comprehensive documentation of all claim types, see the dedicated [Claims Documentation](./claims/README.md).
@@ -196,4 +223,3 @@ The dedicated claims documentation provides:
 - Best practices and validation rules
 - Provider-specific configuration details
 - Integration patterns and troubleshooting guides
-

@@ -44,6 +44,8 @@ export interface TestContext {
   duplicateFile: (file: string, copyName: string) => Promise<void>;
   /** Copies a fixture file (by stem name) from base_claims into the temp dir. */
   addFile: (file: string) => Promise<void>;
+  /** Writes a non-claim support file beneath the managed claims directory. */
+  addSupportFile: (relativePath: string, contents: string) => Promise<void>;
   restart: () => Promise<TestContext>;
   destroy: () => Promise<void>;
   applyPatches: (file: string, patches: JsonPatchOperation[]) => Promise<void>;
@@ -195,6 +197,15 @@ async function createTestDir(
       const fileName = path.basename(sourcePaths[0]);
       const destPath = path.join(tempDir, fileName);
       await fs.copyFile(sourcePaths[0], destPath);
+    },
+
+    addSupportFile: async function (relativePath: string, contents: string) {
+      const destination = path.resolve(tempDir, relativePath);
+      if (!destination.startsWith(`${path.resolve(tempDir)}${path.sep}`)) {
+        throw new Error('Support files must stay inside the test context');
+      }
+      await fs.mkdir(path.dirname(destination), { recursive: true });
+      await fs.writeFile(destination, contents, 'utf8');
     },
 
     restart: async function () {

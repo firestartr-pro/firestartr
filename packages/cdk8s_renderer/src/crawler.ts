@@ -1,5 +1,6 @@
 import * as fs from 'node:fs/promises';
 import * as path from 'path';
+import { FIRESTARTR_IGNORE_FILE } from './utils/fileIgnore';
 
 // Number of files being currently slurped
 let activeSlurps = 0;
@@ -136,12 +137,17 @@ async function crawlDirectory(dirEnt: string, exec: Function) {
     const entries = (await fs.readdir(dirEnt))
       .map((entry: string) => path.join(dirEnt, entry))
       .sort();
+    const ignoreFiles = entries.includes(
+      path.join(dirEnt, FIRESTARTR_IGNORE_FILE),
+    );
 
     for (const entry of entries) {
       const testDir = await isDir(entry);
 
       if (testDir) {
         await crawlDirectory(entry, exec);
+      } else if (ignoreFiles) {
+        continue;
       } else {
         await slurpFile(entry, exec);
       }
