@@ -93,7 +93,12 @@ export function levelOf(name, lock, levels) {
     .filter(([key]) => !key.includes("node_modules/"))
     .map(([, entry]) => entry);
   const direct = new Set(
-    manifests.flatMap((m) => [...Object.keys(m.dependencies ?? {}), ...Object.keys(m.devDependencies ?? {})]),
+    manifests.flatMap((m) => [
+      ...Object.keys(m.dependencies ?? {}),
+      ...Object.keys(m.devDependencies ?? {}),
+      ...Object.keys(m.optionalDependencies ?? {}),
+      ...Object.keys(m.peerDependencies ?? {}),
+    ]),
   );
 
   const pullers = new Map();
@@ -190,15 +195,17 @@ export function parseState(body) {
   const head = /^head: (\S+)$/m.exec(body ?? "")?.[1] ?? null;
   const step = /^step: (.*)$/m.exec(body ?? "")?.[1] ?? null;
   const runs = /^runs: (.*)$/m.exec(body ?? "")?.[1] ?? "";
-  return head && step ? { head, step, runs } : null;
+  const replacement = /^replacement: #(\d+)$/m.exec(body ?? "")?.[1];
+  return head && step ? { head, step, runs, replacement: replacement ? Number(replacement) : null } : null;
 }
 
-// Keep the recorded step and run IDs while the PR head is unchanged, so
-// resuming never repeats work. A Socket alert always stops the flow.
-export function nextState(t, previous, head) {
-  if (t.socket === "alert") return { head, step: "stopped: socket alert", runs: "" };
+// Keep the recorded step and run IDs while the head being checked is unchanged,
+// so resuming never repeats work. The head is the replacement PR's when one is
+// set, otherwise the Dependabot PR's. A Socket alert always stops the flow.
+export function nextState(t, previous, head, replacement = previous?.replacement ?? null) {
+  if (t.socket === "alert") return { head, step: "stopped: socket alert", runs: "", replacement };
   const resumable = previous && previous.head === head && !previous.step.startsWith("stopped: socket");
-  return resumable ? previous : { head, step: "triaged", runs: "" };
+  return resumable ? { ...previous, replacement } : { head, step: "triaged", runs: "", replacement };
 }
 
 export function renderComment(t, state) {
@@ -218,7 +225,9 @@ export function renderComment(t, state) {
       lines.push(`- ${typeof alert === "string" ? alert : JSON.stringify(alert)}`);
     }
   }
-  lines.push("", `head: ${state.head}`, `step: ${state.step}`);
+  lines.push("", `head: ${state.head}`);
+  if (state.replacement) lines.push(`replacement: #${state.replacement}`);
+  lines.push(`step: ${state.step}`);
   if (state.runs) lines.push(`runs: ${state.runs}`);
   return lines.join("\n");
 }
@@ -262,7 +271,7 @@ async function findSummary(slug, number) {
   return pages.flat().find((c) => c.body?.includes(MARKER)) ?? null;
 }
 
-async function triagePr(number, { dryRun, slug, levels }) {
+async function triagePr(number, { dryRun, slug, levels, replacementOverride }) {
   const pr = JSON.parse(
     await gh(["pr", "view", String(number), "--json", "number,title,headRefName,headRefOid,state"]),
   );
@@ -275,7 +284,12 @@ async function triagePr(number, { dryRun, slug, levels }) {
   const t = buildTriage({ ...bump, lock, levels, socketResult });
 
   const existing = await findSummary(slug, number);
-  const state = nextState(t, existing ? parseState(existing.body) : null, pr.headRefOid);
+  const previous = existing ? parseState(existing.body) : null;
+  const replacement = replacementOverride ?? previous?.replacement ?? null;
+  const head = replacement
+    ? (await gh(["pr", "view", String(replacement), "--json", "headRefOid", "-q", ".headRefOid"])).trim()
+    : pr.headRefOid;
+  const state = nextState(t, previous, head, replacement);
   const body = renderComment(t, state);
 
   if (!dryRun) {
@@ -317,8 +331,16 @@ async function main(argv) {
   const levels = parseLevels(readFileSync(join(HERE, "..", "levels.yaml"), "utf8"));
   const slug = await repoSlug();
 
+  const repIdx = args.indexOf("--replacement");
+  const replacementOverride = repIdx === -1 ? null : Number(args[repIdx + 1]);
+  if (repIdx !== -1) args.splice(repIdx, 2);
+  if (replacementOverride !== null && !Number.isInteger(replacementOverride)) {
+    throw new Error("--replacement needs a PR number");
+  }
+
   let numbers;
   if (args[0] === "--all") {
+    if (replacementOverride !== null) throw new Error("--replacement only works with a single PR");
     const list = JSON.parse(
       await gh(["pr", "list", "--author", "app/dependabot", "--state", "open", "--limit", "200", "--json", "number"]),
     );
@@ -326,14 +348,17 @@ async function main(argv) {
   } else if (args.length === 1 && /^\d+$/.test(args[0])) {
     numbers = [Number(args[0])];
   } else {
-    throw new Error("usage: triage.mjs <pr> [--dry-run] | triage.mjs --all [--dry-run]");
+    throw new Error("usage: triage.mjs <pr> [--replacement <pr>] [--dry-run] | triage.mjs --all [--dry-run]");
   }
 
   const rows = [];
   for (const n of numbers) {
-    rows.push(await triagePr(n, { dryRun, slug, levels }));
+    rows.push(await triagePr(n, { dryRun, slug, levels, replacementOverride }));
   }
   printTable(rows);
+  if (numbers.length === 1 || dryRun) {
+    for (const r of rows) console.log(`\n${r.body}`);
+  }
   if (dryRun) console.error("\n--dry-run: no labels or comments written.");
 }
 

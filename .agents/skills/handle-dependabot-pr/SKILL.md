@@ -60,6 +60,8 @@ Done when your PR is merged and the Dependabot PR is closed.
 3. Request a Copilot review at every level. Start the checks the script lists for
    the PR's level on the replacement PR. Record each `step:` and run ID in the
    summary comment, then stop. Calling the skill again continues from there.
+   Run `triage.mjs <pr> --replacement <new-pr>` first, so the summary tracks the
+   replacement PR's head. A new commit on it resets the saved checks.
 4. When `main` moves, rebase onto Dependabot's new commit. If the lockfile
    conflicts, run `git checkout --ours package-lock.json`.
 5. Show the merge command to a person, with the subject from the script, only

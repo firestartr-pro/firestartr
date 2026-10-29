@@ -108,6 +108,18 @@ test("levelOf treats workspace manifests as direct dependencies", () => {
   assert.equal(levelOf("shared-lib", l, levels), "critical");
 });
 
+test("levelOf treats optional and peer dependencies as direct", () => {
+  const l = lock({
+    "": {},
+    "packages/operator": { optionalDependencies: { "@kubernetes/client-node": "^1" } },
+    "packages/cli": { peerDependencies: { "cron-parser": "^4" } },
+    "node_modules/@kubernetes/client-node": {},
+    "node_modules/cron-parser": {},
+  });
+  assert.equal(levelOf("@kubernetes/client-node", l, levels), "critical");
+  assert.equal(levelOf("cron-parser", l, levels), "runtime");
+});
+
 test("levelOf walks up to the highest puller for indirect dependencies", () => {
   const l = lock({
     "": { dependencies: { "@kubernetes/client-node": "^1" }, devDependencies: { jest: "^29" } },
@@ -209,28 +221,44 @@ test("buildTriage uses chore(deps) for dev-only packages", () => {
 
 test("nextState keeps step and runs while the head is unchanged", () => {
   const t = { socket: "ok" };
-  const previous = { head: "abc", step: "waiting for rebase", runs: "123" };
+  const previous = { head: "abc", step: "waiting for rebase", runs: "123", replacement: null };
   assert.deepEqual(nextState(t, previous, "abc"), previous);
-  assert.deepEqual(nextState(t, previous, "def"), { head: "def", step: "triaged", runs: "" });
-  assert.deepEqual(nextState(t, null, "abc"), { head: "abc", step: "triaged", runs: "" });
+  assert.deepEqual(nextState(t, previous, "def"), { head: "def", step: "triaged", runs: "", replacement: null });
+  assert.deepEqual(nextState(t, null, "abc"), { head: "abc", step: "triaged", runs: "", replacement: null });
 });
 
 test("nextState always stops on a Socket alert", () => {
-  const previous = { head: "abc", step: "e2e started", runs: "9" };
+  const previous = { head: "abc", step: "e2e started", runs: "9", replacement: null };
   assert.deepEqual(nextState({ socket: "alert" }, previous, "abc"), {
     head: "abc",
     step: "stopped: socket alert",
     runs: "",
+    replacement: null,
   });
 });
 
 test("nextState resumes after a Socket stop once the alert clears", () => {
-  const previous = { head: "abc", step: "stopped: socket alert", runs: "" };
-  assert.deepEqual(nextState({ socket: "ok" }, previous, "abc"), { head: "abc", step: "triaged", runs: "" });
+  const previous = { head: "abc", step: "stopped: socket alert", runs: "", replacement: null };
+  assert.deepEqual(nextState({ socket: "ok" }, previous, "abc"), { head: "abc", step: "triaged", runs: "", replacement: null });
 });
 
 test("parseState reads the head, step and runs of a summary comment", () => {
   const body = "## x\n\nhead: abc\nstep: e2e started\nruns: 1,2";
-  assert.deepEqual(parseState(body), { head: "abc", step: "e2e started", runs: "1,2" });
+  assert.deepEqual(parseState(body), { head: "abc", step: "e2e started", runs: "1,2", replacement: null });
   assert.equal(parseState("no state here"), null);
+});
+
+test("nextState resets the checks when the replacement PR head changes", () => {
+  const previous = { head: "abc", step: "e2e started", runs: "9", replacement: 170 };
+  assert.deepEqual(nextState({ socket: "ok" }, previous, "def"), {
+    head: "def",
+    step: "triaged",
+    runs: "",
+    replacement: 170,
+  });
+});
+
+test("parseState reads the replacement PR number", () => {
+  const body = "head: abc\nreplacement: #170\nstep: e2e started";
+  assert.deepEqual(parseState(body), { head: "abc", step: "e2e started", runs: "", replacement: 170 });
 });
