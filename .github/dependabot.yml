@@ -17,10 +17,9 @@ updates:
       interval: "daily"
     versioning-strategy: increase
     open-pull-requests-limit: 30
-    # fix(deps) triggers a release; chore(deps) is hidden from release-please.
-    # The handle-dependabot-pr skill overrides this per levels.yaml when they disagree.
+    # Every dependency bump uses chore(deps), which release-please hides.
     commit-message:
-      prefix: fix
+      prefix: chore
       prefix-development: chore
     # Ignore these dependencies to allow manual review of possible errors and conflicts
     ignore:

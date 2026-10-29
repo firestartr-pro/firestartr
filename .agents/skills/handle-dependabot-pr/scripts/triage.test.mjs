@@ -217,10 +217,10 @@ test("buildTriage produces labels, squash subject and a stopping socket alert", 
   assert.equal(t.level, "runtime");
   assert.equal(t.socket, "alert");
   assert.deepEqual(t.labels, ["jump/minor", "level/runtime", "path/A", "socket/alert"]);
-  assert.equal(t.squash, "fix(deps): bump lodash from 4.17.21 to 4.18.1");
+  assert.equal(t.squash, "chore(deps): bump lodash from 4.17.21 to 4.18.1");
 });
 
-test("buildTriage uses chore(deps) for dev-only packages", () => {
+test("buildTriage always uses chore(deps) as the squash prefix", () => {
   const t = buildTriage({
     name: "typescript",
     from: "5.4.0",

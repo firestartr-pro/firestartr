@@ -184,9 +184,8 @@ function describeAlert(alert) {
   return `${alert.name} · ${alert.severity} · ${alert.category}${where}`;
 }
 
-export function squashSubject(level, name, from, to) {
-  const prefix = level === "dev" ? "chore" : "fix";
-  return `${prefix}(deps): bump ${name} from ${from} to ${to}`;
+export function squashSubject(name, from, to) {
+  return `chore(deps): bump ${name} from ${from} to ${to}`;
 }
 
 export function requiredChecks(level, path, jump) {
@@ -217,7 +216,7 @@ export function buildTriage({ name, from, to, lock, levels, socketResult, replac
     socket,
     labels: [`jump/${jump}`, `level/${level}`, `path/${path}`, `socket/${socket}`],
     checks: requiredChecks(level, path, jump),
-    squash: squashSubject(level, name, from, to),
+    squash: squashSubject(name, from, to),
     socketAlerts: blocking,
     socketNotes: notes,
   };
