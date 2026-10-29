@@ -301,6 +301,15 @@ export function createOctokitApi(octokit: Octokit): GitHubApi {
       });
     },
 
+    async reopenIssue(ref, issue) {
+      await octokit.rest.issues.update({
+        owner: ref.owner,
+        repo: ref.repo,
+        issue_number: issue,
+        state: 'open',
+      });
+    },
+
     async repoExists(ref) {
       try {
         await octokit.rest.repos.get({ owner: ref.owner, repo: ref.repo });

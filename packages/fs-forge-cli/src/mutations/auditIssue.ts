@@ -156,7 +156,7 @@ async function resolveIssue(
 
 interface OpenedAudit {
   trail: AuditTrail;
-  /** Comments the error on the audit issue, whether created or adopted. */
+  /** Comments the error and reopens the audit issue, best effort. */
   reportFailure(error: unknown): Promise<void>;
 }
 
@@ -224,6 +224,7 @@ async function openAudit(
         redactTokens(error instanceof Error ? error.message : String(error)),
       ].join('\n');
       await bestEffort(() => api.commentOnIssue(repoRef, issue.number, body));
+      await bestEffort(() => api.reopenIssue(repoRef, issue.number));
     },
   };
 }
@@ -231,8 +232,8 @@ async function openAudit(
 /**
  * Runs the audited part of a `--commit` command: the issue is opened (or
  * adopted) before the step starts, so it exists before the first write, and a
- * failure is commented on the audit issue. Recording the run is the
- * step's business: only it knows whether a run concluded.
+ * failure is best-effort commented on the issue and the issue reopened.
+ * Recording the run is the step's business: only it knows whether a run concluded.
  */
 export async function withAuditTrail<T>(
   context: AuditTrailContext,

@@ -138,6 +138,7 @@ export interface GitHubApi {
   ): Promise<CreatedItem>;
   commentOnIssue(ref: RepoRef, issue: number, body: string): Promise<void>;
   closeIssue(ref: RepoRef, issue: number): Promise<void>;
+  reopenIssue(ref: RepoRef, issue: number): Promise<void>;
 
   repoExists(ref: RepoRef): Promise<boolean>;
   teamExists(org: string, teamSlug: string): Promise<boolean>;

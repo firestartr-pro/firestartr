@@ -387,6 +387,7 @@ describe.each(ADAPTERS)('GitHubApi contract (%s)', (_name, makeApi) => {
       api.commentOnIssue(REF, issue.number, 'Workflow run: https://run'),
     ).resolves.toBeUndefined();
     await expect(api.closeIssue(REF, issue.number)).resolves.toBeUndefined();
+    await expect(api.reopenIssue(REF, issue.number)).resolves.toBeUndefined();
   });
 
   it('creates a pull request and updates its body', async () => {
@@ -597,6 +598,7 @@ describe('octokit adapter request shapes', () => {
     await api.createIssue(REF, { title: 'Create component api', body: 'body' });
     await api.commentOnIssue(REF, 31, 'Workflow run: https://run');
     await api.closeIssue(REF, 31);
+    await api.reopenIssue(REF, 31);
     await api.createPullRequest(REF, {
       head: 'fs-forge/ComponentClaim-api',
       base: 'main',
@@ -610,6 +612,7 @@ describe('octokit adapter request shapes', () => {
         'issues.create Create component api | body',
         'issues.createComment 31 | Workflow run: https://run',
         'issues.update 31 closed',
+        'issues.update 31 open',
         'pulls.create fs-forge/ComponentClaim-api main ci: provision claim ComponentClaim/api | Closes #3',
         'pulls.update 32 | Closes #4',
       ]),

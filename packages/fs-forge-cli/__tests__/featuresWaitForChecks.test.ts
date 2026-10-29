@@ -165,14 +165,12 @@ describe('features add --commit wait-for-checks', () => {
     if (issue === 'adopted') {
       await api.createIssue({ owner: 'my-org', repo: 'claims' }, { title: 'Existing issue', body: '' });
     }
-    if (issue === 'created' && fails) {
-      // A merged claims PR can close the issue before the wet checks finish.
-      const listChecks = api.listCheckRunsForPullRequest.bind(api);
-      api.listCheckRunsForPullRequest = async (ref, pr) => {
-        api.issues[0].state = 'closed';
-        return listChecks(ref, pr);
-      };
-    }
+    // Provisioning merges the claims PR before the wet checks finish.
+    const listChecks = api.listCheckRunsForPullRequest.bind(api);
+    api.listCheckRunsForPullRequest = async (ref, pr) => {
+      api.issues[0].state = 'closed';
+      return listChecks(ref, pr);
+    };
     api.calls.length = 0;
 
     const { error, stderr } = await runCommand(FeaturesAdd, [
@@ -193,10 +191,34 @@ describe('features add --commit wait-for-checks', () => {
     const checkWatch = api.calls.indexOf(`listCheckRunsForPullRequest my-org/custom-state#${WET_PR_NUMBER}`);
     expect(runComment).toBeGreaterThanOrEqual(0);
     expect(checkWatch).toBeGreaterThan(runComment);
-    if (issue === 'created' && fails) {
-      expect(api.issues[0].state).toBe('closed');
-      expect(api.calls).not.toContain('closeIssue my-org/claims#1');
+    expect(api.issues[0].state).toBe(fails ? 'open' : 'closed');
+    if (fails) {
+      expect(api.calls.indexOf('reopenIssue my-org/claims#1')).toBeGreaterThan(
+        api.calls.lastIndexOf('commentOnIssue my-org/claims#1'),
+      );
+    } else {
+      expect(api.calls).not.toContain('reopenIssue my-org/claims#1');
     }
+  });
+
+  it.each([
+    { issue: 'created', flag: ['--create-issue'] },
+    { issue: 'adopted', flag: ['--issue', '1'] },
+  ])('leaves the $issue audit issue open when publishing fails before merge', async ({ issue, flag }) => {
+    const api = featureApi();
+    if (issue === 'adopted') {
+      await api.createIssue({ owner: 'my-org', repo: 'claims' }, { title: 'Existing issue', body: '' });
+    }
+    api.commitFile = async () => { throw new Error('commit failed'); };
+
+    const { error } = await runCommand(FeaturesAdd, [
+      ...addArgs(), ...flag, ...CUSTOM_STATE,
+    ]);
+
+    expect(error?.message).toContain('commit failed');
+    expect(api.issues[0].state).toBe('open');
+    expect(api.issueComments[0].body).toContain('commit failed');
+    expect(api.createdPulls).toHaveLength(0);
   });
 
   it('fails the add when the wet PR checks fail', async () => {

@@ -390,6 +390,13 @@ export class MemoryGitHubApi implements GitHubApi {
     found.state = 'closed';
   }
 
+  async reopenIssue(ref: RepoRef, issue: number): Promise<void> {
+    this.calls.push(`reopenIssue ${this.key(ref)}#${issue}`);
+    const found = this.issues.find((candidate) => candidate.number === issue);
+    if (!found) throw new Error(`Issue not found: ${issue}`);
+    found.state = 'open';
+  }
+
   async repoExists(ref: RepoRef): Promise<boolean> {
     this.calls.push(`repoExists ${this.key(ref)}`);
     return this.existingRepos.has(this.key(ref));

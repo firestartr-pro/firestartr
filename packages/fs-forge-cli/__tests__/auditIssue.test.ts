@@ -212,6 +212,23 @@ describe('withAuditTrail', () => {
     expect(api.calls).not.toContain('closeIssue my-org/claims#1');
   });
 
+  it('reopens a closed audit issue after commenting the failure', async () => {
+    const { api, repo, run } = open({ createIssue: true });
+
+    await expect(
+      run(async () => {
+        await api.closeIssue(repo.ref, 1);
+        throw new Error('wet checks failed');
+      }),
+    ).rejects.toThrow('wet checks failed');
+
+    expect(api.issueComments[0].body).toContain('wet checks failed');
+    expect(api.issues[0].state).toBe('open');
+    expect(api.calls.indexOf('reopenIssue my-org/claims#1')).toBeGreaterThan(
+      api.calls.indexOf('commentOnIssue my-org/claims#1'),
+    );
+  });
+
   it('never writes a token into the failure comment', async () => {
     process.env.GITHUB_TOKEN = 'ghp_abcdefghijklmnopqrstuvwxyz0123456789';
     const { api, run } = open({ createIssue: true });
@@ -230,8 +247,9 @@ describe('withAuditTrail', () => {
     expect(comment).toContain('***');
   });
 
-  it('comments a failure on an adopted issue without promising its state', async () => {
-    const { api, run } = open({ issue: 7 });
+  it('comments a failure on an adopted issue and leaves it open', async () => {
+    const { api, repo, run } = open({ issue: 1 });
+    await api.createIssue(repo.ref, { title: 'Existing issue', body: '' });
 
     await expect(
       run(async () => {
@@ -241,22 +259,36 @@ describe('withAuditTrail', () => {
 
     expect(api.issueComments).toEqual([
       expect.objectContaining({
-        issue: 7,
+        issue: 1,
         body: 'The create of ComponentClaim-my-component failed.\n\nboom',
       }),
     ]);
+    expect(api.issues[0].state).toBe('open');
+  });
+
+  it('does not mask the original error when reopening fails', async () => {
+    const { api, run } = open({ createIssue: true });
+    api.reopenIssue = async () => {
+      throw new Error('network down');
+    };
+
+    const original = new Error('original failure');
+    await expect(run(async () => { throw original; })).rejects.toBe(original);
+    expect(api.issueComments[0].body).toContain('original failure');
   });
 
   it('does not mask the original error when the failure comment fails', async () => {
-    const { api, run } = open({ createIssue: true });
+    const { api, repo, run } = open({ createIssue: true });
     api.commentOnIssue = async () => {
       throw new Error('network down');
     };
 
     await expect(
       run(async () => {
+        await api.closeIssue(repo.ref, 1);
         throw new Error('original failure');
       }),
     ).rejects.toThrow('original failure');
+    expect(api.issues[0].state).toBe('open');
   });
 });
