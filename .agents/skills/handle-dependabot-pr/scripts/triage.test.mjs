@@ -5,6 +5,8 @@ import { dirname, join } from "node:path";
 import { fileURLToPath } from "node:url";
 import {
   parseLevels,
+  parseState,
+  nextState,
   classify,
   versionJump,
   pathFor,
@@ -55,6 +57,10 @@ test("pathFor: only majors go to Path B", () => {
   assert.equal(pathFor("patch"), "A");
 });
 
+test("parseBumpTitle accepts the lowercase title Dependabot produces", () => {
+  assert.deepEqual(parseBumpTitle("fix(deps): bump qs from 6.16.0 to 6.17.0"), { name: "qs", from: "6.16.0", to: "6.17.0" });
+});
+
 test("parseBumpTitle reads the Dependabot title", () => {
   assert.deepEqual(parseBumpTitle("chore(deps): Bump lodash from 4.17.21 to 4.18.1"), {
     name: "lodash",
@@ -89,6 +95,17 @@ test("levelOf uses levels.yaml for direct dependencies", () => {
   });
   assert.equal(levelOf("lodash", l, levels), "runtime");
   assert.equal(levelOf("typescript", l, levels), "dev");
+});
+
+test("levelOf treats workspace manifests as direct dependencies", () => {
+  const l = lock({
+    "": {},
+    "packages/operator": { dependencies: { "@kubernetes/client-node": "^1" } },
+    "node_modules/@kubernetes/client-node": { dependencies: { "shared-lib": "^1" } },
+    "node_modules/shared-lib": {},
+  });
+  assert.equal(levelOf("@kubernetes/client-node", l, levels), "critical");
+  assert.equal(levelOf("shared-lib", l, levels), "critical");
 });
 
 test("levelOf walks up to the highest puller for indirect dependencies", () => {
@@ -188,4 +205,32 @@ test("buildTriage uses chore(deps) for dev-only packages", () => {
   });
   assert.equal(t.squash, "chore(deps): bump typescript from 5.4.0 to 5.4.1");
   assert.equal(t.socket, "ok");
+});
+
+test("nextState keeps step and runs while the head is unchanged", () => {
+  const t = { socket: "ok" };
+  const previous = { head: "abc", step: "waiting for rebase", runs: "123" };
+  assert.deepEqual(nextState(t, previous, "abc"), previous);
+  assert.deepEqual(nextState(t, previous, "def"), { head: "def", step: "triaged", runs: "" });
+  assert.deepEqual(nextState(t, null, "abc"), { head: "abc", step: "triaged", runs: "" });
+});
+
+test("nextState always stops on a Socket alert", () => {
+  const previous = { head: "abc", step: "e2e started", runs: "9" };
+  assert.deepEqual(nextState({ socket: "alert" }, previous, "abc"), {
+    head: "abc",
+    step: "stopped: socket alert",
+    runs: "",
+  });
+});
+
+test("nextState resumes after a Socket stop once the alert clears", () => {
+  const previous = { head: "abc", step: "stopped: socket alert", runs: "" };
+  assert.deepEqual(nextState({ socket: "ok" }, previous, "abc"), { head: "abc", step: "triaged", runs: "" });
+});
+
+test("parseState reads the head, step and runs of a summary comment", () => {
+  const body = "## x\n\nhead: abc\nstep: e2e started\nruns: 1,2";
+  assert.deepEqual(parseState(body), { head: "abc", step: "e2e started", runs: "1,2" });
+  assert.equal(parseState("no state here"), null);
 });

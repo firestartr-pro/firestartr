@@ -75,7 +75,7 @@ export function pathFor(jump) {
 }
 
 export function parseBumpTitle(title) {
-  const m = /Bump (\S+) from (\S+) to (\S+)/.exec(title ?? "");
+  const m = /bump (\S+) from (\S+) to (\S+)/i.exec(title ?? "");
   return m ? { name: m[1], from: m[2], to: m[3] } : null;
 }
 
@@ -89,11 +89,12 @@ function packageName(lockKey) {
 // highest level among the packages that pull it in.
 export function levelOf(name, lock, levels) {
   const packages = lock.packages ?? {};
-  const root = packages[""] ?? {};
-  const direct = new Set([
-    ...Object.keys(root.dependencies ?? {}),
-    ...Object.keys(root.devDependencies ?? {}),
-  ]);
+  const manifests = Object.entries(packages)
+    .filter(([key]) => !key.includes("node_modules/"))
+    .map(([, entry]) => entry);
+  const direct = new Set(
+    manifests.flatMap((m) => [...Object.keys(m.dependencies ?? {}), ...Object.keys(m.devDependencies ?? {})]),
+  );
 
   const pullers = new Map();
   for (const [key, entry] of Object.entries(packages)) {
@@ -185,7 +186,22 @@ export function buildTriage({ name, from, to, lock, levels, socketResult }) {
   };
 }
 
-export function renderComment(t, step) {
+export function parseState(body) {
+  const head = /^head: (\S+)$/m.exec(body ?? "")?.[1] ?? null;
+  const step = /^step: (.*)$/m.exec(body ?? "")?.[1] ?? null;
+  const runs = /^runs: (.*)$/m.exec(body ?? "")?.[1] ?? "";
+  return head && step ? { head, step, runs } : null;
+}
+
+// Keep the recorded step and run IDs while the PR head is unchanged, so
+// resuming never repeats work. A Socket alert always stops the flow.
+export function nextState(t, previous, head) {
+  if (t.socket === "alert") return { head, step: "stopped: socket alert", runs: "" };
+  const resumable = previous && previous.head === head && !previous.step.startsWith("stopped: socket");
+  return resumable ? previous : { head, step: "triaged", runs: "" };
+}
+
+export function renderComment(t, state) {
   const lines = [
     MARKER,
     "## Dependabot triage",
@@ -202,7 +218,8 @@ export function renderComment(t, step) {
       lines.push(`- ${typeof alert === "string" ? alert : JSON.stringify(alert)}`);
     }
   }
-  lines.push("", `step: ${step}`);
+  lines.push("", `head: ${state.head}`, `step: ${state.step}`);
+  if (state.runs) lines.push(`runs: ${state.runs}`);
   return lines.join("\n");
 }
 
@@ -240,9 +257,14 @@ async function fileAt(slug, ref, path) {
   return Buffer.from(out.trim(), "base64").toString("utf8");
 }
 
+async function findSummary(slug, number) {
+  const pages = JSON.parse(await gh(["api", `repos/${slug}/issues/${number}/comments`, "--paginate", "--slurp"]));
+  return pages.flat().find((c) => c.body?.includes(MARKER)) ?? null;
+}
+
 async function triagePr(number, { dryRun, slug, levels }) {
   const pr = JSON.parse(
-    await gh(["pr", "view", String(number), "--json", "number,title,headRefName,author,state"]),
+    await gh(["pr", "view", String(number), "--json", "number,title,headRefName,headRefOid,state"]),
   );
   if (pr.state !== "OPEN") throw new Error(`#${number} is not open`);
   const bump = parseBumpTitle(pr.title);
@@ -252,8 +274,9 @@ async function triagePr(number, { dryRun, slug, levels }) {
   const socketResult = await socketScore(bump.name, bump.to);
   const t = buildTriage({ ...bump, lock, levels, socketResult });
 
-  const step = t.socket === "alert" ? "stopped: socket alert" : "triaged";
-  const body = renderComment(t, step);
+  const existing = await findSummary(slug, number);
+  const state = nextState(t, existing ? parseState(existing.body) : null, pr.headRefOid);
+  const body = renderComment(t, state);
 
   if (!dryRun) {
     const labelsJson = JSON.parse(
@@ -263,14 +286,12 @@ async function triagePr(number, { dryRun, slug, levels }) {
     const args = ["pr", "edit", String(number), "--add-label", t.labels.join(",")];
     if (remove.length) args.push("--remove-label", remove.join(","));
     await gh(args);
-    await upsertComment(slug, number, body);
+    await upsertComment(slug, number, body, existing);
   }
-  return { number, ...t, step, body };
+  return { number, ...t, step: state.step, body };
 }
 
-async function upsertComment(slug, number, body) {
-  const comments = JSON.parse(await gh(["api", `repos/${slug}/issues/${number}/comments`, "--paginate"]));
-  const existing = comments.find((c) => c.body?.includes(MARKER));
+async function upsertComment(slug, number, body, existing) {
   if (existing) {
     await gh(["api", "-X", "PATCH", `repos/${slug}/issues/comments/${existing.id}`, "-f", `body=${body}`]);
   } else {
@@ -310,11 +331,7 @@ async function main(argv) {
 
   const rows = [];
   for (const n of numbers) {
-    try {
-      rows.push(await triagePr(n, { dryRun, slug, levels }));
-    } catch (err) {
-      rows.push({ number: n, name: "?", from: "?", to: "?", jump: "?", level: "?", path: "?", socket: "?", step: `error: ${err.message}` });
-    }
+    rows.push(await triagePr(n, { dryRun, slug, levels }));
   }
   printTable(rows);
   if (dryRun) console.error("\n--dry-run: no labels or comments written.");
