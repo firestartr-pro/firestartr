@@ -19,7 +19,6 @@ export interface ClaimCreationOptions extends AuditTrailOptions {
   name: string;
   claim: Record<string, unknown>;
   commit?: boolean;
-  noWait?: boolean;
   waitForChecks?: boolean;
   stateRepos?: string[];
   path?: string;
@@ -42,7 +41,6 @@ export async function runClaimCreation(
       name,
       claim,
       commit = false,
-      noWait = false,
       waitForChecks = false,
       stateRepos,
       path,
@@ -74,7 +72,7 @@ export async function runClaimCreation(
             name,
             output,
             path: destinationPath,
-            noWait,
+            noWait: false,
             waitForChecks,
             stateRepos: stateRepos ?? parseStateRepos(undefined, orgName),
             audit,
