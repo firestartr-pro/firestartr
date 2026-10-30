@@ -31,7 +31,7 @@ describe('claim path capabilities', () => {
     expect(() =>
       assertCreatePath(kind, false, 'claims/example.yaml'),
     ).toThrow(
-      '--path is only supported for TFWorkspaceClaim and SecretsClaim',
+      '--path is only supported for SecretsClaim and TFWorkspaceClaim',
     );
   });
 

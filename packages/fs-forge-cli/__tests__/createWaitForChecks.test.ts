@@ -350,6 +350,21 @@ describe('create --wait-for-checks forwarding', () => {
     expect(api.createdPulls).toHaveLength(0);
   });
 
+  it.each(['action_required', 'stale'])(
+    'fails the default create check watch with %s',
+    async (conclusion) => {
+      mockCommitApi({ checkRuns: [{ ...SUCCESS_CHECK, conclusion }] });
+
+      const { error, stderr } = await runCommand(CreateComponent, [
+        ...componentArgs(), '--commit', '--org', 'my-org',
+        '--state-repos', 'my-org/custom-state',
+      ]);
+
+      expect(error?.message).toContain(`Wet PR checks failed: ${conclusion}`);
+      expect(stderr).not.toContain('All checks passed');
+    },
+  );
+
   it('fails the create when the wet PR checks fail', async () => {
     mockCommitApi({ checkRuns: [FAILURE_CHECK] });
     const args = componentArgs();

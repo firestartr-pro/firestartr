@@ -9,6 +9,10 @@ import {
 import { deterministicPath } from '../claims/deterministicPath.js';
 import { serializeClaim } from '../claims/keyOrdering.js';
 import { createGitHubApi } from '../github/index.js';
+import {
+  parseStateRepos,
+  resolveClaimsRepository,
+} from '../context/resolve.js';
 import { withAuditTrail } from '../mutations/auditIssue.js';
 import { publishClaimAndWait } from '../mutations/publish.js';
 import { parseClaimYaml, requireOrg } from '../mutations/support.js';
@@ -43,6 +47,11 @@ export interface ComponentTarget {
   destination(repo: ClaimsRepo): Promise<ComponentDestination>;
 }
 
+function componentRepo(org: string | undefined): ClaimsRepo {
+  const target = resolveClaimsRepository(requireOrg(org));
+  return claimsRepo(createGitHubApi(), target.owner, target.repo);
+}
+
 export async function loadComponentTarget(options: {
   component?: string;
   file?: string;
@@ -72,8 +81,7 @@ export async function loadComponentTarget(options: {
     };
   }
 
-  const repo =
-    options.repo ?? claimsRepo(createGitHubApi(), requireOrg(options.org));
+  const repo = options.repo ?? componentRepo(options.org);
   const map = await loadClaimsMap(repo);
   const source = await resolveClaim(
     repo,
@@ -239,8 +247,7 @@ export async function runFeatureMutation(
   process.stdout.write(`${formatClaim(claim, request.json)}\n`);
   if (!request.commit) return { claim, output };
 
-  const repo =
-    target.repo ?? claimsRepo(createGitHubApi(), requireOrg(request.org));
+  const repo = target.repo ?? componentRepo(request.org);
   try {
     const { publishUrl } = await withAuditTrail(
       {
@@ -263,7 +270,10 @@ export async function runFeatureMutation(
             existingSha: destination.existingSha,
             noWait: Boolean(request.noWait),
             waitForChecks: Boolean(request.waitForChecks),
-            stateRepos: request.stateRepos,
+            stateRepos: parseStateRepos(
+              request.stateRepos,
+              request.org ?? repo.ref.owner,
+            ),
             audit,
           },
           {

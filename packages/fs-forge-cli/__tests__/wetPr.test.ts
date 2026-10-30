@@ -2,7 +2,6 @@ import {
   extractLastStatePrFromContent,
   findWetPr,
   isDeletionPr,
-  parseStateRepos,
 } from '../src/claims/wetPr';
 import { MemoryGitHubApi } from './fixtures/memoryGitHubApi';
 
@@ -54,21 +53,6 @@ function parseRef(slug: string): RepoRef {
 }
 
 describe('wetPr', () => {
-  describe('parseStateRepos', () => {
-    it('returns default repos when no flag provided', () => {
-      const repos = parseStateRepos(undefined, 'my-org');
-      expect(repos).toEqual(['my-org/state-github', 'my-org/state-infra']);
-    });
-
-    it('parses custom repos from flag', () => {
-      const repos = parseStateRepos(
-        'custom/state-one,custom/state-two',
-        'my-org',
-      );
-      expect(repos).toEqual(['custom/state-one', 'custom/state-two']);
-    });
-  });
-
   describe('isDeletionPr', () => {
     it('returns true when all files are removed', () => {
       expect(

@@ -2,6 +2,7 @@ import { Command, Flags } from '@oclif/core';
 import { join } from 'path';
 
 import { assertCreatePath } from '../../claims/deterministicPath.js';
+import { parseStateRepos } from '../../context/resolve.js';
 import { runClaimCreation } from '../../mutations/creation.js';
 import {
   AUDIT_TRAIL_FLAGS,
@@ -204,7 +205,10 @@ export default class CreateArgoDeploy extends Command {
       claim,
       commit: flags.commit,
       waitForChecks: flags['wait-for-checks'],
-      stateRepos: flags['state-repos'],
+      stateRepos:
+        flags.commit && flags.org
+          ? parseStateRepos(flags['state-repos'], flags.org)
+          : undefined,
       ...auditTrailOptions(flags),
       path: flags.path,
       writeOutput: (output) => this.log(output),

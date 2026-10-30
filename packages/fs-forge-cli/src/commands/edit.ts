@@ -2,6 +2,10 @@ import { Args, Command, Flags } from '@oclif/core';
 
 import { claimsRepo } from '../claims/claimsRepo.js';
 import { createGitHubApi } from '../github/index.js';
+import {
+  parseStateRepos,
+  resolveClaimsRepository,
+} from '../context/resolve.js';
 import { resolveClaimReference } from '../claims/kindRegistry.js';
 import {
   assertMutationFlags,
@@ -66,7 +70,8 @@ export default class Edit extends Command {
     }
 
     const org = requireOrg(flags.org);
-    const repo = claimsRepo(createGitHubApi(), org);
+    const target = resolveClaimsRepository(org);
+    const repo = claimsRepo(createGitHubApi(), target.owner, target.repo);
     await runClaimMutation({
       repo,
       root: this.config.root,
@@ -77,7 +82,7 @@ export default class Edit extends Command {
       commit: flags.commit,
       noWait: flags['no-wait'],
       waitForChecks: flags['wait-for-checks'],
-      stateRepos: flags['state-repos'],
+      stateRepos: parseStateRepos(flags['state-repos'], org),
       ...auditTrailOptions(flags),
       transform: (claim) => {
         for (const value of flags['add-feature'] ?? []) {

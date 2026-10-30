@@ -16,7 +16,7 @@ export interface ClaimPublishRequest {
   existingSha?: string;
   noWait: boolean;
   waitForChecks: boolean;
-  stateRepos?: string;
+  stateRepos: string[];
   /** Opens or links the audit issue around the claim PR. */
   audit?: AuditTrail;
   /** Create only: reject a claim that already exists in the claims map. */

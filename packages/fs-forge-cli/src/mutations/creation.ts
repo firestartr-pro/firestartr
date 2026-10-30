@@ -2,6 +2,10 @@ import { claimsRepo } from '../claims/claimsRepo.js';
 import { deterministicPath } from '../claims/deterministicPath.js';
 import { serializeClaim } from '../claims/keyOrdering.js';
 import { createGitHubApi } from '../github/index.js';
+import {
+  parseStateRepos,
+  resolveClaimsRepository,
+} from '../context/resolve.js';
 import { withAuditTrail } from './auditIssue.js';
 import { publishClaimAndWait } from './publish.js';
 import { requireOrg } from './support.js';
@@ -17,7 +21,7 @@ export interface ClaimCreationOptions extends AuditTrailOptions {
   commit?: boolean;
   noWait?: boolean;
   waitForChecks?: boolean;
-  stateRepos?: string;
+  stateRepos?: string[];
   path?: string;
   writeOutput: (output: string) => void;
   writeDiagnostic: (output: string) => void;
@@ -49,10 +53,12 @@ export async function runClaimCreation(
       ? deterministicPath(kind, name, path)
       : undefined;
     const orgName = commit ? requireOrg(org) : undefined;
-    const repo =
-      commit && orgName ? claimsRepo(createGitHubApi(), orgName) : undefined;
+    const target = orgName ? resolveClaimsRepository(orgName) : undefined;
+    const repo = target
+      ? claimsRepo(createGitHubApi(), target.owner, target.repo)
+      : undefined;
     const output = serializeClaim(claim);
-    if (!repo || !destinationPath) {
+    if (!repo || !destinationPath || !orgName) {
       writeOutput(output);
       return { output };
     }
@@ -70,7 +76,7 @@ export async function runClaimCreation(
             path: destinationPath,
             noWait,
             waitForChecks,
-            stateRepos,
+            stateRepos: stateRepos ?? parseStateRepos(undefined, orgName),
             audit,
             rejectExistingClaim: true,
           },

@@ -58,13 +58,17 @@ or similar; drives scrub them.
 
 ```sh
 $V/drive.sh [--label L] [--mode offline|read|write] [--org ORG] [--expect-exit N] \
-            [--seed SRC[=DEST]]... -- <fs-forge args>
+            [--seed SRC[=DEST]]... [--allow-connect HOST:PORT]... [--stub-token] -- <fs-forge args>
 ```
 
 `--seed` copies a file or directory into the drive's work dir (`DEST` is
 relative to it; a seed that is or holds a symlink is refused); a previous drive's `stdout.txt` makes a good seed for chaining
 `create` into `validate`. `--expect-exit` is for commands that should fail
-(`validate` exits 1 on an invalid claim). Pick the feature in
+(`validate` exits 1 on an invalid claim). Offline only: `--allow-connect` tolerates a
+blocked connect the command is expected to try, and `--stub-token` sets a fake
+`GITHUB_TOKEN` for commands that check auth first. Every drive puts a stand-in
+`gh` with no account on `PATH`, so the CLI's `gh auth token` fallback never
+reaches the real keychain. Pick the feature in
 `features/README.md`, then follow its file.
 
 | Mode | Lets through | Observed before the verdict | Refused with exit 2 |

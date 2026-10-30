@@ -5,12 +5,15 @@ import { join } from 'path';
 import { loadClaimsArchive } from '../src/claims/archive';
 import DiscoveryMap from '../src/commands/discovery/map';
 import { createClaimValidator } from '../src/utils/ajvValidation';
+import { captureEnv, contextFixture } from './fixtures/contextFixtures';
 
 jest.mock('../src/claims/archive', () => ({
   loadClaimsArchive: jest.fn(),
 }));
+jest.mock('../src/github/index', () => ({ createGitHubApi: jest.fn() }));
 
 const loadClaimsArchiveMock = jest.mocked(loadClaimsArchive);
+const env = captureEnv();
 
 async function runMap(flags: string[]) {
   return captureOutput(async () => {
@@ -30,8 +33,7 @@ const claims = [
 ];
 
 afterEach(() => {
-  delete process.env.FSCRT_ORG;
-  delete process.env.GITHUB_TOKEN;
+  env.restore();
   loadClaimsArchiveMock.mockReset();
   process.exitCode = 0;
 });
@@ -45,7 +47,6 @@ describe('discovery map', () => {
   });
 
   it('renders repeatable kind filters with ASCII icons', async () => {
-    process.env.GITHUB_TOKEN = 'test-token';
     loadClaimsArchiveMock.mockResolvedValue(claims);
 
     const result = await runMap([
@@ -68,7 +69,6 @@ describe('discovery map', () => {
     ['component', ['ComponentClaim']],
     ['GroupClaim', ['GroupClaim']],
   ])('filters structured JSON output by --kind %s', async (kind, expectedKinds) => {
-    process.env.GITHUB_TOKEN = 'test-token';
     loadClaimsArchiveMock.mockResolvedValue(claims);
 
     const result = await runMap([
@@ -93,8 +93,21 @@ describe('discovery map', () => {
     expect(validation).toEqual({ valid: true, errors: [] });
   });
 
+  it('downloads the archive from the configured claims repository', async () => {
+    process.env.FS_FORGE_CONFIG = contextFixture('repo-overrides.yaml');
+    loadClaimsArchiveMock.mockResolvedValue(claims);
+
+    const result = await runMap(['--org', 'acme', '--json']);
+
+    expect(result.error).toBeUndefined();
+    expect(loadClaimsArchiveMock).toHaveBeenCalledWith(
+      undefined,
+      { owner: 'shared', repo: 'claims-fork' },
+      undefined,
+    );
+  });
+
   it('reports archive fetch failures', async () => {
-    process.env.GITHUB_TOKEN = 'test-token';
     loadClaimsArchiveMock.mockRejectedValue(new Error('archive unavailable'));
 
     const result = await runMap(['--org', 'example']);

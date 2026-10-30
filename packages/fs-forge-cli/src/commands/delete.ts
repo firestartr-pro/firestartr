@@ -7,7 +7,12 @@ import {
   loadClaimsMap,
 } from '../claims/claimsRepo.js';
 import { createGitHubApi } from '../github/index.js';
-import { CLAIM_KIND_OPTIONS, normalizeKind } from '../claims/kindRegistry.js';
+import { resolveClaimsRepository } from '../context/resolve.js';
+import {
+  CLAIM_KIND_OPTIONS,
+  KIND_CAPABILITIES,
+  normalizeKind,
+} from '../claims/kindRegistry.js';
 import { withAuditTrail } from '../mutations/auditIssue.js';
 import {
   AUDIT_TRAIL_FLAGS,
@@ -16,6 +21,10 @@ import {
   requireOrg,
 } from '../mutations/support.js';
 import { waitForDispatch } from '../utils/waitForDispatch.js';
+
+const VARIANT_KIND_LABEL = KIND_CAPABILITIES.filter(({ variants }) => variants)
+  .map(({ kind }) => kind)
+  .join(', ');
 
 export default class Delete extends Command {
   static args = {
@@ -34,6 +43,7 @@ export default class Delete extends Command {
     'Delete (unprovision) an existing claim. Network access requires GITHUB_TOKEN authentication.';
 
   static examples = [
+    '<%= config.bin %> <%= command.id %> component my-svc',
     '<%= config.bin %> <%= command.id %> component my-svc --org my-org',
     '<%= config.bin %> <%= command.id %> component my-svc --org my-org --commit',
     '<%= config.bin %> <%= command.id %> tfworkspace my-tf --org my-org --no-include-variants --commit',
@@ -43,7 +53,7 @@ export default class Delete extends Command {
   static flags = {
     org: ORG_FLAG,
     'include-variants': Flags.boolean({
-      description: 'Also delete variant CRs (TFWorkspaceClaim only)',
+      description: `Also delete variant CRs (${VARIANT_KIND_LABEL} only)`,
       default: true,
       allowNo: true,
     }),
@@ -68,38 +78,31 @@ export default class Delete extends Command {
     const kind = normalizeKind(args.kind);
     if (!kind) this.error(`Unsupported claim kind: ${args.kind}`);
 
-    const name = args.name;
+    const org = requireOrg(
+      flags.org,
+      flags.commit
+        ? undefined
+        : '--org or FSCRT_ORG is required even in dry-run mode to validate the claim exists',
+    );
+    const target = resolveClaimsRepository(org);
+    const repo = claimsRepo(createGitHubApi(), target.owner, target.repo);
+    const map = await loadClaimsMap(repo);
+    if (!claimExists(map, kind, args.name)) {
+      this.error(`Claim not found: ${kind}-${args.name}`);
+    }
 
     if (!flags.commit) {
-      const org = flags.org ?? process.env.FSCRT_ORG;
-      if (!org) {
-        this.error(
-          '--org or FSCRT_ORG is required even in dry-run mode to validate the claim exists',
-        );
-      }
-      const repo = claimsRepo(createGitHubApi(), org);
-      const map = await loadClaimsMap(repo);
-      if (!claimExists(map, kind, name)) {
-        this.error(`Claim not found: ${kind}-${name}`);
-      }
       process.stderr.write(
         'Dry run — would dispatch unprovision-claim.yaml with:\n' +
           `  claimType: ${kind}\n` +
-          `  claimName: ${name}\n` +
+          `  claimName: ${args.name}\n` +
           `  includeVariants: ${flags['include-variants']}\n` +
           `  waitForClaimChecks: ${flags['wait-for-checks']}\n`,
       );
       return;
     }
 
-    const org = requireOrg(flags.org);
-    const repo = claimsRepo(createGitHubApi(), org);
-
-    const map = await loadClaimsMap(repo);
-    if (!claimExists(map, kind, name)) {
-      this.error(`Claim not found: ${kind}-${name}`);
-    }
-
+    const name = args.name;
     try {
       await withAuditTrail(
         { repo, operation: 'delete', kind, name },
