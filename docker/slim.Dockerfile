@@ -1,4 +1,4 @@
-FROM node:22-bookworm AS builder
+FROM node:24-bookworm AS builder
 
 ENV LERNA="8.1.9"
 ENV NCC="0.38.3"
@@ -7,12 +7,17 @@ RUN npm install -g lerna@${LERNA} @vercel/ncc@${NCC}
 
 WORKDIR /library/
 
+# npm comes from package.json "packageManager"; copied alone so this layer
+# only rebuilds when that file changes.
+COPY package.json ./
+RUN npm install -g "$(node -p "require('./package.json').packageManager")"
+
 COPY . .
 
 RUN npm ci && \
     NODE_OPTIONS="--max-old-space-size=4096" npm run build --workspace packages/cli
 
-FROM ghcr.io/prefapp/gitops-k8s:run-slim
+FROM ghcr.io/firestartr-pro/firestartr:run-slim
 
 WORKDIR /library/
 

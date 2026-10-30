@@ -334,6 +334,62 @@ describe('TFWorkspaceClaim variants', () => {
       ).toBe('TFWorkspaceClaim/tfworkspace_variants');
     });
 
+    it('rejects a variant inheriting the parent explicit tfStateKey', async () => {
+      context = await context.resetRendererState();
+
+      await context.applyPatches('tfworkspace_variants', [
+        {
+          op: 'add',
+          path: '/providers/terraform/tfStateKey',
+          value: '11111111-2222-4333-8444-555555555555',
+        },
+      ]);
+
+      await expect(
+        context.renderClaims(
+          { claimRefs: ['TFWorkspaceClaim-tfworkspace_variants'] },
+          { crsPath: rendererTestFixtures.noCrs, excludeGithubCrs: true },
+        ),
+      ).rejects.toMatchObject({
+        message: expect.stringContaining(
+          'Check the following Claims to ensure that the tfStateKey is unique',
+        ),
+      });
+    });
+
+    it('accepts variants that override the parent explicit tfStateKey', async () => {
+      context = await context.resetRendererState();
+
+      await context.applyPatches('tfworkspace_variants', [
+        {
+          op: 'add',
+          path: '/providers/terraform/tfStateKey',
+          value: '11111111-2222-4333-8444-555555555555',
+        },
+        {
+          op: 'add',
+          path: '/providers/terraform/variants/0/overrides/tfStateKey',
+          value: '22222222-3333-4444-8555-666666666666',
+        },
+        {
+          op: 'add',
+          path: '/providers/terraform/variants/1/overrides/tfStateKey',
+          value: '33333333-4444-4555-8666-777777777777',
+        },
+      ]);
+
+      const { renderedMap } = await context.renderClaims(
+        { claimRefs: ['TFWorkspaceClaim-tfworkspace_variants'] },
+        { crsPath: rendererTestFixtures.noCrs, excludeGithubCrs: true },
+      );
+
+      const keys = Object.values(renderedMap)
+        .filter((cr: any) => cr.kind === 'FirestartrTerraformWorkspace')
+        .map((cr: any) => cr.spec.firestartr.tfStateKey);
+
+      expect(new Set(keys).size).toBe(3);
+    });
+
     it('renders a catalog entity for each variant', async () => {
       const { renderedMap } = await context.renderClaims(
         { claimRefs: ['TFWorkspaceClaim-tfworkspace_variants'] },

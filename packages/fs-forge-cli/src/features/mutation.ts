@@ -10,6 +10,7 @@ import {
 import { deterministicPath } from '../claims/deterministicPath.js';
 import { serializeClaim } from '../claims/keyOrdering.js';
 import { createGitHubApi } from '../github/index.js';
+import { waitForProvision } from '../mutations/publish.js';
 import { parseClaimYaml, requireOrg } from '../mutations/support.js';
 import { mergeObjects } from '../utils/mutateClaim.js';
 import { createClaimValidator } from '../utils/ajvValidation.js';
@@ -18,7 +19,6 @@ import {
   getFeatureReferences,
   mutateFeatureReference,
 } from '../utils/features.js';
-import { waitForDispatch } from '../utils/waitForDispatch.js';
 
 import type { ClaimsRepo, WorkflowDispatch } from '../claims/claimsRepo.js';
 import type { FeatureReference } from '../utils/features.js';
@@ -152,6 +152,8 @@ export interface FeatureMutationRequest {
   org?: string;
   commit?: boolean;
   noWait?: boolean;
+  waitForChecks?: boolean;
+  stateRepos?: string;
   json: boolean;
   feature?: FeatureReference;
   featureSchema?: Record<string, unknown>;
@@ -221,16 +223,18 @@ export async function runFeatureMutation(
   if (!published) return { claim, output };
 
   try {
-    const publishUrl = await waitForDispatch(
+    const publishUrl = await waitForProvision(
       published.repo.api,
       published.repo.ref,
       published.dispatch,
       {
-        noWait: request.noWait,
         claimType: 'ComponentClaim',
         claimName: target.name,
-        label: 'Provisioning',
+        noWait: request.noWait,
+        waitForChecks: request.waitForChecks,
+        stateRepos: request.stateRepos,
       },
+      (line) => process.stderr.write(line),
     );
     return { claim, output, publishUrl };
   } catch (error) {

@@ -1,8 +1,10 @@
 {
   "name": "@firestartr/firestartr",
-  "version": "3.1.0",
+  "version": "3.1.1",
+  "packageManager": "npm@12.2.1",
   "engines": {
-    "node": ">=22"
+    "node": "^24.15.0",
+    "npm": "12.2.1"
   },
   "description": "A monorepo for firestartr",
   "main": "index.js",
@@ -34,7 +36,7 @@
     "@types/uuid": "^9.0.6",
     "debug": "^4.3.4",
     "dotenv": "^18.0.8",
-    "eslint": "^10.12.0",
+    "eslint": "^10.13.0",
     "eslint-plugin-prettier": "5.5.7",
     "fast-json-patch": "^3.1.1",
     "globals": "^17.13.0",

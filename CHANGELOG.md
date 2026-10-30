@@ -1,46 +1,56 @@
 # Changelog
 
+## [3.1.1](https://github.com/firestartr-pro/firestartr/compare/v3.1.0...v3.1.1) (2026-10-23)
+
+
+### Bug Fixes
+
+* **`cdk8s_renderer`:** validate a claim's explicit `tfStateKey` ([#127](https://github.com/firestartr-pro/firestartr/issues/127)) ([d59ce44](https://github.com/firestartr-pro/firestartr/commit/d59ce44d6273fb3279b150713e54d10fe004195e))
+* **deps-dev:** bump eslint from 10.12.0 to 10.13.0 ([#117](https://github.com/firestartr-pro/firestartr/issues/117)) ([4ceff78](https://github.com/firestartr-pro/firestartr/commit/4ceff78cb889f3ff7400359fc460f704ab68fe77))
+* **deps-dev:** bump prettier from 3.8.3 to 3.9.10 ([#100](https://github.com/firestartr-pro/firestartr/issues/100)) ([2553aa6](https://github.com/firestartr-pro/firestartr/commit/2553aa6013039390dcaf81a5db1a8e90a5f8b72d))
+* removed Octokit stale dependency ([#129](https://github.com/firestartr-pro/firestartr/issues/129)) ([4711bbf](https://github.com/firestartr-pro/firestartr/commit/4711bbf25637cb2b4c1de17b9668bc709b9f2771))
+* set proper registry for firestartr docker image in deploy scripts([#142](https://github.com/firestartr-pro/firestartr/issues/142)) ([6ae6e82](https://github.com/firestartr-pro/firestartr/commit/6ae6e82108b652b1c907c44f7f32a808d7fdddee))
+
 ## [3.1.0](https://github.com/firestartr-pro/firestartr/compare/v3.0.2...v3.1.0) (2026-10-22)
 
 
 ### Features
 
-* **`cdk8s_renderer`:** add benchmark tools ([#89](https://github.com/firestartr-pro/firestartr/issues/89)) ([a58c977](https://github.com/firestartr-pro/firestartr/commit/a58c977a988d0ac2505a591734e4536b5fdc168e))
-* error control of missing deps ([3eb6b12](https://github.com/firestartr-pro/firestartr/commit/3eb6b12e11e34f4fa768d8a942073e85cf4dec07))
-* error control of missing deps at the operator level ([3eb6b12](https://github.com/firestartr-pro/firestartr/commit/3eb6b12e11e34f4fa768d8a942073e85cf4dec07))
-* error control y absence deps ([008ea34](https://github.com/firestartr-pro/firestartr/commit/008ea34dcd234032d8431a1991be7ba89ad9a4f9))
+* **operator:** fail closed on an absent dependency. A missing dependency CR, a missing `<kind>/<name>-outputs` secret or a missing key inside it now throws one structured error at the resolution seam, naming the referring CR, its namespace, the missing dependency and the secret that was looked up. Provisioners are never launched with an incomplete dependency map, and a run can no longer die mid-flight with an unclear `TypeError`. Own-outputs secrets stay tolerant, so a first apply is unaffected ([#125](https://github.com/firestartr-pro/firestartr/issues/125)) ([#126](https://github.com/firestartr-pro/firestartr/pull/126)) ([3eb6b12](https://github.com/firestartr-pro/firestartr/commit/3eb6b12e11e34f4fa768d8a942073e85cf4dec07))
+* **gh_provisioner:** required refs and output keys now report `requireRef` / `requireOutput` errors naming the entity and the reference, instead of dereferencing `null` ([3eb6b12](https://github.com/firestartr-pro/firestartr/commit/3eb6b12e11e34f4fa768d8a942073e85cf4dec07))
+* **terraform_provisioner:** `resolveRef` names the missing reference instead of throwing a bare `KEY NOT FOUND` ([3eb6b12](https://github.com/firestartr-pro/firestartr/commit/3eb6b12e11e34f4fa768d8a942073e85cf4dec07))
+* **cdk8s_renderer:** add benchmark tools ([#89](https://github.com/firestartr-pro/firestartr/issues/89)) ([a58c977](https://github.com/firestartr-pro/firestartr/commit/a58c977a988d0ac2505a591734e4536b5fdc168e))
 
 
 ### Bug Fixes
 
-* **`cdk8s_renderer`:** reduced rendering load time ([#88](https://github.com/firestartr-pro/firestartr/issues/88)) ([fbd4b02](https://github.com/firestartr-pro/firestartr/commit/fbd4b027055c134ece1a85411ce059ffd4e6ec1a))
-* add per-execution separated deps resolver ([2f65edc](https://github.com/firestartr-pro/firestartr/commit/2f65edc872d2db043fb4f139d0b3b9fff208d0e4))
-* add per-execution separated deps resolver ([2f65edc](https://github.com/firestartr-pro/firestartr/commit/2f65edc872d2db043fb4f139d0b3b9fff208d0e4))
-* add per-slot separate deps resolver ([070c543](https://github.com/firestartr-pro/firestartr/commit/070c5430c2fe484c98b201e4974a662f0b92cc7e))
-* address copilot review on absent-dependency error handling ([84d01e6](https://github.com/firestartr-pro/firestartr/commit/84d01e63604f9d9da84e43745c133ed52d18677b))
-* close needsSecret cache bypass and prototype-key output reads ([d48aa9a](https://github.com/firestartr-pro/firestartr/commit/d48aa9a73edab4095f753745b8a9870177174c17))
-* **deps-dev:** bump @types/lodash from 4.17.25 to 4.17.26 ([#73](https://github.com/firestartr-pro/firestartr/issues/73)) ([974a986](https://github.com/firestartr-pro/firestartr/commit/974a9865a678af3635adfd9499fb8e1260d5c8de))
-* **deps-dev:** bump cdk8s-cli from 2.207.64 to 2.207.67 ([#91](https://github.com/firestartr-pro/firestartr/issues/91)) ([5f7f01f](https://github.com/firestartr-pro/firestartr/commit/5f7f01f92654304226a445350f2156aa481433ed))
-* **deps-dev:** bump eslint-plugin-prettier from 5.5.6 to 5.5.7 ([#95](https://github.com/firestartr-pro/firestartr/issues/95)) ([229a655](https://github.com/firestartr-pro/firestartr/commit/229a6554222366f2820b86d130dcb83d1326e69e))
-* **deps:** bump @opentelemetry/exporter-prometheus ([#75](https://github.com/firestartr-pro/firestartr/issues/75)) ([0e5be52](https://github.com/firestartr-pro/firestartr/commit/0e5be52be58b525968683abdb1ef03618f0cd06a))
-* **deps:** bump @opentelemetry/sdk-metrics from 2.11.0 to 2.12.0 ([#79](https://github.com/firestartr-pro/firestartr/issues/79)) ([cf76b73](https://github.com/firestartr-pro/firestartr/commit/cf76b7361c90a06da9378633b6b03a252ffc8a59))
-* **deps:** bump cdk8s from 2.70.108 to 2.70.109 ([7e99ee1](https://github.com/firestartr-pro/firestartr/commit/7e99ee111e985d5df96ba5b7dcc436ea4eaafc51))
-* **deps:** bump cdk8s from 2.70.109 to 2.70.111 ([#90](https://github.com/firestartr-pro/firestartr/issues/90)) ([40ea085](https://github.com/firestartr-pro/firestartr/commit/40ea0857c0039ad6470ab0c0a367ab0af32061cf))
-* **deps:** bump cdk8s-cli from 2.207.63 to 2.207.64 ([#81](https://github.com/firestartr-pro/firestartr/issues/81)) ([0b079de](https://github.com/firestartr-pro/firestartr/commit/0b079de1d72f91df779f0dd1c9b380626bd73646))
-* **deps:** bump dotenv from 18.0.5 to 18.0.7 ([#74](https://github.com/firestartr-pro/firestartr/issues/74)) ([5afa0a3](https://github.com/firestartr-pro/firestartr/commit/5afa0a3e5aeb25705b6ac1a80777d46882a92ef9))
-* **deps:** bump dotenv from 18.0.7 to 18.0.8 ([#96](https://github.com/firestartr-pro/firestartr/issues/96)) ([237c633](https://github.com/firestartr-pro/firestartr/commit/237c6338f4da695236a240c17cfcb11f61e55994))
-* **deps:** bump express from 4.22.1 to 5.2.1 ([658469c](https://github.com/firestartr-pro/firestartr/commit/658469c91403635aa6d42336b0e962e8ad2712ed))
-* **deps:** bump express from 4.22.1 to 5.2.1 ([b21d847](https://github.com/firestartr-pro/firestartr/commit/b21d847011946a16ad953d24f5061bab06812348))
-* **deps:** bump express from 5.2.1 to 5.3.0 ([#76](https://github.com/firestartr-pro/firestartr/issues/76)) ([b5f8a92](https://github.com/firestartr-pro/firestartr/commit/b5f8a924bd6adba9dba55b76412b782de1171865))
-* **deps:** bump handlebars from 4.7.9 to 4.7.10 ([#70](https://github.com/firestartr-pro/firestartr/issues/70)) ([c504e1b](https://github.com/firestartr-pro/firestartr/commit/c504e1b3a7c6f9adbf86ecff234d77ce30b0b66a))
-* **deps:** bump proxy-addr from 2.0.7 to 2.0.8 ([#62](https://github.com/firestartr-pro/firestartr/issues/62)) ([7d8128e](https://github.com/firestartr-pro/firestartr/commit/7d8128e45b71f36ce0a1feff785f8acf81de0806))
-* **deps:** bump ts-jest from 29.4.14 to 29.4.15 ([#97](https://github.com/firestartr-pro/firestartr/issues/97)) ([b8fb125](https://github.com/firestartr-pro/firestartr/commit/b8fb1251b37fe815a62237a64ee3a48728b1aa4b))
-* **e2e:** add the group parent so fixtures without one can be patched ([cf06db4](https://github.com/firestartr-pro/firestartr/commit/cf06db47d7a812de31748cd46565d4fd45da9805))
-* **e2e:** clone render artifacts in the claims snapshot ([5ac292b](https://github.com/firestartr-pro/firestartr/commit/5ac292b89be2e8dc0b78f989fa503c2d9ffc8196))
+* **gh_provisioner:** scope dependency maps per execution. The map is now bound to the entity through `getEntity(cr, deps)` instead of living in module state, so concurrent operator slots sharing one Node process can no longer resolve team, membership and variable refs against another run's map — a fail-open path that could silently drop GitHub access on a successful apply ([#121](https://github.com/firestartr-pro/firestartr/issues/121)) ([2f65edc](https://github.com/firestartr-pro/firestartr/commit/2f65edc872d2db043fb4f139d0b3b9fff208d0e4))
+* **operator:** test the `!ref` guard before reading `ref.secret` in `tfworkspaces/process-operation.ts` ([3eb6b12](https://github.com/firestartr-pro/firestartr/commit/3eb6b12e11e34f4fa768d8a942073e85cf4dec07))
+* remove `FirestartrTerraformWorkspacePlan` ([#57](https://github.com/firestartr-pro/firestartr/issues/57)) ([64fa2c0](https://github.com/firestartr-pro/firestartr/commit/64fa2c0e2667387d327daca9afbc62bfb48940a9))
+* **features_renderer:** restore `bin/validate.js` ([#44](https://github.com/firestartr-pro/firestartr/issues/44)) ([80eb86f](https://github.com/firestartr-pro/firestartr/commit/80eb86f8a879cdebea75cfb47fc11022fbc602a2))
 * **e2e:** prepare the verification workflow once per repository ([032c7a4](https://github.com/firestartr-pro/firestartr/commit/032c7a4c0df99fbdd3a34a30c1dd8e4b411ff17d))
-* **features_renderer:** restore bin/validate.js ([#44](https://github.com/firestartr-pro/firestartr/issues/44)) ([80eb86f](https://github.com/firestartr-pro/firestartr/commit/80eb86f8a879cdebea75cfb47fc11022fbc602a2))
-* guard secret data before credential lookup ([8bd1ee4](https://github.com/firestartr-pro/firestartr/commit/8bd1ee4ab6fd325af5a3d77f8b8cda86b251fa9c))
-* remove firestartrterraformworkspaceplan ([#57](https://github.com/firestartr-pro/firestartr/issues/57)) ([64fa2c0](https://github.com/firestartr-pro/firestartr/commit/64fa2c0e2667387d327daca9afbc62bfb48940a9))
+* **e2e:** clone render artifacts in the claims snapshot ([5ac292b](https://github.com/firestartr-pro/firestartr/commit/5ac292b89be2e8dc0b78f989fa503c2d9ffc8196))
+* **e2e:** add the group parent so fixtures without one can be patched ([cf06db4](https://github.com/firestartr-pro/firestartr/commit/cf06db47d7a812de31748cd46565d4fd45da9805))
+
+
+### Performance Improvements
+
+* **cdk8s_renderer:** reduce rendering load time ([#88](https://github.com/firestartr-pro/firestartr/issues/88)) ([fbd4b02](https://github.com/firestartr-pro/firestartr/commit/fbd4b027055c134ece1a85411ce059ffd4e6ec1a))
+
+
+### Dependencies
+
+* bump cdk8s from 2.70.108 to 2.70.111 ([#90](https://github.com/firestartr-pro/firestartr/issues/90)) ([40ea085](https://github.com/firestartr-pro/firestartr/commit/40ea0857c0039ad6470ab0c0a367ab0af32061cf))
+* bump cdk8s-cli from 2.207.63 to 2.207.67 ([#81](https://github.com/firestartr-pro/firestartr/issues/81), [#91](https://github.com/firestartr-pro/firestartr/issues/91)) ([5f7f01f](https://github.com/firestartr-pro/firestartr/commit/5f7f01f92654304226a445350f2156aa481433ed))
+* bump express from 4.22.1 to 5.3.0 ([#23](https://github.com/firestartr-pro/firestartr/issues/23), [#76](https://github.com/firestartr-pro/firestartr/issues/76)) ([b5f8a92](https://github.com/firestartr-pro/firestartr/commit/b5f8a924bd6adba9dba55b76412b782de1171865))
+* bump dotenv from 18.0.5 to 18.0.8 ([#74](https://github.com/firestartr-pro/firestartr/issues/74), [#96](https://github.com/firestartr-pro/firestartr/issues/96)) ([237c633](https://github.com/firestartr-pro/firestartr/commit/237c6338f4da695236a240c17cfcb11f61e55994))
+* bump handlebars from 4.7.9 to 4.7.10 ([#70](https://github.com/firestartr-pro/firestartr/issues/70)) ([c504e1b](https://github.com/firestartr-pro/firestartr/commit/c504e1b3a7c6f9adbf86ecff234d77ce30b0b66a))
+* bump proxy-addr from 2.0.7 to 2.0.8 ([#62](https://github.com/firestartr-pro/firestartr/issues/62)) ([7d8128e](https://github.com/firestartr-pro/firestartr/commit/7d8128e45b71f36ce0a1feff785f8acf81de0806))
+* bump @opentelemetry/exporter-prometheus ([#75](https://github.com/firestartr-pro/firestartr/issues/75)) ([0e5be52](https://github.com/firestartr-pro/firestartr/commit/0e5be52be58b525968683abdb1ef03618f0cd06a))
+* bump @opentelemetry/sdk-metrics from 2.11.0 to 2.12.0 ([#79](https://github.com/firestartr-pro/firestartr/issues/79)) ([cf76b73](https://github.com/firestartr-pro/firestartr/commit/cf76b7361c90a06da9378633b6b03a252ffc8a59))
+* bump @types/lodash from 4.17.25 to 4.17.26 ([#73](https://github.com/firestartr-pro/firestartr/issues/73)) ([974a986](https://github.com/firestartr-pro/firestartr/commit/974a9865a678af3635adfd9499fb8e1260d5c8de))
+* bump eslint-plugin-prettier from 5.5.6 to 5.5.7 ([#95](https://github.com/firestartr-pro/firestartr/issues/95)) ([229a655](https://github.com/firestartr-pro/firestartr/commit/229a6554222366f2820b86d130dcb83d1326e69e))
+* bump ts-jest from 29.4.14 to 29.4.15 ([#97](https://github.com/firestartr-pro/firestartr/issues/97)) ([b8fb125](https://github.com/firestartr-pro/firestartr/commit/b8fb1251b37fe815a62237a64ee3a48728b1aa4b))
 
 ## [3.0.2](https://github.com/firestartr-pro/firestartr/compare/v3.0.1...v3.0.2) (2026-10-02)
 

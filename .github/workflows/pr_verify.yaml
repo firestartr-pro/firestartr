@@ -17,6 +17,51 @@ concurrency:
   cancel-in-progress: true
 
 jobs:
+  lockfile-in-sync:
+    runs-on: ubuntu-24.04
+    steps:
+      - name: Checkout repo
+        uses: actions/checkout@v7
+
+      - name: Detect dependency manifest changes
+        id: changes
+        env:
+          BASE_SHA: ${{ github.event.pull_request.base.sha }}
+        run: |
+          # Outside pull requests there is nothing to diff against: always check.
+          if [ -z "$BASE_SHA" ]; then
+            echo "changed=true" >> "$GITHUB_OUTPUT"
+            exit 0
+          fi
+          git fetch --no-tags --depth=1 origin "$BASE_SHA"
+          if git diff --name-only "$BASE_SHA" HEAD -- package-lock.json ':(glob)**/package.json' | grep -q .; then
+            echo "changed=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "changed=false" >> "$GITHUB_OUTPUT"
+            echo "No package.json or package-lock.json changes, skipping."
+          fi
+
+      - name: Setup node
+        if: steps.changes.outputs.changed == 'true'
+        uses: actions/setup-node@v7
+        with:
+          node-version: "24"
+          cache: "npm"
+          cache-dependency-path: "package-lock.json"
+
+      - name: Install npm
+        if: steps.changes.outputs.changed == 'true'
+        run: npm install -g "$(node -p "require('./package.json').packageManager")"
+
+      - name: Make sure package-lock.json is in sync with the package.json files
+        if: steps.changes.outputs.changed == 'true'
+        run: |
+          npm install --package-lock-only --ignore-scripts
+          if ! git diff --exit-code package-lock.json; then
+            echo "::error file=package-lock.json::package-lock.json is out of sync with the package.json files. Run 'npm install --package-lock-only' and commit the result."
+            exit 1
+          fi
+
   lint-and-transpile:
     runs-on: ubuntu-24.04
     steps:
@@ -26,9 +71,12 @@ jobs:
       - name: Setup node
         uses: actions/setup-node@v7
         with:
-          node-version: "22"
+          node-version: "24"
           cache: "npm"
           cache-dependency-path: "package-lock.json"
+
+      - name: Install npm
+        run: npm install -g "$(node -p "require('./package.json').packageManager")"
 
       - name: Linter
         env:
@@ -85,11 +133,14 @@ jobs:
       - name: Setup node
         uses: actions/setup-node@v7
         with:
-          node-version: "22"
+          node-version: "24"
           registry-url: "https://registry.npmjs.org/"
           scope: "@firestartr"
           cache: "npm"
           cache-dependency-path: "package-lock.json"
+
+      - name: Install npm
+        run: npm install -g "$(node -p "require('./package.json').packageManager")"
 
       - name: Install dependencies
         env:
