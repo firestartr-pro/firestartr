@@ -7,6 +7,7 @@ export default {
       testEnvironment: 'node',
       displayName: 'fs-forge-cli',
       testMatch: ['<rootDir>/__tests__/**/*test.ts'],
+      setupFiles: ['<rootDir>/__tests__/setupEnv.ts'],
       moduleNameMapper: {
         '^(\\.{1,2}/.*)\\.js$': '$1',
       },

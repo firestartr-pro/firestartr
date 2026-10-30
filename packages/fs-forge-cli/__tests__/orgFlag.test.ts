@@ -128,6 +128,16 @@ describe('the shared --org flag', () => {
     expect(flag.env).toBe('FSCRT_ORG');
     expect(flag.parse).toBe((ORG_FLAG as unknown as Record<string, unknown>).parse);
   });
+
+  it.each(COMMANDS)('%s declares a default that resolves the org', (_name, command) => {
+    const flag = (command.flags as Record<string, Record<string, unknown>>).org;
+    expect(typeof flag.default).toBe('function');
+  });
+
+  it.each(COMMANDS)('%s keeps that default out of the manifest', (_name, command) => {
+    const flag = (command.flags as Record<string, Record<string, unknown>>).org;
+    expect(flag.noCacheDefault).toBe(true);
+  });
 });
 
 describe('FSCRT_ORG resolution', () => {

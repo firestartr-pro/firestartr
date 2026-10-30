@@ -1,6 +1,6 @@
 import { watchCheckRuns } from './checkRuns.js';
 import { findCrOnMainBranch } from './stateRepo.js';
-import { findWetPr, parseStateRepos } from './wetPr.js';
+import { findWetPr } from './wetPr.js';
 
 import type { LastStatePrRedirect } from './wetPr.js';
 
@@ -9,8 +9,7 @@ import type { GitHubApi, RepoRef } from '../github/api.js';
 export interface WetPrCheckWatch {
   claimType: string;
   claimName: string;
-  /** Comma-separated state repos; defaults to `<org>/state-github,<org>/state-infra`. */
-  stateRepos?: string;
+  stateRepos: string[];
 }
 
 /**
@@ -24,9 +23,8 @@ export async function watchWetPrChecks(
   watch: WetPrCheckWatch,
   diagnostic: (line: string) => void,
 ): Promise<void> {
-  const repos = parseStateRepos(watch.stateRepos, ref.owner);
   const targets = new Map<string, LastStatePrRedirect>();
-  for (const repo of repos) {
+  for (const repo of watch.stateRepos) {
     const wetPr = await findWetPr(
       api,
       [repo],
