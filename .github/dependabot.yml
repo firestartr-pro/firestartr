@@ -17,6 +17,10 @@ updates:
       interval: "daily"
     versioning-strategy: increase
     open-pull-requests-limit: 30
+    # Every dependency bump uses chore(deps), which release-please hides.
+    commit-message:
+      prefix: chore
+      prefix-development: chore
     # Ignore these dependencies to allow manual review of possible errors and conflicts
     ignore:
       - dependency-name: "uuid"

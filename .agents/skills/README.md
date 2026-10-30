@@ -10,6 +10,7 @@ workflow skills come from [`prefapp/skills`](https://github.com/prefapp/skills).
 | `gh-provisioner-entity-from-crd-tfm` | Implement a `gh_provisioner` entity from a CRD and a Terraform module. |
 | `gh-provisioner-tfm-compatibility` | Check a `gh_provisioner` entity against a Terraform module's `config` contract. |
 | `dependabot-smoke-test` | Test Dependabot PRs and recommend MERGE or DO NOT MERGE. |
+| `handle-dependabot-pr` | Triage Dependabot PRs (jump, level, Socket) and walk one through Path A or Path B. |
 | `deploy-snapshot-on-pre` | Deploy an operator snapshot of a branch to a pre org. |
 | `publish-cli-snapshot-on-pre` | Publish a CLI snapshot of a branch and point a pre org at it. |
 | `rollout-functionality` | Test a branch, issue or release end to end on a pre org. |
