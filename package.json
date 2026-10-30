@@ -1,6 +1,6 @@
 {
   "name": "@firestartr/firestartr",
-  "version": "3.1.1",
+  "version": "3.1.2",
   "packageManager": "npm@12.2.1",
   "engines": {
     "node": "^24.15.0",
