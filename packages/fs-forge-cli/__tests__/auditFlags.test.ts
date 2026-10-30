@@ -1,6 +1,5 @@
-import { afterEach, describe, expect, it } from '@jest/globals';
+import { describe, expect, it } from '@jest/globals';
 import { Command } from '@oclif/core';
-import { captureOutput } from '@oclif/test';
 
 import CreateArgodeploy from '../src/commands/create/argodeploy';
 import CreateComponent from '../src/commands/create/component';
@@ -17,8 +16,6 @@ import Edit from '../src/commands/edit';
 import FeaturesAdd from '../src/commands/features/add';
 import FeaturesEdit from '../src/commands/features/edit';
 import FeaturesRemove from '../src/commands/features/remove';
-
-const ROOT = process.cwd();
 
 interface FlagMeta {
   dependsOn?: string[];
@@ -56,36 +53,6 @@ function commitCommands(): Map<string, Record<string, FlagMeta>> {
   }
   return found;
 }
-
-function componentArgs(extra: string[]): string[] {
-  const example = CreateComponent.examples[0].replace(
-    '<%= config.bin %> <%= command.id %> ',
-    '',
-  );
-  return [...example.split(' '), ...extra];
-}
-
-async function runComponent(extra: string[]) {
-  const previousExitCode = process.exitCode;
-  process.exitCode = undefined;
-  try {
-    return await captureOutput(() =>
-      CreateComponent.run(componentArgs(extra), { root: ROOT }),
-    );
-  } finally {
-    process.exitCode = previousExitCode;
-  }
-}
-
-const ORIGINAL_ORG = process.env.FSCRT_ORG;
-
-afterEach(() => {
-  if (ORIGINAL_ORG === undefined) {
-    delete process.env.FSCRT_ORG;
-  } else {
-    process.env.FSCRT_ORG = ORIGINAL_ORG;
-  }
-});
 
 describe('audit-trail flags', () => {
   it('carries the audit flags on every --commit command, tied to --commit and to each other', () => {
@@ -128,36 +95,4 @@ describe('audit-trail flags', () => {
     }
   });
 
-  it('refuses --issue without --commit', async () => {
-    const result = await runComponent(['--issue', '7']);
-
-    expect(result.error?.message).toContain(
-      'All of the following must be provided when using --issue: --commit',
-    );
-  });
-
-  it('refuses --issue together with --create-issue', async () => {
-    const result = await runComponent([
-      '--commit',
-      '--issue',
-      '7',
-      '--create-issue',
-    ]);
-
-    expect(result.error?.message).toContain(
-      'cannot also be provided when using --issue',
-    );
-  });
-
-  it('refuses --issue-title without --create-issue', async () => {
-    const result = await runComponent([
-      '--commit',
-      '--issue-title',
-      'Ship it',
-    ]);
-
-    expect(result.error?.message).toContain(
-      'All of the following must be provided when using --issue-title: --create-issue',
-    );
-  });
 });

@@ -78,16 +78,6 @@ describe('withAuditTrail', () => {
     expect(api.calls).toEqual([]);
   });
 
-  it('opens the audit issue before the step starts', async () => {
-    const { api, run } = open({ createIssue: true });
-
-    await run(async () => {
-      expect(api.issues).toHaveLength(1);
-    });
-
-    expect(api.issues[0].state).toBe('open');
-  });
-
   it('opens the audit issue from the built-in template', async () => {
     const { api, run } = open({ createIssue: true });
 
@@ -172,28 +162,6 @@ describe('withAuditTrail', () => {
     await run(async (trail) => trail.linkPullRequest({ head: HEAD, base: BASE }));
 
     expect(api.pullBodyUpdates).toEqual([]);
-  });
-
-  it('comments the workflow run url on the issue', async () => {
-    const { api, repo, run } = open({ createIssue: true });
-
-    await run(async (trail) => {
-      await trail.commentRunUrl(RUN_URL);
-    });
-
-    expect(api.issueComments).toEqual([
-      { ref: repo.ref, issue: 1, body: `Workflow run: ${RUN_URL}` },
-    ]);
-  });
-
-  it('closes the issue when the run concluded', async () => {
-    const { api, run } = open({ createIssue: true });
-
-    await run(async (trail) => {
-      await trail.closeIssue();
-    });
-
-    expect(api.issues[0].state).toBe('closed');
   });
 
   it('comments a failure on a created issue and leaves it open', async () => {

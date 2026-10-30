@@ -1,6 +1,6 @@
 import { Command, Config } from '@oclif/core';
 import { captureOutput } from '@oclif/test';
-import { jest } from '@jest/globals';
+import { expect, jest } from '@jest/globals';
 
 import { createGitHubApi } from '../../src/github/index';
 import { MemoryGitHubApi } from './memoryGitHubApi';
@@ -77,6 +77,56 @@ export function mockCommitApi(
 
   (createGitHubApi as unknown as jest.Mock).mockReturnValue(api);
   return api;
+}
+
+export async function prepareAuditIssue(
+  api: MemoryGitHubApi,
+  issue: string,
+): Promise<void> {
+  if (issue === 'adopted') {
+    await api.createIssue(
+      { owner: 'my-org', repo: 'claims' },
+      { title: 'Existing issue', body: '' },
+    );
+  }
+}
+
+export function closeIssueBeforeWetChecks(api: MemoryGitHubApi): void {
+  // Provisioning merges the claims PR before the wet checks finish.
+  const listChecks = api.listCheckRunsForPullRequest.bind(api);
+  api.listCheckRunsForPullRequest = async (ref, pr) => {
+    api.issues[0].state = 'closed';
+    return listChecks(ref, pr);
+  };
+  api.calls.length = 0;
+}
+
+export function expectAuditWetCheckOutcome(
+  api: MemoryGitHubApi,
+  fails: boolean,
+  failureBody: string,
+): void {
+  expect(api.issueComments).toEqual([
+    expect.objectContaining({
+      issue: 1,
+      body: 'Workflow run: https://github.com/my-org/claims/actions/runs/1',
+    }),
+    ...(fails ? [expect.objectContaining({ issue: 1, body: failureBody })] : []),
+  ]);
+  const runComment = api.calls.indexOf('commentOnIssue my-org/claims#1');
+  const checkWatch = api.calls.indexOf(
+    `listCheckRunsForPullRequest my-org/custom-state#${WET_PR_NUMBER}`,
+  );
+  expect(runComment).toBeGreaterThanOrEqual(0);
+  expect(checkWatch).toBeGreaterThan(runComment);
+  expect(api.issues[0].state).toBe(fails ? 'open' : 'closed');
+  if (fails) {
+    expect(api.calls.indexOf('reopenIssue my-org/claims#1')).toBeGreaterThan(
+      api.calls.lastIndexOf('commentOnIssue my-org/claims#1'),
+    );
+  } else {
+    expect(api.calls).not.toContain('reopenIssue my-org/claims#1');
+  }
 }
 
 type CommandClass = typeof Command &

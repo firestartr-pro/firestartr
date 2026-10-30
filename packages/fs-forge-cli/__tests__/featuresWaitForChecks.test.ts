@@ -21,7 +21,10 @@ import {
   FAILURE_CHECK,
   SUCCESS_CHECK,
   WET_PR_NUMBER,
+  closeIssueBeforeWetChecks,
+  expectAuditWetCheckOutcome,
   mockCommitApi,
+  prepareAuditIssue,
   runCommand,
 } from './fixtures/waitForChecks';
 
@@ -162,16 +165,8 @@ describe('features add --commit wait-for-checks', () => {
     { issue: 'adopted', flag: ['--issue', '1'], check: FAILURE_CHECK, fails: true },
   ])('records $issue audit issue outcomes when wet checks fail=$fails', async ({ issue, flag, check, fails }) => {
     const api = featureApi({ checkRuns: [check] });
-    if (issue === 'adopted') {
-      await api.createIssue({ owner: 'my-org', repo: 'claims' }, { title: 'Existing issue', body: '' });
-    }
-    // Provisioning merges the claims PR before the wet checks finish.
-    const listChecks = api.listCheckRunsForPullRequest.bind(api);
-    api.listCheckRunsForPullRequest = async (ref, pr) => {
-      api.issues[0].state = 'closed';
-      return listChecks(ref, pr);
-    };
-    api.calls.length = 0;
+    await prepareAuditIssue(api, issue);
+    closeIssueBeforeWetChecks(api);
 
     const { error, stderr } = await runCommand(FeaturesAdd, [
       ...addArgs(), ...flag, ...CUSTOM_STATE,
@@ -183,22 +178,11 @@ describe('features add --commit wait-for-checks', () => {
       expect(error).toBeUndefined();
       expect(stderr).toContain('All checks passed');
     }
-    expect(api.issueComments).toEqual([
-      expect.objectContaining({ issue: 1, body: 'Workflow run: https://github.com/my-org/claims/actions/runs/1' }),
-      ...(fails ? [expect.objectContaining({ issue: 1, body: 'Add feature feature_a to component my-component failed.\n\nWet PR checks failed: failure' })] : []),
-    ]);
-    const runComment = api.calls.indexOf('commentOnIssue my-org/claims#1');
-    const checkWatch = api.calls.indexOf(`listCheckRunsForPullRequest my-org/custom-state#${WET_PR_NUMBER}`);
-    expect(runComment).toBeGreaterThanOrEqual(0);
-    expect(checkWatch).toBeGreaterThan(runComment);
-    expect(api.issues[0].state).toBe(fails ? 'open' : 'closed');
-    if (fails) {
-      expect(api.calls.indexOf('reopenIssue my-org/claims#1')).toBeGreaterThan(
-        api.calls.lastIndexOf('commentOnIssue my-org/claims#1'),
-      );
-    } else {
-      expect(api.calls).not.toContain('reopenIssue my-org/claims#1');
-    }
+    expectAuditWetCheckOutcome(
+      api,
+      fails,
+      'Add feature feature_a to component my-component failed.\n\nWet PR checks failed: failure',
+    );
   });
 
   it.each([
@@ -206,9 +190,7 @@ describe('features add --commit wait-for-checks', () => {
     { issue: 'adopted', flag: ['--issue', '1'] },
   ])('leaves the $issue audit issue open when publishing fails before merge', async ({ issue, flag }) => {
     const api = featureApi();
-    if (issue === 'adopted') {
-      await api.createIssue({ owner: 'my-org', repo: 'claims' }, { title: 'Existing issue', body: '' });
-    }
+    await prepareAuditIssue(api, issue);
     api.commitFile = async () => { throw new Error('commit failed'); };
 
     const { error } = await runCommand(FeaturesAdd, [
