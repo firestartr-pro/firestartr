@@ -528,7 +528,7 @@ describe('create orgsettings command', () => {
     );
 
     expect(error?.message).toContain(
-      '--path is only supported for TFWorkspaceClaim and SecretsClaim',
+      '--path is only supported for SecretsClaim and TFWorkspaceClaim',
     );
   });
 

@@ -205,7 +205,7 @@ describe('mutation command arguments', () => {
     );
 
     expect(result.error?.message).toContain(
-      '--path is only supported for TFWorkspaceClaim and SecretsClaim',
+      '--path is only supported for SecretsClaim and TFWorkspaceClaim',
     );
     expect(MockCreateGitHubApi).not.toHaveBeenCalled();
   });
