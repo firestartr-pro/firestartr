@@ -1,0 +1,8 @@
+organizations:
+  - name: acme
+    paths:
+      - /srv/acme
+    claims_repo: shared/claims-fork
+    state_github_repo: state-github-fork
+    state_infra_repo: other/state-infra-fork
+    catalog_repo: catalog-fork
