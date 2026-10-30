@@ -107,6 +107,9 @@ function deriveOverallConclusion(checkRuns: CheckRunResult[]): string {
   if (conclusions.some((c) => c === 'failure')) return 'failure';
   if (conclusions.some((c) => c === 'cancelled')) return 'cancelled';
   if (conclusions.some((c) => c === 'timed_out')) return 'timed_out';
+  if (conclusions.some((c) => c === 'action_required'))
+    return 'action_required';
+  if (conclusions.some((c) => c === 'stale')) return 'stale';
 
   return checkRuns.some((cr) => cr.status !== 'completed')
     ? 'pending'
