@@ -55,6 +55,20 @@ export async function waitForDispatch(
     presentation.stderr(
       `${action} workflow dispatched (no-wait): ${dispatchResult.url}\n`,
     );
+    if (
+      !presentation.isTty &&
+      Object.values(options.extra ?? {}).some((value) => value !== undefined)
+    ) {
+      presentation.stdout(
+        `${JSON.stringify({
+          status: 'dispatched',
+          url: dispatchResult.url,
+          claimType: options.claimType,
+          claimName: options.claimName,
+          ...options.extra,
+        })}\n`,
+      );
+    }
     return dispatchResult.url;
   }
 

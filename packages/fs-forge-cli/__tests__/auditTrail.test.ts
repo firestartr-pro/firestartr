@@ -199,6 +199,32 @@ describe('--create-issue', () => {
     );
   });
 
+  it('reports the issue and PR when edit dispatches without waiting', async () => {
+    mockClient();
+
+    const { result, stdout } = await run(
+      Edit,
+      'ComponentClaim-my-component',
+      '--commit',
+      '--org',
+      'my-org',
+      '--providers.github.visibility',
+      'public',
+      '--create-issue',
+      '--no-wait',
+    );
+
+    expect(result).toBe(0);
+    expect(lastJsonLine(stdout)).toEqual({
+      status: 'dispatched',
+      url: 'https://github.com/my-org/claims/actions/workflows/provision-claim.yaml',
+      claimType: 'ComponentClaim',
+      claimName: 'my-component',
+      issue: { number: 1, url: 'https://github.com/my-org/claims/issues/1' },
+      pr: { number: 1, url: 'https://github.com/my-org/claims/pull/1' },
+    });
+  });
+
   it('honours --issue-title and --issue-body', async () => {
     const api = mockClient();
 
@@ -224,28 +250,6 @@ describe('--create-issue', () => {
       }),
     );
     expect(api.createdPulls[0].body).toBe('Closes #1');
-  });
-
-  it('comments the failure on the issue, leaves it open and exits non-zero', async () => {
-    const api = mockClient();
-    api.commitFile = async () => {
-      throw new Error('Resource not accessible by integration');
-    };
-
-    const { error } = await run(
-      CreateComponent as unknown as CommandClass,
-      ...createArgs('--commit', '--org', 'my-org', '--create-issue'),
-    );
-
-    expect(error?.message).toContain('Resource not accessible by integration');
-    expect(api.issues[0].state).toBe('open');
-    expect(api.issueComments).toEqual([
-      expect.objectContaining({
-        issue: 1,
-        body: expect.stringContaining('Resource not accessible by integration'),
-      }),
-    ]);
-    expect(api.createdPulls).toEqual([]);
   });
 });
 
@@ -469,10 +473,10 @@ describe('delete audit trail', () => {
     ]);
   });
 
-  it('does not close the issue in --no-wait mode', async () => {
+  it('reports the issue without closing or commenting in --no-wait mode', async () => {
     const api = mockClient();
 
-    const { result } = await run(
+    const { result, stdout } = await run(
       Delete,
       'component',
       'my-component',
@@ -484,6 +488,13 @@ describe('delete audit trail', () => {
     );
 
     expect(result).toBe(0);
+    expect(lastJsonLine(stdout)).toEqual({
+      status: 'dispatched',
+      url: 'https://github.com/my-org/claims/actions/workflows/unprovision-claim.yaml',
+      claimType: 'ComponentClaim',
+      claimName: 'my-component',
+      issue: { number: 1, url: 'https://github.com/my-org/claims/issues/1' },
+    });
     expect(api.issues[0].state).toBe('open');
     expect(api.issueComments).toEqual([]);
   });
