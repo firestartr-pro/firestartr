@@ -1,5 +1,12 @@
 # Changelog
 
+## [3.1.2](https://github.com/firestartr-pro/firestartr/compare/v3.1.1...v3.1.2) (2026-10-30)
+
+
+### Bug Fixes
+
+* **operator:** inject self-outputs when planning GitHub resources ([#128](https://github.com/firestartr-pro/firestartr/issues/128)) ([2751e79](https://github.com/firestartr-pro/firestartr/commit/2751e799cfadda988a6cc06fea04ffe4760c4d92))
+
 ## [3.1.1](https://github.com/firestartr-pro/firestartr/compare/v3.1.0...v3.1.1) (2026-10-23)
 
 
