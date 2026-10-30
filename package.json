@@ -48,7 +48,7 @@
     "ts-jest": "29.4.15",
     "ts-node": "10.9.2",
     "tsx": "^4.23.15",
-    "typescript": "5.0.4",
+    "typescript": "7.0.2",
     "uuid": "^9.0.0"
   },
   "dependencies": {
