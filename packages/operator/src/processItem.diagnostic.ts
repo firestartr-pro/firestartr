@@ -1,5 +1,3 @@
-import { WorkItem, WorkStatus } from './definitions';
-
 import * as fs from 'fs';
 
 import log from './logger';
@@ -16,49 +14,117 @@ import {
 import { getDiagnosticErrorCount } from './diagnosticErrors';
 
 const DIAGNOSTIC_FILE = '/tmp/diagnostic';
-const DIAGNOSTIC_INTERVAL_MS = 10 * 1000;
+const DEFAULT_DIAGNOSTIC_INTERVAL_SECONDS = 30;
+// setTimeout/setInterval clamp any delay above 2^31-1 ms to 1 ms, which would
+// turn a large configured interval into a tight write loop.
+const MAX_DIAGNOSTIC_INTERVAL_SECONDS = Math.floor((2 ** 31 - 1) / 1000);
 
-let _diagnosticTimer: ReturnType<typeof setInterval> | undefined;
-// Capture the set of CRD plurals that were missing when diagnostics began.
-// Once recorded, observedKinds will permanently exclude kinds whose plural
-// was missing at startup so that CRDs applied later while the operator is
-// running do not retroactively appear in the observed list.
-let _initialMissingPlurals: Set<string> | undefined;
-
-function clearTimer(): void {
-  if (_diagnosticTimer !== undefined) {
-    clearInterval(_diagnosticTimer);
-    _diagnosticTimer = undefined;
-  }
+/**
+ * Queue state the diagnostic file needs. Producers own the queue and expose it
+ * through this seam, so this module never reaches into queue internals.
+ */
+export interface DiagnosticQueueSnapshot {
+  total: number;
+  pending: number;
+  processing: number;
+  finished: number;
+  blocked: number;
+  deadLetter: number;
+  /** `slot-<id>` -> `"<kind>/<name>"` for the work item that slot is running. */
+  slots: Record<string, string>;
 }
 
-export function loopDiagnosticFile(queue: WorkItem[], maxSlots: number): void {
-  if (process.env.DISABLE_DIAGNOSTIC_FILE) {
-    log.info('Diagnostic file disabled by DISABLE_DIAGNOSTIC_FILE');
-    return;
+let _diagnosticTimer: ReturnType<typeof setInterval> | undefined;
+
+/**
+ * Reads `OPERATOR_DIAGNOSTIC_INTERVAL_SECONDS`, falling back to the default for
+ * absent or unusable values so a typo cannot disable diagnostics.
+ */
+export function getDiagnosticIntervalSeconds(
+  env: NodeJS.ProcessEnv = process.env,
+): number {
+  const raw = env.OPERATOR_DIAGNOSTIC_INTERVAL_SECONDS;
+
+  if (raw === undefined) return DEFAULT_DIAGNOSTIC_INTERVAL_SECONDS;
+
+  const parsed = Number(raw.trim());
+
+  if (
+    !Number.isFinite(parsed) ||
+    parsed < 1 ||
+    parsed > MAX_DIAGNOSTIC_INTERVAL_SECONDS
+  ) {
+    return DEFAULT_DIAGNOSTIC_INTERVAL_SECONDS;
   }
 
+  return Math.round(parsed);
+}
+
+/**
+ * Starts the periodic diagnostic writer and writes the first snapshot right
+ * away, so the file exists before any work item arrives.
+ *
+ * Idempotent: a second call while a writer is running is a no-op, so the
+ * startup path and the in-loop call never race on the same file.
+ *
+ * @returns whether this call started the writer.
+ */
+export function startDiagnosticFile(
+  source: () => DiagnosticQueueSnapshot,
+  maxSlots: number,
+  env: NodeJS.ProcessEnv = process.env,
+): boolean {
+  if (_diagnosticTimer !== undefined) {
+    log.info('Diagnostic file writer already running, keeping the active one');
+    return false;
+  }
+
+  if (env.DISABLE_DIAGNOSTIC_FILE) {
+    log.info('Diagnostic file disabled by DISABLE_DIAGNOSTIC_FILE');
+    return false;
+  }
+
+  const intervalSeconds = getDiagnosticIntervalSeconds(env);
   let running = false;
 
-  _diagnosticTimer = setInterval(() => {
+  const writeSnapshot = () => {
     if (running) return;
 
     running = true;
 
-    writeDiagnosticSnapshot(queue, maxSlots)
+    // The source is read inside the snapshot builder, so a throwing seam becomes
+    // a logged rejection instead of escaping into the caller.
+    writeDiagnosticSnapshot(source, maxSlots)
       .then(() => {
         running = false;
       })
       .catch((err) => {
+        // Best-effort: a failed snapshot never crashes the operator; the next
+        // tick retries with a fresh snapshot.
         running = false;
         log.error(`Error writing diagnostic file: ${err}`);
       });
-  }, DIAGNOSTIC_INTERVAL_MS);
+  };
 
-  // Clear the interval on termination signals so the process can exit cleanly
-  const onSignal = () => clearTimer();
-  process.on('SIGTERM', onSignal);
-  process.on('SIGINT', onSignal);
+  writeSnapshot();
+
+  _diagnosticTimer = setInterval(writeSnapshot, intervalSeconds * 1000);
+
+  // Diagnostics must never keep the process alive nor change termination
+  // behaviour: an unref'd timer cannot hold the process open, so shutting down
+  // is left entirely to the operator's own signal handlers.
+  if (typeof _diagnosticTimer.unref === 'function') _diagnosticTimer.unref();
+
+  log.info(`Diagnostic file writer started (every ${intervalSeconds}s)`);
+
+  return true;
+}
+
+export function stopDiagnosticFile(): void {
+  if (_diagnosticTimer !== undefined) {
+    clearInterval(_diagnosticTimer);
+    _diagnosticTimer = undefined;
+  }
 }
 
 /** @internal for testing */
@@ -67,52 +133,20 @@ export function getDiagnosticTimer(): NodeJS.Timeout | undefined {
 }
 
 async function writeDiagnosticSnapshot(
-  queue: WorkItem[],
+  source: () => DiagnosticQueueSnapshot,
   maxSlots: number,
 ): Promise<void> {
+  const snapshot = source();
   const now = new Date().toISOString();
 
-  // Queue counts
-  let pending = 0;
-  let processing = 0;
-  let finished = 0;
-  let blocked = 0;
-  let deadLetter = 0;
+  const { pending, processing, finished, blocked, deadLetter } = snapshot;
 
   // Per-slot items
   const slotsMap: Record<string, string> = {};
 
-  for (const wi of queue) {
-    switch (wi.workStatus) {
-      case WorkStatus.PENDING:
-        pending++;
-        break;
-      case WorkStatus.PROCESSING:
-        processing++;
-        break;
-      case WorkStatus.FINISHED:
-        finished++;
-        break;
-    }
-
-    if (wi.isBlocked) {
-      blocked++;
-    }
-    if (wi.isDeadLetter) {
-      deadLetter++;
-    }
-
-    if (wi.workStatus === WorkStatus.PROCESSING && wi.slotId !== undefined) {
-      slotsMap[`slot-${wi.slotId}`] =
-        `${wi.item.kind}/${wi.item.metadata.name}`;
-    }
-  }
-
-  // Fill empty slots with null
   for (let i = 0; i < maxSlots; i++) {
-    if (!slotsMap[`slot-${i}`]) {
-      slotsMap[`slot-${i}`] = 'null';
-    }
+    const key = `slot-${i}`;
+    slotsMap[key] = snapshot.slots[key] ?? 'null';
   }
 
   // Semaphore stats
@@ -137,27 +171,36 @@ async function writeDiagnosticSnapshot(
   const envGithubAppId = process.env.GITHUB_APP_ID || '';
   const envTfmSkipGitConfig = process.env.TFM_SKIP_GIT_CONFIG || 'false';
 
-  // CRD diagnostics: observed kinds (from OPERATOR_KIND_LIST) and missing CRDs
-  // missing CRDs are derived from the runtime __crdMonitors map; any monitor
-  // that is started indicates an actively-missing CRD that is being watched.
+  // CRD diagnostics: observed kinds (from OPERATOR_KIND_LIST) and missing CRDs.
+  // `__crdMonitors` keeps one registration per kind whose CRD was absent when
+  // observeKind ran, and a stopped monitor stays registered (crdMonitor only
+  // flips isStarted). Such a kind has no informer attached until the operator is
+  // restarted, so it must never be reported as observed. Deriving the
+  // exclusions from the retained registrations - not from a sampled isStarted()
+  // state - keeps a kind excluded when its monitor starts and stops between two
+  // ticks, or registers after the first snapshot.
   const observedKindsRaw = envKindList
     .split(',')
     .map((s) => s.trim())
     .filter((s) => s.length > 0);
 
   const missingCrds: string[] = [];
+  const registeredPlurals = new Set<string>();
   try {
     const monitors = (global as any).__crdMonitors as
       Map<string, any> | undefined;
     if (monitors && typeof monitors === 'object') {
       for (const [key, monitor] of monitors) {
+        // key shape is namespace/plural (reflector uses `${namespace}/${plural}`)
+        const plural = String(key).split('/').pop()?.toLowerCase();
+        if (plural) registeredPlurals.add(plural);
+
         try {
           if (
             monitor &&
             typeof monitor.isStarted === 'function' &&
             monitor.isStarted()
           ) {
-            // key shape is namespace/plural (reflector uses `${namespace}/${plural}`)
             missingCrds.push(String(key));
           }
         } catch (e) {
@@ -169,17 +212,8 @@ async function writeDiagnosticSnapshot(
     // defensive: do not fail diagnostic writing if globals are not present
   }
 
-  // Compute the set of plurals that were missing when diagnostics started.
-  // We only capture this once so that CRDs installed while the operator
-  // is running do not cause previously-missing kinds to become observed.
-  if (!_initialMissingPlurals) {
-    _initialMissingPlurals = new Set(
-      missingCrds.map((k) => String(k).split('/').pop()?.toLowerCase() || ''),
-    );
-  }
-
   const observedKinds = observedKindsRaw.filter(
-    (k) => !_initialMissingPlurals!.has(k.toLowerCase()),
+    (k) => !registeredPlurals.has(k.toLowerCase()),
   );
 
   // Build YAML output
@@ -196,7 +230,7 @@ async function writeDiagnosticSnapshot(
   output += `  GITHUB_APP_ID: ${envGithubAppId}\n`;
   output += `  TFM_SKIP_GIT_CONFIG: ${envTfmSkipGitConfig}\n`;
   output += 'queue:\n';
-  output += `  total: ${queue.length}\n`;
+  output += `  total: ${snapshot.total}\n`;
   output += `  pending: ${pending}\n`;
   output += `  processing: ${processing}\n`;
   output += `  finished: ${finished}\n`;

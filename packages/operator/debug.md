@@ -61,9 +61,11 @@ default/static-release - (NotSyncable) - next: undefined
 
 **Source:** `src/processItem.diagnostic.ts`
 
-**Trigger:** Written every **10 seconds** via `setInterval`. Starts automatically when the processor loop starts (`loop()` in `processItem.ts`).
+**Trigger:** Written every **30 seconds** (default) via `setInterval`, starting at operator startup (`runOperator` in `index.ts`) with an immediate first snapshot. The processor loop (`loop()` in `processItem.ts`) also calls the same starter for backward compatibility; the starter is idempotent, so only one writer ever runs.
 
 **Disable:** Set `DISABLE_DIAGNOSTIC_FILE=1` in the operator environment.
+
+**Interval:** Set `OPERATOR_DIAGNOSTIC_INTERVAL_SECONDS` (seconds, default 30). Unusable values fall back to the default.
 
 **Format:** YAML snapshot of operator state:
 
@@ -225,7 +227,7 @@ watch cat /tmp/queue
 # Watch the sync watchers
 watch cat /tmp/syncs
 
-# Watch the diagnostic snapshot (updates every 10s)
+# Watch the diagnostic snapshot (updates every 30s by default)
 watch cat /tmp/diagnostic
 
 # Watch the activity log (requires ACTIVITY_LOG env)
