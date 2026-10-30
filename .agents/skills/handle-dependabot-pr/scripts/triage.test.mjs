@@ -183,7 +183,7 @@ test("socketAlerts finds alerts at any depth and ignores empty lists", () => {
 
 test("requiredChecks follow the level and path rules", () => {
   assert.deepEqual(requiredChecks("dev", "A", "patch"), ["CI"]);
-  assert.deepEqual(requiredChecks("runtime", "A", "minor"), ["Copilot review", "CI", "e2e with default suites"]);
+  assert.deepEqual(requiredChecks("runtime", "A", "minor"), ["Copilot review", "CI", "e2e with default suites (github, terraform, crd-upgrade)"]);
   assert.deepEqual(requiredChecks("critical", "A", "minor"), [
     "Copilot review",
     "CI",

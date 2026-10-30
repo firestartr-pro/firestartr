@@ -196,7 +196,7 @@ export function requiredChecks(level, path, jump) {
   }
   if (level === "dev") return ["CI"];
   if (level === "critical") return ["Copilot review", "CI", "e2e with all suites", "operator and CLI snapshots on pre"];
-  return ["Copilot review", "CI", "e2e with default suites"];
+  return ["Copilot review", "CI", "e2e with default suites (github, terraform, crd-upgrade)"];
 }
 
 export function buildTriage({ name, from, to, lock, levels, socketResult, replacement = null }) {
