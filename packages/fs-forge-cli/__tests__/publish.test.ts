@@ -71,6 +71,7 @@ function request(
     path: 'claims/components/my-component.yaml',
     noWait: false,
     waitForChecks: false,
+    stateRepos: ['my-org/state-github', 'my-org/state-infra'],
     ...overrides,
   };
 }
@@ -215,7 +216,7 @@ describe('publishClaimAndWait', () => {
     const result = await publishClaimAndWait(
       request(harness, {
         waitForChecks: true,
-        stateRepos: 'my-org/state-github',
+        stateRepos: ['my-org/state-github'],
       }),
       harness.pulse,
     );
@@ -253,7 +254,7 @@ describe('publishClaimAndWait', () => {
       publishClaimAndWait(
         request(harness, {
           waitForChecks: true,
-          stateRepos: 'my-org/state-github',
+          stateRepos: ['my-org/state-github'],
         }),
         harness.pulse,
       ),
@@ -269,7 +270,7 @@ describe('publishClaimAndWait', () => {
     await publishClaimAndWait(
       request(harness, {
         waitForChecks: true,
-        stateRepos: 'my-org/state-github',
+        stateRepos: ['my-org/state-github'],
       }),
       harness.pulse,
     );
@@ -285,7 +286,7 @@ describe('publishClaimAndWait', () => {
     await publishClaimAndWait(
       request(harness, {
         waitForChecks: true,
-        stateRepos: 'custom/state-one',
+        stateRepos: ['custom/state-one'],
       }),
       harness.pulse,
     );
