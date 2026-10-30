@@ -6,18 +6,19 @@ import {
   parseStateRepos,
   resolveClaimsRepository,
 } from '../context/resolve.js';
+import { withAuditTrail } from './auditIssue.js';
 import { publishClaimAndWait } from './publish.js';
 import { requireOrg } from './support.js';
 
+import type { AuditTrailOptions } from './auditIssue.js';
 import type { ClaimKind } from './definitions.js';
 
-export interface ClaimCreationOptions {
+export interface ClaimCreationOptions extends AuditTrailOptions {
   org?: string;
   kind: ClaimKind;
   name: string;
   claim: Record<string, unknown>;
   commit?: boolean;
-  noWait?: boolean;
   waitForChecks?: boolean;
   stateRepos?: string[];
   path?: string;
@@ -40,7 +41,6 @@ export async function runClaimCreation(
       name,
       claim,
       commit = false,
-      noWait = false,
       waitForChecks = false,
       stateRepos,
       path,
@@ -61,19 +61,25 @@ export async function runClaimCreation(
       return { output };
     }
 
-    const { publishUrl } = await publishClaimAndWait(
-      {
-        repo,
-        kind,
-        name,
-        output,
-        path: destinationPath,
-        noWait,
-        waitForChecks,
-        stateRepos: stateRepos ?? parseStateRepos(undefined, orgName),
-        rejectExistingClaim: true,
-      },
-      { output: writeOutput, diagnostic: writeDiagnostic },
+    const { publishUrl } = await withAuditTrail(
+      { repo, operation: 'create', kind, name },
+      options,
+      (audit) =>
+        publishClaimAndWait(
+          {
+            repo,
+            kind,
+            name,
+            output,
+            path: destinationPath,
+            noWait: false,
+            waitForChecks,
+            stateRepos: stateRepos ?? parseStateRepos(undefined, orgName),
+            audit,
+            rejectExistingClaim: true,
+          },
+          { output: writeOutput, diagnostic: writeDiagnostic },
+        ),
     );
     return { output, publishUrl };
   } catch (error) {

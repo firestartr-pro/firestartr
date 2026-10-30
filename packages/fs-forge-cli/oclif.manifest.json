@@ -80,7 +80,8 @@
         "<%= config.bin %> <%= command.id %> component my-svc",
         "<%= config.bin %> <%= command.id %> component my-svc --org my-org",
         "<%= config.bin %> <%= command.id %> component my-svc --org my-org --commit",
-        "<%= config.bin %> <%= command.id %> tfworkspace my-tf --org my-org --no-include-variants --commit"
+        "<%= config.bin %> <%= command.id %> tfworkspace my-tf --org my-org --no-include-variants --commit",
+        "<%= config.bin %> <%= command.id %> component my-svc --org my-org --commit --create-issue"
       ],
       "flags": {
         "org": {
@@ -115,6 +116,51 @@
           "name": "no-wait",
           "allowNo": false,
           "type": "boolean"
+        },
+        "issue": {
+          "dependsOn": [
+            "commit"
+          ],
+          "description": "Link the commit to an existing claims-repo issue (adds \"Closes #N\" to the claim PR)",
+          "exclusive": [
+            "create-issue"
+          ],
+          "name": "issue",
+          "hasDynamicHelp": false,
+          "multiple": false,
+          "type": "option"
+        },
+        "create-issue": {
+          "dependsOn": [
+            "commit"
+          ],
+          "description": "Open an issue in the claims repo before committing, then link it to the claim PR",
+          "exclusive": [
+            "issue"
+          ],
+          "name": "create-issue",
+          "allowNo": false,
+          "type": "boolean"
+        },
+        "issue-title": {
+          "dependsOn": [
+            "create-issue"
+          ],
+          "description": "Title for the issue opened by --create-issue",
+          "name": "issue-title",
+          "hasDynamicHelp": false,
+          "multiple": false,
+          "type": "option"
+        },
+        "issue-body": {
+          "dependsOn": [
+            "create-issue"
+          ],
+          "description": "Body for the issue opened by --create-issue",
+          "name": "issue-body",
+          "hasDynamicHelp": false,
+          "multiple": false,
+          "type": "option"
         }
       },
       "hasDynamicHelp": false,
@@ -144,7 +190,8 @@
       "description": "Edit an existing claim. Network access requires GITHUB_TOKEN authentication.",
       "examples": [
         "<%= config.bin %> <%= command.id %> ComponentClaim-api --owner group:platform --org my-org",
-        "<%= config.bin %> <%= command.id %> ComponentClaim-api --owner group:platform --org my-org --diff"
+        "<%= config.bin %> <%= command.id %> ComponentClaim-api --owner group:platform --org my-org --diff",
+        "<%= config.bin %> <%= command.id %> ComponentClaim-api --owner group:platform --org my-org --commit --issue 42"
       ],
       "flags": {
         "description": {
@@ -1205,6 +1252,51 @@
           "multiple": false,
           "type": "option"
         },
+        "issue": {
+          "dependsOn": [
+            "commit"
+          ],
+          "description": "Link the commit to an existing claims-repo issue (adds \"Closes #N\" to the claim PR)",
+          "exclusive": [
+            "create-issue"
+          ],
+          "name": "issue",
+          "hasDynamicHelp": false,
+          "multiple": false,
+          "type": "option"
+        },
+        "create-issue": {
+          "dependsOn": [
+            "commit"
+          ],
+          "description": "Open an issue in the claims repo before committing, then link it to the claim PR",
+          "exclusive": [
+            "issue"
+          ],
+          "name": "create-issue",
+          "allowNo": false,
+          "type": "boolean"
+        },
+        "issue-title": {
+          "dependsOn": [
+            "create-issue"
+          ],
+          "description": "Title for the issue opened by --create-issue",
+          "name": "issue-title",
+          "hasDynamicHelp": false,
+          "multiple": false,
+          "type": "option"
+        },
+        "issue-body": {
+          "dependsOn": [
+            "create-issue"
+          ],
+          "description": "Body for the issue opened by --create-issue",
+          "name": "issue-body",
+          "hasDynamicHelp": false,
+          "multiple": false,
+          "type": "option"
+        },
         "add-feature": {
           "description": "Attach name@version:{...} or name#ref:{...}",
           "name": "add-feature",
@@ -1675,6 +1767,51 @@
         "state-repos": {
           "description": "Comma-separated state repos for --wait-for-checks (default: <org>/state-github,<org>/state-infra)",
           "name": "state-repos",
+          "hasDynamicHelp": false,
+          "multiple": false,
+          "type": "option"
+        },
+        "issue": {
+          "dependsOn": [
+            "commit"
+          ],
+          "description": "Link the commit to an existing claims-repo issue (adds \"Closes #N\" to the claim PR)",
+          "exclusive": [
+            "create-issue"
+          ],
+          "name": "issue",
+          "hasDynamicHelp": false,
+          "multiple": false,
+          "type": "option"
+        },
+        "create-issue": {
+          "dependsOn": [
+            "commit"
+          ],
+          "description": "Open an issue in the claims repo before committing, then link it to the claim PR",
+          "exclusive": [
+            "issue"
+          ],
+          "name": "create-issue",
+          "allowNo": false,
+          "type": "boolean"
+        },
+        "issue-title": {
+          "dependsOn": [
+            "create-issue"
+          ],
+          "description": "Title for the issue opened by --create-issue",
+          "name": "issue-title",
+          "hasDynamicHelp": false,
+          "multiple": false,
+          "type": "option"
+        },
+        "issue-body": {
+          "dependsOn": [
+            "create-issue"
+          ],
+          "description": "Body for the issue opened by --create-issue",
+          "name": "issue-body",
           "hasDynamicHelp": false,
           "multiple": false,
           "type": "option"
@@ -2337,6 +2474,51 @@
           "multiple": false,
           "type": "option"
         },
+        "issue": {
+          "dependsOn": [
+            "commit"
+          ],
+          "description": "Link the commit to an existing claims-repo issue (adds \"Closes #N\" to the claim PR)",
+          "exclusive": [
+            "create-issue"
+          ],
+          "name": "issue",
+          "hasDynamicHelp": false,
+          "multiple": false,
+          "type": "option"
+        },
+        "create-issue": {
+          "dependsOn": [
+            "commit"
+          ],
+          "description": "Open an issue in the claims repo before committing, then link it to the claim PR",
+          "exclusive": [
+            "issue"
+          ],
+          "name": "create-issue",
+          "allowNo": false,
+          "type": "boolean"
+        },
+        "issue-title": {
+          "dependsOn": [
+            "create-issue"
+          ],
+          "description": "Title for the issue opened by --create-issue",
+          "name": "issue-title",
+          "hasDynamicHelp": false,
+          "multiple": false,
+          "type": "option"
+        },
+        "issue-body": {
+          "dependsOn": [
+            "create-issue"
+          ],
+          "description": "Body for the issue opened by --create-issue",
+          "name": "issue-body",
+          "hasDynamicHelp": false,
+          "multiple": false,
+          "type": "option"
+        },
         "path": {
           "description": "Destination path for TFWorkspaceClaim or SecretsClaim",
           "name": "path",
@@ -2881,6 +3063,51 @@
           "multiple": false,
           "type": "option"
         },
+        "issue": {
+          "dependsOn": [
+            "commit"
+          ],
+          "description": "Link the commit to an existing claims-repo issue (adds \"Closes #N\" to the claim PR)",
+          "exclusive": [
+            "create-issue"
+          ],
+          "name": "issue",
+          "hasDynamicHelp": false,
+          "multiple": false,
+          "type": "option"
+        },
+        "create-issue": {
+          "dependsOn": [
+            "commit"
+          ],
+          "description": "Open an issue in the claims repo before committing, then link it to the claim PR",
+          "exclusive": [
+            "issue"
+          ],
+          "name": "create-issue",
+          "allowNo": false,
+          "type": "boolean"
+        },
+        "issue-title": {
+          "dependsOn": [
+            "create-issue"
+          ],
+          "description": "Title for the issue opened by --create-issue",
+          "name": "issue-title",
+          "hasDynamicHelp": false,
+          "multiple": false,
+          "type": "option"
+        },
+        "issue-body": {
+          "dependsOn": [
+            "create-issue"
+          ],
+          "description": "Body for the issue opened by --create-issue",
+          "name": "issue-body",
+          "hasDynamicHelp": false,
+          "multiple": false,
+          "type": "option"
+        },
         "path": {
           "description": "Destination path for TFWorkspaceClaim or SecretsClaim",
           "name": "path",
@@ -3130,6 +3357,51 @@
         "state-repos": {
           "description": "Comma-separated state repos for --wait-for-checks (default: <org>/state-github,<org>/state-infra)",
           "name": "state-repos",
+          "hasDynamicHelp": false,
+          "multiple": false,
+          "type": "option"
+        },
+        "issue": {
+          "dependsOn": [
+            "commit"
+          ],
+          "description": "Link the commit to an existing claims-repo issue (adds \"Closes #N\" to the claim PR)",
+          "exclusive": [
+            "create-issue"
+          ],
+          "name": "issue",
+          "hasDynamicHelp": false,
+          "multiple": false,
+          "type": "option"
+        },
+        "create-issue": {
+          "dependsOn": [
+            "commit"
+          ],
+          "description": "Open an issue in the claims repo before committing, then link it to the claim PR",
+          "exclusive": [
+            "issue"
+          ],
+          "name": "create-issue",
+          "allowNo": false,
+          "type": "boolean"
+        },
+        "issue-title": {
+          "dependsOn": [
+            "create-issue"
+          ],
+          "description": "Title for the issue opened by --create-issue",
+          "name": "issue-title",
+          "hasDynamicHelp": false,
+          "multiple": false,
+          "type": "option"
+        },
+        "issue-body": {
+          "dependsOn": [
+            "create-issue"
+          ],
+          "description": "Body for the issue opened by --create-issue",
+          "name": "issue-body",
           "hasDynamicHelp": false,
           "multiple": false,
           "type": "option"
@@ -3581,6 +3853,51 @@
         "state-repos": {
           "description": "Comma-separated state repos for --wait-for-checks (default: <org>/state-github,<org>/state-infra)",
           "name": "state-repos",
+          "hasDynamicHelp": false,
+          "multiple": false,
+          "type": "option"
+        },
+        "issue": {
+          "dependsOn": [
+            "commit"
+          ],
+          "description": "Link the commit to an existing claims-repo issue (adds \"Closes #N\" to the claim PR)",
+          "exclusive": [
+            "create-issue"
+          ],
+          "name": "issue",
+          "hasDynamicHelp": false,
+          "multiple": false,
+          "type": "option"
+        },
+        "create-issue": {
+          "dependsOn": [
+            "commit"
+          ],
+          "description": "Open an issue in the claims repo before committing, then link it to the claim PR",
+          "exclusive": [
+            "issue"
+          ],
+          "name": "create-issue",
+          "allowNo": false,
+          "type": "boolean"
+        },
+        "issue-title": {
+          "dependsOn": [
+            "create-issue"
+          ],
+          "description": "Title for the issue opened by --create-issue",
+          "name": "issue-title",
+          "hasDynamicHelp": false,
+          "multiple": false,
+          "type": "option"
+        },
+        "issue-body": {
+          "dependsOn": [
+            "create-issue"
+          ],
+          "description": "Body for the issue opened by --create-issue",
+          "name": "issue-body",
           "hasDynamicHelp": false,
           "multiple": false,
           "type": "option"
@@ -4047,6 +4364,51 @@
           "multiple": false,
           "type": "option"
         },
+        "issue": {
+          "dependsOn": [
+            "commit"
+          ],
+          "description": "Link the commit to an existing claims-repo issue (adds \"Closes #N\" to the claim PR)",
+          "exclusive": [
+            "create-issue"
+          ],
+          "name": "issue",
+          "hasDynamicHelp": false,
+          "multiple": false,
+          "type": "option"
+        },
+        "create-issue": {
+          "dependsOn": [
+            "commit"
+          ],
+          "description": "Open an issue in the claims repo before committing, then link it to the claim PR",
+          "exclusive": [
+            "issue"
+          ],
+          "name": "create-issue",
+          "allowNo": false,
+          "type": "boolean"
+        },
+        "issue-title": {
+          "dependsOn": [
+            "create-issue"
+          ],
+          "description": "Title for the issue opened by --create-issue",
+          "name": "issue-title",
+          "hasDynamicHelp": false,
+          "multiple": false,
+          "type": "option"
+        },
+        "issue-body": {
+          "dependsOn": [
+            "create-issue"
+          ],
+          "description": "Body for the issue opened by --create-issue",
+          "name": "issue-body",
+          "hasDynamicHelp": false,
+          "multiple": false,
+          "type": "option"
+        },
         "path": {
           "description": "Destination path for TFWorkspaceClaim or SecretsClaim",
           "name": "path",
@@ -4370,6 +4732,51 @@
           "multiple": false,
           "type": "option"
         },
+        "issue": {
+          "dependsOn": [
+            "commit"
+          ],
+          "description": "Link the commit to an existing claims-repo issue (adds \"Closes #N\" to the claim PR)",
+          "exclusive": [
+            "create-issue"
+          ],
+          "name": "issue",
+          "hasDynamicHelp": false,
+          "multiple": false,
+          "type": "option"
+        },
+        "create-issue": {
+          "dependsOn": [
+            "commit"
+          ],
+          "description": "Open an issue in the claims repo before committing, then link it to the claim PR",
+          "exclusive": [
+            "issue"
+          ],
+          "name": "create-issue",
+          "allowNo": false,
+          "type": "boolean"
+        },
+        "issue-title": {
+          "dependsOn": [
+            "create-issue"
+          ],
+          "description": "Title for the issue opened by --create-issue",
+          "name": "issue-title",
+          "hasDynamicHelp": false,
+          "multiple": false,
+          "type": "option"
+        },
+        "issue-body": {
+          "dependsOn": [
+            "create-issue"
+          ],
+          "description": "Body for the issue opened by --create-issue",
+          "name": "issue-body",
+          "hasDynamicHelp": false,
+          "multiple": false,
+          "type": "option"
+        },
         "path": {
           "description": "Destination path for TFWorkspaceClaim or SecretsClaim",
           "name": "path",
@@ -4633,6 +5040,51 @@
         "state-repos": {
           "description": "Comma-separated state repos for --wait-for-checks (default: <org>/state-github,<org>/state-infra)",
           "name": "state-repos",
+          "hasDynamicHelp": false,
+          "multiple": false,
+          "type": "option"
+        },
+        "issue": {
+          "dependsOn": [
+            "commit"
+          ],
+          "description": "Link the commit to an existing claims-repo issue (adds \"Closes #N\" to the claim PR)",
+          "exclusive": [
+            "create-issue"
+          ],
+          "name": "issue",
+          "hasDynamicHelp": false,
+          "multiple": false,
+          "type": "option"
+        },
+        "create-issue": {
+          "dependsOn": [
+            "commit"
+          ],
+          "description": "Open an issue in the claims repo before committing, then link it to the claim PR",
+          "exclusive": [
+            "issue"
+          ],
+          "name": "create-issue",
+          "allowNo": false,
+          "type": "boolean"
+        },
+        "issue-title": {
+          "dependsOn": [
+            "create-issue"
+          ],
+          "description": "Title for the issue opened by --create-issue",
+          "name": "issue-title",
+          "hasDynamicHelp": false,
+          "multiple": false,
+          "type": "option"
+        },
+        "issue-body": {
+          "dependsOn": [
+            "create-issue"
+          ],
+          "description": "Body for the issue opened by --create-issue",
+          "name": "issue-body",
           "hasDynamicHelp": false,
           "multiple": false,
           "type": "option"
@@ -4967,6 +5419,51 @@
           "multiple": false,
           "type": "option"
         },
+        "issue": {
+          "dependsOn": [
+            "commit"
+          ],
+          "description": "Link the commit to an existing claims-repo issue (adds \"Closes #N\" to the claim PR)",
+          "exclusive": [
+            "create-issue"
+          ],
+          "name": "issue",
+          "hasDynamicHelp": false,
+          "multiple": false,
+          "type": "option"
+        },
+        "create-issue": {
+          "dependsOn": [
+            "commit"
+          ],
+          "description": "Open an issue in the claims repo before committing, then link it to the claim PR",
+          "exclusive": [
+            "issue"
+          ],
+          "name": "create-issue",
+          "allowNo": false,
+          "type": "boolean"
+        },
+        "issue-title": {
+          "dependsOn": [
+            "create-issue"
+          ],
+          "description": "Title for the issue opened by --create-issue",
+          "name": "issue-title",
+          "hasDynamicHelp": false,
+          "multiple": false,
+          "type": "option"
+        },
+        "issue-body": {
+          "dependsOn": [
+            "create-issue"
+          ],
+          "description": "Body for the issue opened by --create-issue",
+          "name": "issue-body",
+          "hasDynamicHelp": false,
+          "multiple": false,
+          "type": "option"
+        },
         "path": {
           "description": "Destination path for TFWorkspaceClaim or SecretsClaim",
           "name": "path",
@@ -5287,6 +5784,51 @@
         "state-repos": {
           "description": "Comma-separated state repos for --wait-for-checks (default: <org>/state-github,<org>/state-infra)",
           "name": "state-repos",
+          "hasDynamicHelp": false,
+          "multiple": false,
+          "type": "option"
+        },
+        "issue": {
+          "dependsOn": [
+            "commit"
+          ],
+          "description": "Link the commit to an existing claims-repo issue (adds \"Closes #N\" to the claim PR)",
+          "exclusive": [
+            "create-issue"
+          ],
+          "name": "issue",
+          "hasDynamicHelp": false,
+          "multiple": false,
+          "type": "option"
+        },
+        "create-issue": {
+          "dependsOn": [
+            "commit"
+          ],
+          "description": "Open an issue in the claims repo before committing, then link it to the claim PR",
+          "exclusive": [
+            "issue"
+          ],
+          "name": "create-issue",
+          "allowNo": false,
+          "type": "boolean"
+        },
+        "issue-title": {
+          "dependsOn": [
+            "create-issue"
+          ],
+          "description": "Title for the issue opened by --create-issue",
+          "name": "issue-title",
+          "hasDynamicHelp": false,
+          "multiple": false,
+          "type": "option"
+        },
+        "issue-body": {
+          "dependsOn": [
+            "create-issue"
+          ],
+          "description": "Body for the issue opened by --create-issue",
+          "name": "issue-body",
           "hasDynamicHelp": false,
           "multiple": false,
           "type": "option"
@@ -5732,69 +6274,6 @@
         "org-elements.js"
       ]
     },
-    "schema:list": {
-      "aliases": [],
-      "args": {},
-      "description": "List machine-readable fs-forge output contracts",
-      "examples": [
-        "<%= config.bin %> <%= command.id %>",
-        "<%= config.bin %> <%= command.id %> --json"
-      ],
-      "flags": {
-        "json": {
-          "description": "Output as JSON",
-          "name": "json",
-          "allowNo": false,
-          "type": "boolean"
-        }
-      },
-      "hasDynamicHelp": false,
-      "hiddenAliases": [],
-      "id": "schema:list",
-      "pluginAlias": "@firestartr/fs-forge-cli",
-      "pluginName": "@firestartr/fs-forge-cli",
-      "pluginType": "core",
-      "strict": true,
-      "enableJsonFlag": false,
-      "isESM": true,
-      "relativePath": [
-        "dist",
-        "commands",
-        "schema",
-        "list.js"
-      ]
-    },
-    "schema:show": {
-      "aliases": [],
-      "args": {
-        "name": {
-          "description": "Contract name",
-          "name": "name",
-          "required": true
-        }
-      },
-      "description": "Print a machine-readable output contract verbatim",
-      "examples": [
-        "<%= config.bin %> <%= command.id %> CommandHelpJson",
-        "<%= config.bin %> <%= command.id %> RelationGraph"
-      ],
-      "flags": {},
-      "hasDynamicHelp": false,
-      "hiddenAliases": [],
-      "id": "schema:show",
-      "pluginAlias": "@firestartr/fs-forge-cli",
-      "pluginName": "@firestartr/fs-forge-cli",
-      "pluginType": "core",
-      "strict": true,
-      "enableJsonFlag": false,
-      "isESM": true,
-      "relativePath": [
-        "dist",
-        "commands",
-        "schema",
-        "show.js"
-      ]
-    },
     "features:add": {
       "aliases": [],
       "args": {
@@ -5892,6 +6371,51 @@
           "name": "no-wait",
           "allowNo": false,
           "type": "boolean"
+        },
+        "issue": {
+          "dependsOn": [
+            "commit"
+          ],
+          "description": "Link the commit to an existing claims-repo issue (adds \"Closes #N\" to the claim PR)",
+          "exclusive": [
+            "create-issue"
+          ],
+          "name": "issue",
+          "hasDynamicHelp": false,
+          "multiple": false,
+          "type": "option"
+        },
+        "create-issue": {
+          "dependsOn": [
+            "commit"
+          ],
+          "description": "Open an issue in the claims repo before committing, then link it to the claim PR",
+          "exclusive": [
+            "issue"
+          ],
+          "name": "create-issue",
+          "allowNo": false,
+          "type": "boolean"
+        },
+        "issue-title": {
+          "dependsOn": [
+            "create-issue"
+          ],
+          "description": "Title for the issue opened by --create-issue",
+          "name": "issue-title",
+          "hasDynamicHelp": false,
+          "multiple": false,
+          "type": "option"
+        },
+        "issue-body": {
+          "dependsOn": [
+            "create-issue"
+          ],
+          "description": "Body for the issue opened by --create-issue",
+          "name": "issue-body",
+          "hasDynamicHelp": false,
+          "multiple": false,
+          "type": "option"
         },
         "wait-for-checks": {
           "description": "After provisioning, watch wet PR check runs until completion (requires --commit; --no-wait-for-checks to skip)",
@@ -6122,6 +6646,51 @@
           "allowNo": false,
           "type": "boolean"
         },
+        "issue": {
+          "dependsOn": [
+            "commit"
+          ],
+          "description": "Link the commit to an existing claims-repo issue (adds \"Closes #N\" to the claim PR)",
+          "exclusive": [
+            "create-issue"
+          ],
+          "name": "issue",
+          "hasDynamicHelp": false,
+          "multiple": false,
+          "type": "option"
+        },
+        "create-issue": {
+          "dependsOn": [
+            "commit"
+          ],
+          "description": "Open an issue in the claims repo before committing, then link it to the claim PR",
+          "exclusive": [
+            "issue"
+          ],
+          "name": "create-issue",
+          "allowNo": false,
+          "type": "boolean"
+        },
+        "issue-title": {
+          "dependsOn": [
+            "create-issue"
+          ],
+          "description": "Title for the issue opened by --create-issue",
+          "name": "issue-title",
+          "hasDynamicHelp": false,
+          "multiple": false,
+          "type": "option"
+        },
+        "issue-body": {
+          "dependsOn": [
+            "create-issue"
+          ],
+          "description": "Body for the issue opened by --create-issue",
+          "name": "issue-body",
+          "hasDynamicHelp": false,
+          "multiple": false,
+          "type": "option"
+        },
         "wait-for-checks": {
           "description": "After provisioning, watch wet PR check runs until completion (requires --commit; --no-wait-for-checks to skip)",
           "name": "wait-for-checks",
@@ -6286,6 +6855,51 @@
           "allowNo": false,
           "type": "boolean"
         },
+        "issue": {
+          "dependsOn": [
+            "commit"
+          ],
+          "description": "Link the commit to an existing claims-repo issue (adds \"Closes #N\" to the claim PR)",
+          "exclusive": [
+            "create-issue"
+          ],
+          "name": "issue",
+          "hasDynamicHelp": false,
+          "multiple": false,
+          "type": "option"
+        },
+        "create-issue": {
+          "dependsOn": [
+            "commit"
+          ],
+          "description": "Open an issue in the claims repo before committing, then link it to the claim PR",
+          "exclusive": [
+            "issue"
+          ],
+          "name": "create-issue",
+          "allowNo": false,
+          "type": "boolean"
+        },
+        "issue-title": {
+          "dependsOn": [
+            "create-issue"
+          ],
+          "description": "Title for the issue opened by --create-issue",
+          "name": "issue-title",
+          "hasDynamicHelp": false,
+          "multiple": false,
+          "type": "option"
+        },
+        "issue-body": {
+          "dependsOn": [
+            "create-issue"
+          ],
+          "description": "Body for the issue opened by --create-issue",
+          "name": "issue-body",
+          "hasDynamicHelp": false,
+          "multiple": false,
+          "type": "option"
+        },
         "wait-for-checks": {
           "description": "After provisioning, watch wet PR check runs until completion (requires --commit; --no-wait-for-checks to skip)",
           "name": "wait-for-checks",
@@ -6326,6 +6940,69 @@
         "commands",
         "features",
         "remove.js"
+      ]
+    },
+    "schema:list": {
+      "aliases": [],
+      "args": {},
+      "description": "List machine-readable fs-forge output contracts",
+      "examples": [
+        "<%= config.bin %> <%= command.id %>",
+        "<%= config.bin %> <%= command.id %> --json"
+      ],
+      "flags": {
+        "json": {
+          "description": "Output as JSON",
+          "name": "json",
+          "allowNo": false,
+          "type": "boolean"
+        }
+      },
+      "hasDynamicHelp": false,
+      "hiddenAliases": [],
+      "id": "schema:list",
+      "pluginAlias": "@firestartr/fs-forge-cli",
+      "pluginName": "@firestartr/fs-forge-cli",
+      "pluginType": "core",
+      "strict": true,
+      "enableJsonFlag": false,
+      "isESM": true,
+      "relativePath": [
+        "dist",
+        "commands",
+        "schema",
+        "list.js"
+      ]
+    },
+    "schema:show": {
+      "aliases": [],
+      "args": {
+        "name": {
+          "description": "Contract name",
+          "name": "name",
+          "required": true
+        }
+      },
+      "description": "Print a machine-readable output contract verbatim",
+      "examples": [
+        "<%= config.bin %> <%= command.id %> CommandHelpJson",
+        "<%= config.bin %> <%= command.id %> RelationGraph"
+      ],
+      "flags": {},
+      "hasDynamicHelp": false,
+      "hiddenAliases": [],
+      "id": "schema:show",
+      "pluginAlias": "@firestartr/fs-forge-cli",
+      "pluginName": "@firestartr/fs-forge-cli",
+      "pluginType": "core",
+      "strict": true,
+      "enableJsonFlag": false,
+      "isESM": true,
+      "relativePath": [
+        "dist",
+        "commands",
+        "schema",
+        "show.js"
       ]
     },
     "kinds:show": {

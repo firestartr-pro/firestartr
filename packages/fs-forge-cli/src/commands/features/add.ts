@@ -7,6 +7,7 @@ import {
 } from '../../utils/featureCommand.js';
 import { FEATURE_REFERENCE_SPECS } from '../../features/dynamicFlags.js';
 import { runFeatureMutation } from '../../features/mutation.js';
+import { auditTrailOptions } from '../../mutations/support.js';
 import { buildFeatureReference } from '../../utils/features.js';
 
 export default class FeaturesAdd extends FeatureSchemaCommand {
@@ -50,6 +51,7 @@ export default class FeaturesAdd extends FeatureSchemaCommand {
         noWait: flags['no-wait'],
         waitForChecks: flags['wait-for-checks'],
         stateRepos: flags['state-repos'],
+        ...auditTrailOptions(flags),
         json: flags.json,
         feature,
         featureSchema: this.featureSchema,

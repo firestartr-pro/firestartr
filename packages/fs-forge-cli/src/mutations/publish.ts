@@ -3,10 +3,9 @@ import { loadClaimsMap, publishClaim } from '../claims/claimsRepo.js';
 import { watchWetPrChecks } from '../claims/wetPrChecks.js';
 import { waitForDispatch } from '../utils/waitForDispatch.js';
 
-import type { ClaimsRepo, WorkflowDispatch } from '../claims/claimsRepo.js';
+import type { AuditTrail } from './auditIssue.js';
+import type { ClaimsRepo } from '../claims/claimsRepo.js';
 import type { ClaimKindName } from '../claims/kinds.js';
-import type { WetPrCheckWatch } from '../claims/wetPrChecks.js';
-import type { GitHubApi, RepoRef } from '../github/api.js';
 
 export interface ClaimPublishRequest {
   repo: ClaimsRepo;
@@ -18,6 +17,8 @@ export interface ClaimPublishRequest {
   noWait: boolean;
   waitForChecks: boolean;
   stateRepos: string[];
+  /** Opens or links the audit issue around the claim PR. */
+  audit?: AuditTrail;
   /** Create only: reject a claim that already exists in the claims map. */
   rejectExistingClaim?: boolean;
 }
@@ -29,37 +30,6 @@ export interface Pulse {
 
 export interface ClaimPublishResult {
   publishUrl: string;
-}
-
-export interface ProvisionWait extends WetPrCheckWatch {
-  noWait?: boolean;
-  waitForChecks?: boolean;
-}
-
-/**
- * The wait that follows a publish, shared by the claim mutations and the
- * Feature mutations: poll the provision workflow run, then watch the wet PR
- * check runs it produced — skipped entirely by `--no-wait`.
- */
-export async function waitForProvision(
-  api: GitHubApi,
-  ref: RepoRef,
-  dispatch: WorkflowDispatch,
-  wait: ProvisionWait,
-  diagnostic: (line: string) => void,
-): Promise<string> {
-  const publishUrl = await waitForDispatch(api, ref, dispatch, {
-    noWait: wait.noWait,
-    claimType: wait.claimType,
-    claimName: wait.claimName,
-    label: 'Provisioning',
-  });
-
-  if (wait.waitForChecks && !wait.noWait) {
-    await watchWetPrChecks(api, ref, wait, diagnostic);
-  }
-
-  return publishUrl;
 }
 
 /**
@@ -81,6 +51,7 @@ export async function publishClaimAndWait(
     noWait,
     waitForChecks,
     stateRepos,
+    audit,
     rejectExistingClaim,
   } = request;
 
@@ -98,21 +69,38 @@ export async function publishClaimAndWait(
     );
   }
 
-  const dispatch = await publishClaim(repo, {
-    kind,
-    name,
-    path,
-    yaml: output,
-    existingSha,
+  const dispatch = await publishClaim(
+    repo,
+    {
+      kind,
+      name,
+      path,
+      yaml: output,
+      existingSha,
+    },
+    audit,
+  );
+
+  const publishUrl = await waitForDispatch(repo.api, repo.ref, dispatch, {
+    noWait,
+    claimType: kind,
+    claimName: name,
+    label: 'Provisioning',
+    extra: audit?.result(),
   });
 
-  const publishUrl = await waitForProvision(
-    repo.api,
-    repo.ref,
-    dispatch,
-    { claimType: kind, claimName: name, noWait, waitForChecks, stateRepos },
-    pulse.diagnostic,
-  );
+  // Only a successful publish has a run to record; failures are reported by
+  // the caller's audit trail.
+  await audit?.commentRunUrl(publishUrl);
+
+  if (waitForChecks && !noWait) {
+    await watchWetPrChecks(
+      repo.api,
+      repo.ref,
+      { claimType: kind, claimName: name, stateRepos },
+      pulse.diagnostic,
+    );
+  }
 
   return { publishUrl };
 }

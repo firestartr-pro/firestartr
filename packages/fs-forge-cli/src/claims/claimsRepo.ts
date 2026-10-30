@@ -7,6 +7,7 @@ import { isNotFoundError } from '../github/api.js';
 
 import type { ClaimsMap, ResolvedClaim } from './claimsMap.js';
 import type { GitHubApi, RepoRef } from '../github/api.js';
+import type { AuditTrail } from '../mutations/auditIssue.js';
 
 export interface ClaimsRepo {
   readonly ref: RepoRef;
@@ -139,6 +140,7 @@ export async function publishClaim(
     yaml: string;
     existingSha?: string;
   },
+  audit?: AuditTrail,
 ): Promise<WorkflowDispatch> {
   const { kind, name, path, yaml, existingSha } = input;
   const correlationId = randomUUID();
@@ -164,6 +166,9 @@ export async function publishClaim(
     content: yaml,
     ...(existingSha ? { sha: existingSha } : {}),
   });
+  // Before the workflow starts: it reuses the PR on this head branch and merges
+  // it, which is what closes the audit issue.
+  await audit?.linkPullRequest({ head: branch, base: defaultBranch });
   await repo.api.dispatchWorkflow(repo.ref, {
     workflowId: 'provision-claim.yaml',
     gitRef: branch,

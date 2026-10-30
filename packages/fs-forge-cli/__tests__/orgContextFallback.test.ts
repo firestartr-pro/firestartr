@@ -243,6 +243,93 @@ describe('--org defaults to the resolved context', () => {
     );
   });
 
+  it('audits commits against the configured claims repo with an org from context', async () => {
+    process.env.FS_FORGE_CONFIG = contextFixture('repo-overrides.yaml');
+    const ref = { owner: 'shared', repo: 'claims-fork' };
+    const fixture = join(
+      ROOT,
+      '__tests__/fixtures/valid/component-with-features.yaml',
+    );
+    const createArgs = CreateComponent.examples[0]
+      .replace('<%= config.bin %> <%= command.id %> ', '')
+      .split(' ');
+    const cases = [
+      {
+        command: FeaturesRemove,
+        args: ['my-component', '--name', 'feature_a', '--commit', '--create-issue'],
+        issue: 1,
+        createsIssue: true,
+        deletes: false,
+      },
+      {
+        command: FeaturesRemove,
+        args: ['--file', fixture, '--name', 'feature_a', '--commit', '--issue', '7'],
+        issue: 7,
+        createsIssue: false,
+        deletes: false,
+      },
+      {
+        command: CreateComponent,
+        args: [...createArgs, '--commit', '--create-issue'],
+        issue: 1,
+        createsIssue: true,
+        deletes: false,
+      },
+      {
+        command: Edit,
+        args: ['ComponentClaim-my-component', '--commit', '--issue', '7'],
+        issue: 7,
+        createsIssue: false,
+        deletes: false,
+      },
+      {
+        command: Delete,
+        args: ['component', 'my-component', '--commit', '--create-issue'],
+        issue: 1,
+        createsIssue: true,
+        deletes: true,
+      },
+    ];
+
+    for (const scenario of cases) {
+      const api = mockClient();
+      api.setDefaultBranch(ref, 'main');
+      api.setFile(ref, 'claims-map.json', JSON.stringify(CLAIMS_MAP));
+      api.setFile(
+        ref,
+        'claims/components/my-component.yaml',
+        readFileSync(fixture, 'utf8'),
+      );
+
+      const outcome = await run(scenario.command, ...scenario.args);
+
+      expect(outcome.error).toBeUndefined();
+      expect(api.dispatched[0].ref).toEqual(ref);
+      if (scenario.createsIssue) {
+        expect(api.issues[0].htmlUrl).toBe(
+          'https://github.com/shared/claims-fork/issues/1',
+        );
+        expect(api.issues[0].body).toContain('shared/claims-fork');
+      }
+      expect(api.issueComments).toContainEqual(
+        expect.objectContaining({ ref, issue: scenario.issue }),
+      );
+      if (scenario.deletes) {
+        expect(api.dispatched[0].inputs.waitForClaimChecks).toBe(true);
+      } else {
+        expect(api.createdPulls[0]).toEqual(
+          expect.objectContaining({ ref, body: `Closes #${scenario.issue}` }),
+        );
+        expect(api.calls).toContain(
+          'listOpenPullRequests acme/state-github-fork:automated',
+        );
+        expect(api.calls).toContain(
+          'listOpenPullRequests other/state-infra-fork:automated',
+        );
+      }
+    }
+  });
+
   it('keeps state defaults attached to the selected org when editing across owners', async () => {
     process.env.FS_FORGE_CONFIG = contextFixture('repo-overrides.yaml');
     const api = mockClient();

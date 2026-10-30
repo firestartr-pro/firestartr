@@ -13,7 +13,13 @@ import {
   KIND_CAPABILITIES,
   normalizeKind,
 } from '../claims/kindRegistry.js';
-import { ORG_FLAG, requireOrg } from '../mutations/support.js';
+import { withAuditTrail } from '../mutations/auditIssue.js';
+import {
+  AUDIT_TRAIL_FLAGS,
+  ORG_FLAG,
+  auditTrailOptions,
+  requireOrg,
+} from '../mutations/support.js';
 import { waitForDispatch } from '../utils/waitForDispatch.js';
 
 const VARIANT_KIND_LABEL = KIND_CAPABILITIES.filter(({ variants }) => variants)
@@ -41,6 +47,7 @@ export default class Delete extends Command {
     '<%= config.bin %> <%= command.id %> component my-svc --org my-org',
     '<%= config.bin %> <%= command.id %> component my-svc --org my-org --commit',
     '<%= config.bin %> <%= command.id %> tfworkspace my-tf --org my-org --no-include-variants --commit',
+    '<%= config.bin %> <%= command.id %> component my-svc --org my-org --commit --create-issue',
   ];
 
   static flags = {
@@ -62,6 +69,7 @@ export default class Delete extends Command {
     'no-wait': Flags.boolean({
       description: 'Skip waiting for the unprovision workflow to complete',
     }),
+    ...AUDIT_TRAIL_FLAGS,
   };
 
   async run(): Promise<void> {
@@ -94,20 +102,38 @@ export default class Delete extends Command {
       return;
     }
 
-    const workflowUrl = await dispatchUnprovision(repo, {
-      kind,
-      name: args.name,
-      includeVariants: flags['include-variants'],
-      waitForClaimChecks: flags['wait-for-checks'],
-    });
-
+    const name = args.name;
     try {
-      await waitForDispatch(repo.api, repo.ref, workflowUrl, {
-        noWait: flags['no-wait'],
-        claimType: kind,
-        claimName: args.name,
-        label: 'Unprovisioning',
-      });
+      await withAuditTrail(
+        { repo, operation: 'delete', kind, name },
+        auditTrailOptions(flags),
+        async (audit) => {
+          const workflowUrl = await dispatchUnprovision(repo, {
+            kind,
+            name,
+            includeVariants: flags['include-variants'],
+            waitForClaimChecks: flags['wait-for-checks'],
+          });
+          const runUrl = await waitForDispatch(
+            repo.api,
+            repo.ref,
+            workflowUrl,
+            {
+              noWait: flags['no-wait'],
+              claimType: kind,
+              claimName: name,
+              label: 'Unprovisioning',
+              extra: audit.result(),
+            },
+          );
+          // A delete that was merely dispatched may still fail: leave the issue
+          // open for the operator.
+          if (!flags['no-wait']) {
+            await audit.commentRunUrl(runUrl);
+            await audit.closeIssue();
+          }
+        },
+      );
     } catch (error) {
       this.error(error instanceof Error ? error.message : String(error));
     }
