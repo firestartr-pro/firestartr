@@ -75,6 +75,7 @@ export function emitCreateCommand(model: ClaimCommandModel): string {
 import { join } from 'path';
 
 import { assertCreatePath } from '../../claims/deterministicPath.js';
+import { parseStateRepos } from '../../context/resolve.js';
 import { runClaimCreation } from '../../mutations/creation.js';
 import { MUTATION_CONTROL_FLAGS } from '../../mutations/support.js';
 import { createClaimValidator } from '../../utils/ajvValidation.js';
@@ -132,7 +133,9 @@ ${hasFeatureReferences ? "    for (const value of flags.feature ?? []) {\n      
       claim,
       commit: flags.commit,
       waitForChecks: flags['wait-for-checks'],
-      stateRepos: flags['state-repos'],
+      stateRepos: flags.commit && flags.org
+        ? parseStateRepos(flags['state-repos'], flags.org)
+        : undefined,
       path: flags.path,
       writeOutput: (output) => this.log(output),
       writeDiagnostic: (output) => process.stderr.write(output),

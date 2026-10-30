@@ -342,6 +342,7 @@ describe('runFeatureMutation', () => {
       {
         operation: 'add',
         component: 'my-component',
+        org: 'my-org',
         json: false,
         commit: true,
         feature: { name: 'feature_a', version: '1.0.0', args: {} },
@@ -373,6 +374,7 @@ describe('runFeatureMutation', () => {
       {
         operation: 'add',
         component: 'my-component',
+        org: 'my-org',
         json: false,
         commit: true,
         feature: { name: 'feature_a', version: '1.0.0', args: {} },
@@ -397,6 +399,7 @@ describe('runFeatureMutation', () => {
       {
         operation: 'add',
         file: join(ROOT, '__tests__', 'fixtures', 'valid', 'component.yaml'),
+        org: 'my-org',
         json: false,
         commit: true,
         feature: { name: 'feature_a', version: '1.0.0', args: {} },

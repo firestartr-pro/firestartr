@@ -5,17 +5,20 @@ import { claimsRepo } from '../claims/claimsRepo.js';
 import type { ClaimsRepo } from '../claims/claimsRepo.js';
 import { createGitHubApi } from '../github/index.js';
 import {
+  parseStateRepos,
+  resolveClaimsRepository,
+} from '../context/resolve.js';
+import {
   pointInTimeCheck,
   watchCheckRuns,
   type AggregatedCheckResult,
 } from '../claims/checkRuns.js';
 import {
-  parseStateRepos,
   findWetPr,
   type WetPrInfo,
   type LastStatePrRedirect,
 } from '../claims/wetPr.js';
-import { ORG_FLAG } from '../mutations/support.js';
+import { ORG_FLAG, requireOrg } from '../mutations/support.js';
 import { resolveClaimReference } from '../claims/kindRegistry.js';
 import {
   findCrOnMainBranch,
@@ -59,6 +62,15 @@ interface JsonOutput {
   exitCode: number;
 }
 
+interface WatchFlags {
+  org: string;
+  current: boolean;
+  'state-repos'?: string;
+  timeout?: number;
+  json: boolean;
+  'cr-name'?: string;
+}
+
 export default class WatchChecks extends Command {
   static args = {
     reference: Args.string({
@@ -71,6 +83,7 @@ export default class WatchChecks extends Command {
     'Watch wet PR check runs for reconciliation status. Supports watch mode (default) and current mode (--current).';
 
   static examples = [
+    '<%= config.bin %> <%= command.id %> ComponentClaim-my-app',
     '<%= config.bin %> <%= command.id %> ComponentClaim-my-app --org my-org',
     '<%= config.bin %> <%= command.id %> ComponentClaim-my-app --org my-org --current',
     '<%= config.bin %> <%= command.id %> ComponentClaim-my-app --org my-org --timeout 600',
@@ -102,9 +115,7 @@ export default class WatchChecks extends Command {
   async run(): Promise<void> {
     const { args, flags } = await this.parse(WatchChecks);
 
-    if (!flags.org) {
-      this.error('--org or FSCRT_ORG is required');
-    }
+    const org = requireOrg(flags.org);
 
     const reference = resolveClaimReference(args.reference);
     if (!reference) {
@@ -112,14 +123,30 @@ export default class WatchChecks extends Command {
     }
     const { kind, name } = reference;
 
-    const repo = claimsRepo(createGitHubApi(), flags.org);
-    const stateRepos = parseStateRepos(flags['state-repos'], flags.org);
+    const target = resolveClaimsRepository(org);
+    const repo = claimsRepo(createGitHubApi(), target.owner, target.repo);
+    const stateRepos = parseStateRepos(flags['state-repos'], org);
     const claimRef = `${kind}-${name}`;
 
+    const resolvedFlags = { ...flags, org };
     if (flags.current) {
-      await this.runCurrentMode(repo, stateRepos, kind, name, claimRef, flags);
+      await this.runCurrentMode(
+        repo,
+        stateRepos,
+        kind,
+        name,
+        claimRef,
+        resolvedFlags,
+      );
     } else {
-      await this.runWatchMode(repo, stateRepos, kind, name, claimRef, flags);
+      await this.runWatchMode(
+        repo,
+        stateRepos,
+        kind,
+        name,
+        claimRef,
+        resolvedFlags,
+      );
     }
   }
 
@@ -129,14 +156,7 @@ export default class WatchChecks extends Command {
     kind: string,
     name: string,
     claimRef: string,
-    flags: {
-      org?: string;
-      current: boolean;
-      'state-repos'?: string;
-      timeout?: number;
-      json: boolean;
-      'cr-name'?: string;
-    },
+    flags: WatchFlags,
   ): Promise<void> {
     const wetPr = await findWetPr(repo.api, stateRepos, kind, name);
 
@@ -145,7 +165,7 @@ export default class WatchChecks extends Command {
         const output: JsonOutput = {
           status: 'error',
           mode: 'watch',
-          org: flags.org!,
+          org: flags.org,
           claimRef,
           exitCode: 3,
         };
@@ -173,11 +193,7 @@ export default class WatchChecks extends Command {
           label: `${wetPr.repo}#${wetPr.number}`,
         };
 
-    if (flags.json) {
-      process.stderr.write(`Watching wet PR ${watchTarget.label}...\n`);
-    } else {
-      process.stderr.write(`Watching wet PR ${watchTarget.label}...\n`);
-    }
+    process.stderr.write(`Watching wet PR ${watchTarget.label}...\n`);
 
     const timeoutMs = flags.timeout ? flags.timeout * 1000 : undefined;
 
@@ -197,16 +213,13 @@ export default class WatchChecks extends Command {
     wetPr: WetPrInfo,
     watchTarget: { owner: string; repo: string; number: number; label: string },
     claimRef: string,
-    flags: {
-      org?: string;
-      json: boolean;
-    },
+    flags: Pick<WatchFlags, 'org' | 'json'>,
   ): void {
     if (flags.json) {
       const output: JsonOutput = {
         status: result.overallConclusion === 'success' ? 'ok' : 'error',
         mode: 'watch',
-        org: flags.org!,
+        org: flags.org,
         claimRef,
         wetPr: {
           repo: watchTarget.repo,
@@ -283,14 +296,7 @@ export default class WatchChecks extends Command {
     kind: string,
     name: string,
     claimRef: string,
-    flags: {
-      org?: string;
-      current: boolean;
-      'state-repos'?: string;
-      timeout?: number;
-      json: boolean;
-      'cr-name'?: string;
-    },
+    flags: WatchFlags,
   ): Promise<void> {
     const allCrInfo: CrInfo[] = [];
 
@@ -308,7 +314,7 @@ export default class WatchChecks extends Command {
         const output: JsonOutput = {
           status: 'error',
           mode: 'current',
-          org: flags.org!,
+          org: flags.org,
           claimRef,
           exitCode: 3,
         };
@@ -345,10 +351,7 @@ export default class WatchChecks extends Command {
   private async buildCurrentModeOutput(
     repo: ClaimsRepo,
     crs: CrInfo[],
-    flags: {
-      org?: string;
-      json: boolean;
-    },
+    flags: Pick<WatchFlags, 'org' | 'json'>,
     claimRef: string,
   ): Promise<JsonOutput> {
     const jsonCrs: NonNullable<JsonOutput['crs']> = [];
@@ -405,7 +408,7 @@ export default class WatchChecks extends Command {
     return {
       status: overallStatus,
       mode: 'current',
-      org: flags.org!,
+      org: flags.org,
       claimRef,
       crs: jsonCrs,
       exitCode: overallStatus === 'ok' ? 0 : 1,
