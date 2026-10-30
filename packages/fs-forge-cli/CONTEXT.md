@@ -301,7 +301,8 @@ domain (GitHub resources, infrastructure resources).
 **Check run**:
 A GitHub status check attached to a commit or pull request. In wet PRs,
 check runs report the outcome of terraform plan/apply stages per CR.
-Each check run carries a conclusion (`success`/`failure`), an output summary
+Each check run carries a conclusion (e.g. `success`, `failure`,
+`action_required`, or `stale`), an output summary
 with per-CR results, and optional annotations with line-level details.
 
 **Claim-ref annotation**:

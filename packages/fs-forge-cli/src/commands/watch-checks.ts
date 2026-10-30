@@ -255,7 +255,12 @@ export default class WatchChecks extends Command {
       process.stderr.write('Timed out waiting for checks\n');
       this.exit(2);
     } else {
-      process.stderr.write('Some checks failed ✗\n');
+      process.stderr.write(
+        result.overallConclusion === 'action_required' ||
+          result.overallConclusion === 'stale'
+          ? `Some checks failed: ${result.overallConclusion} ✗\n`
+          : 'Some checks failed ✗\n',
+      );
       this.exit(1);
     }
   }
