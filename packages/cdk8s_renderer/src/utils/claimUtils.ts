@@ -12,6 +12,7 @@ import path from 'path';
 import common from 'catalog_common';
 
 import log from '../logger';
+import { FIRESTARTR_IGNORE_FILE, isIgnoredFile } from './fileIgnore';
 import { getTfWorkspacesRefs } from '../refsSorter/refsExtractor';
 
 export function resolveStringReference(reference: string): any {
@@ -43,6 +44,7 @@ export function resolveClaimFilesList(claimRefsList: string): string[] {
   const refList: string[] = [];
 
   for (const file of fileList) {
+    if (isIgnoredFile(file)) continue;
     try {
       const data = fs.readFileSync(file, 'utf-8');
 
@@ -79,6 +81,7 @@ export async function* resolveClaimEntries(
       if (claimEntryStats.isDirectory()) {
         yield* resolveDirEntries(claimEntry);
       } else if (claimEntryStats.isFile()) {
+        if (isIgnoredFile(claimEntry)) continue;
         log.debug(
           `Sending entry ${resolveClaimFileRef(claimEntry)} (${claimEntry})`,
         );
@@ -102,12 +105,19 @@ async function* resolveDirEntries(
     throw new Error(`Reading dir: ${dir}: ${err}`);
   }
 
+  const ignoreFiles = entries.some(
+    (entry) => entry.name === FIRESTARTR_IGNORE_FILE,
+  );
   for (const entry of entries) {
     const fullPath = path.join(dir, entry.name);
 
     if (entry.isDirectory()) {
       yield* resolveDirEntries(fullPath);
-    } else if (entry.isFile() && entry.name.match(/\.yaml$|\.yml$/)) {
+    } else if (
+      !ignoreFiles &&
+      entry.isFile() &&
+      entry.name.match(/\.yaml$|\.yml$/)
+    ) {
       const claimRef = await resolveClaimFileRef(fullPath);
       log.debug(`Sending entry ${claimRef} (${fullPath})`);
       yield claimRef;
@@ -227,12 +237,19 @@ async function crawlClaimsDir(
     throw new Error(`Reading directory ${dir}: ${err}`);
   }
 
+  const ignoreFiles = entries.some(
+    (entry) => entry.name === FIRESTARTR_IGNORE_FILE,
+  );
   for (const entry of entries) {
     const fullPath = path.join(dir, entry.name);
 
     if (entry.isDirectory()) {
       await crawlClaimsDir(fullPath, basePath, claims);
-    } else if (entry.isFile() && entry.name.match(/\.yaml$|\.yml$/)) {
+    } else if (
+      !ignoreFiles &&
+      entry.isFile() &&
+      entry.name.match(/\.yaml$|\.yml$/)
+    ) {
       try {
         const data = await fs.promises.readFile(fullPath, 'utf-8');
         const claim: any = common.io.fromYaml(data);

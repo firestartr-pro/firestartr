@@ -1,4 +1,5 @@
 import { crawl, crawlWithExclusions } from '../crawler';
+import { isIgnoredFile } from '../utils/fileIgnore';
 import { SECTIONS_BY_FILE_NAME, SCHEMAS_BY_SECTION_NAME } from '../globals';
 import common from 'catalog_common';
 import * as path from 'path';
@@ -260,6 +261,9 @@ export async function loadInitializers(
 }
 
 export function loadClaimDefaults() {
+  if (isIgnoredFile(`${getPath('claimsDefaults')}/claims_defaults.yaml`)) {
+    return {};
+  }
   try {
     return common.io.fromYaml(
       fs.readFileSync(
