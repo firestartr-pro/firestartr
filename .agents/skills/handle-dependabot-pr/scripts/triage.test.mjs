@@ -5,7 +5,6 @@ import { dirname, join } from "node:path";
 import { fileURLToPath } from "node:url";
 import {
   pickSummary,
-  isBlockingAlert,
   renderComment,
   parseLevels,
   parseState,
@@ -217,11 +216,11 @@ test("buildTriage produces labels, squash subject and a stopping socket alert", 
   assert.equal(t.level, "runtime");
   assert.equal(t.socket, "alert");
   assert.deepEqual(t.labels, ["jump/minor", "level/runtime", "path/A", "socket/alert"]);
-  assert.equal(t.squash, "chore(deps): bump lodash from 4.17.21 to 4.18.1");
+  assert.equal(t.squash, "fix(deps): bump lodash from 4.17.21 to 4.18.1");
 });
 
-test("buildTriage always uses chore(deps) as the squash prefix", () => {
-  const t = buildTriage({
+test("buildTriage uses chore(deps) for dev and fix(deps) for runtime and critical", () => {
+  const dev = buildTriage({
     name: "typescript",
     from: "5.4.0",
     to: "5.4.1",
@@ -229,8 +228,28 @@ test("buildTriage always uses chore(deps) as the squash prefix", () => {
     levels,
     socketResult: { alerts: [] },
   });
-  assert.equal(t.squash, "chore(deps): bump typescript from 5.4.0 to 5.4.1");
-  assert.equal(t.socket, "ok");
+  assert.equal(dev.squash, "chore(deps): bump typescript from 5.4.0 to 5.4.1");
+  assert.equal(dev.socket, "ok");
+
+  const runtime = buildTriage({
+    name: "lodash",
+    from: "4.17.21",
+    to: "4.17.22",
+    lock: lock({ "": { dependencies: { lodash: "^4" } }, "node_modules/lodash": {} }),
+    levels,
+    socketResult: { alerts: [] },
+  });
+  assert.equal(runtime.squash, "fix(deps): bump lodash from 4.17.21 to 4.17.22");
+
+  const critical = buildTriage({
+    name: "@kubernetes/client-node",
+    from: "1.0.0",
+    to: "1.0.1",
+    lock: lock({ "": { dependencies: { "@kubernetes/client-node": "^1" } }, "node_modules/@kubernetes/client-node": {} }),
+    levels,
+    socketResult: { alerts: [] },
+  });
+  assert.equal(critical.squash, "fix(deps): bump @kubernetes/client-node from 1.0.0 to 1.0.1");
 });
 
 test("nextState keeps step and runs while the head is unchanged", () => {
@@ -272,6 +291,16 @@ test("nextState resets the checks when the replacement PR head changes", () => {
   });
 });
 
+test("nextState resets the checks when the replacement PR changes, even with the same head", () => {
+  const previous = { head: "abc", step: "e2e started", runs: "9", replacement: 170 };
+  assert.deepEqual(nextState({ socket: "ok" }, previous, "abc", 171), {
+    head: "abc",
+    step: "triaged",
+    runs: "",
+    replacement: 171,
+  });
+});
+
 test("parseState reads the replacement PR number", () => {
   const body = "head: abc\nreplacement: #170\nstep: e2e started";
   assert.deepEqual(parseState(body), { head: "abc", step: "e2e started", runs: "", replacement: 170 });
@@ -301,7 +330,7 @@ test("pickSummary only trusts summaries from authorized collaborators", () => {
   assert.equal(pickSummary(comments.slice(0, 1), new Set(["teammate"])), null);
 });
 
-test("middle and low Socket findings are noted but do not stop the flow", () => {
+test("any Socket finding, even a low one, stops the flow", () => {
   const alerts = [
     { name: "shellAccess", severity: "middle", category: "supplyChainRisk", example: "npm/cdk8s@2.70.114" },
     { name: "networkAccess", severity: "low", category: "supplyChainRisk", example: "npm/x@1.0.0" },
@@ -314,17 +343,9 @@ test("middle and low Socket findings are noted but do not stop the flow", () => 
     levels,
     socketResult: { alerts },
   });
-  assert.equal(t.socket, "ok");
-  assert.equal(t.socketAlerts.length, 0);
-  assert.equal(t.socketNotes.length, 2);
-  assert.ok(!renderComment(t, { head: "h", step: "triaged", runs: "", replacement: null }).includes("Stopped: Socket alert"));
+  assert.equal(t.socket, "alert");
+  assert.equal(t.socketAlerts.length, 2);
+  assert.ok(t.labels.includes("socket/alert"));
+  assert.ok(renderComment(t, { head: "h", step: "stopped: socket alert", runs: "", replacement: null }).includes("Stopped: Socket alert"));
 });
 
-test("high or critical, malware, vulnerability and typosquat findings stop the flow", () => {
-  assert.equal(isBlockingAlert({ name: "x", severity: "high", category: "supplyChainRisk" }), true);
-  assert.equal(isBlockingAlert({ name: "x", severity: "critical", category: "quality" }), true);
-  assert.equal(isBlockingAlert({ name: "x", severity: "low", category: "malware" }), true);
-  assert.equal(isBlockingAlert({ name: "x", severity: "middle", category: "vulnerability" }), true);
-  assert.equal(isBlockingAlert({ name: "typosquat", severity: "low", category: "supplyChainRisk" }), true);
-  assert.equal(isBlockingAlert({ name: "shellAccess", severity: "middle", category: "supplyChainRisk" }), false);
-});

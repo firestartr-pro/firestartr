@@ -164,28 +164,16 @@ export function socketAlerts(node, found = []) {
   return found;
 }
 
-// Only high or critical findings, malware, vulnerabilities and typosquats stop
-// the flow. Lower-severity capability signals are posted but do not block.
-const BLOCKING_SEVERITY = new Set(["high", "critical"]);
-const BLOCKING_CATEGORY = new Set(["malware", "vulnerability"]);
-const BLOCKING_NAME = new Set(["typosquat"]);
-
-export function isBlockingAlert(alert) {
-  return (
-    BLOCKING_SEVERITY.has(alert?.severity) ||
-    BLOCKING_CATEGORY.has(alert?.category) ||
-    BLOCKING_NAME.has(alert?.name)
-  );
-}
-
 function describeAlert(alert) {
   if (typeof alert === "string") return alert;
   const where = alert.example ? ` (${alert.example})` : "";
   return `${alert.name} · ${alert.severity} · ${alert.category}${where}`;
 }
 
-export function squashSubject(name, from, to) {
-  return `chore(deps): bump ${name} from ${from} to ${to}`;
+// 🟢 dev bumps are hidden from release-please (chore). 🟡 and 🔴 must release (fix).
+export function squashSubject(name, from, to, level) {
+  const prefix = level === "dev" ? "chore" : "fix";
+  return `${prefix}(deps): bump ${name} from ${from} to ${to}`;
 }
 
 export function requiredChecks(level, path, jump) {
@@ -203,9 +191,7 @@ export function buildTriage({ name, from, to, lock, levels, socketResult, replac
   const jump = versionJump(from, to);
   const path = replacement ? "B" : pathFor(jump);
   const level = levelOf(name, lock, levels);
-  const blocking = socketResult.alerts.filter(isBlockingAlert);
-  const notes = socketResult.alerts.filter((a) => !isBlockingAlert(a));
-  const socket = blocking.length > 0 ? "alert" : "ok";
+  const socket = socketResult.alerts.length > 0 ? "alert" : "ok";
   return {
     name,
     from,
@@ -216,9 +202,8 @@ export function buildTriage({ name, from, to, lock, levels, socketResult, replac
     socket,
     labels: [`jump/${jump}`, `level/${level}`, `path/${path}`, `socket/${socket}`],
     checks: requiredChecks(level, path, jump),
-    squash: squashSubject(name, from, to),
-    socketAlerts: blocking,
-    socketNotes: notes,
+    squash: squashSubject(name, from, to, level),
+    socketAlerts: socketResult.alerts,
   };
 }
 
@@ -230,12 +215,17 @@ export function parseState(body) {
   return head && step ? { head, step, runs, replacement: replacement ? Number(replacement) : null } : null;
 }
 
-// Keep the recorded step and run IDs while the head being checked is unchanged,
-// so resuming never repeats work. The head is the replacement PR's when one is
-// set, otherwise the Dependabot PR's. A Socket alert always stops the flow.
+// Keep the recorded step and run IDs while the head being checked and the
+// replacement PR are unchanged, so resuming never repeats work. The head is the
+// replacement PR's when one is set, otherwise the Dependabot PR's. A Socket
+// alert always stops the flow.
 export function nextState(t, previous, head, replacement = previous?.replacement ?? null) {
   if (t.socket === "alert") return { head, step: "stopped: socket alert", runs: "", replacement };
-  const resumable = previous && previous.head === head && !previous.step.startsWith("stopped: socket");
+  const resumable =
+    previous &&
+    previous.head === head &&
+    previous.replacement === replacement &&
+    !previous.step.startsWith("stopped: socket");
   return resumable ? { ...previous, replacement } : { head, step: "triaged", runs: "", replacement };
 }
 
@@ -253,10 +243,6 @@ export function renderComment(t, state) {
   if (t.socket === "alert") {
     lines.push("", "**Stopped: Socket alert.** Review the findings before going further.");
     for (const alert of t.socketAlerts.slice(0, 20)) lines.push(`- ${describeAlert(alert)}`);
-  }
-  if (t.socketNotes.length > 0) {
-    lines.push("", "Socket notes (not blocking):");
-    for (const alert of t.socketNotes.slice(0, 20)) lines.push(`- ${describeAlert(alert)}`);
   }
   lines.push("", `head: ${state.head}`);
   if (state.replacement) lines.push(`replacement: #${state.replacement}`);
