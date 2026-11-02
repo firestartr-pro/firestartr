@@ -8,9 +8,17 @@ import {
 } from '../claims/claimsRepo.js';
 import { createGitHubApi } from '../github/index.js';
 import { resolveClaimsRepository } from '../context/resolve.js';
-import { CLAIM_KIND_OPTIONS, normalizeKind } from '../claims/kindRegistry.js';
+import {
+  CLAIM_KIND_OPTIONS,
+  KIND_CAPABILITIES,
+  normalizeKind,
+} from '../claims/kindRegistry.js';
 import { ORG_FLAG, requireOrg } from '../mutations/support.js';
 import { waitForDispatch } from '../utils/waitForDispatch.js';
+
+const VARIANT_KIND_LABEL = KIND_CAPABILITIES.filter(({ variants }) => variants)
+  .map(({ kind }) => kind)
+  .join(', ');
 
 export default class Delete extends Command {
   static args = {
@@ -38,7 +46,7 @@ export default class Delete extends Command {
   static flags = {
     org: ORG_FLAG,
     'include-variants': Flags.boolean({
-      description: 'Also delete variant CRs (TFWorkspaceClaim only)',
+      description: `Also delete variant CRs (${VARIANT_KIND_LABEL} only)`,
       default: true,
       allowNo: true,
     }),
