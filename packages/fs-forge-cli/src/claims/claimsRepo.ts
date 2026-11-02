@@ -180,6 +180,7 @@ export async function publishClaim(
         KIND_REGISTRY[kind as keyof typeof KIND_REGISTRY]?.catalogOnly === true,
     },
   });
+  audit?.recordDispatch();
 
   return {
     url: `https://github.com/${repo.ref.owner}/${repo.ref.repo}/actions/workflows/provision-claim.yaml`,

@@ -114,6 +114,7 @@ export default class Delete extends Command {
             includeVariants: flags['include-variants'],
             waitForClaimChecks: flags['wait-for-checks'],
           });
+          audit.recordDispatch();
           const runUrl = await waitForDispatch(
             repo.api,
             repo.ref,

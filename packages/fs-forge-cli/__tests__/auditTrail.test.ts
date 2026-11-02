@@ -473,6 +473,30 @@ describe('delete audit trail', () => {
     ]);
   });
 
+  it('reopens a closed adopted issue when the dispatched delete fails', async () => {
+    const api = mockClient();
+    await api.createIssue(
+      { owner: 'my-org', repo: 'claims' },
+      { title: 'Existing issue', body: '' },
+    );
+    await api.closeIssue({ owner: 'my-org', repo: 'claims' }, 1);
+    api.autoCompleteConclusion = 'failure';
+
+    const { error } = await run(
+      Delete,
+      'component',
+      'my-component',
+      '--commit',
+      '--org',
+      'my-org',
+      '--issue',
+      '1',
+    );
+
+    expect(error).toBeDefined();
+    expect(api.issues[0].state).toBe('open');
+  });
+
   it('reports the issue without closing or commenting in --no-wait mode', async () => {
     const api = mockClient();
 

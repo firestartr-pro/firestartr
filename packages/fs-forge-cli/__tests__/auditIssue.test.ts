@@ -212,7 +212,8 @@ describe('withAuditTrail', () => {
     const { api, repo, run } = open({ createIssue: true });
 
     await expect(
-      run(async () => {
+      run(async (trail) => {
+        trail.recordDispatch();
         await api.closeIssue(repo.ref, 1);
         throw new Error('wet checks failed');
       }),
@@ -223,6 +224,22 @@ describe('withAuditTrail', () => {
     expect(api.calls.indexOf('reopenIssue my-org/claims#1')).toBeGreaterThan(
       api.calls.indexOf('commentOnIssue my-org/claims#1'),
     );
+  });
+
+  it('comments but does not reopen a closed adopted issue before any dispatch', async () => {
+    const { api, repo, run } = open({ issue: 1 });
+    await api.createIssue(repo.ref, { title: 'Existing issue', body: '' });
+    await api.closeIssue(repo.ref, 1);
+
+    await expect(
+      run(async () => {
+        throw new Error('dispatch rejected');
+      }),
+    ).rejects.toThrow('dispatch rejected');
+
+    expect(api.issueComments[0].body).toContain('dispatch rejected');
+    expect(api.issues[0].state).toBe('closed');
+    expect(api.calls).not.toContain('reopenIssue my-org/claims#1');
   });
 
   it('never writes a token into the failure comment', async () => {
@@ -269,7 +286,12 @@ describe('withAuditTrail', () => {
     };
 
     const original = new Error('original failure');
-    await expect(run(async () => { throw original; })).rejects.toBe(original);
+    await expect(
+      run(async (trail) => {
+        trail.recordDispatch();
+        throw original;
+      }),
+    ).rejects.toBe(original);
     expect(api.issueComments[0].body).toContain('original failure');
   });
 
@@ -280,7 +302,8 @@ describe('withAuditTrail', () => {
     };
 
     await expect(
-      run(async () => {
+      run(async (trail) => {
+        trail.recordDispatch();
         await api.closeIssue(repo.ref, 1);
         throw new Error('original failure');
       }),

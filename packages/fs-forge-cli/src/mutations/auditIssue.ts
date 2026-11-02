@@ -47,6 +47,8 @@ interface AuditRef {
 export interface AuditTrail {
   /** Opens the claims PR with a `Closes #N` footer, or adds it to the open one. */
   linkPullRequest(input: { head: string; base: string }): Promise<void>;
+  /** Marks the workflow as dispatched: its failure may follow a merged claims PR. */
+  recordDispatch(): void;
   /** Comments the dispatched workflow run on the issue, best effort. */
   commentRunUrl(runUrl: string): Promise<void>;
   /** Closes the issue once the run concluded, best effort. */
@@ -156,7 +158,7 @@ async function resolveIssue(
 
 interface OpenedAudit {
   trail: AuditTrail;
-  /** Comments the error and reopens the audit issue, best effort. */
+  /** Comments the error and, once a workflow was dispatched, reopens the issue. */
   reportFailure(error: unknown): Promise<void>;
 }
 
@@ -167,6 +169,7 @@ async function openAudit(
   const { api, ref: repoRef } = context.repo;
   const { ref: issue } = await resolveIssue(context, options);
   let pullRequest: AuditRef | undefined;
+  let dispatched = false;
 
   const trail: AuditTrail = {
     async linkPullRequest({ head, base }) {
@@ -190,6 +193,10 @@ async function openAudit(
         body: closesFooter('', issue.number),
       });
       pullRequest = { number: opened.number, url: opened.htmlUrl };
+    },
+
+    recordDispatch() {
+      dispatched = true;
     },
 
     async commentRunUrl(runUrl) {
@@ -222,7 +229,9 @@ async function openAudit(
         redactTokens(error instanceof Error ? error.message : String(error)),
       ].join('\n');
       await bestEffort(() => api.commentOnIssue(repoRef, issue.number, body));
-      await bestEffort(() => api.reopenIssue(repoRef, issue.number));
+      if (dispatched) {
+        await bestEffort(() => api.reopenIssue(repoRef, issue.number));
+      }
     },
   };
 }
@@ -230,7 +239,8 @@ async function openAudit(
 /**
  * Runs the audited part of a `--commit` command: the issue is opened (or
  * adopted) before the step starts, so it exists before the first write, and a
- * failure is best-effort commented on the issue and the issue reopened.
+ * failure is best-effort commented on the issue. The issue is reopened only
+ * after a dispatch: before one, nothing this run did can have closed it.
  * Recording the run is the step's business: only it knows whether a run concluded.
  */
 export async function withAuditTrail<T>(
