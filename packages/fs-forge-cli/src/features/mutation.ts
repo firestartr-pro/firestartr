@@ -10,6 +10,10 @@ import {
 import { deterministicPath } from '../claims/deterministicPath.js';
 import { serializeClaim } from '../claims/keyOrdering.js';
 import { createGitHubApi } from '../github/index.js';
+import {
+  parseStateRepos,
+  resolveClaimsRepository,
+} from '../context/resolve.js';
 import { waitForProvision } from '../mutations/publish.js';
 import { parseClaimYaml, requireOrg } from '../mutations/support.js';
 import { mergeObjects } from '../utils/mutateClaim.js';
@@ -47,8 +51,11 @@ export async function loadComponentTarget(options: {
     );
   }
 
-  const repo = () =>
-    options.repo ?? claimsRepo(createGitHubApi(), requireOrg(options.org));
+  const repo = () => {
+    if (options.repo) return options.repo;
+    const target = resolveClaimsRepository(requireOrg(options.org));
+    return claimsRepo(createGitHubApi(), target.owner, target.repo);
+  };
 
   if (options.file) {
     const claim = parseClaimYaml(await readFile(options.file, 'utf8'));
@@ -232,7 +239,10 @@ export async function runFeatureMutation(
         claimName: target.name,
         noWait: request.noWait,
         waitForChecks: request.waitForChecks,
-        stateRepos: request.stateRepos,
+        stateRepos: parseStateRepos(
+          request.stateRepos,
+          requireOrg(request.org),
+        ),
       },
       (line) => process.stderr.write(line),
     );

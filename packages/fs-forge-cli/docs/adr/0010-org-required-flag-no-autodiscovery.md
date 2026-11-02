@@ -1,7 +1,9 @@
 # ADR 0010: `--org` is a required flag for preflight, not autodiscovered
 
 ## Status
-Accepted
+Superseded by [ADR 0014](0014-org-context-resolution.md): `--org` is optional
+and resolves through the CLI context (flag, then `FSCRT_ORG`, then the config
+entry matching the current directory).
 
 ## Context
 

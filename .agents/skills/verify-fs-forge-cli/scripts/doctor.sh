@@ -61,6 +61,28 @@ drive="$FSF_SKILL_DIR/scripts/drive.sh"
 "$drive" --mode read -- kinds >/dev/null 2>&1
 [ $? = 2 ] && pass guard-org "drive.sh refuses an org-bound drive with no --org" || fail guard-org "drive.sh ran an org-bound drive without a named org"
 
+guard_dir="$(mktemp -d)"
+mkdir -p "$guard_dir/bin" "$guard_dir/verify-fs-forge-cli/run/evidence" "$guard_dir/verify-fs-forge-cli/run/work"
+printf '#!/bin/sh\nexit 97\n' > "$guard_dir/bin/gh"
+chmod +x "$guard_dir/bin/gh"
+printf 'organizations:\n  - name: fsf-guard-test\n    paths: [/nowhere]\n    claims_repo: production/claims\n' > "$guard_dir/config.yaml"
+for guard_mode in read write; do
+  guard_args=()
+  [ "$guard_mode" = read ] || guard_args+=(--commit)
+  guard_output="$(FSF_HOME="$guard_dir" FSF_RUN="$guard_dir/verify-fs-forge-cli/run" \
+    PATH="$guard_dir/bin:$PATH" GH_TOKEN=fsf-guard-token GITHUB_TOKEN=fsf-guard-token \
+    "$drive" --mode "$guard_mode" --org fsf-guard-test \
+    --seed "$guard_dir/config.yaml=.xdg/config/fs-forge/config.yaml" \
+    -- delete component guard-test "${guard_args[@]}" 2>&1)"
+  guard_exit=$?
+  if [ "$guard_exit" = 2 ] && [[ "$guard_output" == *"repository overrides"* ]]; then
+    pass "guard-config-$guard_mode" "refuses cross-owner repository overrides before authentication or execution"
+  else
+    fail "guard-config-$guard_mode" "did not refuse cross-owner overrides (exit $guard_exit)"
+  fi
+done
+rm -rf "$guard_dir"
+
 # Compare physical paths: a '../' detour or a symlink can hide the real target,
 # so create the directory, resolve it, and only then check it is outside the repo.
 real_repo="$(cd "$FSF_REPO" && pwd -P)"

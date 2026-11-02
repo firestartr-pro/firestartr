@@ -3,11 +3,14 @@
 #
 # Usage:
 #   drive.sh [--label L] [--mode offline|read|write] [--org ORG] [--expect-exit N]
-#            [--seed SRC[=DEST]]... -- <fs-forge args>
+#            [--seed SRC[=DEST]]... [--allow-connect HOST:PORT]... [--stub-token] -- <fs-forge args>
 #
 # Modes (offline is the default):
 #   offline  no token, no org, outbound connects blocked. Any attempted connect
-#            fails the drive, even if the command exited as expected.
+#            fails the drive, even if the command exited as expected, unless
+#            --allow-connect names it (still blocked, only tolerated).
+#            --stub-token sets a fake GITHUB_TOKEN for commands that check
+#            auth before acting; it reaches no server.
 #   read     needs --org ORG. Token set, connects logged, --commit refused. The
 #            drive fails if fs-forge/* branches, PRs or workflow runs changed.
 #   write    needs --org ORG, and ORG must be a firestartr-pre org. The only mode
@@ -19,10 +22,10 @@
 set -uo pipefail
 source "$(dirname "${BASH_SOURCE[0]}")/lib.sh"
 
-label=drive mode=offline org="" expect=0 seeds=()
+label=drive mode=offline org="" expect=0 seeds=() allowed=() stub_token=0
 while [ $# -gt 0 ]; do
   case "$1" in
-    --label|--mode|--org|--expect-exit|--seed) [ $# -ge 2 ] || fsf_die "$1 needs a value" ;;
+    --label|--mode|--org|--expect-exit|--seed|--allow-connect) [ $# -ge 2 ] || fsf_die "$1 needs a value" ;;
   esac
   case "$1" in
     --label) label="$2"; shift 2 ;;
@@ -30,6 +33,8 @@ while [ $# -gt 0 ]; do
     --org) org="$2"; shift 2 ;;
     --expect-exit) expect="$2"; shift 2 ;;
     --seed) seeds+=("$2"); shift 2 ;;
+    --allow-connect) allowed+=("$2"); shift 2 ;;
+    --stub-token) stub_token=1; shift ;;
     --) shift; break ;;
     *) fsf_die "unknown option $1 (fs-forge args go after --)" ;;
   esac
@@ -56,6 +61,8 @@ case "$mode" in
     [ "$has_commit" = 0 ] || fsf_die "--commit needs --mode write with an explicitly named pre org"
     ;;
   read|write)
+    [ ${#allowed[@]} = 0 ] || fsf_die "--allow-connect is for offline drives; $mode drives log connects without blocking"
+    [ "$stub_token" = 0 ] || fsf_die "--stub-token is for offline drives; $mode drives use the real token"
     [ -n "$org" ] || fsf_die "$mode mode needs --org <org> named explicitly; there is no default"
     [ -z "$arg_org" ] || [ "$arg_org" = "$org" ] || fsf_die "the command targets --org $arg_org but the drive names $org"
     [ "$mode" = write ] || [ "$has_commit" = 0 ] || fsf_die "--commit needs --mode write"
@@ -63,12 +70,6 @@ case "$mode" in
     # which would pass as a write proof.
     [ "$mode" = read ] || [ "$has_commit" = 1 ] || fsf_die "--mode write needs --commit in the command; drive a dry run with --mode read"
     command -v gh >/dev/null 2>&1 || fsf_die "gh is required by org-snapshot.sh"
-    token="$(fsf_token)" || fsf_die "no GH_TOKEN, GITHUB_TOKEN or 'gh auth token'"
-    if [ "$mode" = write ]; then
-      # Registered pre orgs live in firestartr-pre/app-firestartr (see smoke-test-renderer).
-      gh api --hostname github.com "repos/firestartr-pre/app-firestartr/contents/kubernetes/firestartr-pre/$org" >/dev/null 2>&1 ||
-        fsf_die "write mode refused: $org is not registered under firestartr-pre/app-firestartr kubernetes/firestartr-pre/"
-    fi
     ;;
   *) fsf_die "unknown mode $mode (offline, read or write)" ;;
 esac
@@ -78,8 +79,12 @@ run="$(fsf_run_dir)" || exit 2
 seq="$(printf '%02d' "$(( $(ls "$run/evidence" | grep -c '^[0-9][0-9]*-') + 1 ))")"
 work="$run/work/$seq-$label"
 evid="$run/evidence/$seq-$label"
-mkdir -p "$work" "$evid"
+mkdir -p "$work" "$evid" "$work/.xdg/bin"
 : > "$evid/net.log"
+# The CLI falls back to `gh auth token`, and gh reads the real keychain whatever
+# XDG_CONFIG_HOME says, so the CLI gets a gh that knows no account.
+printf '#!/bin/sh\necho "drive.sh stand-in gh: not logged in" >&2\nexit 1\n' > "$work/.xdg/bin/gh"
+chmod +x "$work/.xdg/bin/gh"
 
 work_real="$(cd "$work" && pwd -P)"
 for seed in ${seeds[@]+"${seeds[@]}"}; do
@@ -116,6 +121,25 @@ for seed in ${seeds[@]+"${seeds[@]}"}; do
   cp -R "$src" "$work/$dest" || fsf_die "could not copy seed $src to $dest"
 done
 
+if [ "$mode" != offline ]; then
+  if ! (cd "$FSF_PKG" && FS_FORGE_CONFIG="$work/.xdg/config/fs-forge/config.yaml" \
+    node --input-type=module - "$org" <<'JS'
+import { contextRepos, reposForOrganization } from './dist/context/resolve.js';
+const org = process.argv[2];
+const repos = reposForOrganization(org);
+const defaults = contextRepos({ org });
+process.exit(Object.keys(defaults).every(key => repos[key] === defaults[key]) ? 0 : 1);
+JS
+  ); then
+    fsf_die "authenticated drives refuse configured repository overrides; snapshots cover only $org/claims"
+  fi
+  token="$(fsf_token)" || fsf_die "no GH_TOKEN, GITHUB_TOKEN or 'gh auth token'"
+  if [ "$mode" = write ]; then
+    gh api --hostname github.com "repos/firestartr-pre/app-firestartr/contents/kubernetes/firestartr-pre/$org" >/dev/null 2>&1 ||
+      fsf_die "write mode refused: $org is not registered under firestartr-pre/app-firestartr kubernetes/firestartr-pre/"
+  fi
+fi
+
 # sha256 of every file in the work dir, minus the isolated cache and XDG dirs.
 list_files() { (cd "$work" && find . -type f -not -path './.feature-cache/*' -not -path './.xdg/*' -exec shasum -a 256 {} + | sort -k2); }
 list_files > "$evid/files-before.txt" || fsf_die "could not fingerprint the work dir before the drive"
@@ -138,11 +162,15 @@ env_args=(
   -u GITHUB_TOKEN -u GH_TOKEN -u GITHUB_ENTERPRISE_TOKEN -u GH_ENTERPRISE_TOKEN -u FSCRT_ORG
   "FS_FORGE_FEATURE_CACHE_DIR=$work/.feature-cache"
   "XDG_CACHE_HOME=$work/.xdg/cache" "XDG_CONFIG_HOME=$work/.xdg/config" "XDG_DATA_HOME=$work/.xdg/data"
+  "FS_FORGE_CONFIG=$work/.xdg/config/fs-forge/config.yaml"
+  "PATH=$work/.xdg/bin:$PATH"
   "FSF_CANARY=$canary" "FSF_CANARY_LOG=$evid/net.log"
   "NODE_OPTIONS=--require \"$FSF_CANARY_JS\""
 )
 if [ "$mode" != offline ]; then
   env_args+=("GITHUB_TOKEN=$token" "FSCRT_ORG=$org")
+elif [ "$stub_token" = 1 ]; then
+  env_args+=("GITHUB_TOKEN=fsf-offline-stub-token")
 fi
 (cd "$work" && env "${env_args[@]}" node "$FSF_BIN" "$@" < /dev/null) > "$evid/stdout.txt" 2> "$evid/stderr.txt"
 code=$?
@@ -164,7 +192,16 @@ if [ "$mode" != offline ]; then
     fi
   fi
 fi
-if [ "$mode" = offline ] && [ -s "$evid/net.log" ]; then
+unexpected_connects() {
+  local entry
+  while IFS= read -r entry; do
+    for hp in ${allowed[@]+"${allowed[@]}"}; do
+      case "$entry" in *"\"host\":\"${hp%:*}\",\"port\":${hp##*:},"*) continue 2 ;; esac
+    done
+    printf '%s\n' "$entry"
+  done < "$evid/net.log"
+}
+if [ "$mode" = offline ] && [ -n "$(unexpected_connects)" ]; then
   verdict=FAIL reason="offline drive attempted network connects (see net.log)"; status=4
 fi
 if [ "$mode" != offline ] && [ -n "${token:-}" ]; then

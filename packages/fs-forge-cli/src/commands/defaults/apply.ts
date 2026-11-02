@@ -8,6 +8,7 @@ import {
 } from '../../claims/claimsRepo.js';
 import { applyDefaultsFromRepo } from '../../claims/defaults.js';
 import { createGitHubApi } from '../../github/index.js';
+import { resolveClaimsRepository } from '../../context/resolve.js';
 import { serializeClaim } from '../../claims/keyOrdering.js';
 import { resolveClaimReference } from '../../claims/kindRegistry.js';
 import {
@@ -62,7 +63,8 @@ export default class DefaultsApply extends Command {
       this.error('Provide either a claim reference or -f <file>, not both');
     }
 
-    const repo = claimsRepo(createGitHubApi(), org);
+    const target = resolveClaimsRepository(org);
+    const repo = claimsRepo(createGitHubApi(), target.owner, target.repo);
 
     let claim: Record<string, unknown>;
     if (flags.file) {

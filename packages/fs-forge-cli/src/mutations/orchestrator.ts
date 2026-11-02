@@ -1,5 +1,7 @@
 import { join } from 'path';
 
+import { parseStateRepos } from '../context/resolve.js';
+
 import { loadClaimsMap, resolveClaim } from '../claims/claimsRepo.js';
 import { applyDefaultsFromRepo } from '../claims/defaults.js';
 import { serializeClaim } from '../claims/keyOrdering.js';
@@ -38,7 +40,7 @@ export interface ClaimMutationOptions {
   commit?: boolean;
   noWait?: boolean;
   waitForChecks?: boolean;
-  stateRepos?: string;
+  stateRepos?: string[];
   transform?: (claim: Record<string, unknown>) => Record<string, unknown>;
   /**
    * Applies repo-level defaults after user overrides (and `transform`). Runs
@@ -178,7 +180,7 @@ export async function runClaimMutation(
         existingSha: target.existingSha,
         noWait,
         waitForChecks,
-        stateRepos,
+        stateRepos: stateRepos ?? parseStateRepos(undefined, repo.ref.owner),
       },
       {
         // The mutation output was already presented above.
