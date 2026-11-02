@@ -145,6 +145,34 @@ describe('withAuditTrail', () => {
     });
   });
 
+  it.each([
+    { pull: 'a fork', identity: { headOwner: 'someone-else' } },
+    { pull: 'another base', identity: { baseRef: 'release' } },
+  ])('opens its own PR when the branch only matches $pull', async ({ identity }) => {
+    const { api, repo, run } = open({ issue: 7 });
+    api.setPullRequests(repo.ref, [
+      {
+        number: 42,
+        htmlUrl: 'https://github.com/my-org/claims/pull/42',
+        state: 'open',
+        headRef: HEAD,
+        baseSha: BASE,
+        updatedAt: '2026-01-01T00:00:00Z',
+        body: 'Unrelated',
+        ...identity,
+      },
+    ]);
+
+    const result = await run(async (trail) => {
+      await trail.linkPullRequest({ head: HEAD, base: BASE });
+      return trail.result();
+    });
+
+    expect(api.pullBodyUpdates).toEqual([]);
+    expect(api.createdPulls).toHaveLength(1);
+    expect(result.pr?.number).not.toBe(42);
+  });
+
   it('leaves an existing footer alone', async () => {
     const { api, repo, run } = open({ issue: 7 });
     api.setPullRequests(repo.ref, [

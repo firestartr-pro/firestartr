@@ -208,13 +208,25 @@ function octokitScenario(): GitHubApi {
           },
         ),
         list: jest.fn(
-          async ({ head, page }: { head?: string; page?: number }) => {
-            octokitRequests.push(`pulls.list head=${head} page=${page}`);
+          async ({
+            head,
+            base,
+            page,
+          }: {
+            head?: string;
+            base?: string;
+            page?: number;
+          }) => {
+            octokitRequests.push(
+              `pulls.list head=${head} base=${base} page=${page}`,
+            );
             // GitHub matches `head` exactly as `owner:branch`.
             const branch = head?.split(':')[1];
-            const filtered = branch
-              ? PULLS.filter((pull) => pull.head.ref === branch)
-              : PULLS;
+            const filtered = PULLS.filter(
+              (pull) =>
+                (!branch || pull.head.ref === branch) &&
+                (!base || pull.base.ref === base),
+            );
             return { data: filtered };
           },
         ),
@@ -528,7 +540,26 @@ describe('octokit adapter request shapes', () => {
   it('lists every open pull request and filters the head prefix locally', async () => {
     const api = octokitScenario();
     await api.listOpenPullRequests(REF, 'automated');
-    expect(octokitRequests).toContain('pulls.list head=undefined page=1');
+    expect(octokitRequests).toContain(
+      'pulls.list head=undefined base=undefined page=1',
+    );
+  });
+
+  it('finds an open pull request by this repository head and base', async () => {
+    const api = octokitScenario();
+
+    const found = await api.findOpenPullRequest(REF, {
+      head: 'manual-change',
+      base: 'main',
+    });
+
+    expect(found?.number).toBe(8);
+    expect(octokitRequests).toContain(
+      'pulls.list head=example:manual-change base=main page=undefined',
+    );
+    await expect(
+      api.findOpenPullRequest(REF, { head: 'manual-change', base: 'other' }),
+    ).resolves.toBeUndefined();
   });
 
   it('reads a file through repos.getContent', async () => {

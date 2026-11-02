@@ -171,9 +171,7 @@ async function openAudit(
   const trail: AuditTrail = {
     async linkPullRequest({ head, base }) {
       if (!issue) return;
-      const existing = (await api.listOpenPullRequests(repoRef)).find(
-        (candidate) => candidate.headRef === head,
-      );
+      const existing = await api.findOpenPullRequest(repoRef, { head, base });
       if (existing) {
         const updated = closesFooter(existing.body ?? '', issue.number);
         if (updated !== existing.body) {

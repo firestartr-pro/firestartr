@@ -109,6 +109,11 @@ export interface GitHubApi {
     ref: RepoRef,
     headPrefix?: string,
   ): Promise<PullRequestSummary[]>;
+  /** The open PR from this repository's `head` branch into `base`, if any. */
+  findOpenPullRequest(
+    ref: RepoRef,
+    input: { head: string; base: string },
+  ): Promise<PullRequestSummary | undefined>;
   listPullRequestFiles(ref: RepoRef, pr: number): Promise<PullRequestFile[]>;
   getPullRequest(
     ref: RepoRef,

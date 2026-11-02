@@ -44,6 +44,12 @@ interface MemoryIssueComment {
  * In-memory `GitHubApi` for tests: imports nothing from Octokit, so tests
  * exercise the CLI in its own data shapes.
  */
+/** A PR as GitHub filters it; both identities default to matching the query. */
+type MemoryPullRequest = PullRequestSummary & {
+  headOwner?: string;
+  baseRef?: string;
+};
+
 export class MemoryGitHubApi implements GitHubApi {
   readonly calls: string[] = [];
   readonly committed: Array<{ ref: RepoRef } & CommitInput> = [];
@@ -77,7 +83,7 @@ export class MemoryGitHubApi implements GitHubApi {
     string,
     Array<WorkflowRunSummary & { event: string }>
   >();
-  private readonly pulls = new Map<string, PullRequestSummary[]>();
+  private readonly pulls = new Map<string, MemoryPullRequest[]>();
   private readonly pullFiles = new Map<string, PullRequestFile[]>();
   private readonly checkRuns = new Map<string, CheckRunSummary[]>();
   private issueNumber = 0;
@@ -115,7 +121,7 @@ export class MemoryGitHubApi implements GitHubApi {
     );
   }
 
-  setPullRequests(ref: RepoRef, pulls: PullRequestSummary[]): void {
+  setPullRequests(ref: RepoRef, pulls: MemoryPullRequest[]): void {
     this.pulls.set(this.key(ref), pulls);
   }
 
@@ -284,6 +290,19 @@ export class MemoryGitHubApi implements GitHubApi {
       : pulls;
   }
 
+  async findOpenPullRequest(
+    ref: RepoRef,
+    { head, base }: { head: string; base: string },
+  ): Promise<PullRequestSummary | undefined> {
+    this.calls.push(`findOpenPullRequest ${this.key(ref)}@${head}->${base}`);
+    return (this.pulls.get(this.key(ref)) ?? []).find(
+      (pull) =>
+        pull.headRef === head &&
+        (pull.headOwner ?? ref.owner) === ref.owner &&
+        (pull.baseRef ?? base) === base,
+    );
+  }
+
   async listPullRequestFiles(
     ref: RepoRef,
     pr: number,
@@ -334,6 +353,7 @@ export class MemoryGitHubApi implements GitHubApi {
       htmlUrl,
       state: 'open',
       headRef: input.head,
+      baseRef: input.base,
       baseSha: input.base,
       updatedAt: '',
       body: input.body,
