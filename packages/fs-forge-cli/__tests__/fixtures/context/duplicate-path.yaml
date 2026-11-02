@@ -1,0 +1,5 @@
+organizations:
+  - name: acme
+    paths:
+      - /srv/acme
+      - /srv/acme/

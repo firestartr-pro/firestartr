@@ -46,6 +46,7 @@ Each feature file starts with an H1 title and one paragraph describing the user-
 | [Validate claims](./validate-claim.md) | offline | `validate -f`: valid and invalid claims, exit codes, Feature checks against a local source |
 | [Manage Features on a claim](./features-crud.md) | offline | `features discover`, `features list/add/edit/remove --file` against a local source |
 | [Introspect the CLI](./introspection.md) | offline | `kinds`, `schema`, `--help --json`, `diagram print` |
+| [Resolve the org context](./context.md) | offline | `context`, the config path match, error codes, the `--org` fallback |
 | [Org-bound commands](./org-bound.md) | read, write | `defaults`, `discovery map/org-elements`, `preflight`, `watch-checks`, `edit`, `delete`, and every `--commit` path |
 
 Org-bound modes were exercised against a stand-in `gh` only; the first live run of `org-bound.md` is unproven.

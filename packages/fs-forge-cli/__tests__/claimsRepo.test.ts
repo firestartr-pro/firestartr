@@ -8,6 +8,7 @@ import {
 } from '../src/claims/claimsRepo';
 import { createOctokitApi } from '../src/github/octokitApi';
 import { MemoryGitHubApi } from './fixtures/memoryGitHubApi';
+import { captureEnv, contextFixture } from './fixtures/contextFixtures';
 
 import type { Octokit } from '@octokit/rest';
 
@@ -25,6 +26,26 @@ function repo(api: MemoryGitHubApi) {
   api.setBranchHeadSha(claims.ref, 'main', 'base-sha');
   return claims;
 }
+
+describe('claimsRepo', () => {
+  it('constructs the requested ref without consulting the CLI config', () => {
+    const env = captureEnv();
+    process.env.FS_FORGE_CONFIG = contextFixture('repo-overrides.yaml');
+    const api = new MemoryGitHubApi();
+    try {
+      expect(claimsRepo(api, 'acme')).toEqual({
+        api,
+        ref: { owner: 'acme', repo: 'claims' },
+      });
+      expect(claimsRepo(api, 'selected-owner', 'claims-fork')).toEqual({
+        api,
+        ref: { owner: 'selected-owner', repo: 'claims-fork' },
+      });
+    } finally {
+      env.restore();
+    }
+  });
+});
 
 describe('publishClaim', () => {
   it('creates a branch, commits the claim and dispatches provisioning', async () => {

@@ -17,7 +17,7 @@ export interface ClaimPublishRequest {
   existingSha?: string;
   noWait: boolean;
   waitForChecks: boolean;
-  stateRepos?: string;
+  stateRepos: string[];
   /** Create only: reject a claim that already exists in the claims map. */
   rejectExistingClaim?: boolean;
 }

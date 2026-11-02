@@ -1,0 +1,7 @@
+organizations:
+  - name: acme
+    paths: [/srv/acme]
+    claims_repo: shared/claims-fork
+  - name: ACME
+    paths: [/srv/other]
+    claims_repo: other/claims-fork

@@ -1,0 +1,4 @@
+organizations:
+  - name: acme/claims-fork
+    paths:
+      - /srv/acme

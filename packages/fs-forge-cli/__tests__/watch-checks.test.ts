@@ -149,6 +149,44 @@ describe('watch-checks watch mode', () => {
     expect(outcome.stderr).toContain('Some checks failed ✗');
   });
 
+  it('exits 1 and reports action_required for a stopped wet PR check', async () => {
+    const api = mockApi();
+    api.setPullRequests(STATE_REPO, [
+      pull(42, 'automated-componentclaim-my-app'),
+    ]);
+    api.setCheckRuns(STATE_REPO, 42, [checkRun('apply', 'action_required')]);
+
+    const outcome = await run(
+      'ComponentClaim-my-app', '--org', 'my-org',
+      '--state-repos', 'my-org/state-github', '--json',
+    );
+
+    expect(outcome.error?.oclif?.exit).toBe(1);
+    expect(JSON.parse(outcome.stdout)).toEqual(expect.objectContaining({
+      status: 'error', overallConclusion: 'action_required', exitCode: 1,
+    }));
+    expect(outcome.stderr).toContain('action_required');
+  });
+
+  it('exits 1 and reports stale for an abandoned wet PR check', async () => {
+    const api = mockApi();
+    api.setPullRequests(STATE_REPO, [
+      pull(42, 'automated-componentclaim-my-app'),
+    ]);
+    api.setCheckRuns(STATE_REPO, 42, [checkRun('apply', 'stale')]);
+
+    const outcome = await run(
+      'ComponentClaim-my-app', '--org', 'my-org',
+      '--state-repos', 'my-org/state-github', '--json',
+    );
+
+    expect(outcome.error?.oclif?.exit).toBe(1);
+    expect(JSON.parse(outcome.stdout)).toEqual(expect.objectContaining({
+      status: 'error', overallConclusion: 'stale', exitCode: 1,
+    }));
+    expect(outcome.stderr).toContain('stale');
+  });
+
   it(
     'returns no_checks with exit 1 immediately when the wet PR has no checks',
     async () => {
@@ -351,6 +389,37 @@ describe('watch-checks current mode', () => {
     expect(outcome.stderr).toBe('');
   });
 
+  it('shows only the exact claim’s PR when another claim name has the same prefix', async () => {
+    const api = mockApi();
+    api.setFile(STATE_REPO, 'my-app.yaml', CR_CONTENT.replace('name: state-github', 'name: my-app-cr'));
+    api.setFile(STATE_REPO, 'my-app-v2.yaml', CR_CONTENT
+      .replace('name: state-github', 'name: my-app-v2-cr')
+      .replace('ComponentClaim/my-app', 'ComponentClaim/my-app-v2')
+      .replace('state-github#100', 'state-github#200'));
+    api.setPullRequests(STATE_REPO, [
+      pull(100, 'automated-componentclaim-my-app'),
+      pull(200, 'automated-componentclaim-my-app-v2'),
+    ]);
+    api.setCheckRuns(STATE_REPO, 100, [checkRun('apply-my-app', 'success')]);
+    api.setCheckRuns(STATE_REPO, 200, [checkRun('apply-my-app-v2', 'failure')]);
+
+    const outcome = await run(
+      'ComponentClaim-my-app', '--org', 'my-org',
+      '--state-repos', 'my-org/state-github', '--current', '--json',
+    );
+
+    expect(outcome.error?.oclif?.exit).toBe(0);
+    expect(JSON.parse(outcome.stdout)).toEqual(expect.objectContaining({
+      status: 'ok',
+      crs: [expect.objectContaining({
+        name: 'my-app-cr',
+        lastStatePr: expect.objectContaining({ number: 100 }),
+        checks: [expect.objectContaining({ name: 'apply-my-app', conclusion: 'success' })],
+      })],
+    }));
+    expect(outcome.stdout).not.toContain('my-app-v2');
+  });
+
   it.each(['open', 'merged', 'closed'])(
     'preserves the exact JSON output for an existing PR in state %s',
     async (state) => {
@@ -486,6 +555,33 @@ describe('watch-checks current mode', () => {
       lookup.mockRestore();
     }
   });
+
+  it.each(['action_required', 'stale'])(
+    'exits 1 with the %s check in current JSON and table output',
+    async (conclusion) => {
+      const api = mockApi();
+      api.setFile(STATE_REPO, 'cr.yaml', CR_CONTENT);
+      api.setPullRequests(STATE_REPO, [pull(100, 'automated-componentclaim-my-app')]);
+      api.setCheckRuns(STATE_REPO, 100, [checkRun('apply', conclusion)]);
+      const args = [
+        'ComponentClaim-my-app', '--org', 'my-org',
+        '--state-repos', 'my-org/state-github', '--current',
+      ];
+
+      const table = await run(...args);
+      expect(table.error?.oclif?.exit).toBe(1);
+      expect(table.stdout).toContain(`apply: ${conclusion}`);
+
+      const json = await run(...args, '--json');
+      expect(json.error?.oclif?.exit).toBe(1);
+      expect(JSON.parse(json.stdout)).toEqual(expect.objectContaining({
+        status: 'error', exitCode: 1,
+        crs: [expect.objectContaining({
+          checks: [expect.objectContaining({ name: 'apply', conclusion })],
+        })],
+      }));
+    },
+  );
 
   it('exits 1 when the CR has no last-state-pr annotation', async () => {
     const api = mockApi();
