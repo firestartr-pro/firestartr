@@ -110,6 +110,7 @@ afterEach(() => {
 describe('--issue', () => {
   it('links the claim PR created by create --commit', async () => {
     const api = mockClient();
+    api.addIssue({ owner: 'my-org', repo: 'claims' }, 7);
 
     const { result, stdout } = await run(
       CreateComponent as unknown as CommandClass,
@@ -142,6 +143,7 @@ describe('--issue', () => {
 
   it('links the claim PR created by edit --commit', async () => {
     const api = mockClient();
+    api.addIssue({ owner: 'my-org', repo: 'claims' }, 9);
 
     const { result } = await run(
       Edit,
@@ -374,6 +376,7 @@ describe('features audit trail', () => {
     const api = new MemoryGitHubApi();
     api.autoCompleteDispatches = true;
     const repo = claimsRepo(api, 'my-org');
+    api.addIssue(repo.ref, 8);
     api.setDefaultBranch(repo.ref, 'main');
     api.setBranchHeadSha(repo.ref, 'main', 'base-sha');
     api.setFile(
@@ -475,10 +478,7 @@ describe('delete audit trail', () => {
 
   it('reopens a closed adopted issue when the dispatched delete fails', async () => {
     const api = mockClient();
-    await api.createIssue(
-      { owner: 'my-org', repo: 'claims' },
-      { title: 'Existing issue', body: '' },
-    );
+    api.addIssue({ owner: 'my-org', repo: 'claims' }, 1);
     await api.closeIssue({ owner: 'my-org', repo: 'claims' }, 1);
     api.autoCompleteConclusion = 'failure';
 

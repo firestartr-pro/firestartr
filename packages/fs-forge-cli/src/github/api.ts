@@ -141,6 +141,13 @@ export interface GitHubApi {
     ref: RepoRef,
     input: { title: string; body: string },
   ): Promise<CreatedItem>;
+  /** The issue or PR with this number, which share a numbering space, if any. */
+  getIssue(
+    ref: RepoRef,
+    issue: number,
+  ): Promise<
+    { number: number; htmlUrl: string; isPullRequest: boolean } | undefined
+  >;
   commentOnIssue(ref: RepoRef, issue: number, body: string): Promise<void>;
   closeIssue(ref: RepoRef, issue: number): Promise<void>;
   reopenIssue(ref: RepoRef, issue: number): Promise<void>;

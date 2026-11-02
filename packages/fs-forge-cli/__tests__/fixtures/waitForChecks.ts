@@ -84,10 +84,7 @@ export async function prepareAuditIssue(
   issue: string,
 ): Promise<void> {
   if (issue === 'adopted') {
-    await api.createIssue(
-      { owner: 'my-org', repo: 'claims' },
-      { title: 'Existing issue', body: '' },
-    );
+    api.addIssue({ owner: 'my-org', repo: 'claims' }, 1);
   }
 }
 

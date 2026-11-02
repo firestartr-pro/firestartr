@@ -114,11 +114,6 @@ function defaultBody(context: AuditTrailContext): string {
   ].join('\n');
 }
 
-function issueUrl(context: AuditTrailContext, issue: number): string {
-  const { owner, repo } = context.repo.ref;
-  return `https://github.com/${owner}/${repo}/issues/${issue}`;
-}
-
 /**
  * The audit trail is a convenience: bookkeeping must never turn a finished
  * mutation into an error.
@@ -136,17 +131,25 @@ async function resolveIssue(
   context: AuditTrailContext,
   options: AuditTrailOptions,
 ): Promise<{ ref?: AuditRef }> {
+  const { api, ref } = context.repo;
   if (options.issue !== undefined) {
     if (!Number.isInteger(options.issue) || options.issue <= 0) {
       throw new Error('--issue must be a positive issue number');
     }
-    return {
-      ref: { number: options.issue, url: issueUrl(context, options.issue) },
-    };
+    const target = await api.getIssue(ref, options.issue);
+    const repo = `${ref.owner}/${ref.repo}`;
+    if (!target) {
+      throw new Error(`--issue ${options.issue}: no such issue in ${repo}`);
+    }
+    if (target.isPullRequest) {
+      throw new Error(
+        `--issue ${options.issue}: it is a pull request in ${repo}, not an issue`,
+      );
+    }
+    return { ref: { number: target.number, url: target.htmlUrl } };
   }
   if (!options.createIssue) return {};
 
-  const { api, ref } = context.repo;
   const created = await api.createIssue(ref, {
     title: options.issueTitle ?? defaultTitle(context),
     body: options.issueBody ?? defaultBody(context),

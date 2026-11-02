@@ -139,6 +139,16 @@ function octokitScenario(): GitHubApi {
         ),
       },
       issues: {
+        get: jest.fn(async ({ issue_number }: { issue_number: number }) => {
+          if (issue_number === 404) throw notFound();
+          return {
+            data: {
+              number: issue_number,
+              html_url: `https://github.com/example/claims/issues/${issue_number}`,
+              ...(issue_number === 8 ? { pull_request: {} } : {}),
+            },
+          };
+        }),
         create: jest.fn(
           async ({ title, body }: { title: string; body: string }) => {
             octokitRequests.push(`issues.create ${title} | ${body}`);
@@ -621,6 +631,20 @@ describe('octokit adapter request shapes', () => {
       state: 'merged',
       merged: true,
     });
+  });
+
+  it('reads an issue, tells pull requests apart and misses on a 404', async () => {
+    const api = octokitScenario();
+
+    await expect(api.getIssue(REF, 31)).resolves.toEqual({
+      number: 31,
+      htmlUrl: 'https://github.com/example/claims/issues/31',
+      isPullRequest: false,
+    });
+    await expect(api.getIssue(REF, 8)).resolves.toMatchObject({
+      isPullRequest: true,
+    });
+    await expect(api.getIssue(REF, 404)).resolves.toBeUndefined();
   });
 
   it('sends issue and pull request writes through their REST endpoints', async () => {

@@ -13,6 +13,7 @@ const RUN_URL = 'https://github.com/my-org/claims/actions/runs/9';
 function open(options: AuditTrailOptions = {}) {
   const api = new MemoryGitHubApi();
   const repo = claimsRepo(api, 'my-org');
+  if (options.issue && options.issue > 0) api.addIssue(repo.ref, options.issue);
   const run = <T>(step: (trail: AuditTrail) => Promise<T>) =>
     withAuditTrail(
       {
@@ -59,10 +60,48 @@ describe('withAuditTrail', () => {
 
     const result = await run(async (trail) => trail.result());
 
-    expect(api.calls).toEqual([]);
+    expect(api.calls).toEqual(['getIssue my-org/claims#7']);
     expect(result).toEqual({
       issue: { number: 7, url: 'https://github.com/my-org/claims/issues/7' },
     });
+  });
+
+  it('rejects a missing --issue before the step runs', async () => {
+    const { api, run } = open({ issue: 7 });
+    api.issues.length = 0;
+    let stepped = false;
+
+    await expect(
+      run(async () => {
+        stepped = true;
+      }),
+    ).rejects.toThrow('--issue 7: no such issue in my-org/claims');
+    expect(stepped).toBe(false);
+    expect(api.issueComments).toEqual([]);
+  });
+
+  it('rejects an --issue that is a pull request before the step runs', async () => {
+    const { api, repo, run } = open({ issue: 42 });
+    api.issues.length = 0;
+    api.setPullRequests(repo.ref, [
+      {
+        number: 42,
+        htmlUrl: 'https://github.com/my-org/claims/pull/42',
+        state: 'open',
+        headRef: HEAD,
+        baseSha: BASE,
+        updatedAt: '2026-01-01T00:00:00Z',
+      },
+    ]);
+    let stepped = false;
+
+    await expect(
+      run(async () => {
+        stepped = true;
+      }),
+    ).rejects.toThrow('--issue 42: it is a pull request in my-org/claims');
+    expect(stepped).toBe(false);
+    expect(api.issueComments).toEqual([]);
   });
 
   it('rejects an --issue number that cannot exist before the step runs', async () => {
@@ -228,7 +267,6 @@ describe('withAuditTrail', () => {
 
   it('comments but does not reopen a closed adopted issue before any dispatch', async () => {
     const { api, repo, run } = open({ issue: 1 });
-    await api.createIssue(repo.ref, { title: 'Existing issue', body: '' });
     await api.closeIssue(repo.ref, 1);
 
     await expect(
@@ -261,8 +299,7 @@ describe('withAuditTrail', () => {
   });
 
   it('comments a failure on an adopted issue and leaves it open', async () => {
-    const { api, repo, run } = open({ issue: 1 });
-    await api.createIssue(repo.ref, { title: 'Existing issue', body: '' });
+    const { api, run } = open({ issue: 1 });
 
     await expect(
       run(async () => {

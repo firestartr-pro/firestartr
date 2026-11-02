@@ -293,6 +293,7 @@ describe('--org defaults to the resolved context', () => {
 
     for (const scenario of cases) {
       const api = mockClient();
+      if (!scenario.createsIssue) api.addIssue(ref, scenario.issue);
       api.setDefaultBranch(ref, 'main');
       api.setFile(ref, 'claims-map.json', JSON.stringify(CLAIMS_MAP));
       api.setFile(

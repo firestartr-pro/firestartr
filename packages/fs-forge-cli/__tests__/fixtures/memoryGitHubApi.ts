@@ -394,6 +394,35 @@ export class MemoryGitHubApi implements GitHubApi {
     return { number, htmlUrl };
   }
 
+  /** Seeds an existing issue under a fixed number. */
+  addIssue(ref: RepoRef, number: number): void {
+    this.issueNumber = Math.max(this.issueNumber, number);
+    this.issues.push({
+      number,
+      title: 'Existing issue',
+      body: '',
+      state: 'open',
+      htmlUrl: `https://github.com/${this.key(ref)}/issues/${number}`,
+    });
+  }
+
+  async getIssue(
+    ref: RepoRef,
+    issue: number,
+  ): Promise<
+    { number: number; htmlUrl: string; isPullRequest: boolean } | undefined
+  > {
+    this.calls.push(`getIssue ${this.key(ref)}#${issue}`);
+    const found = this.issues.find((candidate) => candidate.number === issue);
+    if (found) {
+      return { number: issue, htmlUrl: found.htmlUrl, isPullRequest: false };
+    }
+    const pull = (this.pulls.get(this.key(ref)) ?? []).find(
+      (candidate) => candidate.number === issue,
+    );
+    return pull && { number: issue, htmlUrl: pull.htmlUrl, isPullRequest: true };
+  }
+
   async commentOnIssue(
     ref: RepoRef,
     issue: number,

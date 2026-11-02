@@ -305,6 +305,24 @@ export function createOctokitApi(octokit: Octokit): GitHubApi {
       return { number: data.number, htmlUrl: data.html_url };
     },
 
+    async getIssue(ref, issue) {
+      try {
+        const { data } = await octokit.rest.issues.get({
+          owner: ref.owner,
+          repo: ref.repo,
+          issue_number: issue,
+        });
+        return {
+          number: data.number,
+          htmlUrl: data.html_url,
+          isPullRequest: data.pull_request !== undefined,
+        };
+      } catch (error) {
+        if (isNotFoundError(error)) return undefined;
+        throw error;
+      }
+    },
+
     async commentOnIssue(ref, issue, body) {
       await octokit.rest.issues.createComment({
         owner: ref.owner,
