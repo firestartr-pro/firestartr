@@ -62,7 +62,7 @@ PLAN FirestartrTerraformWorkspace/my-ws UPDATED: +0 ~2 -0 (/tmp/plans/Firestartr
   live apply, and may read state in the middle of one.
 - The leader-election Lease is not used.
 
-See [ADR 0012](docs/adr/0012-plan-mode-is-read-only-and-lock-free.md).
+See [ADR 0012](docs/adr/0013-plan-mode-is-read-only-and-lock-free.md).
 
 ## Apply manifests
 
