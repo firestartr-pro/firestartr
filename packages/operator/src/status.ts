@@ -33,7 +33,11 @@ export async function needsProvisioningOnCreateOrUpdate(
   const fCrLog = (cr: any) => `The item ${cr.kind}: ${cr.metadata.name}`;
 
   // NO STATUS
-  if (!('status' in cr) || !('conditions' in cr.status)) {
+  if (
+    !('status' in cr) ||
+    !('conditions' in cr.status) ||
+    cr.status.conditions.length === 0
+  ) {
     log.debug(
       `The custom resource '${cr.kind}/${cr.metadata.name}' is missing a status and any conditions.`,
     );
