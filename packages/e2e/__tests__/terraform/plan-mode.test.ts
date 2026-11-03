@@ -27,6 +27,7 @@ import {
   STRATEGIC_MERGE_PATCH_HEADERS,
 } from '../../src/k8s/constants';
 import { getPrimaryManifestResource } from '../../src/k8s/manifests';
+import { patchResourceSpecContext } from '../../src/cr-finder';
 import {
   LOCAL_RENDER_APPLY_TEST_TIMEOUT_MS,
   WAIT_FOR_CR_TIMEOUT_SECONDS,
@@ -685,16 +686,6 @@ describePlanMode('Operator plan mode', () => {
               path: '/providers/terraform/values/configmap_name',
               value: workspace.configMapName,
             },
-            {
-              op: 'replace',
-              path: '/providers/terraform/context/providers/0/name',
-              value: PROVIDER_CONFIG_NAMES.provider,
-            },
-            {
-              op: 'replace',
-              path: '/providers/terraform/context/backend/name',
-              value: PROVIDER_CONFIG_NAMES.backend,
-            },
           ],
         });
 
@@ -705,10 +696,29 @@ describePlanMode('Operator plan mode', () => {
           );
         }
 
+        await patchResourceSpecContext(crPath, {
+          backend: { ref: PROVIDER_CONFIG_NAMES.backend },
+          providers: [{ ref: PROVIDER_CONFIG_NAMES.provider }],
+        });
+
         const resource = await getPrimaryManifestResource(crPath);
         if (!resource.metadata?.name) {
           throw new Error(`Missing name for rendered ${workspace.claimName}`);
         }
+        const resourceContext = (
+          resource.spec as {
+            context?: {
+              providers?: Array<{ ref: string }>;
+              backend?: { ref: string };
+            };
+          }
+        )?.context;
+        expect(resourceContext?.providers).toEqual([
+          { ref: PROVIDER_CONFIG_NAMES.provider },
+        ]);
+        expect(resourceContext?.backend).toEqual({
+          ref: PROVIDER_CONFIG_NAMES.backend,
+        });
 
         workspace.crPath = crPath;
         workspace.crName = resource.metadata.name;

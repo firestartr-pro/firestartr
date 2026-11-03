@@ -19,7 +19,12 @@ jest.mock('../src/ctl', () => ({
   getItemByItemPath: jest.fn(),
 }));
 
-import { retry, removeFromRetry, getMaxRetry } from '../src/retry';
+import {
+  retry,
+  retryNow,
+  removeFromRetry,
+  getMaxRetry,
+} from '../src/retry';
 
 const SET_ITEM_PATH = '/path/item';
 
@@ -116,6 +121,16 @@ describe('retry', () => {
 
         removeFromRetry(SET_ITEM_PATH);
       }
+    });
+
+    it('does not charge a budget-free requeue as a retry attempt', () => {
+      process.env.OPERATOR_NEXT_RETRY_MS = '10';
+      process.env.OPERATOR_MAX_RETRY = '1';
+
+      retryNow(SET_ITEM_PATH);
+
+      expect(retry(SET_ITEM_PATH)).toBe(true);
+      expect(setTimeoutSpy.mock.calls[0][1]).toBe(10);
     });
   });
 });

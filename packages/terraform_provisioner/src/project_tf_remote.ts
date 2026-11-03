@@ -104,7 +104,7 @@ export class TFProjectManagerRemote {
 
     this.writerTerraform = new WriterTerraform(
       ctx.requiredProviders,
-      ctx.backend,
+      ctx.readOnlyState ? undefined : ctx.backend,
       ctx.tfStateKey,
       false,
     );
@@ -288,6 +288,7 @@ export class TFProjectManagerRemote {
       this.secrets,
       undefined,
       this.ctl,
+      !this.ctx?.readOnlyState,
     );
   }
 

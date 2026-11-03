@@ -153,10 +153,13 @@ export async function initFromModule(
   secrets: any[],
   stream?: PassThrough,
   ctl?: ProcessHandler,
+  initializeBackend = true,
 ) {
   return tfExec(
     path,
-    ['init', `-from-module=${source}`],
+    ['init', `-from-module=${source}`].concat(
+      initializeBackend ? [] : ['-backend=false'],
+    ),
     secrets,
     [],
     stream,

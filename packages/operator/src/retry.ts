@@ -137,7 +137,7 @@ export function retryNow(itemPath: string) {
     retryWatchers[itemPath] = {
       itemPath,
       retry: false,
-      retryCounter: 0,
+      retryCounter: -1,
       nextRetry: null,
       nextRetryAt: null,
     };

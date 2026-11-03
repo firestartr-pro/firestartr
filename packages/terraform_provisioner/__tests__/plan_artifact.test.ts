@@ -3,7 +3,12 @@ import * as fs from 'fs';
 import * as os from 'os';
 import * as path from 'path';
 import { PassThrough } from 'stream';
-import { planArtifact, PLAN_ARTIFACT_FILE } from '../src/utils';
+import {
+  initFromModule,
+  planArtifact,
+  PLAN_ARTIFACT_FILE,
+} from '../src/utils';
+import { TFProjectManagerRemote } from '../src/project_tf_remote';
 import log from '../src/logger';
 
 jest.mock('child_process', () => ({
@@ -68,6 +73,29 @@ describe('planArtifact', () => {
 
   afterEach(() => {
     fs.rmSync(workspace, { recursive: true, force: true });
+  });
+
+  it('can acquire a module without initializing its backend', async () => {
+    const manager = new TFProjectManagerRemote({
+      projectPath: workspace,
+      secrets: [],
+      requiredProviders: [],
+      backend: { kubernetes: { config: { namespace: 'states' } } },
+      tfStateKey: 'ws-key',
+      module: 'example/module',
+      readOnlyState: { readKubernetesSecret: async () => null },
+    });
+
+    await manager.__initFromModule();
+
+    expect(tofuArgsOfCall(0)).toEqual([
+      'init',
+      '-from-module=example/module',
+      '-backend=false',
+    ]);
+    expect(await manager.writerTerraform.render()).not.toContain(
+      'backend "kubernetes"',
+    );
   });
 
   it('makes the workspace and the plan file owner-only before planning', async () => {
