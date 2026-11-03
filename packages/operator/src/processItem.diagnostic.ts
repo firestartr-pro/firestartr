@@ -14,7 +14,7 @@ import {
 import { getDiagnosticErrorCount } from './diagnosticErrors';
 
 const DIAGNOSTIC_FILE = '/tmp/diagnostic';
-const DEFAULT_DIAGNOSTIC_INTERVAL_SECONDS = 30;
+const DEFAULT_DIAGNOSTIC_INTERVAL_SECONDS = 10;
 // setTimeout/setInterval clamp any delay above 2^31-1 ms to 1 ms, which would
 // turn a large configured interval into a tight write loop.
 const MAX_DIAGNOSTIC_INTERVAL_SECONDS = Math.floor((2 ** 31 - 1) / 1000);
@@ -188,7 +188,8 @@ async function writeDiagnosticSnapshot(
   const registeredPlurals = new Set<string>();
   try {
     const monitors = (global as any).__crdMonitors as
-      Map<string, any> | undefined;
+      | Map<string, any>
+      | undefined;
     if (monitors && typeof monitors === 'object') {
       for (const [key, monitor] of monitors) {
         // key shape is namespace/plural (reflector uses `${namespace}/${plural}`)

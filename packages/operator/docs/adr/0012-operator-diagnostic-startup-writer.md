@@ -39,15 +39,17 @@ Decisions taken together with the move:
    **Removal condition:** delete that call once the startup wiring has shipped;
    because the starter is idempotent, removing it is behaviour-free.
 
-3. **Configurable interval, default 30 seconds.** `OPERATOR_DIAGNOSTIC_INTERVAL_SECONDS`
-   tunes the tick; absent or unusable values fall back to 30. "Unusable"
+3. **Configurable interval, default 10 seconds.** `OPERATOR_DIAGNOSTIC_INTERVAL_SECONDS`
+   tunes the tick; absent or unusable values fall back to 10. "Unusable"
    includes anything above `floor((2^31-1)/1000)` seconds, because
    `setInterval` clamps a larger delay to 1 ms and a misconfigured 30-day
-   interval would become a tight write loop. The default moved from 10 to 30
-   seconds to keep I/O conservative: the e2e collector reads the file every 15
-   seconds and tolerates a repeated snapshot, and the in-memory Prometheus
-   endpoint remains the live signal. `DISABLE_DIAGNOSTIC_FILE` still turns the
-   writer off entirely, checked once at start.
+   interval would become a tight write loop. The default stays at the
+   10-second interval ADR 0002 documented, so existing readers (the e2e
+   collector and `watch cat /tmp/diagnostic`) keep seeing a snapshot as fresh as
+   before: this ADR changes when the writer starts, not how often it runs.
+   Deployments that prefer lighter I/O can raise the interval through the
+   variable. `DISABLE_DIAGNOSTIC_FILE` still turns the writer off entirely,
+   checked once at start.
 
 4. **Best-effort failure handling.** Both a rejected write and a throwing
    snapshot source are logged and retried on the next tick: the source is read

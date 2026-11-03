@@ -65,8 +65,8 @@ function lastWrittenDocument(): string {
 }
 
 describe('getDiagnosticIntervalSeconds', () => {
-  it('defaults to 30 seconds when the interval is not configured', () => {
-    expect(getDiagnosticIntervalSeconds({})).toBe(30);
+  it('defaults to 10 seconds when the interval is not configured', () => {
+    expect(getDiagnosticIntervalSeconds({})).toBe(10);
   });
 
   it('returns the configured interval in seconds', () => {
@@ -83,7 +83,7 @@ describe('getDiagnosticIntervalSeconds', () => {
         getDiagnosticIntervalSeconds({
           OPERATOR_DIAGNOSTIC_INTERVAL_SECONDS: raw,
         }),
-      ).toBe(30);
+      ).toBe(10);
     }
   });
 
@@ -93,12 +93,12 @@ describe('getDiagnosticIntervalSeconds', () => {
       getDiagnosticIntervalSeconds({
         OPERATOR_DIAGNOSTIC_INTERVAL_SECONDS: '2592000',
       }),
-    ).toBe(30);
+    ).toBe(10);
     expect(
       getDiagnosticIntervalSeconds({
         OPERATOR_DIAGNOSTIC_INTERVAL_SECONDS: '2147484',
       }),
-    ).toBe(30);
+    ).toBe(10);
     expect(
       getDiagnosticIntervalSeconds({
         OPERATOR_DIAGNOSTIC_INTERVAL_SECONDS: '2147483',
@@ -166,10 +166,10 @@ describe('startDiagnosticFile', () => {
     expect(fs.writeFile).toHaveBeenCalledTimes(3);
   });
 
-  it('defaults to a 30 second interval', async () => {
+  it('defaults to a 10 second interval', async () => {
     startDiagnosticFile(emptySnapshot, 1, {});
 
-    await jest.advanceTimersByTimeAsync(29_999);
+    await jest.advanceTimersByTimeAsync(9_999);
     expect(fs.writeFile).toHaveBeenCalledTimes(1);
 
     await jest.advanceTimersByTimeAsync(1);
@@ -214,7 +214,7 @@ describe('startDiagnosticFile', () => {
 
     expect(() => startDiagnosticFile(source, 1, {})).not.toThrow();
 
-    await jest.advanceTimersByTimeAsync(30_000);
+    await jest.advanceTimersByTimeAsync(10_000);
 
     expect(log.error).toHaveBeenCalledWith(
       expect.stringContaining('snapshot seam exploded'),
@@ -231,7 +231,7 @@ describe('startDiagnosticFile', () => {
 
     startDiagnosticFile(emptySnapshot, 1, {});
 
-    await jest.advanceTimersByTimeAsync(30_000);
+    await jest.advanceTimersByTimeAsync(10_000);
 
     expect(log.error).toHaveBeenCalledWith(
       expect.stringContaining('read-only file system'),
@@ -243,7 +243,7 @@ describe('startDiagnosticFile', () => {
     startDiagnosticFile(emptySnapshot, 1, {});
     const second = startDiagnosticFile(emptySnapshot, 1, {});
 
-    await jest.advanceTimersByTimeAsync(30_000);
+    await jest.advanceTimersByTimeAsync(10_000);
 
     expect(second).toBe(false);
     expect(fs.writeFile).toHaveBeenCalledTimes(2);
@@ -314,7 +314,7 @@ describe('startDiagnosticFile', () => {
       ['default/dummycrs', { isStarted: () => false }],
     ]);
 
-    await jest.advanceTimersByTimeAsync(30_000);
+    await jest.advanceTimersByTimeAsync(10_000);
 
     // Not missing any more (the monitor stopped), but never observed either:
     // no informer was attached, so the kind needs an operator restart.
