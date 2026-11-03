@@ -15,7 +15,10 @@ import {
   type StatusCodeError,
 } from '../../src/errors/status-code';
 import { createKubeConfigProvider } from '../../src/k8s/config';
-import { STRATEGIC_MERGE_PATCH_HEADERS } from '../../src/k8s/constants';
+import {
+  JSON_PATCH_HEADERS,
+  STRATEGIC_MERGE_PATCH_HEADERS,
+} from '../../src/k8s/constants';
 import { getPrimaryManifestResource } from '../../src/k8s/manifests';
 import {
   LOCAL_RENDER_APPLY_TEST_TIMEOUT_MS,
@@ -97,24 +100,6 @@ async function findOperatorDeploymentName(
   throw new Error('firestartr controller deployment not found');
 }
 
-async function readOperatorContainer(
-  appsApi: k8s.AppsV1Api,
-  name: string,
-  namespace: string,
-): Promise<k8s.V1Container> {
-  const deployment = await appsApi.readNamespacedDeployment({
-    name,
-    namespace,
-  });
-  const container = deployment.spec?.template?.spec?.containers?.[0];
-
-  if (!container) {
-    throw new Error(`No operator container found in deployment ${name}`);
-  }
-
-  return container;
-}
-
 async function captureDeployment(
   appsApi: k8s.AppsV1Api,
   name: string,
@@ -142,23 +127,21 @@ async function replaceDeploymentEnv(
   namespace: string,
   env: k8s.V1EnvVar[],
 ): Promise<void> {
-  const container = await readOperatorContainer(appsApi, name, namespace);
-
+  // Strategic merge merges env entries by name, so it never removes an entry
+  // such as OPERATOR_PLAN_MODE. Replace the whole env array instead.
   await appsApi.patchNamespacedDeployment(
     {
       name,
       namespace,
-      body: {
-        spec: {
-          template: {
-            spec: {
-              containers: [{ name: container.name, env }],
-            },
-          },
+      body: [
+        {
+          op: 'add',
+          path: '/spec/template/spec/containers/0/env',
+          value: env,
         },
-      },
+      ],
     },
-    STRATEGIC_MERGE_PATCH_HEADERS,
+    JSON_PATCH_HEADERS,
   );
 }
 
@@ -638,6 +621,16 @@ describePlanMode('Operator plan mode', () => {
     async () => {
       await stopOperator();
       await startOperatorWithEnv(originalDeployment.env);
+
+      await waitForOperatorLog(
+        coreApi,
+        namespace,
+        (logs) =>
+          logs.includes('started the operator with options') &&
+          !logs.includes(PLAN_STARTUP_FRAGMENT),
+        'the live operator to start without Plan mode',
+      );
+
       operatorIsLive = true;
     },
     LOCAL_RENDER_APPLY_TEST_TIMEOUT_MS,
