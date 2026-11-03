@@ -16,12 +16,76 @@ jest.mock("../src/logger", () => ({
 }));
 
 import { getItemByItemPath, writeStatus } from "../src/ctl";
-import { updateRetryStatusInCR } from "../src/status";
+import {
+  needsProvisioningOnCreateOrUpdate,
+  upsertInitialStatus,
+  updateRetryStatusInCR,
+} from "../src/status";
 
 const getItemByItemPathMock = getItemByItemPath as jest.MockedFunction<
   typeof getItemByItemPath
 >;
 const writeStatusMock = writeStatus as jest.MockedFunction<typeof writeStatus>;
+
+describe("initial provisioning after restart", () => {
+  beforeEach(() => {
+    jest.resetAllMocks();
+  });
+
+  it.each([undefined, {}, { conditions: [] }])(
+    "requires creation for unprocessed status %p",
+    async (status) => {
+      const cr = {
+        kind: "FirestartrGithubRepository",
+        metadata: { name: "repo-a", namespace: "dev", generation: 1 },
+        ...(status === undefined ? {} : { status }),
+      };
+
+      await expect(needsProvisioningOnCreateOrUpdate(cr)).resolves.toEqual({
+        needs: true,
+        reason: "CREATED",
+      });
+    },
+  );
+
+  it("recovers never-started CRs from persisted initial status", async () => {
+    for (const name of ["repo-2", "repo-3"]) {
+      const cr = {
+        kind: "FirestartrGithubRepository",
+        metadata: { name, namespace: "dev", generation: 1 },
+      };
+      let persisted: any;
+      getItemByItemPathMock.mockResolvedValue(cr);
+      writeStatusMock.mockImplementation(async (_kind, _namespace, item) => {
+        persisted = JSON.parse(JSON.stringify(item));
+        return {};
+      });
+
+      // The informer initializes status before queueing work. Simulate a
+      // restart before that work runs by rediscovering only persisted state.
+      await upsertInitialStatus("githubrepositories", "dev", cr);
+      expect(persisted.status.conditions).toEqual([]);
+      await expect(
+        needsProvisioningOnCreateOrUpdate(persisted),
+      ).resolves.toEqual({ needs: true, reason: "CREATED" });
+    }
+  });
+
+  it.each([
+    { type: "PROVISIONED", status: "True", observedGeneration: 1 },
+    { type: "ERROR", status: "True" },
+    { type: "DELETED", status: "True", observedGeneration: 1 },
+    { type: "SYNCHRONIZED", status: "False" },
+  ])("preserves existing decisions for nonempty conditions: %p", async (condition) => {
+    await expect(
+      needsProvisioningOnCreateOrUpdate({
+        kind: "FirestartrGithubRepository",
+        metadata: { name: "repo-a", generation: 1 },
+        status: { conditions: [condition] },
+      }),
+    ).resolves.toEqual({ needs: false });
+  });
+});
 
 describe("updateRetryStatusInCR", () => {
   beforeEach(() => {
