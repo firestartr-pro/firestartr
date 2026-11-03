@@ -4,7 +4,12 @@ import { dummy } from './dummy';
 
 import { processFirestartrDummies } from './fdummies';
 
-import { processItem } from './src/processItem';
+import {
+  processItem,
+  getMaxSlots,
+  getOperatorQueueSnapshot,
+} from './src/processItem';
+import { startDiagnosticFile } from './src/processItem.diagnostic';
 import { processOperation as processOperationTerraform } from './src/tfworkspaces/process-operation';
 
 import { configureTFMMirrors } from './src/tfm_mirrors';
@@ -85,6 +90,10 @@ export function runOperator(opts: any) {
   if (importModeSkipPlan) importModeSkipPlanActive = importModeSkipPlan;
 
   initActivityLog();
+
+  // Start the /tmp/diagnostic flight recorder before any work arrives so the
+  // file exists right after startup, independently of the processor loop.
+  startDiagnosticFile(getOperatorQueueSnapshot, getMaxSlots());
 
   log.info(`started the operator with options ${JSON.stringify(opts)}`);
 
