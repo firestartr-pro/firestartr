@@ -156,8 +156,8 @@ pushes `claims-map.json` to the `claims-index` branch.
 
 **Provision workflow**:
 The GitHub Actions workflow at `.github/workflows/provision-claim.yaml` in the
-claims repo. Triggered by `workflow_dispatch`; opens a PR for the branch,
-runs verify, merges, dispatches hydration, and merges the wet PR. Takes
+claims repo. Triggered by `workflow_dispatch`; opens (or reuses) a PR for the
+branch, runs verify, merges, dispatches hydration, and merges the wet PR. Takes
 `claimType`, `claimName`, and optional `correlationId` as inputs.
 
 **Deterministic path**:
@@ -173,6 +173,17 @@ The mechanisms by which fs-forge reads from and writes to a claims repo:
 (create branch → commit claim → dispatch provision workflow), and
 **get defaults** (fetch `claims_defaults.yaml` for additive default application).
 Implemented by `src/claims/claimsRepo.ts` over the GitHub port.
+
+**Claim PR**:
+The pull request on branch `fs-forge/<Kind>-<name>` in the claims repo that
+carries a claim to the default branch. Opened by the Provision workflow, or
+reused when the CLI opened it for an audit issue. Defined in
+`src/claims/claimsRepo.ts`.
+
+**Audit issue**:
+The claims-repo issue recording one committed claim operation: adopted with
+`--issue <N>`, or opened from a built-in template by `--create-issue`. Defined
+in `src/mutations/auditIssue.ts`.
 
 **GitHub port**:
 The `src/github/api.ts` interface describing the GitHub operations fs-forge

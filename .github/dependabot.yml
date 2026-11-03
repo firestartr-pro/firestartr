@@ -17,6 +17,12 @@ updates:
       interval: "daily"
     versioning-strategy: increase
     open-pull-requests-limit: 30
+    # Dev dependencies use chore(deps), which release-please hides. Runtime and
+    # critical bumps use fix(deps) so they release. The skill squash subject
+    # follows levels.yaml and overrides this when they disagree.
+    commit-message:
+      prefix: fix
+      prefix-development: chore
     # Ignore these dependencies to allow manual review of possible errors and conflicts
     ignore:
       - dependency-name: "uuid"

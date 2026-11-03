@@ -105,6 +105,20 @@ jobs:
         run: |
           git diff --quiet --exit-code src/commands/
 
+  handle-dependabot-pr-tests:
+    runs-on: ubuntu-24.04
+    steps:
+      - name: Checkout repo
+        uses: actions/checkout@v7
+
+      - name: Setup node
+        uses: actions/setup-node@v7
+        with:
+          node-version: "24"
+
+      - name: Test the Dependabot triage script
+        run: node --test '.agents/skills/handle-dependabot-pr/scripts/*.test.mjs'
+
   unit-tests:
     runs-on: ubuntu-24.04
     strategy:
