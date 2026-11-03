@@ -17,6 +17,7 @@ import {
 } from '../src/plan-mode/work-items';
 import { updateSyncTransition } from '../src/status';
 import {
+  clearPlanSyncShadow,
   createWatcherForItem,
   destroyWatcherForItem,
   getSyncStatus,
@@ -78,6 +79,39 @@ describe('Plan mode synchronization', () => {
     );
 
     await destroyWatcherForItem(watcher);
+  });
+
+  it('forgets the in-memory sync of a deleted or recreated CR', async () => {
+    const original = {
+      ...overdueHourlyCr,
+      metadata: { ...overdueHourlyCr.metadata, uid: 'uid-1' },
+    };
+    const recreated = {
+      ...overdueHourlyCr,
+      metadata: { ...overdueHourlyCr.metadata, uid: 'uid-2' },
+    };
+
+    jest.mocked(getItemByItemPath).mockResolvedValue(original);
+
+    await setSyncStatus(ITEM_PATH, 'SYNC', 'True', 'Plan process finished');
+
+    expect((await getSyncStatus(ITEM_PATH, original)).intervalLapsed).toBe(
+      false,
+    );
+    expect((await getSyncStatus(ITEM_PATH, recreated)).intervalLapsed).toBe(
+      true,
+    );
+    expect((await getSyncStatus(ITEM_PATH, original)).intervalLapsed).toBe(
+      true,
+    );
+
+    await setSyncStatus(ITEM_PATH, 'SYNC', 'True', 'Plan process finished');
+
+    clearPlanSyncShadow(ITEM_PATH);
+
+    expect((await getSyncStatus(ITEM_PATH, original)).intervalLapsed).toBe(
+      true,
+    );
   });
 
   it('keeps an overdue sync due when startup only writes a NOTHING artifact', async () => {

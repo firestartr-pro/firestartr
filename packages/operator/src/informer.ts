@@ -39,6 +39,11 @@ import { logActivity } from './activity-log';
 import { isPlanMode } from './plan-mode/config';
 import { planStartupOperation } from './plan-mode/startup';
 import { planRecordsSync, planRetryOperation } from './plan-mode/work-items';
+import {
+  cancelDependencyWait,
+  DependencyState,
+  waitForDependencies,
+} from './plan-mode/dependency-wait';
 import { needsDeletionBlocking } from './dependants';
 
 import { OperationType, WorkStatus } from './definitions';
@@ -308,8 +313,10 @@ function enqueue(
   workItem.isDeadLetter = false;
 
   // Plan mode: whether the plan in flight reported a failure to the retry
-  // controller, which then owns the next attempt
+  // controller, which then owns the next attempt, and whether that failure
+  // exhausted the retry budget
   let planFailed = false;
+  let planRetriesExhausted = false;
 
   workItem.handler = {
     finalize: unsetFinalizer,
@@ -376,7 +383,13 @@ function enqueue(
     error: () => {
       planFailed = true;
 
-      return retryCtl.errorReconciling(itemPath(pluralKind, workItem.item));
+      const retryScheduled = retryCtl.errorReconciling(
+        itemPath(pluralKind, workItem.item),
+      );
+
+      planRetriesExhausted = retryScheduled === false;
+
+      return retryScheduled;
     },
 
     success: () =>
@@ -384,6 +397,29 @@ function enqueue(
 
     removeFromRetry: () =>
       retryCtl.successReconciling(itemPath(pluralKind, workItem.item)),
+
+    waitForDependencies: (dependenciesReady: () => Promise<boolean>) => {
+      const path = itemPath(pluralKind, workItem.item);
+
+      waitForDependencies(
+        path,
+        async (): Promise<DependencyState> => {
+          try {
+            await workItem.getItem();
+          } catch (e: any) {
+            if (/: Not Found$/.test(String(e?.message ?? e))) return 'gone';
+
+            throw e;
+          }
+
+          return (await dependenciesReady()) ? 'ready' : 'waiting';
+        },
+        () => retryCtl.requeueReconciling(path),
+      );
+    },
+
+    cancelDependencyWait: () =>
+      cancelDependencyWait(itemPath(pluralKind, workItem.item)),
 
     recommendedTimeout: () => {
       const customTimeoutAnnotation = common.generic.getFirestartrAnnotation(
@@ -441,22 +477,50 @@ function enqueue(
   ) {
     if (isPlanMode()) {
       planFailed = false;
+      planRetriesExhausted = false;
 
-      // A failed plan must not rearm periodic sync: a new SYNC would clear
-      // the pending retry and reset its budget, bypassing backoff and the
-      // retry limit. The sync is rearmed when a later plan succeeds.
-      const suspendSync = () => syncCtl.deleteItem(itemPath(pluralKind, item));
+      // A failed plan must not rearm periodic sync while its retry is
+      // pending: a new SYNC would clear the pending retry and reset its
+      // budget, bypassing backoff and the retry limit. The sync is rearmed
+      // when a later plan succeeds, or at the next configured interval once
+      // the retry controller gives up.
+      const afterFailedPlan = async () => {
+        if (!planRetriesExhausted || !planRecordsSync(operation, item)) {
+          syncCtl.deleteItem(itemPath(pluralKind, item));
+
+          return;
+        }
+
+        try {
+          await setSyncStatus(
+            workItem.handler.itemPath(),
+            operation,
+            'False',
+            'Plan process failed and its retries are exhausted',
+          );
+        } catch (e) {
+          log.error(
+            `Failed to resume synchronization for ${workItem.handler.itemPath()}: ${e}`,
+          );
+
+          syncCtl.deleteItem(itemPath(pluralKind, item));
+
+          return;
+        }
+
+        void syncCtl.updateItem(itemPath(pluralKind, item));
+      };
 
       try {
         yield* compute(item, operation, handler);
       } catch (e) {
-        suspendSync();
+        await afterFailedPlan();
 
         throw e;
       }
 
       if (planFailed) {
-        suspendSync();
+        await afterFailedPlan();
 
         return;
       }

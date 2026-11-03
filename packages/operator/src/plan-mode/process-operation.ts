@@ -2,8 +2,9 @@ import common from 'catalog_common';
 import ghProvisioner from 'gh_provisioner';
 import * as path from 'path';
 import { runTerraformProvisioner } from 'terraform_provisioner';
-import type { PlanArtifact } from 'terraform_provisioner';
+import type { PlanArtifact, ReadOnlyStateSource } from 'terraform_provisioner';
 
+import { getSecret } from '../ctl';
 import { OperationType, WorkItem } from '../definitions';
 import { deletionWaitsForDependants } from '../dependants';
 import log from '../logger';
@@ -31,6 +32,15 @@ import {
 
 const TF_CACHES_PATH = '/tmp/tfcaches';
 
+/**
+ * Plans read the live Terraform state from a snapshot of its backend secret,
+ * never through the backend: OpenTofu would lock it and write an empty state
+ * for a workspace that has none yet.
+ */
+const readOnlyState: ReadOnlyStateSource = {
+  readKubernetesSecret: (namespace, name) => getSecret(namespace, name),
+};
+
 export type PlanDecision =
   { plan: 'plan' | 'plan-destroy' } | { nothing: true } | { skip: string };
 
@@ -40,6 +50,13 @@ type Planner = (
   destroy: boolean,
   decision: PlanDecision,
 ) => Promise<PlanArtifact>;
+
+/** Resolves what a plan needs, throwing ResolverError when it is missing. */
+type DependencyResolver = (
+  item: any,
+  handler: any,
+  destroy: boolean,
+) => Promise<any>;
 
 function annotation(item: any, name: string): string | undefined {
   return item.metadata?.annotations?.[name] || undefined;
@@ -156,6 +173,11 @@ function processCtl(item: any, handler: any, planDecision: PlanDecision) {
   };
 }
 
+const resolveTerraformDependencies: DependencyResolver = async (
+  _item,
+  handler,
+) => await handler.resolveReferences();
+
 const planTerraformWorkspace: Planner = async (
   item,
   handler,
@@ -164,11 +186,11 @@ const planTerraformWorkspace: Planner = async (
 ) => {
   const sessionId = generateSessionId();
 
-  const deps = await handler.resolveReferences();
+  const deps = await resolveTerraformDependencies(item, handler, destroy);
 
   try {
     return await runTerraformProvisioner(
-      buildProvisionerContext(item, deps, sessionId),
+      { ...buildProvisionerContext(item, deps, sessionId), readOnlyState },
       destroy ? 'plan-destroy-artifact' : 'plan-artifact',
       null,
       undefined,
@@ -195,11 +217,10 @@ function assertParentProvisioned(item: any, deps: any) {
   if (!isProvisioned(deps[key]?.cr)) throw new ResolverError(key);
 }
 
-const planGithubResource: Planner = async (
+const resolveGithubDependencies: DependencyResolver = async (
   item,
   handler,
   destroy,
-  decision,
 ) => {
   const deps = await handler.resolveReferences();
 
@@ -209,10 +230,22 @@ const planGithubResource: Planner = async (
     deps['self-outputs'] = { cr: await handler.resolveOwnOutputs() };
   }
 
+  return deps;
+};
+
+const planGithubResource: Planner = async (
+  item,
+  handler,
+  destroy,
+  decision,
+) => {
+  const deps = await resolveGithubDependencies(item, handler, destroy);
+
   return await ghProvisioner.runGhProvisioner(
     { mainCr: item, deps },
     {
       planArtifact: true,
+      readOnlyState,
       ...(destroy ? { planDestroy: true } : { plan: true }),
       ctl: processCtl(item, handler, decision),
     },
@@ -256,8 +289,14 @@ async function* planOperation(
   handler: any,
   decision: PlanDecision,
   planner: Planner,
+  resolveDependencies: DependencyResolver,
 ) {
   let result: PlanResult;
+
+  let missingDependency = false;
+
+  // This plan supersedes any wait for the dependencies of an earlier one
+  if (handler.cancelDependencyWait) handler.cancelDependencyWait();
 
   // A new reconciliation starts with a fresh retry budget; only RETRY and
   // RETRY_SYNC continue the one the earlier failure opened
@@ -295,13 +334,14 @@ async function* planOperation(
         json: artifact.json,
       };
     } catch (e: any) {
-      result =
-        e instanceof ResolverError && isMissingDependency(e)
-          ? { status: 'SKIPPED', reason: missingParent(e) }
-          : {
-              status: 'ERROR',
-              reason: extractErrorDetails(e).output || String(e),
-            };
+      missingDependency = e instanceof ResolverError && isMissingDependency(e);
+
+      result = missingDependency
+        ? { status: 'SKIPPED', reason: missingParent(e) }
+        : {
+            status: 'ERROR',
+            reason: extractErrorDetails(e).output || String(e),
+          };
     }
   }
 
@@ -341,6 +381,22 @@ async function* planOperation(
     handler.success();
   }
 
+  // Nothing requeues this CR when its dependency becomes available (a parent
+  // only changes its status), so keep checking for it in memory
+  if (missingDependency && handler.waitForDependencies) {
+    const destroy = 'plan' in decision && decision.plan === 'plan-destroy';
+
+    handler.waitForDependencies(async () => {
+      try {
+        await resolveDependencies(item, handler, destroy);
+      } catch (e) {
+        if (e instanceof ResolverError && isMissingDependency(e)) return false;
+      }
+
+      return true;
+    });
+  }
+
   yield* [];
 }
 
@@ -355,6 +411,7 @@ export function planTerraformOperation(
     handler,
     decideTerraformPlan(item, op),
     planTerraformWorkspace,
+    resolveTerraformDependencies,
   );
 }
 
@@ -369,6 +426,7 @@ export function planGithubOperation(
     handler,
     decideGithubPlan(item, op),
     planGithubResource,
+    resolveGithubDependencies,
   );
 }
 
@@ -383,5 +441,6 @@ export function planUnsupportedOperation(
     handler,
     { skip: `kind ${item.kind} has no plan support` },
     planGithubResource,
+    resolveGithubDependencies,
   );
 }

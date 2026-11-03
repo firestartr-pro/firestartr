@@ -8,6 +8,8 @@ import common from 'catalog_common';
 
 import log from './logger';
 
+import { assertWriteAllowed } from './plan-mode/write-gateway';
+
 export async function getOwnerReferences(item: any): Promise<OwnerReference[]> {
   return item.metadata?.ownerReferences || [];
 }
@@ -71,6 +73,10 @@ export async function writeOwnerReferences(
   item: any,
   ownerReferences: OwnerReference[],
 ) {
+  assertWriteAllowed(
+    `ownerReferences on ${namespace}/${kind}/${item.metadata.name}`,
+  );
+
   log.debug(
     `The ctl is setting the ownerReferences for '${kind}/${item.metadata.name}' in namespace '${namespace}'.`,
   );

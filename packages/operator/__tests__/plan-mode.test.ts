@@ -58,6 +58,7 @@ import {
   writePlanInGithubPR,
   writeStatus,
 } from '../src/ctl';
+import { writeOwnerReferences } from '../src/ownership';
 import { GHCheckRun } from '../src/user-feedback-ops/gh-checkrun';
 import { TFCheckRun } from '../src/user-feedback-ops/tf-checkrun';
 import {
@@ -186,6 +187,9 @@ describe('Plan mode: Terraform workspaces', () => {
 
     expect(transitions).toEqual([]);
     expect(tfCommands()).toEqual([command, 'tear-up-project']);
+    expect(mockTf.mock.calls[0][0].readOnlyState).toEqual({
+      readKubernetesSecret: expect.any(Function),
+    });
     expect(tfCommands()).not.toContain('apply');
     expect(tfCommands()).not.toContain('destroy');
 
@@ -329,6 +333,51 @@ describe('Plan mode: Terraform workspaces', () => {
       '- Result: SKIPPED (parent FirestartrTerraformWorkspace/parent-ws not provisioned)',
     );
     expect(h.error).not.toHaveBeenCalled();
+  });
+
+  it('keeps checking a missing parent and reports it ready once it resolves', async () => {
+    let parentReady = false;
+
+    const h = handler({
+      resolveReferences: jest.fn(async () => {
+        if (!parentReady) {
+          throw new ResolverError('FirestartrTerraformWorkspace-parent-ws');
+        }
+
+        return {};
+      }),
+      cancelDependencyWait: jest.fn(),
+      waitForDependencies: jest.fn(),
+    });
+
+    await drain(planTerraformOperation(tfItem(), OperationType.CREATED, h));
+
+    expect(h.cancelDependencyWait).toHaveBeenCalled();
+    expect(h.waitForDependencies).toHaveBeenCalledTimes(1);
+    expect(readArtifacts('FirestartrTerraformWorkspace', 'ws').json.result.status).toBe(
+      'SKIPPED',
+    );
+
+    const dependenciesReady = h.waitForDependencies.mock.calls[0][0];
+
+    await expect(dependenciesReady()).resolves.toBe(false);
+
+    parentReady = true;
+
+    await expect(dependenciesReady()).resolves.toBe(true);
+    expect(mockTf).not.toHaveBeenCalled();
+  });
+
+  it('does not wait for dependencies after a plan that is not dependency-skipped', async () => {
+    const h = handler({
+      cancelDependencyWait: jest.fn(),
+      waitForDependencies: jest.fn(),
+    });
+
+    await drain(planTerraformOperation(tfItem(), OperationType.UPDATED, h));
+
+    expect(h.cancelDependencyWait).toHaveBeenCalled();
+    expect(h.waitForDependencies).not.toHaveBeenCalled();
   });
 
   it('records SKIPPED when the parent lookup is a 404', async () => {
@@ -478,6 +527,9 @@ describe('Plan mode: GitHub kinds', () => {
     expect(mockGh).toHaveBeenCalledTimes(1);
     const opts = mockGh.mock.calls[0][1];
     expect(opts).toMatchObject({ plan: true, planArtifact: true });
+    expect(opts.readOnlyState).toEqual({
+      readKubernetesSecret: expect.any(Function),
+    });
     expect(opts).not.toHaveProperty('create');
     expect(opts).not.toHaveProperty('update');
     expect(opts).not.toHaveProperty('delete');
@@ -592,6 +644,7 @@ describe('Plan mode: read-only guarantee', () => {
     ['TFResult', () => upsertResult('default', item, 'out', 0)],
     ['connection secret', () => writeConnectionSecret(item, {})],
     ['secret deletion', () => deleteSecret('s', 'default')],
+    ['owner references', () => writeOwnerReferences('githubrepositories', 'default', item, [])],
     ['destroy commit status', () => addDestroyCommitStatus(item, 'success')],
     ['plan check run', () => addPlanStatusCheck('org/repo#1', 'summary')],
     ['PR plan comment', () => writePlanInGithubPR('https://github.com/o/r/pull/1', 'plan')],

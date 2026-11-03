@@ -75,6 +75,10 @@ export async function runGhProvisioner(data: any, opts: any) {
 
     entity.tfCtl = opts.ctl;
 
+    entity.planArtifact = !!opts.planArtifact;
+
+    entity.readOnlyState = opts.planArtifact ? opts.readOnlyState : undefined;
+
     if ('logStreamCallbacksTF' in opts) {
       entity.streamTFProvisioner = opts.logStreamCallbacksTF;
     }

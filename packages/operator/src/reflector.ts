@@ -1,5 +1,6 @@
 import * as k8s from '@kubernetes/client-node';
-import { Store } from './store';
+import { itemPath, Store } from './store';
+import { clearPlanSyncShadow } from './syncCtl';
 import { getConnection } from './ctl';
 import log from './logger';
 import { isKubernetesNotFoundError } from './status';
@@ -160,6 +161,8 @@ export async function observe(
         `Reflector has deleted item '${obj.kind}/${obj.metadata.name}' from the etcd.`,
       );
       store.remove(obj);
+
+      clearPlanSyncShadow(itemPath(plural, obj));
     });
 
     informer.on('error', (err: any) => {

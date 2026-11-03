@@ -286,6 +286,13 @@ Use '${CRD_UPGRADE_ONLY_SUITE}' alone to run only the CRD upgrade test.`,
     );
   }
 
+  if (requestedSuites.some(isPlanModeSelector) && requestedSuites.length > 1) {
+    fatal(
+      `'${PLAN_MODE_SUITE}' cannot be combined with other suites: it stops and reconfigures the shared operator.
+Use '${PLAN_MODE_SUITE}' alone to run only the Plan mode test.`,
+    );
+  }
+
   if (requestedSuites.includes('all')) {
     return {
       requestedSuites,

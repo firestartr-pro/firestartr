@@ -43,6 +43,13 @@ export async function runOnTerraform(
 
   opts = { ...opts, ctl: opts.ctl ?? entity.tfCtl };
 
+  // Any call but these may create the session workspace (e.g. state discovery
+  // while loading resources): mark it before running, so teardown also
+  // removes it when synthesis fails afterwards
+  if (!['tear-up-project', 'debug'].includes(command)) {
+    entity._terraformHasRun = true;
+  }
+
   if (command === 'import-with-reimport') {
     // Step 1: nuke the tf state via destroy-state-only
     await runTerraformProvisioner(
@@ -170,6 +177,7 @@ export function buildContext(
     reuseExistingProject: reuseExistingProjectOverride ? true : undefined, // only set if true
     importMode: importMode === true,
     planExcludes: entity.planExcludes,
+    ...(entity.readOnlyState ? { readOnlyState: entity.readOnlyState } : {}),
   };
 }
 

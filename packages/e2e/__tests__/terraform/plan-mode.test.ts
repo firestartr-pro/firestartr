@@ -1,6 +1,7 @@
 import fs from 'node:fs/promises';
 import path from 'node:path';
 import * as k8s from '@kubernetes/client-node';
+import common from 'catalog_common';
 import {
   CleanupRunner,
   cleanupRenderedArtifacts,
@@ -10,6 +11,12 @@ import {
   resolveE2eProviderConfigsPath,
   type E2EApi,
 } from '../..';
+import {
+  buildClaimRef,
+  FIRESTARTR_API_VERSION,
+  getFirestartrAnnotation,
+} from '../../src/claim-taxonomy';
+import { DELETE_TIMEOUT_SECONDS } from '../../src/cleanup/constants';
 import {
   getStatusCode,
   type StatusCodeError,
@@ -49,10 +56,21 @@ const TF_PLURAL = 'terraformworkspaces';
 const TFRESULT_PLURAL = 'tfresults';
 
 const FIXTURE = 'tfworkspace-a';
+const CLAIM_KIND = 'TFWorkspaceClaim';
+const CLAIM_REF_ANNOTATION = getFirestartrAnnotation('claimRef');
 const PROVIDER_CONFIG_MANIFESTS = [
   'kubernetes-backend.yaml',
   'kubernetes.yaml',
 ] as const;
+// Suite-specific names, so the suite never overwrites or deletes the shared
+// `kubernetes` and `kubernetes-backend` provider configs other workspaces use.
+const PROVIDER_CONFIG_NAMES = {
+  backend: 'plan-mode-kubernetes-backend',
+  provider: 'plan-mode-kubernetes',
+};
+// OpenTofu's kubernetes backend stores state in `tfstate-<workspace>-<key>`
+// Secrets and locks it with `lock-tfstate-<workspace>-<key>` Leases.
+const TF_STATE_FRAGMENT = 'tfstate-';
 
 const LOG_PREFIX = 'plan-mode';
 
@@ -311,6 +329,71 @@ async function deleteStaleTFResult(
   }
 }
 
+async function snapshotBackendState(
+  coreApi: k8s.CoreV1Api,
+  coordinationApi: k8s.CoordinationV1Api,
+  namespace: string,
+): Promise<Record<string, string>> {
+  const secrets = await coreApi.listNamespacedSecret({ namespace });
+  const leases = await coordinationApi.listNamespacedLease({ namespace });
+  const snapshot: Record<string, string> = {};
+
+  for (const [kind, items] of [
+    ['Secret', secrets.items],
+    ['Lease', leases.items],
+  ] as const) {
+    for (const item of items) {
+      const name = item.metadata?.name ?? '';
+      if (!name.includes(TF_STATE_FRAGMENT)) continue;
+      snapshot[`${kind}/${name}`] = item.metadata?.resourceVersion ?? '';
+    }
+  }
+
+  return snapshot;
+}
+
+async function deleteIgnoringNotFound(
+  remove: () => Promise<unknown>,
+): Promise<void> {
+  try {
+    await remove();
+  } catch (error: unknown) {
+    if (getStatusCode(error as StatusCodeError) !== 404) throw error;
+  }
+}
+
+// Removes what a force-deleted workspace leaves behind: the ConfigMaps its
+// module created and its backend state Secret.
+async function deleteWorkspaceInfrastructure(
+  coreApi: k8s.CoreV1Api,
+  namespace: string,
+  claimNames: string[],
+  tfStateKeys: string[],
+): Promise<void> {
+  const configMaps = await coreApi.listNamespacedConfigMap({ namespace });
+
+  for (const configMap of configMaps.items) {
+    const name = configMap.metadata?.name;
+    if (
+      name &&
+      claimNames.some((claimName) => name.startsWith(`${claimName}-configmap-`))
+    ) {
+      await deleteIgnoringNotFound(() =>
+        coreApi.deleteNamespacedConfigMap({ name, namespace }),
+      );
+    }
+  }
+
+  for (const tfStateKey of tfStateKeys) {
+    await deleteIgnoringNotFound(() =>
+      coreApi.deleteNamespacedSecret({
+        name: `tfstate-default-${tfStateKey}`,
+        namespace,
+      }),
+    );
+  }
+}
+
 function hasProvisionedCondition(workspace: any): boolean {
   return (workspace.status?.conditions ?? []).some(
     (condition: any) =>
@@ -350,6 +433,7 @@ describePlanMode('Operator plan mode', () => {
   let client: E2EApi;
   let appsApi: k8s.AppsV1Api;
   let coreApi: k8s.CoreV1Api;
+  let coordinationApi: k8s.CoordinationV1Api;
   let customObjectsApi: k8s.CustomObjectsApi;
   let namespace: string;
   let operatorDeploymentName: string;
@@ -368,6 +452,67 @@ describePlanMode('Operator plan mode', () => {
       fixtureName: FIXTURE,
       claimName: workspace.claimName,
     }));
+  }
+
+  function claimRefs(): string[] {
+    return workspaces.map((workspace) =>
+      buildClaimRef(CLAIM_KIND, workspace.claimName),
+    );
+  }
+
+  // Deletes the workspaces and waits for the live operator to destroy their
+  // infrastructure and state. Without a live operator, or when it fails, the
+  // CRs are force-deleted and their infrastructure removed directly.
+  async function deleteWorkspaces(operatorRunning: boolean): Promise<void> {
+    let failure: unknown;
+
+    if (operatorRunning) {
+      try {
+        await client.k8s.deleteCustomResourcesByAnnotation({
+          kind: TF_KIND,
+          apiVersion: FIRESTARTR_API_VERSION,
+          annotationKey: CLAIM_REF_ANNOTATION,
+          annotationValues: claimRefs(),
+          timeout: DELETE_TIMEOUT_SECONDS,
+        });
+        return;
+      } catch (error: unknown) {
+        failure = error;
+        common.logger.warn(
+          `[${LOG_PREFIX}] live operator deletion failed, forcing it: ${
+            error instanceof Error ? error.message : String(error)
+          }`,
+        );
+      }
+    }
+
+    const remaining = await client.k8s.listCustomResourcesByAnnotation({
+      kind: TF_KIND,
+      apiVersion: FIRESTARTR_API_VERSION,
+      annotationKey: CLAIM_REF_ANNOTATION,
+      annotationValues: claimRefs(),
+    });
+    const tfStateKeys = remaining
+      .map(
+        (resource) =>
+          (resource.spec as { firestartr?: { tfStateKey?: string } })
+            ?.firestartr?.tfStateKey,
+      )
+      .filter((key): key is string => Boolean(key));
+
+    await destroyFixtureResources(client, client.getPrefix(), fixtureInputs(), {
+      deleteOrg: false,
+      strict: true,
+      logPrefix: LOG_PREFIX,
+    });
+    await deleteWorkspaceInfrastructure(
+      coreApi,
+      namespace,
+      workspaces.map((workspace) => workspace.claimName),
+      tfStateKeys,
+    );
+
+    if (failure) throw failure;
   }
 
   async function stopOperator(): Promise<void> {
@@ -389,6 +534,7 @@ describePlanMode('Operator plan mode', () => {
     const kubeConfig = createKubeConfigProvider({})();
     appsApi = kubeConfig.makeApiClient(k8s.AppsV1Api);
     coreApi = kubeConfig.makeApiClient(k8s.CoreV1Api);
+    coordinationApi = kubeConfig.makeApiClient(k8s.CoordinationV1Api);
     customObjectsApi = kubeConfig.makeApiClient(k8s.CustomObjectsApi);
 
     operatorDeploymentName = await findOperatorDeploymentName(
@@ -408,25 +554,24 @@ describePlanMode('Operator plan mode', () => {
       workspace.configMapName = `${workspace.claimName}-configmap-${runId}`;
     }
 
-    // Stop the live operator before touching its environment and remove any
-    // resource left behind by an earlier run.
-    await stopOperator();
-
-    await destroyFixtureResources(client, client.getPrefix(), fixtureInputs(), {
-      deleteOrg: false,
-      strict: true,
-      logPrefix: LOG_PREFIX,
-    });
-
     const providerConfigsPath = resolveE2eProviderConfigsPath();
     providerConfigsTempDir = await prepareProviderConfigManifests(
       providerConfigsPath,
       namespace,
+      PROVIDER_CONFIG_NAMES,
     );
 
     for (const manifestName of PROVIDER_CONFIG_MANIFESTS) {
       await client.k8s.applyCr(path.join(providerConfigsTempDir, manifestName));
     }
+
+    // Let the live operator destroy anything an earlier run left behind, then
+    // stop it before touching its environment.
+    if (originalDeployment.replicas < 1) {
+      await startOperatorWithEnv(originalDeployment.env);
+    }
+    await deleteWorkspaces(true);
+    await stopOperator();
 
     // Start only Plan mode, watching only workspace CRs so unrelated cluster
     // state cannot change the artifacts this test asserts on.
@@ -451,14 +596,47 @@ describePlanMode('Operator plan mode', () => {
     const cleanup = new CleanupRunner();
     const providerConfigsDir = providerConfigsTempDir;
 
-    if (
-      !operatorIsLive &&
-      appsApi &&
-      operatorDeploymentName &&
-      originalDeployment
-    ) {
-      await cleanup.run('restore operator deployment', async () => {
+    const canManageOperator = Boolean(
+      appsApi && operatorDeploymentName && originalDeployment,
+    );
+
+    if (canManageOperator && !operatorIsLive) {
+      await cleanup.run('start the live operator', async () => {
         await stopOperator();
+        await startOperatorWithEnv(originalDeployment.env);
+        operatorIsLive = true;
+      });
+    }
+
+    await cleanup.run('delete rendered workspaces', async () => {
+      await deleteWorkspaces(operatorIsLive);
+    });
+
+    await cleanup.run('cleanup rendered artifacts', async () => {
+      await cleanupRenderedArtifacts(client);
+    });
+
+    if (providerConfigsDir) {
+      for (const manifestName of PROVIDER_CONFIG_MANIFESTS) {
+        await cleanup.run(
+          `delete provider config ${manifestName}`,
+          async () => {
+            await client.k8s.deleteCr(
+              path.join(providerConfigsDir, manifestName),
+            );
+          },
+        );
+      }
+
+      await cleanup.run('remove provider config temp dir', async () => {
+        await fs.rm(providerConfigsDir, { recursive: true, force: true });
+      });
+    }
+
+    if (canManageOperator) {
+      // startOperatorWithEnv always runs one replica: put back the captured
+      // environment and replica count even when the live operator resumed.
+      await cleanup.run('restore operator deployment', async () => {
         await replaceDeploymentEnv(
           appsApi,
           operatorDeploymentName,
@@ -485,42 +663,18 @@ describePlanMode('Operator plan mode', () => {
       });
     }
 
-    await cleanup.run('delete rendered workspaces', async () => {
-      await destroyFixtureResources(
-        client,
-        client.getPrefix(),
-        fixtureInputs(),
-        { deleteOrg: false, logPrefix: LOG_PREFIX },
-      );
-    });
-
-    await cleanup.run('cleanup rendered artifacts', async () => {
-      await cleanupRenderedArtifacts(client);
-    });
-
-    if (providerConfigsDir) {
-      for (const manifestName of PROVIDER_CONFIG_MANIFESTS) {
-        await cleanup.run(
-          `delete provider config ${manifestName}`,
-          async () => {
-            await client.k8s.deleteCr(
-              path.join(providerConfigsDir, manifestName),
-            );
-          },
-        );
-      }
-
-      await cleanup.run('remove provider config temp dir', async () => {
-        await fs.rm(providerConfigsDir, { recursive: true, force: true });
-      });
-    }
-
     cleanup.throwOnErrors(`${LOG_PREFIX} afterAll`);
   }, LOCAL_RENDER_APPLY_TEST_TIMEOUT_MS);
 
   it(
     'plans every CR without writing status, finalizers, TFResults or infrastructure',
     async () => {
+      const backendStateBefore = await snapshotBackendState(
+        coreApi,
+        coordinationApi,
+        namespace,
+      );
+
       for (const workspace of workspaces) {
         const rendered = await client.claims.renderLocally(FIXTURE, {
           sourceFixtureName: FIXTURE,
@@ -530,6 +684,16 @@ describePlanMode('Operator plan mode', () => {
               op: 'replace',
               path: '/providers/terraform/values/configmap_name',
               value: workspace.configMapName,
+            },
+            {
+              op: 'replace',
+              path: '/providers/terraform/context/providers/0/name',
+              value: PROVIDER_CONFIG_NAMES.provider,
+            },
+            {
+              op: 'replace',
+              path: '/providers/terraform/context/backend/name',
+              value: PROVIDER_CONFIG_NAMES.backend,
             },
           ],
         });
@@ -612,6 +776,12 @@ describePlanMode('Operator plan mode', () => {
           await configMapExists(coreApi, namespace, workspace.configMapName),
         ).toBe(false);
       }
+
+      // Plans read a snapshot of the state: they never take the backend's
+      // Lease nor create or update its state Secret.
+      await expect(
+        snapshotBackendState(coreApi, coordinationApi, namespace),
+      ).resolves.toEqual(backendStateBefore);
     },
     PLAN_TIMEOUT_MS,
   );

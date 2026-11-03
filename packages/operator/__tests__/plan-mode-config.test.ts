@@ -49,6 +49,13 @@ describe('Plan mode activation', () => {
     expect(resolvePlanModeConfig({ importMode: true }).enabled).toBe(false);
   });
 
+  it('refuses to start combined with dummy execution', () => {
+    expect(() => resolvePlanModeConfig({ flag: true, dummyExec: true })).toThrow(
+      'Plan mode cannot be combined with dummy execution',
+    );
+    expect(resolvePlanModeConfig({ dummyExec: true }).enabled).toBe(false);
+  });
+
   it('uses --plan-output-dir when given', () => {
     expect(resolvePlanModeConfig({ outputDir: '/data/plans' }).outputDir).toBe(
       '/data/plans',

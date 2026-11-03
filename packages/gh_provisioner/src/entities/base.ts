@@ -59,6 +59,11 @@ export abstract class Entity {
   // including state discovery, is bounded by it
   tfCtl: any = undefined;
 
+  // Whether this run renders a plan artifact (Plan mode), and where its
+  // read-only Terraform calls snapshot the live state from
+  planArtifact = false;
+  readOnlyState: any = undefined;
+
   // Dependencies of this execution only: every ref this entity resolves
   // is looked up here, never in module state.
   _deps: Dependencies = {};

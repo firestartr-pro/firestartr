@@ -79,6 +79,7 @@ export function runOperator(opts: any) {
     ),
     outputDir: planOutputDir,
     importMode: Boolean(importMode || importModeSkipPlan),
+    dummyExec: Boolean(dummyExec),
   });
 
   if (planModeConfig.enabled) {

@@ -125,6 +125,37 @@ describe('runOnTerraform apply routing', () => {
     );
   });
 
+  it('passes the read-only state source of an artifact plan in the provisioner context', async () => {
+    const readOnlyState = { readKubernetesSecret: jest.fn() };
+    entity.readOnlyState = readOnlyState;
+
+    await runOnTerraform(entity, 'custom-command', ['state', 'list']);
+
+    expect(mockRunTerraformProvisioner).toHaveBeenCalledWith(
+      expect.objectContaining({ readOnlyState }),
+      'custom-command',
+      null,
+      ['state', 'list'],
+      undefined,
+    );
+  });
+
+  it('marks Terraform as run before the call, so a failed run is still torn down', async () => {
+    mockRunTerraformProvisioner.mockRejectedValueOnce(new Error('state list failed'));
+
+    await expect(
+      runOnTerraform(entity, 'custom-command', ['state', 'list']),
+    ).rejects.toThrow('state list failed');
+
+    expect(entity._terraformHasRun).toBe(true);
+  });
+
+  it('does not mark Terraform as run for a teardown', async () => {
+    await runOnTerraform(entity, 'tear-up-project');
+
+    expect(entity._terraformHasRun).toBeFalsy();
+  });
+
   it('does not carry imports into a destroy artifact plan', async () => {
     entity.patchImportData({
       op: PatchOperations.add,

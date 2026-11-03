@@ -298,6 +298,8 @@ describe('EntityGHFeature – provision-once-then-untrack', () => {
           'github_repository_file.user_managed["README.md/main"]',
       );
 
+      entity.planArtifact = true;
+
       await entity.loadResources('plan-destroy');
 
       expect(entity.planExcludes).toEqual([
@@ -309,11 +311,21 @@ describe('EntityGHFeature – provision-once-then-untrack', () => {
       expect(stateRm).toHaveLength(0);
     });
 
+    it('ordinary PR plans skip the state discovery only artifact plans use', async () => {
+      await entity.loadResources('plan');
+      await entity.loadResources('plan-destroy');
+
+      expect(entity.planExcludes).toEqual([]);
+      expect(mockRunOnTerraform).not.toHaveBeenCalled();
+    });
+
     it('plan excludes legacy installed user-managed files instead of removing them from state', async () => {
       mockRunOnTerraform.mockResolvedValue(
         'github_repository_file.managed["ci.yml/main"]\n' +
           'github_repository_file.user_managed["README.md/main"]',
       );
+
+      entity.planArtifact = true;
 
       await entity.loadResources('plan');
 
@@ -498,6 +510,8 @@ describe('EntityGHFeature – provision-once-then-untrack', () => {
         'github_repository_file.user_managed["README.md/main"]\n' +
           'github_repository_file.user_managed["CONTRIBUTING.md/main"]',
       );
+
+      entity.planArtifact = true;
 
       await entity.loadResources('plan');
 

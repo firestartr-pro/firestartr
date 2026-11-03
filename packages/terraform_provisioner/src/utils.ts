@@ -1,4 +1,5 @@
 import { spawn } from 'child_process';
+import { join as pathJoin } from 'path';
 import common from 'catalog_common';
 import { planGet } from './tf/analyzer';
 import { countPlanDocumentChanges } from './tf/plan_document';
@@ -219,6 +220,17 @@ export async function planArtifact(
   log.info(
     `Running a lock-free terraform plan${destroy ? ' -destroy' : ''} into ${PLAN_ARTIFACT_FILE} in path ${path}`,
   );
+
+  // The saved plan embeds the state and sensitive values, and OpenTofu would
+  // create it world-readable: make the workspace private and precreate the
+  // plan file owner-only before any plan content is written
+  await fs.promises.chmod(path, 0o700);
+
+  const planFile = pathJoin(path, PLAN_ARTIFACT_FILE);
+
+  await fs.promises.rm(planFile, { force: true });
+
+  await (await fs.promises.open(planFile, 'wx', 0o600)).close();
 
   await tfExec(
     path,

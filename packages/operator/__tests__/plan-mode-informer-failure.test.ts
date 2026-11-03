@@ -184,6 +184,30 @@ describe('Plan mode informer: failed plans', () => {
     expect(syncCtl.updateItem).toHaveBeenCalledWith(ITEM_PATH);
   });
 
+  it('resumes sync at the next interval once the retries are exhausted', async () => {
+    outcome = 'error';
+
+    retryCtl.errorReconciling.mockReturnValueOnce(true);
+
+    await runProcess(OperationType.SYNC);
+
+    expect(syncCtl.deleteItem).toHaveBeenCalledWith(ITEM_PATH);
+    expect(setSyncStatus).not.toHaveBeenCalled();
+
+    retryCtl.errorReconciling.mockReturnValueOnce(false);
+
+    await runProcess(OperationType.RETRY_SYNC);
+
+    expect(setSyncStatus).toHaveBeenCalledWith(
+      ITEM_PATH,
+      OperationType.RETRY_SYNC,
+      'False',
+      'Plan process failed and its retries are exhausted',
+    );
+    expect(syncCtl.updateItem).toHaveBeenCalledWith(ITEM_PATH);
+    expect(syncCtl.deleteItem).toHaveBeenCalledTimes(1);
+  });
+
   it('suspends periodic sync when the plan outcome cannot be recorded', async () => {
     outcome = 'throw';
 

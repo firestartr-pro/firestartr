@@ -4,6 +4,7 @@ export {
   initializeMirrors,
 } from './src';
 export type { PlanArtifact } from './src/utils';
+export type { ReadOnlyStateSource } from './src/writer_plan_state';
 import Ajv from 'ajv';
 import schema from './src/schema';
 import { TFProjectManager } from './src';

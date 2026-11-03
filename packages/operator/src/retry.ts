@@ -55,7 +55,7 @@ export async function initRetry(enqueue: Function) {
 
   return {
     errorReconciling(itemPath: string) {
-      retry(itemPath);
+      return retry(itemPath);
     },
 
     successReconciling(itemPath: string) {
@@ -65,10 +65,18 @@ export async function initRetry(enqueue: Function) {
     deleteReconciling(itemPath: string) {
       removeFromRetry(itemPath);
     },
+
+    requeueReconciling(itemPath: string) {
+      retryNow(itemPath);
+    },
   };
 }
 
-export function retry(itemPath: string) {
+/**
+ * Schedules the next retry of a failed item. Returns false once the retry
+ * limit is reached and no further retry will be attempted.
+ */
+export function retry(itemPath: string): boolean {
   if (retryWatchers[itemPath]) {
     retryWatchers[itemPath].retryCounter++;
   } else {
@@ -92,7 +100,7 @@ export function retry(itemPath: string) {
       `Failed to process item '${itemPath}'. Retry limit (${maxRetry}) reached. No further retries will be attempted.`,
     );
     removeFromRetry(itemPath);
-    return;
+    return false;
   }
 
   log.debug(
@@ -114,6 +122,30 @@ export function retry(itemPath: string) {
       retryWatchers[itemPath].nextRetryAt = null;
     }
   }, delayMs);
+
+  return true;
+}
+
+/**
+ * Requeues an item through the retry loop right away, without counting it
+ * against the retry budget.
+ */
+export function retryNow(itemPath: string) {
+  if (retryWatchers[itemPath]) {
+    clearTimeout(retryWatchers[itemPath].nextRetry);
+  } else {
+    retryWatchers[itemPath] = {
+      itemPath,
+      retry: false,
+      retryCounter: 0,
+      nextRetry: null,
+      nextRetryAt: null,
+    };
+  }
+
+  retryWatchers[itemPath].nextRetry = null;
+  retryWatchers[itemPath].nextRetryAt = null;
+  retryWatchers[itemPath].retry = true;
 }
 
 export function removeFromRetry(itemPath: string) {

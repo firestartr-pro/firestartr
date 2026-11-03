@@ -94,7 +94,15 @@ export function planSummaryLine(
       ? `+${result.counts.add} ~${result.counts.change} -${result.counts.destroy}`
       : describeResult(result);
 
-  return `PLAN ${record.kind}/${record.name} ${record.operation}: ${outcome} (${paths.md})`;
+  // Terraform reasons are often multiline; the artifacts keep them verbatim,
+  // but the summary stays on one line
+  const oneLine = outcome
+    .split(/\r\n|\r|\n/)
+    .map((part) => part.trim())
+    .filter(Boolean)
+    .join(' ');
+
+  return `PLAN ${record.kind}/${record.name} ${record.operation}: ${oneLine} (${paths.md})`;
 }
 
 async function writeFileAtomically(file: string, content: string) {

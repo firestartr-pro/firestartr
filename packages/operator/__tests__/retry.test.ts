@@ -54,14 +54,14 @@ describe('retry', () => {
       const maxRetry = getMaxRetry();
 
       for (let i = 0; i < maxRetry; i++) {
-        retry(SET_ITEM_PATH);
+        expect(retry(SET_ITEM_PATH)).toBe(true);
       }
 
       expect(setTimeoutSpy).toHaveBeenCalledTimes(maxRetry);
 
       setTimeoutSpy.mockClear();
 
-      retry(SET_ITEM_PATH);
+      expect(retry(SET_ITEM_PATH)).toBe(false);
 
       expect(setTimeoutSpy).not.toHaveBeenCalled();
     });

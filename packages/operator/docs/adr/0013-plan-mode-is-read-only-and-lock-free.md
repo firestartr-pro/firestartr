@@ -16,7 +16,12 @@ without disturbing the live operator running on the same cluster.
 2. **Lock-free plans.** Every Terraform plan in Plan mode runs with
    `-lock=false`, so a shadow plan never blocks or fails a live apply. Each
    artifact says `Lock: none`: the plan is advisory and may read state in the
-   middle of a live apply; the next plan corrects it.
+   middle of a live apply; the next plan corrects it. Even lock-free, OpenTofu
+   takes the Lease and writes an empty state for a workspace whose remote
+   state doesn't exist yet, so plans never initialize the remote backend: they
+   plan against an owner-only local snapshot of the `kubernetes` backend's
+   state secret (empty when absent). Backends that can't be snapshotted this
+   way give an ERROR artifact.
 3. **The operation comes from the live status.** The informer still reads the
    status, finalizers and `deletionTimestamp` written by the live operator to
    choose CREATED, UPDATED, MARKED_TO_DELETION or NOTHING, but never writes them.
@@ -26,7 +31,9 @@ without disturbing the live operator running on the same cluster.
 4. **A missing parent gives SKIPPED, not a stuck CR.** When a parent's outputs
    are not available, the CR gets `SKIPPED (parent <kind>/<name> not
    provisioned)` instead of waiting forever. Planning with Terraform "unknown"
-   values for missing outputs is not attempted.
+   values for missing outputs is not attempted. Since a parent becoming ready
+   only changes its status, the skipped CR's dependencies are checked again in
+   memory, and the CR is planned again once they are available.
 5. **One plan, two renderings.** terraform_provisioner plans once into a plan
    file and renders it with `show` (text) and `show -json`; both handlers use it.
 

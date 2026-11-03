@@ -59,7 +59,13 @@ PLAN FirestartrTerraformWorkspace/my-ws UPDATED: +0 ~2 -0 (/tmp/plans/Firestartr
   Anything the live operator would not do is recorded as `SKIPPED (<reason>)`,
   and failures as `ERROR <reason>`.
 - Terraform plans run with `-lock=false` (`Lock: none`): they never block a
-  live apply, and may read state in the middle of one.
+  live apply, and may read state in the middle of one. They plan against a
+  local snapshot of the state read from its `kubernetes` backend secret (empty
+  when there is none yet) and never initialize the remote backend, so they
+  can't take its Lease or create its state. Other backends give `ERROR`.
+- A CR skipped because a parent or reference is missing is planned again once
+  it becomes available.
+- Plan mode can't be combined with import mode or `OPERATOR_DUMMY_EXEC`.
 - The leader-election Lease is not used.
 
 See [ADR 0012](docs/adr/0013-plan-mode-is-read-only-and-lock-free.md).

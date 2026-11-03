@@ -56,9 +56,9 @@ export class EntityGHFeature extends Entity {
           await this.preApplyStateRm(installedManagedFiles);
         }
 
-        // A forward plan models preApplyStateRm by excluding the same
-        // addresses from the plan, leaving the live state untouched
-        if (tfOp === 'plan') {
+        // A forward artifact plan models preApplyStateRm by excluding the
+        // same addresses from the plan, leaving the live state untouched
+        if (tfOp === 'plan' && this.planArtifact) {
           this.planExcludes = await this.preApplyStateRmAddresses(
             installedManagedFiles,
           );
@@ -68,9 +68,9 @@ export class EntityGHFeature extends Entity {
           await this.keepUntrackedFiles(tfOp);
         }
 
-        // A destroy plan models keepUntrackedFiles by excluding the same
-        // addresses from the plan, leaving the live state untouched
-        if (tfOp === 'plan-destroy') {
+        // A destroy artifact plan models keepUntrackedFiles by excluding the
+        // same addresses from the plan, leaving the live state untouched
+        if (tfOp === 'plan-destroy' && this.planArtifact) {
           this.planExcludes = await this.userManagedStateAddresses();
         }
       }
@@ -262,6 +262,8 @@ export class EntityGHFeature extends Entity {
       this.__ghProvisionerSessionWorkspaceInitialized =
         this.parent.__ghProvisionerSessionWorkspaceInitialized;
       this.tfCtl = this.parent.tfCtl;
+      this.planArtifact = this.parent.planArtifact;
+      this.readOnlyState = this.parent.readOnlyState;
     }
 
     const stateListOutput = await runOnTerraform(this, 'custom-command', [

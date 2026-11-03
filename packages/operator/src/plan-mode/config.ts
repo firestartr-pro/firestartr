@@ -10,6 +10,7 @@ export type PlanModeInput = {
   env?: string;
   outputDir?: string;
   importMode?: boolean;
+  dummyExec?: boolean;
 };
 
 export class InvalidPlanModeError extends Error {
@@ -36,6 +37,14 @@ export function resolvePlanModeConfig(input: PlanModeInput): PlanModeConfig {
   if (enabled && input.importMode) {
     throw new Error(
       'Plan mode cannot be combined with --importMode or --importModeSkipPlan; refusing to start',
+    );
+  }
+
+  // Dummy execution only watches githubgroups with the dummy handler, so no
+  // plan implementation would run and no artifact would be produced
+  if (enabled && input.dummyExec) {
+    throw new Error(
+      'Plan mode cannot be combined with dummy execution (OPERATOR_DUMMY_EXEC); refusing to start',
     );
   }
 

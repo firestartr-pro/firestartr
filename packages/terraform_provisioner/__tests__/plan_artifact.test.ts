@@ -1,4 +1,7 @@
 import { EventEmitter } from 'events';
+import * as fs from 'fs';
+import * as os from 'os';
+import * as path from 'path';
 import { PassThrough } from 'stream';
 import { planArtifact, PLAN_ARTIFACT_FILE } from '../src/utils';
 import log from '../src/logger';
@@ -53,14 +56,47 @@ function fakeTofu() {
   });
 }
 
+let workspace: string;
+
 describe('planArtifact', () => {
   beforeEach(() => {
+    workspace = fs.mkdtempSync(path.join(os.tmpdir(), 'plan-artifact-'));
+    fs.chmodSync(workspace, 0o755);
     (spawn as jest.Mock).mockReset();
     fakeTofu();
   });
 
+  afterEach(() => {
+    fs.rmSync(workspace, { recursive: true, force: true });
+  });
+
+  it('makes the workspace and the plan file owner-only before planning', async () => {
+    const planFile = path.join(workspace, PLAN_ARTIFACT_FILE);
+    fs.writeFileSync(planFile, 'stale', { mode: 0o644 });
+    fs.chmodSync(planFile, 0o644);
+
+    let modesAtPlan: { dir: number; file: number } | undefined;
+
+    (spawn as jest.Mock).mockImplementation((_bin: string, args: string[]) => {
+      if (args[0] === 'plan') {
+        modesAtPlan = {
+          dir: fs.statSync(workspace).mode & 0o777,
+          file: fs.statSync(planFile).mode & 0o777,
+        };
+        return fakeTofuProcess(0, 'planned\n');
+      }
+      if (args.includes('-json')) return fakeTofuProcess(0, JSON.stringify(PLAN_JSON));
+      return fakeTofuProcess(0, PLAN_TEXT);
+    });
+
+    await planArtifact(workspace, [], false);
+
+    expect(modesAtPlan).toEqual({ dir: 0o700, file: 0o600 });
+    expect(fs.readFileSync(planFile, 'utf8')).toBe('');
+  });
+
   it('plans once into a plan file and renders it as text and JSON', async () => {
-    const artifact = await planArtifact('/tmp/fake', [], false);
+    const artifact = await planArtifact(workspace, [], false);
 
     expect(spawn).toHaveBeenCalledTimes(3);
 
@@ -80,7 +116,7 @@ describe('planArtifact', () => {
   });
 
   it('never takes the state lock', async () => {
-    await planArtifact('/tmp/fake', [], false);
+    await planArtifact(workspace, [], false);
 
     expect(tofuArgsOfCall(0)).toContain('-lock=false');
     expect(tofuArgsOfCall(0).some((arg) => arg.startsWith('-lock-timeout'))).toBe(
@@ -89,7 +125,7 @@ describe('planArtifact', () => {
   });
 
   it('plans a destroy when asked to', async () => {
-    await planArtifact('/tmp/fake', [], true);
+    await planArtifact(workspace, [], true);
 
     expect(tofuArgsOfCall(0)).toEqual(
       expect.arrayContaining(['plan', '-destroy', '-lock=false']),
@@ -97,7 +133,7 @@ describe('planArtifact', () => {
   });
 
   it('leaves excluded addresses out of the plan', async () => {
-    await planArtifact('/tmp/fake', [], true, undefined, undefined, [
+    await planArtifact(workspace, [], true, undefined, undefined, [
       'github_repository_file.user_managed["README.md/main"]',
     ]);
 
@@ -111,7 +147,7 @@ describe('planArtifact', () => {
       fakeTofuProcess(1, 'Error: boom\n'),
     );
 
-    await expect(planArtifact('/tmp/fake', [], false)).rejects.toThrow('boom');
+    await expect(planArtifact(workspace, [], false)).rejects.toThrow('boom');
     expect(spawn).toHaveBeenCalledTimes(1);
   });
 
@@ -143,7 +179,7 @@ describe('planArtifact', () => {
         return fakeTofuProcess(0, PLAN_TEXT);
       });
 
-      const artifact = await planArtifact('/tmp/fake', [], false);
+      const artifact = await planArtifact(workspace, [], false);
 
       expect(artifact.json.variables.token.value).toBe(SECRET);
       expect(loggedText()).not.toContain(SECRET);
@@ -156,7 +192,7 @@ describe('planArtifact', () => {
         return fakeTofuProcess(0, PLAN_TEXT);
       });
 
-      const error = await planArtifact('/tmp/fake', [], false).catch((e) => e);
+      const error = await planArtifact(workspace, [], false).catch((e) => e);
 
       expect(error).toBeInstanceOf(Error);
       expect(String(error.message)).not.toContain(SECRET);
