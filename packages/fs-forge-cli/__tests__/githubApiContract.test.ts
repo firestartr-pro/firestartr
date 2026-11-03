@@ -30,6 +30,7 @@ const PULLS = [
     head: { ref: 'automated-componentclaim-api' },
     base: { ref: 'main', sha: 'base-sha' },
     updated_at: '2026-01-01T00:00:00Z',
+    body: 'Closes #3',
   },
   {
     number: 8,
@@ -38,6 +39,7 @@ const PULLS = [
     head: { ref: 'manual-change' },
     base: { ref: 'main', sha: 'base-sha' },
     updated_at: '2026-01-02T00:00:00Z',
+    body: '',
   },
 ];
 
@@ -136,15 +138,105 @@ function octokitScenario(): GitHubApi {
           },
         ),
       },
+      issues: {
+        get: jest.fn(async ({ issue_number }: { issue_number: number }) => {
+          if (issue_number === 404) throw notFound();
+          return {
+            data: {
+              number: issue_number,
+              html_url: `https://github.com/example/claims/issues/${issue_number}`,
+              ...(issue_number === 8 ? { pull_request: {} } : {}),
+            },
+          };
+        }),
+        create: jest.fn(
+          async ({ title, body }: { title: string; body: string }) => {
+            octokitRequests.push(`issues.create ${title} | ${body}`);
+            return {
+              data: {
+                number: 31,
+                html_url: 'https://github.com/example/claims/issues/31',
+              },
+            };
+          },
+        ),
+        createComment: jest.fn(
+          async ({
+            issue_number,
+            body,
+          }: {
+            issue_number: number;
+            body: string;
+          }) => {
+            octokitRequests.push(
+              `issues.createComment ${issue_number} | ${body}`,
+            );
+            return { data: {} };
+          },
+        ),
+        update: jest.fn(
+          async ({
+            issue_number,
+            state,
+          }: {
+            issue_number: number;
+            state: string;
+          }) => {
+            octokitRequests.push(`issues.update ${issue_number} ${state}`);
+            return { data: {} };
+          },
+        ),
+      },
       pulls: {
+        create: jest.fn(
+          async ({
+            head,
+            base,
+            title,
+            body,
+          }: {
+            head: string;
+            base: string;
+            title: string;
+            body: string;
+          }) => {
+            octokitRequests.push(
+              `pulls.create ${head} ${base} ${title} | ${body}`,
+            );
+            return {
+              data: {
+                number: 32,
+                html_url: 'https://github.com/example/claims/pull/32',
+              },
+            };
+          },
+        ),
+        update: jest.fn(
+          async ({ pull_number, body }: { pull_number: number; body: string }) => {
+            octokitRequests.push(`pulls.update ${pull_number} | ${body}`);
+            return { data: {} };
+          },
+        ),
         list: jest.fn(
-          async ({ head, page }: { head?: string; page?: number }) => {
-            octokitRequests.push(`pulls.list head=${head} page=${page}`);
+          async ({
+            head,
+            base,
+            page,
+          }: {
+            head?: string;
+            base?: string;
+            page?: number;
+          }) => {
+            octokitRequests.push(
+              `pulls.list head=${head} base=${base} page=${page}`,
+            );
             // GitHub matches `head` exactly as `owner:branch`.
             const branch = head?.split(':')[1];
-            const filtered = branch
-              ? PULLS.filter((pull) => pull.head.ref === branch)
-              : PULLS;
+            const filtered = PULLS.filter(
+              (pull) =>
+                (!branch || pull.head.ref === branch) &&
+                (!base || pull.base.ref === base),
+            );
             return { data: filtered };
           },
         ),
@@ -229,6 +321,7 @@ function memoryScenario(): GitHubApi {
     headRef: pull.head.ref,
     baseSha: pull.base.sha,
     updatedAt: pull.updated_at,
+    body: pull.body,
   })));
   api.setPullRequestFiles(
     REF,
@@ -296,7 +389,46 @@ describe.each(ADAPTERS)('GitHubApi contract (%s)', (_name, makeApi) => {
       headRef: 'automated-componentclaim-api',
       baseSha: 'base-sha',
       updatedAt: '2026-01-01T00:00:00Z',
+      body: 'Closes #3',
     });
+  });
+
+  it('creates an issue, comments on it and closes it', async () => {
+    const api = makeApi();
+
+    const issue = await api.createIssue(REF, {
+      title: 'Create component api',
+      body: '## Goal\nCreate it.',
+    });
+    expect(issue.number).toBeGreaterThan(0);
+    expect(issue.htmlUrl).toBe(
+      `https://github.com/example/claims/issues/${issue.number}`,
+    );
+
+    await expect(
+      api.commentOnIssue(REF, issue.number, 'Workflow run: https://run'),
+    ).resolves.toBeUndefined();
+    await expect(api.closeIssue(REF, issue.number)).resolves.toBeUndefined();
+    await expect(api.reopenIssue(REF, issue.number)).resolves.toBeUndefined();
+  });
+
+  it('creates a pull request and updates its body', async () => {
+    const api = makeApi();
+
+    const pull = await api.createPullRequest(REF, {
+      head: 'fs-forge/ComponentClaim-api',
+      base: 'main',
+      title: 'ci: provision claim ComponentClaim/api',
+      body: 'Closes #3',
+    });
+    expect(pull.number).toBeGreaterThan(0);
+    expect(pull.htmlUrl).toBe(
+      `https://github.com/example/claims/pull/${pull.number}`,
+    );
+
+    await expect(
+      api.updatePullRequest(REF, pull.number, { body: 'Closes #4' }),
+    ).resolves.toBeUndefined();
   });
 
   it('returns every pull request file across pages', async () => {
@@ -418,7 +550,26 @@ describe('octokit adapter request shapes', () => {
   it('lists every open pull request and filters the head prefix locally', async () => {
     const api = octokitScenario();
     await api.listOpenPullRequests(REF, 'automated');
-    expect(octokitRequests).toContain('pulls.list head=undefined page=1');
+    expect(octokitRequests).toContain(
+      'pulls.list head=undefined base=undefined page=1',
+    );
+  });
+
+  it('finds an open pull request by this repository head and base', async () => {
+    const api = octokitScenario();
+
+    const found = await api.findOpenPullRequest(REF, {
+      head: 'manual-change',
+      base: 'main',
+    });
+
+    expect(found?.number).toBe(8);
+    expect(octokitRequests).toContain(
+      'pulls.list head=example:manual-change base=main page=undefined',
+    );
+    await expect(
+      api.findOpenPullRequest(REF, { head: 'manual-change', base: 'other' }),
+    ).resolves.toBeUndefined();
   });
 
   it('reads a file through repos.getContent', async () => {
@@ -480,5 +631,46 @@ describe('octokit adapter request shapes', () => {
       state: 'merged',
       merged: true,
     });
+  });
+
+  it('reads an issue, tells pull requests apart and misses on a 404', async () => {
+    const api = octokitScenario();
+
+    await expect(api.getIssue(REF, 31)).resolves.toEqual({
+      number: 31,
+      htmlUrl: 'https://github.com/example/claims/issues/31',
+      isPullRequest: false,
+    });
+    await expect(api.getIssue(REF, 8)).resolves.toMatchObject({
+      isPullRequest: true,
+    });
+    await expect(api.getIssue(REF, 404)).resolves.toBeUndefined();
+  });
+
+  it('sends issue and pull request writes through their REST endpoints', async () => {
+    const api = octokitScenario();
+
+    await api.createIssue(REF, { title: 'Create component api', body: 'body' });
+    await api.commentOnIssue(REF, 31, 'Workflow run: https://run');
+    await api.closeIssue(REF, 31);
+    await api.reopenIssue(REF, 31);
+    await api.createPullRequest(REF, {
+      head: 'fs-forge/ComponentClaim-api',
+      base: 'main',
+      title: 'ci: provision claim ComponentClaim/api',
+      body: 'Closes #3',
+    });
+    await api.updatePullRequest(REF, 32, { body: 'Closes #4' });
+
+    expect(octokitRequests).toEqual(
+      expect.arrayContaining([
+        'issues.create Create component api | body',
+        'issues.createComment 31 | Workflow run: https://run',
+        'issues.update 31 closed',
+        'issues.update 31 open',
+        'pulls.create fs-forge/ComponentClaim-api main ci: provision claim ComponentClaim/api | Closes #3',
+        'pulls.update 32 | Closes #4',
+      ]),
+    );
   });
 });

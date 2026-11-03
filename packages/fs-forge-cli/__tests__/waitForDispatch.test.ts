@@ -44,6 +44,7 @@ async function present(options: {
   api: MemoryGitHubApi;
   isTty: boolean;
   noWait?: boolean;
+  extra?: Record<string, unknown>;
   pollOptions?: Partial<PollOptions>;
 }): Promise<Presented> {
   const stderrChunks: string[] = [];
@@ -58,6 +59,7 @@ async function present(options: {
         noWait: options.noWait,
         claimType: 'ComponentClaim',
         claimName: 'api',
+        extra: options.extra,
         presentation: {
           isTty: options.isTty,
           stderr: (line) => void stderrChunks.push(line),
@@ -106,6 +108,61 @@ describe('waitForDispatch presentation', () => {
     );
   });
 
+  it('appends extra keys to the JSON outcome', async () => {
+    const api = new MemoryGitHubApi();
+    api.setWorkflowRuns(REF, WORKFLOW, BRANCH, [run()]);
+
+    const presented = await present({
+      api,
+      isTty: false,
+      extra: {
+        issue: { number: 7, url: 'https://github.com/example/claims/issues/7' },
+        pr: { number: 8, url: 'https://github.com/example/claims/pull/8' },
+      },
+    });
+
+    expect(JSON.parse(presented.stdout)).toEqual({
+      status: 'ok',
+      runUrl: RUN_URL,
+      runId: 42,
+      claimType: 'ComponentClaim',
+      claimName: 'api',
+      conclusion: 'success',
+      issue: { number: 7, url: 'https://github.com/example/claims/issues/7' },
+      pr: { number: 8, url: 'https://github.com/example/claims/pull/8' },
+    });
+  });
+
+  it('writes a dispatched JSON line with audit references in no-wait mode', async () => {
+    const api = new MemoryGitHubApi();
+
+    const presented = await present({
+      api,
+      isTty: false,
+      noWait: true,
+      extra: {
+        issue: { number: 7, url: 'https://github.com/example/claims/issues/7' },
+        pr: { number: 8, url: 'https://github.com/example/claims/pull/8' },
+      },
+    });
+
+    expect(presented.error).toBeUndefined();
+    expect(presented.publishUrl).toBe(DISPATCH.url);
+    expect(presented.stderr).toBe(
+      `Provision workflow dispatched (no-wait): ${DISPATCH.url}\n`,
+    );
+    expect(presented.stdout).toBe(
+      `${JSON.stringify({
+        status: 'dispatched',
+        url: DISPATCH.url,
+        claimType: 'ComponentClaim',
+        claimName: 'api',
+        issue: { number: 7, url: 'https://github.com/example/claims/issues/7' },
+        pr: { number: 8, url: 'https://github.com/example/claims/pull/8' },
+      })}\n`,
+    );
+  });
+
   it('writes the dispatch URL in no-wait mode', async () => {
     const api = new MemoryGitHubApi();
 
@@ -117,6 +174,35 @@ describe('waitForDispatch presentation', () => {
       `Provision workflow dispatched (no-wait): ${DISPATCH.url}\n`,
     );
     expect(presented.stdout).toBe('');
+  });
+
+  it('keeps stdout empty when no-wait extras contain only undefined values', async () => {
+    const api = new MemoryGitHubApi();
+
+    const presented = await present({
+      api,
+      isTty: false,
+      noWait: true,
+      extra: { issue: undefined, pr: undefined },
+    });
+
+    expect(presented.stdout).toBe('');
+  });
+
+  it('keeps stdout empty for a TTY in no-wait mode with audit references', async () => {
+    const api = new MemoryGitHubApi();
+
+    const presented = await present({
+      api,
+      isTty: true,
+      noWait: true,
+      extra: { issue: { number: 7, url: 'https://github.com/example/claims/issues/7' } },
+    });
+
+    expect(presented.stdout).toBe('');
+    expect(presented.stderr).toBe(
+      `Provision workflow dispatched (no-wait): ${DISPATCH.url}\n`,
+    );
   });
 
   it('keeps the wait-failed prefix for a completed failure', async () => {

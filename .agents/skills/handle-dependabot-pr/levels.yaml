@@ -1,0 +1,57 @@
+# Risk level per dependency. Single source of truth for triage.mjs.
+#
+# Each level lists glob patterns over package names. `*` matches any run of
+# characters. A package matching several levels takes the highest one.
+# Packages matching nothing here are 🟡 and get level/unclassified, unless they
+# are only pulled in indirectly, in which case they take the highest level of
+# the direct dependencies that pull them in (see triage.mjs).
+#
+# Format is deliberately restricted: top-level level keys, each followed by a
+# list of quoted patterns. triage.mjs parses exactly this shape.
+
+dev:
+  - "@types/*"
+  - "eslint"
+  - "eslint-plugin-*"
+  - "globals"
+  - "gts"
+  - "jest"
+  - "@jest/*"
+  - "jest-*"
+  - "ts-jest"
+  - "ts-node"
+  - "tsx"
+  - "typescript"
+  - "prettier"
+  - "cdk8s-cli"
+  - "@vercel/ncc"
+
+runtime:
+  - "lodash"
+  - "mustache"
+  - "uuid"
+  - "debug"
+  - "fast-json-patch"
+  - "jsonpointer"
+  - "jsonschema"
+  - "semver"
+  - "command-line-args"
+  - "express"
+  - "winston"
+  - "cron-parser"
+  - "csv-stringify"
+  - "adm-zip"
+  - "tar"
+  - "cdk8s"
+  - "constructs"
+  - "yaml"
+  - "@opentelemetry/*"
+  - "@oclif/*"
+  - "libsodium-wrappers"
+  - "dotenv"
+
+critical:
+  - "ajv"
+  - "@kubernetes/*"
+  - "@octokit/*"
+  - "octokit"

@@ -2,7 +2,27 @@ import type { Octokit } from '@octokit/rest';
 
 import { isNotFoundError } from './api.js';
 
-import type { GitHubApi } from './api.js';
+import type { GitHubApi, PullRequestSummary } from './api.js';
+
+function pullRequestSummary(pr: {
+  number: number;
+  html_url: string;
+  state: string;
+  head: { ref: string };
+  base: { sha: string };
+  updated_at: string;
+  body: string | null;
+}): PullRequestSummary {
+  return {
+    number: pr.number,
+    htmlUrl: pr.html_url,
+    state: pr.state,
+    headRef: pr.head.ref,
+    baseSha: pr.base.sha,
+    updatedAt: pr.updated_at,
+    body: pr.body ?? '',
+  };
+}
 
 /** Production adapter: implements the port over Octokit's REST client. */
 export function createOctokitApi(octokit: Octokit): GitHubApi {
@@ -135,20 +155,23 @@ export function createOctokitApi(octokit: Octokit): GitHubApi {
         const matching = headPrefix
           ? data.filter((pr) => pr.head.ref.startsWith(headPrefix))
           : data;
-        pulls.push(
-          ...matching.map((pr) => ({
-            number: pr.number,
-            htmlUrl: pr.html_url,
-            state: pr.state,
-            headRef: pr.head.ref,
-            baseSha: pr.base.sha,
-            updatedAt: pr.updated_at,
-          })),
-        );
+        pulls.push(...matching.map(pullRequestSummary));
         if (data.length < 100) break;
         page++;
       }
       return pulls;
+    },
+
+    async findOpenPullRequest(ref, { head, base }) {
+      const { data } = await octokit.rest.pulls.list({
+        owner: ref.owner,
+        repo: ref.repo,
+        state: 'open',
+        head: `${ref.owner}:${head}`,
+        base,
+        per_page: 1,
+      });
+      return data[0] && pullRequestSummary(data[0]);
     },
 
     async listPullRequestFiles(ref, pr) {
@@ -249,6 +272,82 @@ export function createOctokitApi(octokit: Octokit): GitHubApi {
         });
       }
       return checks;
+    },
+
+    async createPullRequest(ref, input) {
+      const { data } = await octokit.rest.pulls.create({
+        owner: ref.owner,
+        repo: ref.repo,
+        head: input.head,
+        base: input.base,
+        title: input.title,
+        body: input.body,
+      });
+      return { number: data.number, htmlUrl: data.html_url };
+    },
+
+    async updatePullRequest(ref, pr, input) {
+      await octokit.rest.pulls.update({
+        owner: ref.owner,
+        repo: ref.repo,
+        pull_number: pr,
+        body: input.body,
+      });
+    },
+
+    async createIssue(ref, input) {
+      const { data } = await octokit.rest.issues.create({
+        owner: ref.owner,
+        repo: ref.repo,
+        title: input.title,
+        body: input.body,
+      });
+      return { number: data.number, htmlUrl: data.html_url };
+    },
+
+    async getIssue(ref, issue) {
+      try {
+        const { data } = await octokit.rest.issues.get({
+          owner: ref.owner,
+          repo: ref.repo,
+          issue_number: issue,
+        });
+        return {
+          number: data.number,
+          htmlUrl: data.html_url,
+          isPullRequest: data.pull_request !== undefined,
+        };
+      } catch (error) {
+        if (isNotFoundError(error)) return undefined;
+        throw error;
+      }
+    },
+
+    async commentOnIssue(ref, issue, body) {
+      await octokit.rest.issues.createComment({
+        owner: ref.owner,
+        repo: ref.repo,
+        issue_number: issue,
+        body,
+      });
+    },
+
+    async closeIssue(ref, issue) {
+      await octokit.rest.issues.update({
+        owner: ref.owner,
+        repo: ref.repo,
+        issue_number: issue,
+        state: 'closed',
+      });
+    },
+
+    async reopenIssue(ref, issue) {
+      await octokit.rest.issues.update({
+        owner: ref.owner,
+        repo: ref.repo,
+        issue_number: issue,
+        state: 'open',
+      });
     },
 
     async repoExists(ref) {

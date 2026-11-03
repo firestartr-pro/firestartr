@@ -11,7 +11,12 @@ import {
   assertMutationFlags,
   mutationFlagsWithout,
 } from '../mutations/definitions.js';
-import { MUTATION_CONTROL_FLAGS, requireOrg } from '../mutations/support.js';
+import {
+  AUDIT_TRAIL_FLAGS,
+  MUTATION_CONTROL_FLAGS,
+  auditTrailOptions,
+  requireOrg,
+} from '../mutations/support.js';
 import {
   mutateFeatureReference,
   parseFeatureReference,
@@ -32,11 +37,13 @@ export default class Edit extends Command {
   static examples = [
     '<%= config.bin %> <%= command.id %> ComponentClaim-api --owner group:platform --org my-org',
     '<%= config.bin %> <%= command.id %> ComponentClaim-api --owner group:platform --org my-org --diff',
+    '<%= config.bin %> <%= command.id %> ComponentClaim-api --owner group:platform --org my-org --commit --issue 42',
   ];
 
   static flags = {
     ...mutationFlagsWithout('kind', 'name', 'feature'),
     ...MUTATION_CONTROL_FLAGS,
+    ...AUDIT_TRAIL_FLAGS,
     'add-feature': Flags.string({
       description: 'Attach name@version:{...} or name#ref:{...}',
       multiple: true,
@@ -76,6 +83,7 @@ export default class Edit extends Command {
       noWait: flags['no-wait'],
       waitForChecks: flags['wait-for-checks'],
       stateRepos: parseStateRepos(flags['state-repos'], org),
+      ...auditTrailOptions(flags),
       transform: (claim) => {
         for (const value of flags['add-feature'] ?? []) {
           claim = mutateFeatureReference(
