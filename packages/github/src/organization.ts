@@ -148,14 +148,6 @@ export async function getOrgTeamsDirectAccess(org: string, octokit?: any) {
             id
             name
             slug
-            repositories {
-              edges {
-                permission
-                node {
-                  name
-                }
-              }
-            }
           }
           pageInfo {
             hasNextPage
@@ -166,6 +158,33 @@ export async function getOrgTeamsDirectAccess(org: string, octokit?: any) {
     }`,
     { org },
   );
+
+  // The GraphQL paginator handles one connection per query, so each team's
+  // repositories must be paginated separately from the organization's teams.
+  for (const team of response?.organization?.teams?.nodes ?? []) {
+    const repositoryResponse = await octokit.graphql.paginate(
+      `query paginate($cursor: String, $org: String!, $slug: String!) {
+        organization(login: $org) {
+          team(slug: $slug) {
+            repositories(first: 100, after: $cursor) {
+              edges {
+                permission
+                node {
+                  name
+                }
+              }
+              pageInfo {
+                hasNextPage
+                endCursor
+              }
+            }
+          }
+        }
+      }`,
+      { org, slug: team.slug },
+    );
+    team.repositories = repositoryResponse.organization.team.repositories;
+  }
 
   return transformGraphQLResponse(response);
 }

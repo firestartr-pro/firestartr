@@ -20,4 +20,5 @@ Authored lazily via `/domain-modeling`.
 | [0009](0009-policy-aware-retry-dispatch.md) | Policy-aware retry dispatch: RETRY_SYNC and error-condition gating |
 | [0010](0010-session-scoped-tfworkspaces-with-reuse-and-tear-up.md) | Session-scoped Terraform workspaces with reuse and tear-up |
 | [0011](0011-optional-tool-image-version-for-external-cmd-and-tf-planner.md) | Optional tool image version for external_cmd and tf_planner |
-| [0012](0012-plan-mode-is-read-only-and-lock-free.md) | Plan mode is read-only and lock-free |
+| [0012](0012-operator-diagnostic-startup-writer.md) | Start the diagnostic file at operator startup |
+| [0013](0013-plan-mode-is-read-only-and-lock-free.md) | Plan mode is read-only and lock-free |
