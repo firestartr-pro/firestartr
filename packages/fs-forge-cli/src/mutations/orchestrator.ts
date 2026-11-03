@@ -5,6 +5,7 @@ import { parseStateRepos } from '../context/resolve.js';
 import { loadClaimsMap, resolveClaim } from '../claims/claimsRepo.js';
 import { applyDefaultsFromRepo } from '../claims/defaults.js';
 import { serializeClaim } from '../claims/keyOrdering.js';
+import { withAuditTrail } from './auditIssue.js';
 import { FLAG_SPECS_BY_KIND } from './definitions.js';
 import { publishClaimAndWait } from './publish.js';
 import {
@@ -20,6 +21,7 @@ import {
 } from '../utils/mutateClaim.js';
 import type { ClaimsRepo } from '../claims/claimsRepo.js';
 import type { ClaimsMap } from '../claims/claimsMap.js';
+import type { AuditTrailOptions } from './auditIssue.js';
 import type { ClaimKind } from './definitions.js';
 import type { ValidationResult } from '../utils/ajvValidation.js';
 import type { ClaimDiff } from '../utils/mutateClaim.js';
@@ -30,7 +32,7 @@ export interface ClaimMutationPresentationOptions {
   json?: boolean;
 }
 
-export interface ClaimMutationOptions {
+export interface ClaimMutationOptions extends AuditTrailOptions {
   repo: ClaimsRepo;
   root: string;
   kind: ClaimKind;
@@ -170,25 +172,31 @@ export async function runClaimMutation(
       path: source.filePath,
       existingSha: source.sha,
     };
-    const { publishUrl } = await publishClaimAndWait(
-      {
-        repo,
-        kind,
-        name: target.name,
-        output,
-        path: target.path,
-        existingSha: target.existingSha,
-        noWait,
-        waitForChecks,
-        stateRepos: stateRepos ?? parseStateRepos(undefined, repo.ref.owner),
-      },
-      {
-        // The mutation output was already presented above.
-        output: () => {},
-        diagnostic: (line) => process.stderr.write(line),
-      },
+    const { publishUrl } = await withAuditTrail(
+      { repo, operation: 'edit', kind, name: target.name },
+      options,
+      (audit) =>
+        publishClaimAndWait(
+          {
+            repo,
+            kind,
+            name: target.name,
+            output,
+            path: target.path,
+            existingSha: target.existingSha,
+            noWait,
+            waitForChecks,
+            stateRepos:
+              stateRepos ?? parseStateRepos(undefined, repo.ref.owner),
+            audit,
+          },
+          {
+            // The mutation output was already presented above.
+            output: () => {},
+            diagnostic: (line) => process.stderr.write(line),
+          },
+        ),
     );
-
     return { ...result, publishUrl };
   } catch (error) {
     if (error instanceof Error) throw error;

@@ -21,7 +21,10 @@ import {
   FAILURE_CHECK,
   SUCCESS_CHECK,
   WET_PR_NUMBER,
+  closeIssueBeforeWetChecks,
+  expectAuditWetCheckOutcome,
   mockCommitApi,
+  prepareAuditIssue,
   runCommand,
 } from './fixtures/waitForChecks';
 
@@ -153,6 +156,51 @@ describe('features add --commit wait-for-checks', () => {
     expect(
       api.calls.some((call) => call.startsWith('listOpenPullRequests')),
     ).toBe(false);
+  });
+
+  it.each([
+    { issue: 'created', flag: ['--create-issue'], check: SUCCESS_CHECK, fails: false },
+    { issue: 'created', flag: ['--create-issue'], check: FAILURE_CHECK, fails: true },
+    { issue: 'adopted', flag: ['--issue', '1'], check: SUCCESS_CHECK, fails: false },
+    { issue: 'adopted', flag: ['--issue', '1'], check: FAILURE_CHECK, fails: true },
+  ])('records $issue audit issue outcomes when wet checks fail=$fails', async ({ issue, flag, check, fails }) => {
+    const api = featureApi({ checkRuns: [check] });
+    await prepareAuditIssue(api, issue);
+    closeIssueBeforeWetChecks(api);
+
+    const { error, stderr } = await runCommand(FeaturesAdd, [
+      ...addArgs(), ...flag, ...CUSTOM_STATE,
+    ]);
+
+    if (fails) {
+      expect(error?.message).toContain('Wet PR checks failed: failure');
+    } else {
+      expect(error).toBeUndefined();
+      expect(stderr).toContain('All checks passed');
+    }
+    expectAuditWetCheckOutcome(
+      api,
+      fails,
+      'Add feature feature_a to component my-component failed.\n\nWet PR checks failed: failure',
+    );
+  });
+
+  it.each([
+    { issue: 'created', flag: ['--create-issue'] },
+    { issue: 'adopted', flag: ['--issue', '1'] },
+  ])('leaves the $issue audit issue open when publishing fails before merge', async ({ issue, flag }) => {
+    const api = featureApi();
+    await prepareAuditIssue(api, issue);
+    api.commitFile = async () => { throw new Error('commit failed'); };
+
+    const { error } = await runCommand(FeaturesAdd, [
+      ...addArgs(), ...flag, ...CUSTOM_STATE,
+    ]);
+
+    expect(error?.message).toContain('commit failed');
+    expect(api.issues[0].state).toBe('open');
+    expect(api.issueComments[0].body).toContain('commit failed');
+    expect(api.createdPulls).toHaveLength(0);
   });
 
   it('fails the add when the wet PR checks fail', async () => {

@@ -6,6 +6,7 @@ import YAML from 'yaml';
 import { orgFromContext, resolveContext } from '../context/resolve.js';
 import { deriveVariantGroups } from '../utils/deriveFlags.js';
 
+import type { AuditTrailOptions } from './auditIssue.js';
 import type { ClaimKind } from './definitions.js';
 import type { VariantGroup } from '../utils/deriveFlags.js';
 
@@ -52,6 +53,45 @@ export const MUTATION_CONTROL_FLAGS = {
       'Comma-separated state repos for --wait-for-checks (default: <org>/state-github,<org>/state-infra)',
   }),
 };
+
+/** The audit-trail flags every `--commit` command carries. */
+export const AUDIT_TRAIL_FLAGS = {
+  issue: Flags.integer({
+    description:
+      'Link the commit to an existing claims-repo issue (adds "Closes #N" to the claim PR)',
+    dependsOn: ['commit'],
+    exclusive: ['create-issue'],
+  }),
+  'create-issue': Flags.boolean({
+    description:
+      'Open an issue in the claims repo before committing, then link it to the claim PR',
+    dependsOn: ['commit'],
+    exclusive: ['issue'],
+  }),
+  'issue-title': Flags.string({
+    description: 'Title for the issue opened by --create-issue',
+    dependsOn: ['create-issue'],
+  }),
+  'issue-body': Flags.string({
+    description: 'Body for the issue opened by --create-issue',
+    dependsOn: ['create-issue'],
+  }),
+};
+
+/** Maps the parsed `--issue*` flags onto the audit-trail options. */
+export function auditTrailOptions(flags: {
+  issue?: number;
+  'create-issue'?: boolean;
+  'issue-title'?: string;
+  'issue-body'?: string;
+}): AuditTrailOptions {
+  return {
+    issue: flags.issue,
+    createIssue: flags['create-issue'],
+    issueTitle: flags['issue-title'],
+    issueBody: flags['issue-body'],
+  };
+}
 
 /**
  * The `--org` value, which oclif already fills from `FSCRT_ORG`, then from the
