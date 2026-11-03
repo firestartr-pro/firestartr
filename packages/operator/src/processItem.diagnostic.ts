@@ -188,8 +188,7 @@ async function writeDiagnosticSnapshot(
   const registeredPlurals = new Set<string>();
   try {
     const monitors = (global as any).__crdMonitors as
-      | Map<string, any>
-      | undefined;
+      Map<string, any> | undefined;
     if (monitors && typeof monitors === 'object') {
       for (const [key, monitor] of monitors) {
         // key shape is namespace/plural (reflector uses `${namespace}/${plural}`)
