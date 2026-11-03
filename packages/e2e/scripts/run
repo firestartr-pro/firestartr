@@ -23,6 +23,9 @@ const RETRY_LIFECYCLE_TEST_PATH =
   '__tests__/terraform/retry-lifecycle.test.ts';
 const RETRY_LIFECYCLE_SUITE = 'retry-lifecycle';
 const RETRY_LIFECYCLE_ENV_VAR = 'E2E_RUN_RETRY_LIFECYCLE';
+const PLAN_MODE_TEST_PATH = '__tests__/terraform/plan-mode.test.ts';
+const PLAN_MODE_SUITE = 'plan-mode';
+const PLAN_MODE_ENV_VAR = 'E2E_RUN_PLAN_MODE';
 const CRD_UPGRADE_SELECTOR_ALIASES = new Set([
   CRD_UPGRADE_ONLY_SUITE,
   CRD_UPGRADE_TEST_NAME_ALIAS,
@@ -38,6 +41,7 @@ const K8S_RATE_LIMITS_SELECTOR_ALIASES = new Set([
 const RETRY_LIFECYCLE_SELECTOR_ALIASES = new Set([
   RETRY_LIFECYCLE_SUITE,
 ]);
+const PLAN_MODE_SELECTOR_ALIASES = new Set([PLAN_MODE_SUITE]);
 const CRD_UPGRADE_BASELINE_ENV_VAR = 'E2E_CRD_UPGRADE_BASELINE_VERSION';
 const CRD_UPGRADE_PHASE_ENV_VAR = 'E2E_CRD_UPGRADE_PHASE';
 const CRD_UPGRADE_PHASES = [
@@ -91,12 +95,13 @@ async function run() {
     const shouldRunMassive = requiresMassiveEnv(requestedSuites, testPaths);
     const shouldRunK8sRateLimits = requiresK8sRateLimitsEnv(requestedSuites, testPaths);
     const shouldRunRetryLifecycle = requiresRetryLifecycleEnv(requestedSuites, testPaths);
+    const shouldRunPlanMode = requiresPlanModeEnv(requestedSuites, testPaths);
     const regularTestPaths = testPaths.filter(
       (testPath) =>
         testPath !== CRD_UPGRADE_TEST_PATH &&
         testPath !== ORG_SETTINGS_TEST_PATH,
     );
-    const childEnv = buildChildEnv(shouldRunCrdUpgrade, shouldRunMassive, shouldRunK8sRateLimits, shouldRunRetryLifecycle);
+    const childEnv = buildChildEnv(shouldRunCrdUpgrade, shouldRunMassive, shouldRunK8sRateLimits, shouldRunRetryLifecycle, shouldRunPlanMode);
 
     await validateEnv({ requestedSuites, testPaths });
 
@@ -137,14 +142,16 @@ Special value: '${CRD_UPGRADE_ONLY_SUITE}' (or '${CRD_UPGRADE_TEST_NAME_ALIAS}')
 Special value: '${MASSIVE_SUITE}' (or '${MASSIVE_TEST_NAME_ALIAS}') to run only the optional massive creation/deletion test.
 Special value: '${K8S_RATE_LIMITS_SUITE}' (or '${K8S_RATE_LIMITS_TEST_NAME_ALIAS}') to run only the optional K8s API rate limits test.
 Special value: '${RETRY_LIFECYCLE_SUITE}' to run only the optional retry lifecycle test.
+Special value: '${PLAN_MODE_SUITE}' to run only the optional operator Plan mode test.
 
-Note: the CRD upgrade, massive, k8s-rate-limits, and retry-lifecycle tests are excluded from the regular 'all' catalog here. Dagger adds the CRD upgrade orchestration before regular 'all' when suites='all' is requested. Direct CRD upgrade execution requires ${CRD_UPGRADE_PHASE_ENV_VAR} to be set to one of: ${CRD_UPGRADE_PHASES.join(', ')}. The '${MASSIVE_SUITE}' selector sets ${MASSIVE_ENV_VAR}=true for the child Jest run; the '${K8S_RATE_LIMITS_SUITE}' selector sets ${K8S_RATE_LIMITS_ENV_VAR}=true; the '${RETRY_LIFECYCLE_SUITE}' selector sets ${RETRY_LIFECYCLE_ENV_VAR}=true; unqualified Jest invocations leave these tests skipped.
+Note: the CRD upgrade, massive, k8s-rate-limits, retry-lifecycle, and plan-mode tests are excluded from the regular 'all' catalog here. Dagger adds the CRD upgrade orchestration before regular 'all' when suites='all' is requested. Direct CRD upgrade execution requires ${CRD_UPGRADE_PHASE_ENV_VAR} to be set to one of: ${CRD_UPGRADE_PHASES.join(', ')}. The '${MASSIVE_SUITE}' selector sets ${MASSIVE_ENV_VAR}=true for the child Jest run; the '${K8S_RATE_LIMITS_SUITE}' selector sets ${K8S_RATE_LIMITS_ENV_VAR}=true; the '${RETRY_LIFECYCLE_SUITE}' selector sets ${RETRY_LIFECYCLE_ENV_VAR}=true; the '${PLAN_MODE_SUITE}' selector sets ${PLAN_MODE_ENV_VAR}=true; unqualified Jest invocations leave these tests skipped.
 
 Examples:
   node ./scripts/run all
   node ./scripts/run github
   node ./scripts/run github,unit
   node ./scripts/run names,wait,group-render-apply
+  node ./scripts/run ${PLAN_MODE_SUITE}
 
 Options:
   --report-dir <dir>  Write Jest JSON report to <dir>/report.json
@@ -252,6 +259,13 @@ function requiresRetryLifecycleEnv(requestedSuites, testPaths) {
   );
 }
 
+function requiresPlanModeEnv(requestedSuites, testPaths) {
+  return (
+    requestedSuites.some(isPlanModeSelector) ||
+    testPaths.includes(PLAN_MODE_TEST_PATH)
+  );
+}
+
 async function resolveSuites(args) {
   const [suitesArg] = args.filter((arg) => !arg.startsWith('-'));
 
@@ -312,6 +326,11 @@ Use '${CRD_UPGRADE_ONLY_SUITE}' alone to run only the CRD upgrade test.`,
       continue;
     }
 
+    if (isPlanModeSelector(suite)) {
+      testPaths.add(PLAN_MODE_TEST_PATH);
+      continue;
+    }
+
     if (catalog.suiteNames.includes(suite)) {
       for (const testPath of catalog.testsBySuite.get(suite) ?? []) {
         testPaths.add(testPath);
@@ -365,7 +384,7 @@ function orgSettingsTestCommand(extraJestArgs) {
   return ['test', '--', '--runInBand', '--runTestsByPath', ORG_SETTINGS_TEST_PATH, ...extraJestArgs];
 }
 
-function buildChildEnv(shouldRunCrdUpgrade, shouldRunMassive, shouldRunK8sRateLimits, shouldRunRetryLifecycle) {
+function buildChildEnv(shouldRunCrdUpgrade, shouldRunMassive, shouldRunK8sRateLimits, shouldRunRetryLifecycle, shouldRunPlanMode) {
   const childEnv = { ...process.env };
 
   if (shouldRunCrdUpgrade && !childEnv[CRD_UPGRADE_BASELINE_ENV_VAR]) {
@@ -385,6 +404,10 @@ function buildChildEnv(shouldRunCrdUpgrade, shouldRunMassive, shouldRunK8sRateLi
     childEnv[RETRY_LIFECYCLE_ENV_VAR] = 'true';
   }
 
+  if (shouldRunPlanMode) {
+    childEnv[PLAN_MODE_ENV_VAR] = 'true';
+  }
+
   return childEnv;
 }
 
@@ -395,7 +418,8 @@ async function buildTestCatalog() {
       testPath !== CRD_UPGRADE_TEST_PATH &&
       testPath !== MASSIVE_TEST_PATH &&
       testPath !== K8S_RATE_LIMITS_TEST_PATH &&
-      testPath !== RETRY_LIFECYCLE_TEST_PATH,
+      testPath !== RETRY_LIFECYCLE_TEST_PATH &&
+      testPath !== PLAN_MODE_TEST_PATH,
   );
   const testsBySuite = new Map();
   const testsByName = new Map();
@@ -417,6 +441,7 @@ async function buildTestCatalog() {
         ...MASSIVE_SELECTOR_ALIASES,
         ...K8S_RATE_LIMITS_SELECTOR_ALIASES,
         ...RETRY_LIFECYCLE_SELECTOR_ALIASES,
+        ...PLAN_MODE_SELECTOR_ALIASES,
       ]),
     ].sort(),
     testPaths,
@@ -477,6 +502,10 @@ function isK8sRateLimitsSelector(suite) {
 
 function isRetryLifecycleSelector(suite) {
   return RETRY_LIFECYCLE_SELECTOR_ALIASES.has(suite.toLowerCase());
+}
+
+function isPlanModeSelector(suite) {
+  return PLAN_MODE_SELECTOR_ALIASES.has(suite.toLowerCase());
 }
 
 function spawnTest(args, runEnv = process.env) {
