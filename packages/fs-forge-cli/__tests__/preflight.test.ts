@@ -8,9 +8,10 @@ jest.mock('../src/github/index', () => ({
 import { createGitHubApi } from '../src/github/index';
 import Preflight from '../src/commands/preflight';
 import { MemoryGitHubApi } from './fixtures/memoryGitHubApi';
+import { captureEnv, contextFixture } from './fixtures/contextFixtures';
 
 const ROOT = process.cwd();
-const ORIGINAL_ORG = process.env.FSCRT_ORG;
+const env = captureEnv();
 
 const MockCreateGitHubApi = createGitHubApi as unknown as jest.Mock;
 
@@ -21,11 +22,7 @@ beforeAll(() => {
 afterEach(() => {
   MockCreateGitHubApi.mockClear();
   process.exitCode = 0;
-  if (ORIGINAL_ORG === undefined) {
-    delete process.env.FSCRT_ORG;
-  } else {
-    process.env.FSCRT_ORG = ORIGINAL_ORG;
-  }
+  env.restore();
 });
 
 const CLAIMS_MAP = {
@@ -86,6 +83,41 @@ function mockApi(opts?: {
 }
 
 describe('fs-forge preflight', () => {
+  it.each([
+    ['create', 'repo'],
+    ['create', 'team'],
+    ['create', 'user'],
+    ['edition', 'repo'],
+    ['edition', 'team'],
+    ['edition', 'user'],
+  ])(
+    'checks the selected org provider for %s %s with a cross-owner claims repo',
+    async (mode, kind) => {
+      process.env.FS_FORGE_CONFIG = contextFixture('repo-overrides.yaml');
+      const api = mockApi();
+      const claimsRef = { owner: 'shared', repo: 'claims-fork' };
+      api.setDefaultBranch(claimsRef, 'main');
+      api.setFile(claimsRef, 'claims-map.json', JSON.stringify(CLAIMS_MAP));
+      api.addRepo({ owner: 'acme', repo: 'provider-resource' });
+      api.existingTeams.add('acme/provider-resource');
+      api.members.add('acme/provider-resource');
+      const flags = [
+        `--${mode}`, '--kind', kind, '--name', 'provider-resource', '--org', 'acme',
+      ];
+      if (mode === 'edition') flags.push('--old-name', `existing-${kind}`);
+
+      const { error } = await captureOutput(() =>
+        Preflight.run(flags, { root: ROOT }),
+      );
+
+      expect(error?.oclif?.exit).toBe(2);
+      expect(error?.message).toContain('already exists in GitHub');
+      expect(api.calls).toContain(
+        'readFile shared/claims-fork:claims-map.json@claims-index',
+      );
+    },
+  );
+
   describe('flag validation', () => {
     it('requires --org', async () => {
       const { error } = await captureOutput(() =>

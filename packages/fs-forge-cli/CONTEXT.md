@@ -19,6 +19,41 @@ _Avoid_: dev build
 A deterministic YAML document describing a desired platform resource
 (component, group, system, etc.). The CLI's core output unit.
 
+**Context**:
+The effective fs-forge target: the organization, its claims/state/catalog
+repos, the CLI version pin, and the auth source. Printed by `fs-forge context`,
+and resolved implicitly by every `--org` flag, in this precedence order:
+`--org`, then `FSCRT_ORG`, then the config entry whose `paths` contains the
+current directory. Every `--org` flag is optional once a context resolves.
+See ADR 0014.
+
+**Context config file**:
+The per-install fs-forge config the CLI owns: `$FS_FORGE_CONFIG`, else
+`$XDG_CONFIG_HOME/fs-forge/config.yaml`, else `~/.config/fs-forge/config.yaml`.
+Holds `organizations[].{name, paths[], claims_repo?, state_github_repo?,
+state_infra_repo?, catalog_repo?}` (repos default to
+`{name}/claims`, `{name}/state-github`, `{name}/state-infra`, `{name}/catalog`)
+plus a single top-level `cli_version` pin. A file in the old single
+`organization: {name}` shape counts as no config.
+_Avoid_: firestartr-config.yaml
+
+**Matched path**:
+The `paths` entry of the config entry that contains the current directory.
+Matching is on path-segment boundaries (`/home/me/proj` never matches
+`/home/me/projectX`) and the longest matching entry wins; it is shown
+`~`-collapsed when under the home directory. Two organizations claiming the
+same longest path is an ambiguity, not a tie-break.
+
+**Context error code**:
+One of `NO_CONFIG`, `NO_MATCH`, `AMBIGUOUS_MATCH`, `NO_AUTH`. `fs-forge context`
+exits non-zero with the code; with `--json` it writes
+`{"error": {"code", "message"}}` to stderr.
+
+**Auth fallback**:
+When `GITHUB_TOKEN` is unset, the CLI reads the token from `gh auth token`
+itself; the context reports only the source (`GITHUB_TOKEN` or `gh`), never the
+token.
+
 **Catalog-only claim**:
 A claim kind that produces only Backstage catalog entities, not GitHub CRs.
 Currently `SystemClaim` and `DomainClaim`. These claims skip hydration steps
@@ -34,6 +69,16 @@ and constraints of a claim kind.
 The type of a claim — `ArgoDeployClaim`, `ComponentClaim`, `DomainClaim`,
 `GroupClaim`, `OrgSettingsClaim`, `OrgWebhookClaim`, `SecretsClaim`,
 `SystemClaim`, `TFWorkspaceClaim`, `UserClaim`.
+
+**Kind capability**:
+What one kind supports beyond its schema: its claims directory (or that `--path`
+is required), whether it is catalog-only, its org field, the hydration and delete
+workflows a claims repo dispatches, variants, preflight, state repo and the
+claim fields it references. Reference paths use `[]` for array items and `.**`
+for any field at any depth below that path. `KIND_OVERRIDES` in
+`src/claims/kindRegistry.ts` is the single source; `kinds` and `kinds show`
+render it.
+_Avoid_: kind metadata, kind config
 
 **Codegen**:
 The metadata-driven code generation process
@@ -111,8 +156,8 @@ pushes `claims-map.json` to the `claims-index` branch.
 
 **Provision workflow**:
 The GitHub Actions workflow at `.github/workflows/provision-claim.yaml` in the
-claims repo. Triggered by `workflow_dispatch`; opens a PR for the branch,
-runs verify, merges, dispatches hydration, and merges the wet PR. Takes
+claims repo. Triggered by `workflow_dispatch`; opens (or reuses) a PR for the
+branch, runs verify, merges, dispatches hydration, and merges the wet PR. Takes
 `claimType`, `claimName`, and optional `correlationId` as inputs.
 
 **Deterministic path**:
@@ -128,6 +173,17 @@ The mechanisms by which fs-forge reads from and writes to a claims repo:
 (create branch → commit claim → dispatch provision workflow), and
 **get defaults** (fetch `claims_defaults.yaml` for additive default application).
 Implemented by `src/claims/claimsRepo.ts` over the GitHub port.
+
+**Claim PR**:
+The pull request on branch `fs-forge/<Kind>-<name>` in the claims repo that
+carries a claim to the default branch. Opened by the Provision workflow, or
+reused when the CLI opened it for an audit issue. Defined in
+`src/claims/claimsRepo.ts`.
+
+**Audit issue**:
+The claims-repo issue recording one committed claim operation: adopted with
+`--issue <N>`, or opened from a built-in template by `--create-issue`. Defined
+in `src/mutations/auditIssue.ts`.
 
 **GitHub port**:
 The `src/github/api.ts` interface describing the GitHub operations fs-forge
@@ -233,7 +289,8 @@ appeared within the grace window).
 **Preflight**:
 A read-only gate check run before creation, edition, or deletion of a claim.
 Validates local claim state and/or provider-side resource existence to prevent
-collisions. Never mutates claims or provider resources. See ADR 0008.
+collisions. Never mutates claims or provider resources. See ADR 0008 and, for
+how it resolves its organization, ADR 0014.
 
 **Provider-backed resource**:
 A resource whose lifecycle is managed by an external provider API (e.g., GitHub
@@ -265,7 +322,8 @@ domain (GitHub resources, infrastructure resources).
 **Check run**:
 A GitHub status check attached to a commit or pull request. In wet PRs,
 check runs report the outcome of terraform plan/apply stages per CR.
-Each check run carries a conclusion (`success`/`failure`), an output summary
+Each check run carries a conclusion (e.g. `success`, `failure`,
+`action_required`, or `stale`), an output summary
 with per-CR results, and optional annotations with line-level details.
 
 **Claim-ref annotation**:

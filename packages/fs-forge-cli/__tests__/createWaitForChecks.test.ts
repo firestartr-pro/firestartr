@@ -18,7 +18,10 @@ import {
   FAILURE_CHECK,
   SUCCESS_CHECK,
   WET_PR_NUMBER,
+  closeIssueBeforeWetChecks,
+  expectAuditWetCheckOutcome,
   mockCommitApi,
+  prepareAuditIssue,
   runCommand,
 } from './fixtures/waitForChecks';
 
@@ -281,6 +284,67 @@ describe('create --wait-for-checks forwarding', () => {
       `listCheckRunsForPullRequest my-org/custom-state#${WET_PR_NUMBER}`,
     );
   });
+
+  it.each([
+    { issue: 'created', flag: ['--create-issue'], check: SUCCESS_CHECK, fails: false },
+    { issue: 'created', flag: ['--create-issue'], check: FAILURE_CHECK, fails: true },
+    { issue: 'adopted', flag: ['--issue', '1'], check: SUCCESS_CHECK, fails: false },
+    { issue: 'adopted', flag: ['--issue', '1'], check: FAILURE_CHECK, fails: true },
+  ])('records $issue audit issue outcomes when wet checks fail=$fails', async ({ issue, flag, check, fails }) => {
+    const api = mockCommitApi({ checkRuns: [check] });
+    await prepareAuditIssue(api, issue);
+    closeIssueBeforeWetChecks(api);
+
+    const { error, stderr } = await runCommand(CreateComponent, [
+      ...componentArgs(), '--commit', '--org', 'my-org', ...flag,
+      '--state-repos', 'my-org/custom-state',
+    ]);
+
+    if (fails) {
+      expect(error?.message).toContain('Wet PR checks failed: failure');
+    } else {
+      expect(error).toBeUndefined();
+      expect(stderr).toContain('All checks passed');
+    }
+    expectAuditWetCheckOutcome(
+      api,
+      fails,
+      'The create of ComponentClaim-example failed.\n\nWet PR checks failed: failure',
+    );
+  });
+
+  it.each([
+    { issue: 'created', flag: ['--create-issue'] },
+    { issue: 'adopted', flag: ['--issue', '1'] },
+  ])('leaves the $issue audit issue open when publishing fails before merge', async ({ issue, flag }) => {
+    const api = mockCommitApi();
+    await prepareAuditIssue(api, issue);
+    api.commitFile = async () => { throw new Error('commit failed'); };
+
+    const { error } = await runCommand(CreateComponent, [
+      ...componentArgs(), '--commit', '--org', 'my-org', ...flag,
+    ]);
+
+    expect(error?.message).toContain('commit failed');
+    expect(api.issues[0].state).toBe('open');
+    expect(api.issueComments[0].body).toContain('commit failed');
+    expect(api.createdPulls).toHaveLength(0);
+  });
+
+  it.each(['action_required', 'stale'])(
+    'fails the default create check watch with %s',
+    async (conclusion) => {
+      mockCommitApi({ checkRuns: [{ ...SUCCESS_CHECK, conclusion }] });
+
+      const { error, stderr } = await runCommand(CreateComponent, [
+        ...componentArgs(), '--commit', '--org', 'my-org',
+        '--state-repos', 'my-org/custom-state',
+      ]);
+
+      expect(error?.message).toContain(`Wet PR checks failed: ${conclusion}`);
+      expect(stderr).not.toContain('All checks passed');
+    },
+  );
 
   it('fails the create when the wet PR checks fail', async () => {
     mockCommitApi({ checkRuns: [FAILURE_CHECK] });

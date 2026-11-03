@@ -75,8 +75,13 @@ export function emitCreateCommand(model: ClaimCommandModel): string {
 import { join } from 'path';
 
 import { assertCreatePath } from '../../claims/deterministicPath.js';
+import { parseStateRepos } from '../../context/resolve.js';
 import { runClaimCreation } from '../../mutations/creation.js';
-import { MUTATION_CONTROL_FLAGS } from '../../mutations/support.js';
+import {
+  AUDIT_TRAIL_FLAGS,
+  MUTATION_CONTROL_FLAGS,
+  auditTrailOptions,
+} from '../../mutations/support.js';
 import { createClaimValidator } from '../../utils/ajvValidation.js';
 import { buildClaimFromFlags } from '../../utils/buildClaim.js';
 ${hasFeatureReferences ? "import { mutateFeatureReference, parseFeatureReference } from '../../utils/features.js';\n" : ''}import { runtimeFlags } from '../../utils/runtimeFlags.js';
@@ -98,6 +103,7 @@ ${hasFeatureReferences ? "  feature: Flags.string({ description: 'Attach a Featu
     commit: MUTATION_CONTROL_FLAGS.commit,
     'wait-for-checks': MUTATION_CONTROL_FLAGS['wait-for-checks'],
     'state-repos': MUTATION_CONTROL_FLAGS['state-repos'],
+    ...AUDIT_TRAIL_FLAGS,
     path: Flags.string({ description: 'Destination path for TFWorkspaceClaim or SecretsClaim' }),
   };
 
@@ -132,7 +138,10 @@ ${hasFeatureReferences ? "    for (const value of flags.feature ?? []) {\n      
       claim,
       commit: flags.commit,
       waitForChecks: flags['wait-for-checks'],
-      stateRepos: flags['state-repos'],
+      stateRepos: flags.commit && flags.org
+        ? parseStateRepos(flags['state-repos'], flags.org)
+        : undefined,
+      ...auditTrailOptions(flags),
       path: flags.path,
       writeOutput: (output) => this.log(output),
       writeDiagnostic: (output) => process.stderr.write(output),
@@ -145,7 +154,10 @@ ${hasFeatureReferences ? "    for (const value of flags.feature ?? []) {\n      
 export function emitKindsCommand(): string {
   return `import { Command, Flags } from '@oclif/core';
 
-import { KIND_CAPABILITIES } from '../claims/kindRegistry.js';
+import {
+  KIND_CAPABILITIES,
+  kindCapabilitiesJson,
+} from '../claims/kindRegistry.js';
 
 function writeLine(value: string): void {
   process.stdout.write(value + '\\n');
@@ -162,17 +174,7 @@ export default class Kinds extends Command {
     const { flags } = await this.parse(Kinds);
 
     if (flags.json) {
-      writeLine(
-        JSON.stringify(
-          KIND_CAPABILITIES.map(({ id, kind, summary }) => ({
-            id,
-            kind,
-            description: summary,
-          })),
-          null,
-          2,
-        ),
-      );
+      writeLine(JSON.stringify(kindCapabilitiesJson(), null, 2));
       return;
     }
 

@@ -25,6 +25,7 @@ import * as loader from './loader';
 import { stitchClaim } from '../claims/stitching/stitching';
 
 import log from '../logger';
+import { isIgnoredFile } from '../utils/fileIgnore';
 
 // We need to ensure the grep command is a gnu version
 let IS_GNU_GREP = false;
@@ -371,7 +372,8 @@ async function getClaimsByName(name: string, cwd = '.'): Promise<void> {
           continue;
         }
 
-        entradas.push(path.join(cwd, fileName));
+        const entry = path.join(cwd, fileName);
+        if (!isIgnoredFile(entry)) entradas.push(entry);
       }
 
       return Promise.all(

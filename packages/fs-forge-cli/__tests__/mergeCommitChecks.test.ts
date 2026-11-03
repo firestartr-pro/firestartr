@@ -83,7 +83,7 @@ describe('wet PR checks on head and merge commits', () => {
     await watchWetPrChecks(createOctokitApi(octokit), { owner: 'example', repo: 'claims' }, {
       claimType: 'ComponentClaim',
       claimName: 'example',
-      stateRepos: 'example/state-infra',
+      stateRepos: ['example/state-infra'],
     }, diagnostic);
 
     expect(pullsGet).toHaveBeenCalledTimes(1);

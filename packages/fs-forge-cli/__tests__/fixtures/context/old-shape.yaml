@@ -1,0 +1,3 @@
+# The pre-context single-organization shape: treated as no config at all.
+organization:
+  name: acme
