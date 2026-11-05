@@ -124,11 +124,18 @@ describe('Plan mode synchronization', () => {
   });
 
   it('records a sync for every other finished plan except deletions', () => {
-    const live = { metadata: {} };
+    const live = {
+      metadata: { annotations: { 'firestartr.dev/sync-enabled': 'true' } },
+    };
 
     expect(planRecordsSync(OperationType.SYNC, live)).toBe(true);
     expect(planRecordsSync(OperationType.UPDATED, live)).toBe(true);
     expect(planRecordsSync(OperationType.MARKED_TO_DELETION, live)).toBe(false);
+  });
+
+  it('records no sync for a CR with synchronization disabled', () => {
+    expect(planRecordsSync(OperationType.SYNC, { metadata: {} })).toBe(false);
+    expect(planRecordsSync(OperationType.UPDATED, { metadata: {} })).toBe(false);
   });
 
   it('never rearms sync after a retried deletion plan', () => {
