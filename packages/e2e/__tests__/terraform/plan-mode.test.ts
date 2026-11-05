@@ -1,3 +1,30 @@
+/**
+ * Operator Plan mode e2e.
+ *
+ * Goal: every CR gets planned, nothing gets written.
+ *
+ * Runs alone (it restarts the controller). Opt-in via E2E_RUN_PLAN_MODE=true,
+ * or run the `plan-mode` suite.
+ *
+ * 1. Save the controller's env and replica count.
+ * 2. Start the live operator, delete leftovers from past runs, stop it.
+ * 3. Start Plan mode: OPERATOR_PLAN_MODE=true, watching only
+ *    terraformworkspaces.
+ * 4. Apply two CRs from fixture tfworkspace-a (suffixes a and b).
+ * 5. Wait for `PLAN FirestartrTerraformWorkspace/<cr> CREATED: +N ~M -K
+ *    (.../<cr>.md)`.
+ * 6. Assert nothing was written: plan has +N > 0, artifact path printed, CR
+ *    has no conditions, no finalizer, no TFResult, no ConfigMap, and the
+ *    tfstate Secrets and lock Leases keep the same resourceVersion (no lock,
+ *    no state write).
+ * 7. Restart the live operator without the plan flag.
+ * 8. Both CRs still reach PROVISIONED=True and their ConfigMaps appear.
+ * 9. Restore the original deployment, delete the CRs and the artifacts.
+ *
+ * Catches the two leaks: Plan mode writing to the CR, and Plan mode writing to
+ * the Terraform backend.
+ */
+
 import fs from 'node:fs/promises';
 import path from 'node:path';
 import * as k8s from '@kubernetes/client-node';
