@@ -5,18 +5,35 @@ import { claimsRepo } from '../claims/claimsRepo.js';
 import type { ClaimsRepo } from '../claims/claimsRepo.js';
 import { createGitHubApi } from '../github/index.js';
 import {
+  parseStateRepos,
+  resolveClaimsRepository,
+} from '../context/resolve.js';
+import {
   pointInTimeCheck,
   watchCheckRuns,
   type AggregatedCheckResult,
 } from '../claims/checkRuns.js';
-import { parseStateRepos, findWetPr, type WetPrInfo } from '../claims/wetPr.js';
-import { ORG_FLAG } from '../mutations/support.js';
+import {
+  findWetPr,
+  type WetPrInfo,
+  type LastStatePrRedirect,
+} from '../claims/wetPr.js';
+import { ORG_FLAG, requireOrg } from '../mutations/support.js';
 import { resolveClaimReference } from '../claims/kindRegistry.js';
 import {
   findCrOnMainBranch,
   formatPrState,
   type CrInfo,
 } from '../claims/stateRepo.js';
+
+import type { GitHubApi } from '../github/api.js';
+
+interface LastStatePrInfo {
+  repo: string;
+  number: number;
+  state: string | null;
+  url: string | null;
+}
 
 interface JsonOutput {
   status: string;
@@ -34,12 +51,7 @@ interface JsonOutput {
     name: string;
     path: string;
     content: string;
-    lastStatePr: {
-      repo: string;
-      number: number;
-      state: string | null;
-      url: string | null;
-    } | null;
+    lastStatePr: LastStatePrInfo | null;
     checks: Array<{
       name: string;
       conclusion: string | null;
@@ -48,6 +60,15 @@ interface JsonOutput {
   }>;
   overallConclusion?: string;
   exitCode: number;
+}
+
+interface WatchFlags {
+  org: string;
+  current: boolean;
+  'state-repos'?: string;
+  timeout?: number;
+  json: boolean;
+  'cr-name'?: string;
 }
 
 export default class WatchChecks extends Command {
@@ -62,6 +83,7 @@ export default class WatchChecks extends Command {
     'Watch wet PR check runs for reconciliation status. Supports watch mode (default) and current mode (--current).';
 
   static examples = [
+    '<%= config.bin %> <%= command.id %> ComponentClaim-my-app',
     '<%= config.bin %> <%= command.id %> ComponentClaim-my-app --org my-org',
     '<%= config.bin %> <%= command.id %> ComponentClaim-my-app --org my-org --current',
     '<%= config.bin %> <%= command.id %> ComponentClaim-my-app --org my-org --timeout 600',
@@ -93,9 +115,7 @@ export default class WatchChecks extends Command {
   async run(): Promise<void> {
     const { args, flags } = await this.parse(WatchChecks);
 
-    if (!flags.org) {
-      this.error('--org or FSCRT_ORG is required');
-    }
+    const org = requireOrg(flags.org);
 
     const reference = resolveClaimReference(args.reference);
     if (!reference) {
@@ -103,14 +123,30 @@ export default class WatchChecks extends Command {
     }
     const { kind, name } = reference;
 
-    const repo = claimsRepo(createGitHubApi(), flags.org);
-    const stateRepos = parseStateRepos(flags['state-repos'], flags.org);
+    const target = resolveClaimsRepository(org);
+    const repo = claimsRepo(createGitHubApi(), target.owner, target.repo);
+    const stateRepos = parseStateRepos(flags['state-repos'], org);
     const claimRef = `${kind}-${name}`;
 
+    const resolvedFlags = { ...flags, org };
     if (flags.current) {
-      await this.runCurrentMode(repo, stateRepos, kind, name, claimRef, flags);
+      await this.runCurrentMode(
+        repo,
+        stateRepos,
+        kind,
+        name,
+        claimRef,
+        resolvedFlags,
+      );
     } else {
-      await this.runWatchMode(repo, stateRepos, kind, name, claimRef, flags);
+      await this.runWatchMode(
+        repo,
+        stateRepos,
+        kind,
+        name,
+        claimRef,
+        resolvedFlags,
+      );
     }
   }
 
@@ -120,14 +156,7 @@ export default class WatchChecks extends Command {
     kind: string,
     name: string,
     claimRef: string,
-    flags: {
-      org?: string;
-      current: boolean;
-      'state-repos'?: string;
-      timeout?: number;
-      json: boolean;
-      'cr-name'?: string;
-    },
+    flags: WatchFlags,
   ): Promise<void> {
     const wetPr = await findWetPr(repo.api, stateRepos, kind, name);
 
@@ -136,7 +165,7 @@ export default class WatchChecks extends Command {
         const output: JsonOutput = {
           status: 'error',
           mode: 'watch',
-          org: flags.org!,
+          org: flags.org,
           claimRef,
           exitCode: 3,
         };
@@ -164,11 +193,7 @@ export default class WatchChecks extends Command {
           label: `${wetPr.repo}#${wetPr.number}`,
         };
 
-    if (flags.json) {
-      process.stderr.write(`Watching wet PR ${watchTarget.label}...\n`);
-    } else {
-      process.stderr.write(`Watching wet PR ${watchTarget.label}...\n`);
-    }
+    process.stderr.write(`Watching wet PR ${watchTarget.label}...\n`);
 
     const timeoutMs = flags.timeout ? flags.timeout * 1000 : undefined;
 
@@ -188,16 +213,13 @@ export default class WatchChecks extends Command {
     wetPr: WetPrInfo,
     watchTarget: { owner: string; repo: string; number: number; label: string },
     claimRef: string,
-    flags: {
-      org?: string;
-      json: boolean;
-    },
+    flags: Pick<WatchFlags, 'org' | 'json'>,
   ): void {
     if (flags.json) {
       const output: JsonOutput = {
         status: result.overallConclusion === 'success' ? 'ok' : 'error',
         mode: 'watch',
-        org: flags.org!,
+        org: flags.org,
         claimRef,
         wetPr: {
           repo: watchTarget.repo,
@@ -233,7 +255,12 @@ export default class WatchChecks extends Command {
       process.stderr.write('Timed out waiting for checks\n');
       this.exit(2);
     } else {
-      process.stderr.write('Some checks failed ✗\n');
+      process.stderr.write(
+        result.overallConclusion === 'action_required' ||
+          result.overallConclusion === 'stale'
+          ? `Some checks failed: ${result.overallConclusion} ✗\n`
+          : 'Some checks failed ✗\n',
+      );
       this.exit(1);
     }
   }
@@ -269,14 +296,7 @@ export default class WatchChecks extends Command {
     kind: string,
     name: string,
     claimRef: string,
-    flags: {
-      org?: string;
-      current: boolean;
-      'state-repos'?: string;
-      timeout?: number;
-      json: boolean;
-      'cr-name'?: string;
-    },
+    flags: WatchFlags,
   ): Promise<void> {
     const allCrInfo: CrInfo[] = [];
 
@@ -294,7 +314,7 @@ export default class WatchChecks extends Command {
         const output: JsonOutput = {
           status: 'error',
           mode: 'current',
-          org: flags.org!,
+          org: flags.org,
           claimRef,
           exitCode: 3,
         };
@@ -331,16 +351,15 @@ export default class WatchChecks extends Command {
   private async buildCurrentModeOutput(
     repo: ClaimsRepo,
     crs: CrInfo[],
-    flags: {
-      org?: string;
-      json: boolean;
-    },
+    flags: Pick<WatchFlags, 'org' | 'json'>,
     claimRef: string,
   ): Promise<JsonOutput> {
     const jsonCrs: NonNullable<JsonOutput['crs']> = [];
+    const prInfoByPr = new Map<string, LastStatePrInfo>();
     let overallStatus = 'ok';
 
     for (const cr of crs) {
+      let lastStatePr: LastStatePrInfo | null = null;
       let checks: Array<{
         name: string;
         conclusion: string | null;
@@ -348,6 +367,10 @@ export default class WatchChecks extends Command {
       }> = [];
 
       if (cr.lastStatePr) {
+        const key = `${cr.lastStatePr.repo}#${cr.lastStatePr.number}`;
+        lastStatePr =
+          prInfoByPr.get(key) ?? (await enrichPrInfo(repo.api, cr.lastStatePr));
+        prInfoByPr.set(key, lastStatePr);
         try {
           const result = await pointInTimeCheck(
             repo.api,
@@ -377,7 +400,7 @@ export default class WatchChecks extends Command {
         name: cr.name,
         path: cr.path,
         content: cr.content,
-        lastStatePr: cr.lastStatePr,
+        lastStatePr,
         checks,
       });
     }
@@ -385,7 +408,7 @@ export default class WatchChecks extends Command {
     return {
       status: overallStatus,
       mode: 'current',
-      org: flags.org!,
+      org: flags.org,
       claimRef,
       crs: jsonCrs,
       exitCode: overallStatus === 'ok' ? 0 : 1,
@@ -428,6 +451,20 @@ export default class WatchChecks extends Command {
       }
       process.stdout.write('\n');
     }
+  }
+}
+
+async function enrichPrInfo(
+  api: GitHubApi,
+  parsed: LastStatePrRedirect,
+): Promise<LastStatePrInfo> {
+  const { owner, repo: repoSlug, number } = parsed;
+  const repo = repoSlug.slice(owner.length + 1);
+  try {
+    const pr = await api.getPullRequest({ owner, repo }, number);
+    return { repo: repoSlug, number, state: pr.state, url: pr.htmlUrl };
+  } catch {
+    return { repo: repoSlug, number, state: null, url: null };
   }
 }
 

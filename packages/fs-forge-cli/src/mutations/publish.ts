@@ -1,9 +1,9 @@
 import { claimExists } from '../claims/claimsMap.js';
 import { loadClaimsMap, publishClaim } from '../claims/claimsRepo.js';
-import { findWetPr, parseStateRepos } from '../claims/wetPr.js';
-import { watchCheckRuns } from '../claims/checkRuns.js';
+import { watchWetPrChecks } from '../claims/wetPrChecks.js';
 import { waitForDispatch } from '../utils/waitForDispatch.js';
 
+import type { AuditTrail } from './auditIssue.js';
 import type { ClaimsRepo } from '../claims/claimsRepo.js';
 import type { ClaimKindName } from '../claims/kinds.js';
 
@@ -16,7 +16,9 @@ export interface ClaimPublishRequest {
   existingSha?: string;
   noWait: boolean;
   waitForChecks: boolean;
-  stateRepos?: string;
+  stateRepos: string[];
+  /** Opens or links the audit issue around the claim PR. */
+  audit?: AuditTrail;
   /** Create only: reject a claim that already exists in the claims map. */
   rejectExistingClaim?: boolean;
 }
@@ -49,6 +51,7 @@ export async function publishClaimAndWait(
     noWait,
     waitForChecks,
     stateRepos,
+    audit,
     rejectExistingClaim,
   } = request;
 
@@ -66,42 +69,37 @@ export async function publishClaimAndWait(
     );
   }
 
-  const dispatch = await publishClaim(repo, {
-    kind,
-    name,
-    path,
-    yaml: output,
-    existingSha,
-  });
+  const dispatch = await publishClaim(
+    repo,
+    {
+      kind,
+      name,
+      path,
+      yaml: output,
+      existingSha,
+    },
+    audit,
+  );
 
   const publishUrl = await waitForDispatch(repo.api, repo.ref, dispatch, {
     noWait,
     claimType: kind,
     claimName: name,
     label: 'Provisioning',
+    extra: audit?.result(),
   });
 
-  if (waitForChecks && !noWait) {
-    const repos = parseStateRepos(stateRepos, repo.ref.owner);
-    const wetPr = await findWetPr(repo.api, repos, kind, name);
+  // Only a successful publish has a run to record; failures are reported by
+  // the caller's audit trail.
+  await audit?.commentRunUrl(publishUrl);
 
-    if (wetPr) {
-      pulse.diagnostic(`Watching wet PR ${wetPr.repo}#${wetPr.number}...\n`);
-      const watchRepoName = wetPr.repo.split('/')[1];
-      const result = await watchCheckRuns(
-        repo.api,
-        { owner: wetPr.owner, repo: watchRepoName },
-        wetPr.number,
-      );
-      if (result.overallConclusion !== 'success') {
-        throw new Error(`Wet PR checks failed: ${result.overallConclusion}`);
-      }
-      pulse.diagnostic('All checks passed ✓\n');
-    } else {
-      pulse.diagnostic(
-        'No wet PR found for this claim; skipping check watch.\n',
-      );
-    }
+  if (waitForChecks && !noWait) {
+    await watchWetPrChecks(
+      repo.api,
+      repo.ref,
+      { claimType: kind, claimName: name, stateRepos },
+      pulse.diagnostic,
+    );
   }
 
   return { publishUrl };

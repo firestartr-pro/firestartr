@@ -1,4 +1,4 @@
-FROM node:22-bookworm
+FROM node:24-bookworm
 
 ENV LERNA="8.1.9"
 ENV NCC="0.38.3"

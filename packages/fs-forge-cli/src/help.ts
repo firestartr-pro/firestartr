@@ -90,6 +90,8 @@ export default class CustomHelp extends Help {
       })),
       flags: Object.entries(command.flags).map(([path, flag]) => {
         const spec = specs.get(path);
+        // The manifest drops boolean defaults; the loaded class keeps them.
+        const classDefault = cmdClass.flags?.[path]?.default;
         return {
           path,
           ...serializable(flag),
@@ -98,7 +100,7 @@ export default class CustomHelp extends Help {
           conditionalRequired: spec?.conditionalRequired ?? false,
           options:
             spec?.enumValues ?? ('options' in flag ? flag.options : undefined),
-          default: spec?.defaultValue ?? flag.default,
+          default: spec?.defaultValue ?? flag.default ?? classDefault,
           multiple:
             spec?.multiple ?? ('multiple' in flag ? flag.multiple : false),
         };

@@ -7,12 +7,22 @@
 version: 2
 updates:
   - package-ecosystem: "npm"
+    # Dependabot reads the root package.json "packageManager" pin and commits the
+    # lockfile with that npm. Workflows, images and the e2e container install the
+    # same version from that field, so it is the only
+    # place to edit. Never go below 11.5.1: publishing over OIDC needs it.
     directories:
       - "/"
     schedule:
       interval: "daily"
     versioning-strategy: increase
     open-pull-requests-limit: 30
+    # Dev dependencies use chore(deps), which release-please hides. Runtime and
+    # critical bumps use fix(deps) so they release. The skill squash subject
+    # follows levels.yaml and overrides this when they disagree.
+    commit-message:
+      prefix: fix
+      prefix-development: chore
     # Ignore these dependencies to allow manual review of possible errors and conflicts
     ignore:
       - dependency-name: "uuid"

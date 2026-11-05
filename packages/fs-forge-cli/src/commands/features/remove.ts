@@ -6,6 +6,7 @@ import {
   FEATURE_TARGET_RELATIONSHIP,
 } from '../../utils/featureCommand.js';
 import { runFeatureMutation } from '../../features/mutation.js';
+import { auditTrailOptions } from '../../mutations/support.js';
 
 export default class FeaturesRemove extends Command {
   static args = COMPONENT_ARG;
@@ -31,6 +32,9 @@ export default class FeaturesRemove extends Command {
         org: flags.org,
         commit: flags.commit,
         noWait: flags['no-wait'],
+        waitForChecks: flags['wait-for-checks'],
+        stateRepos: flags['state-repos'],
+        ...auditTrailOptions(flags),
         json: flags.json,
         feature: { name: flags.name },
       },

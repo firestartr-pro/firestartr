@@ -1,6 +1,6 @@
 FROM ghcr.io/opentofu/opentofu:1.12-minimal AS terraform
 
-FROM node:22-bookworm-slim
+FROM node:24-bookworm-slim
 
 ENV KUBECTL_VERSION=1.30
 ENV AZ_VER=2.63.0

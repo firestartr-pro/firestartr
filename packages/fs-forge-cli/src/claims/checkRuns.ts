@@ -39,6 +39,7 @@ export interface CrCheckStatus {
 export interface WatchCheckOptions {
   timeoutMs?: number;
   pollIntervalMs?: number;
+  waitForRegistration?: boolean;
 }
 
 const DEFAULT_TIMEOUT_MS = 30 * 60 * 1000;
@@ -56,7 +57,9 @@ export async function watchCheckRuns(
 
   while (Date.now() < deadline) {
     const checkRuns = await api.listCheckRunsForPullRequest(ref, prNumber);
-    const allCompleted = checkRuns.every((cr) => cr.status === 'completed');
+    const allCompleted =
+      (!options.waitForRegistration || checkRuns.length > 0) &&
+      checkRuns.every((cr) => cr.status === 'completed');
 
     if (allCompleted) {
       return aggregateResults(checkRuns);
@@ -104,6 +107,9 @@ function deriveOverallConclusion(checkRuns: CheckRunResult[]): string {
   if (conclusions.some((c) => c === 'failure')) return 'failure';
   if (conclusions.some((c) => c === 'cancelled')) return 'cancelled';
   if (conclusions.some((c) => c === 'timed_out')) return 'timed_out';
+  if (conclusions.some((c) => c === 'action_required'))
+    return 'action_required';
+  if (conclusions.some((c) => c === 'stale')) return 'stale';
 
   return checkRuns.some((cr) => cr.status !== 'completed')
     ? 'pending'

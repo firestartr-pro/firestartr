@@ -1,6 +1,6 @@
 FROM ghcr.io/opentofu/opentofu:1.10-minimal AS terraform
 
-FROM node:22-bookworm-slim
+FROM node:24-bookworm-slim
 
 ENV KUBECTL_VERSION=1.30
 # To see AWS cli available versions: https://raw.githubusercontent.com/aws/aws-cli/v2/CHANGELOG.rst

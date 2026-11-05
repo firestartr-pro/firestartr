@@ -77,6 +77,42 @@ SomeOtherOutput: not a CR`;
       expect(result.overallConclusion).toBe('failure');
     });
 
+    it.each([
+      ['success', 'success'],
+      ['failure', 'failure'],
+      ['cancelled', 'cancelled'],
+      ['timed_out', 'timed_out'],
+      ['action_required', 'action_required'],
+      ['stale', 'stale'],
+      ['neutral', 'success'],
+      ['skipped', 'success'],
+    ])('aggregates completed %s as %s', async (conclusion, expected) => {
+      const api = createApi([SUCCESS_CHECK, { ...SUCCESS_CHECK, conclusion }]);
+
+      const result = await pointInTimeCheck(api, REF, 1);
+
+      expect(result.overallConclusion).toBe(expected);
+    });
+
+    it('preserves existing failure precedence over the new outcomes', async () => {
+      const api = createApi([
+        { ...SUCCESS_CHECK, conclusion: 'action_required' },
+        { ...SUCCESS_CHECK, conclusion: 'stale' },
+        { ...SUCCESS_CHECK, conclusion: 'failure' },
+      ]);
+
+      expect((await pointInTimeCheck(api, REF, 1)).overallConclusion).toBe('failure');
+    });
+
+    it('returns pending when neutral checks are complete but another check is running', async () => {
+      const api = createApi([
+        { ...SUCCESS_CHECK, conclusion: 'neutral' },
+        { ...SUCCESS_CHECK, conclusion: null, status: 'in_progress' },
+      ]);
+
+      expect((await pointInTimeCheck(api, REF, 1)).overallConclusion).toBe('pending');
+    });
+
     it('returns no_checks when no check runs exist', async () => {
       const api = createApi([]);
 
@@ -96,6 +132,51 @@ SomeOtherOutput: not a CR`;
       });
 
       expect(result.overallConclusion).toBe('success');
+    });
+
+    it('waits for checks to register, run and succeed', async () => {
+      const api = createApi([]);
+      jest.spyOn(api, 'listCheckRunsForPullRequest')
+        .mockResolvedValueOnce([])
+        .mockResolvedValueOnce([{ ...SUCCESS_CHECK, conclusion: null, status: 'in_progress' }])
+        .mockResolvedValue([SUCCESS_CHECK]);
+      jest.useFakeTimers();
+      try {
+        const watching = watchCheckRuns(api, REF, 1, {
+          timeoutMs: 1000,
+          pollIntervalMs: 100,
+          waitForRegistration: true,
+        });
+        await jest.advanceTimersByTimeAsync(200);
+
+        const result = await watching;
+
+        expect(result.overallConclusion).toBe('success');
+        expect(result.checkRuns).toEqual([SUCCESS_CHECK]);
+      } finally {
+        jest.useRealTimers();
+        jest.restoreAllMocks();
+      }
+    });
+
+    it('times out when checks never register', async () => {
+      const api = createApi([]);
+      jest.useFakeTimers();
+      try {
+        const watching = watchCheckRuns(api, REF, 1, {
+          timeoutMs: 200,
+          pollIntervalMs: 50,
+          waitForRegistration: true,
+        });
+        await jest.advanceTimersByTimeAsync(200);
+
+        const result = await watching;
+
+        expect(result.overallConclusion).toBe('timeout');
+        expect(result.checkRuns).toEqual([]);
+      } finally {
+        jest.useRealTimers();
+      }
     });
 
     it('times out when checks do not complete', async () => {

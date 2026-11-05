@@ -1,3 +1,5 @@
+import { parseDocument } from 'yaml';
+
 import type { GitHubApi, RepoRef } from '../github/api.js';
 
 export interface WetPrInfo {
@@ -19,7 +21,6 @@ export interface LastStatePrRedirect {
 }
 
 const LAST_STATE_PR_ANNOTATION = 'firestartr.dev/last-state-pr';
-const DEFAULT_STATE_REPOS = ['state-github', 'state-infra'];
 
 function branchMatchesClaim(
   branchName: string,
@@ -43,18 +44,6 @@ function contentMatchesClaim(
 ): boolean {
   const ref = `${claimType}/${claimName}`;
   return content.includes(ref);
-}
-
-function defaultStateRepos(org: string): string[] {
-  return DEFAULT_STATE_REPOS.map((repo) => `${org}/${repo}`);
-}
-
-export function parseStateRepos(
-  stateReposFlag: string | undefined,
-  org: string,
-): string[] {
-  if (!stateReposFlag) return defaultStateRepos(org);
-  return stateReposFlag.split(',').map((r) => r.trim());
 }
 
 export async function findWetPr(
@@ -187,12 +176,16 @@ export function extractLastStatePrFromContent(
   content: string,
   defaultOwner: string,
 ): LastStatePrRedirect | null {
-  const escaped = LAST_STATE_PR_ANNOTATION.replace(/\./g, '\\.');
-  const regex = new RegExp(`${escaped}\\s*:\\s*(.+)`);
-  const match = content.match(regex);
-  if (!match) return null;
+  const document = parseDocument(content);
+  if (document.errors.length > 0) return null;
+  const annotation = document.getIn([
+    'metadata',
+    'annotations',
+    LAST_STATE_PR_ANNOTATION,
+  ]);
+  if (typeof annotation !== 'string') return null;
 
-  const value = match[1].trim();
+  const value = annotation.trim();
   const repoPrMatch = value.match(/^((?:[^/]+\/)?[^#]+)#(\d+)$/);
   if (!repoPrMatch) return null;
 

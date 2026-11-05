@@ -3,14 +3,21 @@ import { readFile } from 'fs/promises';
 import { join } from 'path';
 import YAML from 'yaml';
 
+import { orgFromContext, resolveContext } from '../context/resolve.js';
 import { deriveVariantGroups } from '../utils/deriveFlags.js';
 
+import type { AuditTrailOptions } from './auditIssue.js';
 import type { ClaimKind } from './definitions.js';
 import type { VariantGroup } from '../utils/deriveFlags.js';
 
 export const ORG_FLAG = Flags.string({
-  description: 'GitHub organization containing the claims repo',
+  description:
+    'GitHub organization containing the claims repo (default: FSCRT_ORG, then the config entry matching the current directory)',
   env: 'FSCRT_ORG',
+  // The default reads this machine's config file, so caching it would bake a
+  // developer's org into oclif.manifest.json and ship it to every user.
+  noCacheDefault: true,
+  default: async () => orgFromContext(),
 });
 
 export const MUTATION_CONTROL_FLAGS = {
@@ -37,7 +44,9 @@ export const MUTATION_CONTROL_FLAGS = {
   }),
   'wait-for-checks': Flags.boolean({
     description:
-      'After provisioning, watch wet PR check runs until completion (requires --commit)',
+      'After provisioning, watch wet PR check runs until completion (requires --commit; --no-wait-for-checks to skip)',
+    default: true,
+    allowNo: true,
   }),
   'state-repos': Flags.string({
     description:
@@ -45,9 +54,59 @@ export const MUTATION_CONTROL_FLAGS = {
   }),
 };
 
-export function requireOrg(org: string | undefined): string {
-  if (!org) throw new Error('--org or FSCRT_ORG is required');
-  return org;
+/** The audit-trail flags every `--commit` command carries. */
+export const AUDIT_TRAIL_FLAGS = {
+  issue: Flags.integer({
+    description:
+      'Link the commit to an existing claims-repo issue (adds "Closes #N" to the claim PR)',
+    dependsOn: ['commit'],
+    exclusive: ['create-issue'],
+  }),
+  'create-issue': Flags.boolean({
+    description:
+      'Open an issue in the claims repo before committing, then link it to the claim PR',
+    dependsOn: ['commit'],
+    exclusive: ['issue'],
+  }),
+  'issue-title': Flags.string({
+    description: 'Title for the issue opened by --create-issue',
+    dependsOn: ['create-issue'],
+  }),
+  'issue-body': Flags.string({
+    description: 'Body for the issue opened by --create-issue',
+    dependsOn: ['create-issue'],
+  }),
+};
+
+/** Maps the parsed `--issue*` flags onto the audit-trail options. */
+export function auditTrailOptions(flags: {
+  issue?: number;
+  'create-issue'?: boolean;
+  'issue-title'?: string;
+  'issue-body'?: string;
+}): AuditTrailOptions {
+  return {
+    issue: flags.issue,
+    createIssue: flags['create-issue'],
+    issueTitle: flags['issue-title'],
+    issueBody: flags['issue-body'],
+  };
+}
+
+/**
+ * The `--org` value, which oclif already fills from `FSCRT_ORG`, then from the
+ * config entry matching the current directory.
+ */
+export function requireOrg(
+  parsedOrg: string | undefined,
+  message = '--org or FSCRT_ORG is required',
+): string {
+  if (parsedOrg) return parsedOrg;
+  const resolution = resolveContext();
+  const error = resolution.ok ? undefined : resolution.error;
+  throw new Error(
+    error ? `${message} (${error.code}: ${error.message})` : message,
+  );
 }
 
 export function parseClaimYaml(content: string): Record<string, unknown> {

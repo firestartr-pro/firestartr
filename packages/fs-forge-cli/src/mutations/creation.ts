@@ -2,20 +2,25 @@ import { claimsRepo } from '../claims/claimsRepo.js';
 import { deterministicPath } from '../claims/deterministicPath.js';
 import { serializeClaim } from '../claims/keyOrdering.js';
 import { createGitHubApi } from '../github/index.js';
+import {
+  parseStateRepos,
+  resolveClaimsRepository,
+} from '../context/resolve.js';
+import { withAuditTrail } from './auditIssue.js';
 import { publishClaimAndWait } from './publish.js';
 import { requireOrg } from './support.js';
 
+import type { AuditTrailOptions } from './auditIssue.js';
 import type { ClaimKind } from './definitions.js';
 
-export interface ClaimCreationOptions {
+export interface ClaimCreationOptions extends AuditTrailOptions {
   org?: string;
   kind: ClaimKind;
   name: string;
   claim: Record<string, unknown>;
   commit?: boolean;
-  noWait?: boolean;
   waitForChecks?: boolean;
-  stateRepos?: string;
+  stateRepos?: string[];
   path?: string;
   writeOutput: (output: string) => void;
   writeDiagnostic: (output: string) => void;
@@ -36,7 +41,6 @@ export async function runClaimCreation(
       name,
       claim,
       commit = false,
-      noWait = false,
       waitForChecks = false,
       stateRepos,
       path,
@@ -47,27 +51,35 @@ export async function runClaimCreation(
       ? deterministicPath(kind, name, path)
       : undefined;
     const orgName = commit ? requireOrg(org) : undefined;
-    const repo =
-      commit && orgName ? claimsRepo(createGitHubApi(), orgName) : undefined;
+    const target = orgName ? resolveClaimsRepository(orgName) : undefined;
+    const repo = target
+      ? claimsRepo(createGitHubApi(), target.owner, target.repo)
+      : undefined;
     const output = serializeClaim(claim);
-    if (!repo || !destinationPath) {
+    if (!repo || !destinationPath || !orgName) {
       writeOutput(output);
       return { output };
     }
 
-    const { publishUrl } = await publishClaimAndWait(
-      {
-        repo,
-        kind,
-        name,
-        output,
-        path: destinationPath,
-        noWait,
-        waitForChecks,
-        stateRepos,
-        rejectExistingClaim: true,
-      },
-      { output: writeOutput, diagnostic: writeDiagnostic },
+    const { publishUrl } = await withAuditTrail(
+      { repo, operation: 'create', kind, name },
+      options,
+      (audit) =>
+        publishClaimAndWait(
+          {
+            repo,
+            kind,
+            name,
+            output,
+            path: destinationPath,
+            noWait: false,
+            waitForChecks,
+            stateRepos: stateRepos ?? parseStateRepos(undefined, orgName),
+            audit,
+            rejectExistingClaim: true,
+          },
+          { output: writeOutput, diagnostic: writeDiagnostic },
+        ),
     );
     return { output, publishUrl };
   } catch (error) {

@@ -1,5 +1,9 @@
+import { Header } from 'tar';
+import { gzipSync } from 'zlib';
+
 import type {
   CheckRunSummary,
+  CreatedItem,
   GitHubApi,
   PullRequestFile,
   PullRequestSummary,
@@ -22,14 +26,46 @@ interface DispatchInput {
   inputs: Record<string, string | boolean>;
 }
 
+interface MemoryIssue {
+  number: number;
+  title: string;
+  body: string;
+  state: 'open' | 'closed';
+  htmlUrl: string;
+}
+
+interface MemoryIssueComment {
+  ref: RepoRef;
+  issue: number;
+  body: string;
+}
+
 /**
  * In-memory `GitHubApi` for tests: imports nothing from Octokit, so tests
  * exercise the CLI in its own data shapes.
  */
+/** A PR as GitHub filters it; both identities default to matching the query. */
+type MemoryPullRequest = PullRequestSummary & {
+  headOwner?: string;
+  baseRef?: string;
+};
+
 export class MemoryGitHubApi implements GitHubApi {
   readonly calls: string[] = [];
   readonly committed: Array<{ ref: RepoRef } & CommitInput> = [];
   readonly dispatched: Array<{ ref: RepoRef } & DispatchInput> = [];
+  readonly issues: MemoryIssue[] = [];
+  readonly issueComments: MemoryIssueComment[] = [];
+  readonly createdPulls: Array<{
+    ref: RepoRef;
+    head: string;
+    base: string;
+    title: string;
+    body: string;
+    number: number;
+  }> = [];
+  readonly pullBodyUpdates: Array<{ ref: RepoRef; pr: number; body: string }> =
+    [];
   readonly defaultBranches = new Map<string, string>();
   readonly existingRepos = new Set<string>();
   readonly existingTeams = new Set<string>();
@@ -47,13 +83,11 @@ export class MemoryGitHubApi implements GitHubApi {
     string,
     Array<WorkflowRunSummary & { event: string }>
   >();
-  private readonly pulls = new Map<string, PullRequestSummary[]>();
+  private readonly pulls = new Map<string, MemoryPullRequest[]>();
   private readonly pullFiles = new Map<string, PullRequestFile[]>();
   private readonly checkRuns = new Map<string, CheckRunSummary[]>();
-  private readonly searchResults = new Map<
-    string,
-    Array<{ path: string; name: string }>
-  >();
+  private issueNumber = 0;
+  private pullNumber = 0;
 
   key(ref: RepoRef): string {
     return `${ref.owner}/${ref.repo}`;
@@ -87,23 +121,20 @@ export class MemoryGitHubApi implements GitHubApi {
     );
   }
 
-  setPullRequests(ref: RepoRef, pulls: PullRequestSummary[]): void {
+  setPullRequests(ref: RepoRef, pulls: MemoryPullRequest[]): void {
     this.pulls.set(this.key(ref), pulls);
   }
 
-  setPullRequestFiles(ref: RepoRef, pr: number, files: PullRequestFile[]): void {
+  setPullRequestFiles(
+    ref: RepoRef,
+    pr: number,
+    files: PullRequestFile[],
+  ): void {
     this.pullFiles.set(`${this.key(ref)}#${pr}`, files);
   }
 
   setCheckRuns(ref: RepoRef, pr: number, runs: CheckRunSummary[]): void {
     this.checkRuns.set(`${this.key(ref)}#${pr}`, runs);
-  }
-
-  setSearchResults(
-    ref: RepoRef,
-    results: Array<{ path: string; name: string }>,
-  ): void {
-    this.searchResults.set(this.key(ref), results);
   }
 
   addRepo(ref: RepoRef): void {
@@ -135,7 +166,32 @@ export class MemoryGitHubApi implements GitHubApi {
 
   async downloadTarball(ref: RepoRef, gitRef?: string): Promise<Buffer> {
     this.calls.push(`downloadTarball ${this.key(ref)}@${gitRef ?? 'HEAD'}`);
-    return this.tarball;
+    if (this.tarball.length > 0) return this.tarball;
+    const prefix = `${this.key(ref)}#`;
+    const directory = Buffer.alloc(512);
+    new Header({ path: 'repo/', type: 'Directory', mode: 0o755 }).encode(
+      directory,
+    );
+    const blocks: Buffer[] = [directory];
+    for (const [key, file] of this.files) {
+      if (!key.startsWith(prefix)) continue;
+      const content = Buffer.from(file.content);
+      const header = new Header({
+        path: `repo/${key.slice(prefix.length)}`,
+        type: 'File',
+        size: content.length,
+        mode: 0o644,
+      });
+      const block = Buffer.alloc(512);
+      header.encode(block);
+      blocks.push(
+        block,
+        content,
+        Buffer.alloc((512 - (content.length % 512)) % 512),
+      );
+    }
+    blocks.push(Buffer.alloc(1024));
+    return gzipSync(Buffer.concat(blocks));
   }
 
   async getDefaultBranch(ref: RepoRef): Promise<string> {
@@ -154,7 +210,9 @@ export class MemoryGitHubApi implements GitHubApi {
   }
 
   async commitFile(ref: RepoRef, input: CommitInput): Promise<void> {
-    this.calls.push(`commitFile ${this.key(ref)}:${input.path}@${input.branch}`);
+    this.calls.push(
+      `commitFile ${this.key(ref)}:${input.path}@${input.branch}`,
+    );
     this.committed.push({ ref, ...input });
     this.setFile(ref, input.path, input.content, input.sha ?? 'file-sha');
   }
@@ -223,11 +281,26 @@ export class MemoryGitHubApi implements GitHubApi {
     ref: RepoRef,
     headPrefix?: string,
   ): Promise<PullRequestSummary[]> {
-    this.calls.push(`listOpenPullRequests ${this.key(ref)}:${headPrefix ?? ''}`);
+    this.calls.push(
+      `listOpenPullRequests ${this.key(ref)}:${headPrefix ?? ''}`,
+    );
     const pulls = this.pulls.get(this.key(ref)) ?? [];
     return headPrefix
       ? pulls.filter((pull) => pull.headRef.startsWith(headPrefix))
       : pulls;
+  }
+
+  async findOpenPullRequest(
+    ref: RepoRef,
+    { head, base }: { head: string; base: string },
+  ): Promise<PullRequestSummary | undefined> {
+    this.calls.push(`findOpenPullRequest ${this.key(ref)}@${head}->${base}`);
+    return (this.pulls.get(this.key(ref)) ?? []).find(
+      (pull) =>
+        pull.headRef === head &&
+        (pull.headOwner ?? ref.owner) === ref.owner &&
+        (pull.baseRef ?? base) === base,
+    );
   }
 
   async listPullRequestFiles(
@@ -267,12 +340,110 @@ export class MemoryGitHubApi implements GitHubApi {
     return this.checkRuns.get(`${this.key(ref)}#${pr}`) ?? [];
   }
 
-  async searchFiles(
+  async createPullRequest(
     ref: RepoRef,
-    query: string,
-  ): Promise<Array<{ path: string; name: string }>> {
-    this.calls.push(`searchFiles ${this.key(ref)}:${query}`);
-    return this.searchResults.get(this.key(ref)) ?? [];
+    input: { head: string; base: string; title: string; body: string },
+  ): Promise<CreatedItem> {
+    this.calls.push(`createPullRequest ${this.key(ref)}@${input.head}`);
+    const number = ++this.pullNumber;
+    const htmlUrl = `https://github.com/${this.key(ref)}/pull/${number}`;
+    const pulls = this.pulls.get(this.key(ref)) ?? [];
+    pulls.push({
+      number,
+      htmlUrl,
+      state: 'open',
+      headRef: input.head,
+      baseRef: input.base,
+      baseSha: input.base,
+      updatedAt: '',
+      body: input.body,
+    });
+    this.pulls.set(this.key(ref), pulls);
+    this.createdPulls.push({ ref, ...input, number });
+    return { number, htmlUrl };
+  }
+
+  async updatePullRequest(
+    ref: RepoRef,
+    pr: number,
+    input: { body: string },
+  ): Promise<void> {
+    this.calls.push(`updatePullRequest ${this.key(ref)}#${pr}`);
+    const pull = (this.pulls.get(this.key(ref)) ?? []).find(
+      (candidate) => candidate.number === pr,
+    );
+    if (!pull) throw new Error(`Pull request not found: ${pr}`);
+    pull.body = input.body;
+    this.pullBodyUpdates.push({ ref, pr, body: input.body });
+  }
+
+  async createIssue(
+    ref: RepoRef,
+    input: { title: string; body: string },
+  ): Promise<CreatedItem> {
+    this.calls.push(`createIssue ${this.key(ref)}:${input.title}`);
+    const number = ++this.issueNumber;
+    const htmlUrl = `https://github.com/${this.key(ref)}/issues/${number}`;
+    this.issues.push({
+      number,
+      title: input.title,
+      body: input.body,
+      state: 'open',
+      htmlUrl,
+    });
+    return { number, htmlUrl };
+  }
+
+  /** Seeds an existing issue under a fixed number. */
+  addIssue(ref: RepoRef, number: number): void {
+    this.issueNumber = Math.max(this.issueNumber, number);
+    this.issues.push({
+      number,
+      title: 'Existing issue',
+      body: '',
+      state: 'open',
+      htmlUrl: `https://github.com/${this.key(ref)}/issues/${number}`,
+    });
+  }
+
+  async getIssue(
+    ref: RepoRef,
+    issue: number,
+  ): Promise<
+    { number: number; htmlUrl: string; isPullRequest: boolean } | undefined
+  > {
+    this.calls.push(`getIssue ${this.key(ref)}#${issue}`);
+    const found = this.issues.find((candidate) => candidate.number === issue);
+    if (found) {
+      return { number: issue, htmlUrl: found.htmlUrl, isPullRequest: false };
+    }
+    const pull = (this.pulls.get(this.key(ref)) ?? []).find(
+      (candidate) => candidate.number === issue,
+    );
+    return pull && { number: issue, htmlUrl: pull.htmlUrl, isPullRequest: true };
+  }
+
+  async commentOnIssue(
+    ref: RepoRef,
+    issue: number,
+    body: string,
+  ): Promise<void> {
+    this.calls.push(`commentOnIssue ${this.key(ref)}#${issue}`);
+    this.issueComments.push({ ref, issue, body });
+  }
+
+  async closeIssue(ref: RepoRef, issue: number): Promise<void> {
+    this.calls.push(`closeIssue ${this.key(ref)}#${issue}`);
+    const found = this.issues.find((candidate) => candidate.number === issue);
+    if (!found) throw new Error(`Issue not found: ${issue}`);
+    found.state = 'closed';
+  }
+
+  async reopenIssue(ref: RepoRef, issue: number): Promise<void> {
+    this.calls.push(`reopenIssue ${this.key(ref)}#${issue}`);
+    const found = this.issues.find((candidate) => candidate.number === issue);
+    if (!found) throw new Error(`Issue not found: ${issue}`);
+    found.state = 'open';
   }
 
   async repoExists(ref: RepoRef): Promise<boolean> {

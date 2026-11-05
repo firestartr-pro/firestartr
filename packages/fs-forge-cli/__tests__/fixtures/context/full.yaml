@@ -1,0 +1,14 @@
+organizations:
+  - name: acme
+    paths:
+      - /srv/acme
+      - /srv/acme/fork
+      - ~/work/acme
+    claims_repo: acme/claims-fork
+    state_github_repo: acme/state-github-fork
+    state_infra_repo: acme/state-infra-fork
+    catalog_repo: acme/catalog-fork
+  - name: beta
+    paths:
+      - /srv/beta
+cli_version: 2.0.1

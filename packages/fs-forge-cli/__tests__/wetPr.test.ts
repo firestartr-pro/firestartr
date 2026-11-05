@@ -2,7 +2,6 @@ import {
   extractLastStatePrFromContent,
   findWetPr,
   isDeletionPr,
-  parseStateRepos,
 } from '../src/claims/wetPr';
 import { MemoryGitHubApi } from './fixtures/memoryGitHubApi';
 
@@ -54,21 +53,6 @@ function parseRef(slug: string): RepoRef {
 }
 
 describe('wetPr', () => {
-  describe('parseStateRepos', () => {
-    it('returns default repos when no flag provided', () => {
-      const repos = parseStateRepos(undefined, 'my-org');
-      expect(repos).toEqual(['my-org/state-github', 'my-org/state-infra']);
-    });
-
-    it('parses custom repos from flag', () => {
-      const repos = parseStateRepos(
-        'custom/state-one,custom/state-two',
-        'my-org',
-      );
-      expect(repos).toEqual(['custom/state-one', 'custom/state-two']);
-    });
-  });
-
   describe('isDeletionPr', () => {
     it('returns true when all files are removed', () => {
       expect(
@@ -123,6 +107,24 @@ describe('wetPr', () => {
         repo: 'other-org/state-github',
         number: 200,
       });
+    });
+
+    it.each([
+      '|\n      other-org/state-github#200\n',
+      '>\n      other-org/state-github#200\n',
+      '"other-org/state-github#200"',
+      "'other-org/state-github#200'",
+    ])('parses a YAML annotation value %s', (value) => {
+      const content = `metadata:\n  annotations:\n    firestartr.dev/last-state-pr: ${value}`;
+      expect(extractLastStatePrFromContent(content, 'test-org')).toEqual({
+        owner: 'other-org',
+        repo: 'other-org/state-github',
+        number: 200,
+      });
+    });
+
+    it('returns null for malformed YAML', () => {
+      expect(extractLastStatePrFromContent('metadata: [', 'test-org')).toBeNull();
     });
 
     it('returns null when annotation is missing', () => {

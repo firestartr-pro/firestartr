@@ -55,10 +55,15 @@ jobs:
       - name: Setup node
         uses: actions/setup-node@v7
         with:
-          node-version: "22"
+          node-version: "24"
           registry-url: "https://npm.pkg.github.com"
           cache: "npm"
           cache-dependency-path: "gitops/package-lock.json"
+
+      # The npm commands below run inside the gitops checkout, so this global
+      # install is the npm they use.
+      - name: Install npm
+        run: npm install -g "$(node -p "require('./gitops/package.json').packageManager")"
 
       - name: Install deps
         working-directory: gitops
