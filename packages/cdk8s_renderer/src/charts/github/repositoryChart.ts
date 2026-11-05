@@ -269,20 +269,18 @@ export class GithubRepositoryChart extends BaseGithubChart {
   /**
    * @description This method creates the vars data for the repository
    * @param claim
-   * @returns VarsConfiguration
+   * @returns VarsConfiguration, or undefined when the claim has no variables
    */
-  private createVars(claim: any): VarsConfiguration {
-    const vars: VarsConfiguration = {};
+  private createVars(claim: any): VarsConfiguration | undefined {
+    const actions = claim.providers?.github?.vars?.actions;
 
-    const varsDefinition = claim.providers?.github?.vars;
+    // Omit the field entirely: an empty `vars: {}` becomes null under
+    // Kubernetes Server-Side Apply when the last variable is removed.
+    if (!actions?.length) return undefined;
 
-    if (varsDefinition) {
-      if (varsDefinition.actions) {
-        vars.actions = this.formatVars(varsDefinition.actions);
-      }
-    }
-
-    return vars;
+    return {
+      actions: this.formatVars(actions),
+    };
   }
 
   formatVars(blockDefinition: any): NamedVars {
