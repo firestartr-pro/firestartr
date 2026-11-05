@@ -56,7 +56,11 @@ const ITEM_PATH = 'default/terraformworkspaces/ws';
 
 const item = {
   kind: 'FirestartrTerraformWorkspace',
-  metadata: { name: 'ws', namespace: 'default' },
+  metadata: {
+    name: 'ws',
+    namespace: 'default',
+    annotations: { 'firestartr.dev/sync-enabled': 'true' },
+  },
   spec: {},
 };
 
