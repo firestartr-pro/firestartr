@@ -179,6 +179,10 @@ export type WorkItemHandler = {
 
   removeFromRetry?: () => void;
 
+  waitForDependencies?: (dependenciesReady: () => Promise<boolean>) => void;
+
+  cancelDependencyWait?: () => void;
+
   isBlocked?: boolean;
 
   isPicked?: boolean;

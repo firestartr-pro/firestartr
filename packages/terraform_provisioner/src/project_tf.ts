@@ -5,10 +5,12 @@ import {
   init,
   output,
   plan,
+  planArtifact,
   validate,
 } from './utils';
 import { WriterAdditionalFiles } from './writer_additional_files';
 import { WriterImports } from './writer_imports';
+import { WriterPlanState } from './writer_plan_state';
 import { WriterMainTf } from './writer_main_tf';
 import { WriterProviderJson } from './writer_provider_tf_json';
 import { WriterTfVarsJson } from './writer_tfvars_json';
@@ -344,6 +346,18 @@ export class TFProjectManager {
       // Note: for freshly built workspaces, __init() will run before the import command executes.
       // Only reuse mode needs an extra init immediately after regenerating imports.tf.
     }
+
+    // Read-only plans never initialize the remote backend: they plan against
+    // a local snapshot of its state
+    if (this.ctx?.readOnlyState) {
+      const writerPlanState = new WriterPlanState(
+        this.ctx.backend,
+        this.ctx.tfStateKey,
+        this.ctx.readOnlyState,
+      );
+      await writerPlanState.render();
+      writerPlanState.writeToTerraformProject(this.projectPath);
+    }
   }
 
   async __init() {
@@ -396,6 +410,21 @@ export class TFProjectManager {
     );
   }
 
+  async planArtifact(destroy: boolean) {
+    await this.__init();
+
+    this.tfOutput = await planArtifact(
+      this.projectPath,
+      this.secrets,
+      destroy,
+      this.stream,
+      this.ctl,
+      this.ctx.planExcludes ?? [],
+    );
+
+    if (this.stream) this.stream.end();
+  }
+
   async apply() {
     await this.__init();
 
@@ -421,6 +450,7 @@ export class TFProjectManager {
       this.secrets,
       this.customArgs,
       this.stream,
+      this.ctl,
     );
 
     if (this.stream) this.stream.end();
@@ -444,6 +474,7 @@ export class TFProjectManager {
         this.secrets,
         ['state', 'list'],
         this.stream,
+        this.ctl,
       )) as string
     )
       .split(/\n/)
@@ -459,6 +490,7 @@ export class TFProjectManager {
         this.secrets,
         ['state', 'rm'].concat(addressesList),
         this.stream,
+        this.ctl,
       );
 
       log.info(

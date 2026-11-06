@@ -187,6 +187,31 @@ describe('EntityGHOrgVarsSection entity', () => {
       expect(mockGetOrgVariable).not.toHaveBeenCalled();
       expect(entity.importDocument).toStrictEqual({ imports: [] });
     });
+
+    it('discovers adoptions on plan so artifact plans predict the imports', async () => {
+      setupResolveSelfOutputs(['DEPLOY_KEY', 'INTERNAL_FLAG']);
+      mockGetOrgVariable.mockResolvedValue({ name: 'STAGING_HOST' });
+
+      await entity.loadResources('plan');
+
+      expect(entity.importDocument).toStrictEqual({
+        imports: [
+          {
+            to: 'github_actions_organization_variable.this["STAGING_HOST"]',
+            id: 'STAGING_HOST',
+          },
+        ],
+      });
+    });
+
+    it('does not discover adoptions on plan-destroy', async () => {
+      setupResolveSelfOutputs([]);
+      mockGetOrgVariable.mockResolvedValue({});
+
+      await entity.loadResources('plan-destroy');
+
+      expect(mockGetOrgVariable).not.toHaveBeenCalled();
+    });
   });
 
   describe('postProvision and loadAddressesToImport', () => {

@@ -1,6 +1,9 @@
 import { spawn } from 'child_process';
+import { join as pathJoin } from 'path';
 import common from 'catalog_common';
 import { planGet } from './tf/analyzer';
+import { countPlanDocumentChanges } from './tf/plan_document';
+import type { PlanChangeCounts } from './tf/plan_document';
 
 import { PassThrough } from 'stream';
 
@@ -150,10 +153,13 @@ export async function initFromModule(
   secrets: any[],
   stream?: PassThrough,
   ctl?: ProcessHandler,
+  initializeBackend = true,
 ) {
   return tfExec(
     path,
-    ['init', `-from-module=${source}`],
+    ['init', `-from-module=${source}`].concat(
+      initializeBackend ? [] : ['-backend=false'],
+    ),
     secrets,
     [],
     stream,
@@ -191,6 +197,77 @@ export async function plan(
   }
 
   return plan;
+}
+
+export const PLAN_ARTIFACT_FILE = 'firestartr-plan.out';
+
+export type PlanArtifact = {
+  text: string;
+  json: any;
+  summary: PlanChangeCounts;
+};
+
+/**
+ * Plans once into a plan file, without taking the state lock, and renders
+ * that same file as text and as JSON. The plan is advisory: it may read the
+ * state in the middle of a concurrent apply.
+ */
+export async function planArtifact(
+  path: string,
+  secrets: any[],
+  destroy: boolean,
+  stream?: PassThrough,
+  ctl?: ProcessHandler,
+  excludes: string[] = [],
+): Promise<PlanArtifact> {
+  log.info(
+    `Running a lock-free terraform plan${destroy ? ' -destroy' : ''} into ${PLAN_ARTIFACT_FILE} in path ${path}`,
+  );
+
+  // The saved plan embeds the state and sensitive values, and OpenTofu would
+  // create it world-readable: make the workspace private and precreate the
+  // plan file owner-only before any plan content is written
+  await fs.promises.chmod(path, 0o700);
+
+  const planFile = pathJoin(path, PLAN_ARTIFACT_FILE);
+
+  await fs.promises.rm(planFile, { force: true });
+
+  await (await fs.promises.open(planFile, 'wx', 0o600)).close();
+
+  await tfExec(
+    path,
+    ['plan', `-out=${PLAN_ARTIFACT_FILE}`, '-lock=false']
+      .concat(destroy ? ['-destroy'] : [])
+      .concat(excludes.map((address) => `-exclude=${address}`)),
+    secrets,
+    ['-input=false'],
+    stream,
+    ctl,
+  );
+
+  const text = (await tfExec(
+    path,
+    ['show', '-no-color', PLAN_ARTIFACT_FILE],
+    secrets,
+    [],
+    undefined,
+    ctl,
+  )) as string;
+
+  const json = JSON.parse(
+    (await tfExec(
+      path,
+      ['show', '-json', PLAN_ARTIFACT_FILE],
+      secrets,
+      [],
+      undefined,
+      ctl,
+      { quiet: true },
+    )) as string,
+  );
+
+  return { text, json, summary: countPlanDocumentChanges(json) };
 }
 
 export async function apply(
@@ -242,11 +319,12 @@ export async function customCommand(
   secrets: any[],
   args: any[],
   stream?: PassThrough,
+  ctl?: ProcessHandler,
 ) {
   log.debug(
     `Running terraform customCommand in path ${path} ${args.join(',')}`,
   );
-  return await tfExec(path, args, secrets, [], stream);
+  return await tfExec(path, args, secrets, [], stream, ctl);
 }
 
 export async function destroy(
@@ -271,6 +349,8 @@ export async function output(path: string, secrets: any[]) {
   return await tfExec(path, ['output', '-json'], secrets, []);
 }
 
+export type TfExecOptions = { quiet?: boolean };
+
 export async function tfExec(
   path: string,
   args: Array<string>,
@@ -278,8 +358,12 @@ export async function tfExec(
   extraArgs = ['-input=false'],
   stream?: PassThrough,
   ctl?: ProcessHandler,
+  opts: TfExecOptions = {},
 ) {
   const env: any = {};
+  // Quiet runs keep stdout out of logs and errors: it may hold sensitive values.
+  const shown = (output: string, outputErrors: string) =>
+    opts.quiet ? outputErrors : [output, outputErrors].join('');
   const tfCacheDir =
     typeof ctl?.tfCacheDir === 'string' && ctl.tfCacheDir.trim() !== ''
       ? ctl.tfCacheDir
@@ -357,12 +441,10 @@ export async function tfExec(
       // this process has been killed/terminated
       // by timeout (not in our control)
       if (processTimeout) {
-        log.error(
-          `Terraform output ${path}: ${[output, outputErrors].join('')}`,
-        );
+        log.error(`Terraform output ${path}: ${shown(output, outputErrors)}`);
         ko(
           common.generic.buildCommandExecutionError(
-            [output, outputErrors, '\n<PROCESS TIMEOUT>'].join(''),
+            shown(output, outputErrors) + '\n<PROCESS TIMEOUT>',
             common.generic.normalizeExitCode(code),
             args.concat(extraArgs),
             {
@@ -376,12 +458,10 @@ export async function tfExec(
       }
 
       if (code !== 0) {
-        log.error(
-          `Terraform output ${path}: ${[output, outputErrors].join('')}`,
-        );
+        log.error(`Terraform output ${path}: ${shown(output, outputErrors)}`);
         ko(
           common.generic.buildCommandExecutionError(
-            [output, outputErrors].join(''),
+            shown(output, outputErrors),
             common.generic.normalizeExitCode(code),
             args.concat(extraArgs),
             {
@@ -391,7 +471,11 @@ export async function tfExec(
           ),
         );
       } else {
-        log.info(`Terraform output ${path}: ${output}`);
+        log.info(
+          opts.quiet
+            ? `Terraform output ${path}: <${output.length} bytes, not logged>`
+            : `Terraform output ${path}: ${output}`,
+        );
         ok(output);
       }
     });

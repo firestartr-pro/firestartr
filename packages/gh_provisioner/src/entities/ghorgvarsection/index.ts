@@ -47,7 +47,7 @@ export class EntityGHOrgVarsSection extends Entity {
         value: variables,
       });
 
-      if (tfOp === 'apply') {
+      if (tfOp === 'apply' || tfOp === 'plan') {
         await this.adoptVariablesIfNeeded(actionsVariables);
       }
 

@@ -97,6 +97,26 @@ The destroy plan run for a deleted child CR; resolves its deleted parent from th
 base resource rather than the head ref.
 _Avoid_: delete plan, teardown plan
 
+## Plan mode
+
+**Plan mode**:
+A process-level switch (`--plan-mode` or `OPERATOR_PLAN_MODE=true`, fixed at
+startup) under which the operator plans every CR it watches and never applies,
+destroys or writes anything to the cluster or GitHub. Not the `observe` policy,
+which is set per CR, still writes status and only allows SYNC. Not PR planning,
+which plans only the claims changed in a pull request.
+_Avoid_: dry-run, observe mode, shadow mode
+
+**Plan artifact**:
+The `<kind>/<name>.md` and `<kind>/<name>.json` pair a Plan mode operator writes
+for a CR under `--plan-output-dir`, overwritten on each plan.
+_Avoid_: plan file, plan report
+
+**Write gateway**:
+The single check every cluster and GitHub write passes through; in Plan mode it
+throws `PlanModeWriteError`.
+_Avoid_: write guard, read-only client
+
 ## Terraform workspaces
 
 **Session-scoped workspace**:
