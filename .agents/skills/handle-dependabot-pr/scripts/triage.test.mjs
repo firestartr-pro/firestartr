@@ -1,22 +1,22 @@
-import { test } from "node:test";
 import assert from "node:assert/strict";
 import { readFileSync } from "node:fs";
 import { dirname, join } from "node:path";
+import { test } from "node:test";
 import { fileURLToPath } from "node:url";
 import {
-  pickSummary,
-  renderComment,
+  buildTriage,
+  classify,
+  levelOf,
+  nextState,
+  parseBumpTitle,
   parseLevels,
   parseState,
-  nextState,
-  classify,
-  versionJump,
   pathFor,
-  parseBumpTitle,
-  levelOf,
-  socketAlerts,
+  pickSummary,
+  renderComment,
   requiredChecks,
-  buildTriage,
+  socketAlerts,
+  versionJump,
 } from "./triage.mjs";
 
 const HERE = dirname(fileURLToPath(import.meta.url));
@@ -182,17 +182,17 @@ test("socketAlerts finds alerts at any depth and ignores empty lists", () => {
 
 test("requiredChecks follow the level and path rules", () => {
   assert.deepEqual(requiredChecks("dev", "A", "patch"), ["CI"]);
-  assert.deepEqual(requiredChecks("runtime", "A", "minor"), ["Copilot review", "CI", "e2e with default suites (github, terraform, crd-upgrade)"]);
+  assert.deepEqual(requiredChecks("runtime", "A", "minor"), ["Copilot review", "CI", "e2e all suites except massive (github, terraform, k8s-rate-limits, crd-upgrade, retry-lifecycle, core)"]);
   assert.deepEqual(requiredChecks("critical", "A", "minor"), [
     "Copilot review",
     "CI",
-    "e2e with all suites",
+    "e2e all suites except massive (github, terraform, k8s-rate-limits, crd-upgrade, retry-lifecycle, core)",
     "operator and CLI snapshots on pre",
   ]);
   assert.deepEqual(requiredChecks("runtime", "B", "major"), [
     "Copilot review",
     "CI",
-    "e2e with all suites",
+    "e2e all suites except massive (github, terraform, k8s-rate-limits, crd-upgrade, retry-lifecycle, core)",
     "operator and CLI snapshots on pre",
   ]);
   assert.deepEqual(requiredChecks("dev", "B", "major"), ["Copilot review", "CI"]);
@@ -216,10 +216,10 @@ test("buildTriage produces labels, squash subject and a stopping socket alert", 
   assert.equal(t.level, "runtime");
   assert.equal(t.socket, "alert");
   assert.deepEqual(t.labels, ["jump/minor", "level/runtime", "path/A", "socket/alert"]);
-  assert.equal(t.squash, "fix(deps): bump lodash from 4.17.21 to 4.18.1");
+  assert.equal(t.squash, "chore: bump lodash from 4.17.21 to 4.18.1");
 });
 
-test("buildTriage uses chore(deps) for dev and fix(deps) for runtime and critical", () => {
+test("buildTriage uses chore subjects for all dependency levels", () => {
   const dev = buildTriage({
     name: "typescript",
     from: "5.4.0",
@@ -228,7 +228,7 @@ test("buildTriage uses chore(deps) for dev and fix(deps) for runtime and critica
     levels,
     socketResult: { alerts: [] },
   });
-  assert.equal(dev.squash, "chore(deps): bump typescript from 5.4.0 to 5.4.1");
+  assert.equal(dev.squash, "chore: bump typescript from 5.4.0 to 5.4.1");
   assert.equal(dev.socket, "ok");
 
   const runtime = buildTriage({
@@ -239,7 +239,7 @@ test("buildTriage uses chore(deps) for dev and fix(deps) for runtime and critica
     levels,
     socketResult: { alerts: [] },
   });
-  assert.equal(runtime.squash, "fix(deps): bump lodash from 4.17.21 to 4.17.22");
+  assert.equal(runtime.squash, "chore: bump lodash from 4.17.21 to 4.17.22");
 
   const critical = buildTriage({
     name: "@kubernetes/client-node",
@@ -249,7 +249,7 @@ test("buildTriage uses chore(deps) for dev and fix(deps) for runtime and critica
     levels,
     socketResult: { alerts: [] },
   });
-  assert.equal(critical.squash, "fix(deps): bump @kubernetes/client-node from 1.0.0 to 1.0.1");
+  assert.equal(critical.squash, "chore: bump @kubernetes/client-node from 1.0.0 to 1.0.1");
 });
 
 test("nextState keeps step and runs while the head is unchanged", () => {
@@ -348,4 +348,3 @@ test("any Socket finding, even a low one, stops the flow", () => {
   assert.ok(t.labels.includes("socket/alert"));
   assert.ok(renderComment(t, { head: "h", step: "stopped: socket alert", runs: "", replacement: null }).includes("Stopped: Socket alert"));
 });
-
