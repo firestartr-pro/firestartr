@@ -58,15 +58,20 @@ Done when your PR is merged and the Dependabot PR is closed.
 2. For every major the bump crosses, read the release notes. Fix the code, and
    the rules and docs (`CONSTITUTION.md` and others), in the same PR. If
    `package-lock.json` has a wrong range, fix it by hand. Don't regenerate it.
-3. Request a Copilot review at every level. Start the checks the script lists for
-   the PR's level on the replacement PR. Record each `step:` and run ID in the
-   summary comment, then stop. Calling the skill again continues from there.
+3. Use `chore:` for every commit subject and the replacement PR title, without
+   a scope such as `feat(desp-dev):`. Request a Copilot review at every level.
+   Start the checks the script lists for the PR's level on the replacement PR.
+   For e2e, run `github,terraform,k8s-rate-limits,crd-upgrade,retry-lifecycle,core`;
+   this is the full workflow suite list except `massive`. Record each `step:` and
+   run ID in the summary comment, then stop. Calling the skill again continues
+   from there.
    Run `triage.mjs <pr> --replacement <new-pr>` first, so the summary tracks the
    replacement PR's head. A new commit on it resets the saved checks.
 4. When `main` moves, rebase onto Dependabot's new commit. If the lockfile
    conflicts, run `git checkout --ours package-lock.json`.
 5. Show the merge command to a person, with the subject from the script, only
-   once every required check is green. After the merge, close the Dependabot PR.
+   once every required check is green. Dependabot closes the superseded PR after
+   the replacement updates the dependency; do not close it manually.
 
 ## Copilot threads
 
@@ -77,6 +82,6 @@ replies and resolves the threads. Never resolve a thread without a reply.
 
 - Never click "Update branch" or push to a Dependabot branch.
 - Never stack a PR on top of the Dependabot PR.
-- Never close a superseded Dependabot PR before your own PR has merged.
+- Let Dependabot close a superseded PR after the replacement updates the dependency.
 - Never comment `@dependabot ignore this major version`.
 - Never merge or approve. Only a person does that.
