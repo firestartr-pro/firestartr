@@ -104,4 +104,38 @@ describe("The reference extractor", () => {
       "SystemClaim-test",
     );
   });
+
+  it("can extract component refs from OrgSettingsClaim actions_variables", async () => {
+    const refs = extractAllRefs(await context.getFile("orgsettings_selected_repos"));
+    const componentRefs = refs.filter(ref => ref.startsWith("ComponentClaim-"));
+
+    expect(componentRefs).toContain("ComponentClaim-component_a");
+  });
+
+  it("can extract component refs from OrgSettingsClaim org_secrets", async () => {
+    const refs = extractAllRefs(await context.getFile("orgsettings_selected_repos"));
+    const componentRefs = refs.filter(ref => ref.startsWith("ComponentClaim-"));
+
+    expect(componentRefs).toContain("ComponentClaim-component_a");
+  });
+
+  it("can extract secret refs from OrgSettingsClaim org_secrets", async () => {
+    const refs = extractAllRefs(await context.getFile("orgsettings_selected_repos"));
+    const secretRefs = refs.filter(ref => ref.startsWith("SecretsClaim-"));
+
+    expect(secretRefs).toContain("SecretsClaim-secret_a");
+  });
+
+  it("extracts all refs from OrgSettingsClaim with mixed sources", async () => {
+    const refs = extractAllRefs(await context.getFile("orgsettings_selected_repos"));
+    refs.sort();
+
+    const expected = [
+      "ComponentClaim-component_a",
+      "SecretsClaim-secret_a",
+    ];
+    expected.sort();
+
+    expect(refs).toEqual(expected);
+  });
 });

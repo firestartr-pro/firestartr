@@ -227,6 +227,7 @@ const provisionImplementations = {
   githuborgwebhooks: processOperationGH,
   githuborganizationsettings: processOperationGH,
   githuborganizationvariablesections: processOperationGH,
+  githuborganizationsecretsections: processOperationGH,
   fsdummiesa: processFirestartrDummies,
   fsdummiesb: processFirestartrDummies,
   fsdummiesc: processFirestartrDummies,

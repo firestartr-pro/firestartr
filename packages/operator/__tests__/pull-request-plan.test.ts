@@ -219,6 +219,44 @@ describe('pullRequestPlan', () => {
     );
   });
 
+  it('plans GitHub organization secret sections with gh_provisioner', async () => {
+    const cr = resource(
+      'FirestartrGithubOrganizationSecretSection',
+      'org-secrets',
+    );
+
+    githubMock.pulls.getPrFiles.mockResolvedValue({
+      data: [{ filename: 'org-secrets.yaml', status: 'modified' }],
+    });
+    githubMock.repo.getContent.mockResolvedValue(JSON.stringify(cr));
+
+    await pullRequestPlan(opts);
+
+    expect(ghProvisioner.runGhProvisioner).toHaveBeenCalledWith(
+      {
+        mainCr: cr,
+        deps: withSelfOutputs({ dep: true }),
+      },
+      { plan: true },
+    );
+    expect(publishPlan).toHaveBeenCalledWith(
+      cr,
+      'plan output',
+      42,
+      'state-github',
+      'prefapp',
+      true,
+      'plan',
+      'org-secrets.yaml',
+    );
+    expect(addPlanStatusCheck).toHaveBeenLastCalledWith(
+      'prefapp/state-github#42',
+      expect.stringContaining('Skipped files: 0'),
+      'completed',
+      false,
+    );
+  });
+
   it('plans deleted GitHub resources as destroy plans', async () => {
     const cr = resource('FirestartrGithubGroup', 'group-a');
 

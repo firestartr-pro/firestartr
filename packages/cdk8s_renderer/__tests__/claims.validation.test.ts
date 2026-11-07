@@ -305,6 +305,111 @@ describe('validateClaims', () => {
 
   });
 
+  it('Rejects an organization settings claim with selected repositories but without selected visibility', async () => {
+
+    expect.assertions(3)
+
+    await context.applyPatches(
+      'orgsettings_a',
+      [
+        {
+          op: 'add',
+          path: '/providers/github/org_secrets',
+          value: {
+            actions: [
+              {
+                name: 'SELECTED_SECRET',
+                value: 'ref:secretsclaim:secret_a:rds_conn',
+                selected_repositories: ['component:component_a']
+              }
+            ]
+          }
+        }
+      ]
+    )
+
+    const claim: string = await context.getFile('orgsettings_a')
+
+    try {
+      ClaimValidation.validateClaim(common.io.fromYaml(claim), 'firestartr.dev://common/OrgSettingsClaim')
+    } catch (e: any) {
+      expect(e).toBeInstanceOf(Array)
+      expect(e).toHaveLength(1)
+      expect(e[0].message).toBe('must NOT have more than 0 items')
+    }
+
+    await context.restart()
+
+  });
+
+  it('Rejects an organization settings claim with an invalid org secret name', async () => {
+
+    expect.assertions(3)
+
+    await context.applyPatches(
+      'orgsettings_a',
+      [
+        {
+          op: 'add',
+          path: '/providers/github/org_secrets',
+          value: {
+            actions: [
+              {
+                name: 'BAD-NAME',
+                value: 'ref:secretsclaim:secret_a:rds_conn'
+              }
+            ]
+          }
+        }
+      ]
+    )
+
+    const claim: string = await context.getFile('orgsettings_a')
+
+    try {
+      ClaimValidation.validateClaim(common.io.fromYaml(claim), 'firestartr.dev://common/OrgSettingsClaim')
+    } catch (e: any) {
+      expect(e).toBeInstanceOf(Array)
+      expect(e).toHaveLength(1)
+      expect(e[0].message).toBe('must match pattern "^[A-Za-z0-9_]+$"')
+    }
+
+    await context.restart()
+
+  });
+
+  it('Is able to validate an organization settings claim with selected repositories and selected visibility', async () => {
+
+    await context.applyPatches(
+      'orgsettings_a',
+      [
+        {
+          op: 'add',
+          path: '/providers/github/org_secrets',
+          value: {
+            actions: [
+              {
+                name: 'SELECTED_SECRET',
+                value: 'ref:secretsclaim:secret_a:rds_conn',
+                visibility: 'selected',
+                selected_repositories: ['component:component_a']
+              }
+            ]
+          }
+        }
+      ]
+    )
+
+    const claim: string = await context.getFile('orgsettings_a')
+
+    ClaimValidation.validateClaim(common.io.fromYaml(claim))
+
+    ClaimValidation.validateClaim(common.io.fromYaml(claim), 'firestartr.dev://common/OrgSettingsClaim')
+
+    await context.restart()
+
+  });
+
   it('Is able to validate an organization settings claim with tfStateKey', async () => {
 
     await context.applyPatches(

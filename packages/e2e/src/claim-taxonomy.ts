@@ -43,6 +43,7 @@ const CLAIM_KIND_TO_RELATED_CR_KINDS = {
   OrgSettingsClaim: [
     'FirestartrGithubOrganizationSettings',
     'FirestartrGithubOrganizationVariableSection',
+    'FirestartrGithubOrganizationSecretSection',
   ],
 } as const satisfies Record<string, readonly string[]>;
 

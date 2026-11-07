@@ -46,6 +46,7 @@ const GITHUB_RESOURCE_KINDS = [
   'FirestartrGithubOrgWebhook',
   'FirestartrGithubOrganizationSettings',
   'FirestartrGithubOrganizationVariableSection',
+  'FirestartrGithubOrganizationSecretSection',
 ];
 
 const GITHUB_REPOSITORY_DEPENDENT_KINDS = [

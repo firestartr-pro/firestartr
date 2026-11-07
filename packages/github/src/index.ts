@@ -36,6 +36,7 @@ import {
 } from './workflow';
 
 import { encryptRepoSecret, getRepoPublicKey } from './encrypt';
+import { getOrgPublicKey, encryptOrgSecret, getOrgSecret } from './orgSecrets';
 
 export default {
   getOctokitForOrg,
@@ -64,6 +65,9 @@ export default {
   getGithubAppToken,
   encryptRepoSecret,
   getRepoPublicKey,
+  getOrgPublicKey,
+  encryptOrgSecret,
+  getOrgSecret,
   getRepoIssuesLabels,
   createRepoLabel,
   updateRepoLabel,

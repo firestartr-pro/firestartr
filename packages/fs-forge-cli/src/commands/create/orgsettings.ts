@@ -279,7 +279,8 @@ export default class CreateOrgSettings extends Command {
     },
   ] as unknown as FlagSpec[];
 
-  static summary = 'Configure GitHub organization settings and variables.';
+  static summary =
+    'Configure GitHub organization settings, variables, and secrets.';
 
   static description = 'Create a new OrgSettingsClaim.';
 

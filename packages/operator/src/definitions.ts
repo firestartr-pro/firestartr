@@ -15,6 +15,7 @@ const kindPluralMap: any = {
   githuborganizationsettings: 'FirestartrGithubOrganizationSettings',
   githuborganizationvariablesections:
     'FirestartrGithubOrganizationVariableSection',
+  githuborganizationsecretsections: 'FirestartrGithubOrganizationSecretSection',
   terraformworkspaces: 'FirestartrTerraformWorkspace',
   providerconfigs: 'FirestartrProviderConfig',
   externalsecrets: 'ExternalSecret',

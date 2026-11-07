@@ -1,0 +1,54 @@
+apiVersion: firestartr.dev/v1
+kind: FirestartrGithubOrganizationSecretSection
+metadata:
+  annotations:
+    firestartr.dev/claim-ref: OrgSettingsClaim/github_org_secrets
+    firestartr.dev/external-name: firestartr-test-secrets
+    firestartr.dev/revision: "1"
+  labels:
+    claim-ref: github-org-secrets
+  name: firestartr-test-secrets
+spec:
+  org: firestartr-test
+  secrets:
+    actions:
+      - name: SECRET_A
+        ref:
+          kind: Secret
+          name: my-secret
+          key: a
+        visibility: all
+        selectedRepositories: []
+      - name: SECRET_B
+        ref:
+          kind: Secret
+          name: my-secret
+          key: b
+        visibility: selected
+        selectedRepositories:
+          - firestartr-test/component-a
+    codespaces:
+      - name: SECRET_C
+        ref:
+          kind: Secret
+          name: my-secret
+          key: c
+        visibility: all
+        selectedRepositories: []
+    dependabot: []
+  context:
+    backend:
+      ref:
+        kind: FirestartrProviderConfig
+        name: kubernetes-provider
+    provider:
+      ref:
+        kind: FirestartrProviderConfig
+        name: github
+  firestartr:
+    tfStateKey: github-org-secrets
+  writeConnectionSecretToRef:
+    name: firestartrgithuborganizationsecretsection-firestartr-test-secrets-outputs
+    outputs:
+      - key: managed_secrets
+      - key: secret_ids

@@ -37,6 +37,8 @@ describe('generateClaimsMap', () => {
       'UserClaim-user_a': 'base_claims/users/user_a.yaml',
       'OrgSettingsClaim-github_org_settings': 'base_claims/orgSettings/orgsettings_a.yaml',
       'OrgSettingsClaim-github_org_settings_vars': 'base_claims/orgSettings/orgsettings_vars_a.yaml',
+      'OrgSettingsClaim-github_org_settings_secrets': 'base_claims/orgSettings/orgsettings_secrets_a.yaml',
+      'OrgSettingsClaim-github_org_settings_selected_repos': 'base_claims/orgSettings/orgsettings_selected_repos.yaml',
       'OrgWebhookClaim-orgwebhook_a': 'base_claims/orgWebhook/orgwebhook_a.yaml',
       'SystemClaim-system_a': 'base_claims/systems/system_a.yaml',
       'SecretsClaim-secret_a': 'base_claims/secrets/secret_a.yaml',

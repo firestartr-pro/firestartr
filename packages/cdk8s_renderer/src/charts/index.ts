@@ -5,6 +5,7 @@ import {
   GithubOrgWebhookChart,
   GithubOrgSettingsChart,
   GithubOrgVariableSectionChart,
+  GithubOrgSecretSectionChart,
 } from './github';
 
 import {
@@ -44,4 +45,5 @@ export default {
   GithubOrgWebhookChart,
   GithubOrgSettingsChart,
   GithubOrgVariableSectionChart,
+  GithubOrgSecretSectionChart,
 };

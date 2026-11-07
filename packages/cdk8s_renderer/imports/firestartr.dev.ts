@@ -896,6 +896,769 @@ export enum FirestartrGithubMembershipSpecContextProviderRefKind {
 
 
 /**
+ * A resource to handle GitHub Organization Actions Secrets.
+ *
+ * @schema FirestartrGithubOrganizationSecretSection
+ */
+export class FirestartrGithubOrganizationSecretSection extends ApiObject {
+  /**
+   * Returns the apiVersion and kind for "FirestartrGithubOrganizationSecretSection"
+   */
+  public static readonly GVK: GroupVersionKind = {
+    apiVersion: 'firestartr.dev/v1',
+    kind: 'FirestartrGithubOrganizationSecretSection',
+  }
+
+  /**
+   * Renders a Kubernetes manifest for "FirestartrGithubOrganizationSecretSection".
+   *
+   * This can be used to inline resource manifests inside other objects (e.g. as templates).
+   *
+   * @param props initialization props
+   */
+  public static manifest(props: FirestartrGithubOrganizationSecretSectionProps): any {
+    return {
+      ...FirestartrGithubOrganizationSecretSection.GVK,
+      ...toJson_FirestartrGithubOrganizationSecretSectionProps(props),
+    };
+  }
+
+  /**
+   * Defines a "FirestartrGithubOrganizationSecretSection" API object
+   * @param scope the scope in which to define this object
+   * @param id a scope-local name for the object
+   * @param props initialization props
+   */
+  public constructor(scope: Construct, id: string, props: FirestartrGithubOrganizationSecretSectionProps) {
+    super(scope, id, {
+      ...FirestartrGithubOrganizationSecretSection.GVK,
+      ...props,
+    });
+  }
+
+  /**
+   * Renders the object to Kubernetes JSON.
+   */
+  public override toJson(): any {
+    const resolved = super.toJson();
+
+    return {
+      ...FirestartrGithubOrganizationSecretSection.GVK,
+      ...toJson_FirestartrGithubOrganizationSecretSectionProps(resolved),
+    };
+  }
+}
+
+/**
+ * A resource to handle GitHub Organization Actions Secrets.
+ *
+ * @schema FirestartrGithubOrganizationSecretSection
+ */
+export interface FirestartrGithubOrganizationSecretSectionProps {
+  /**
+   * @schema FirestartrGithubOrganizationSecretSection#metadata
+   */
+  readonly metadata: ApiObjectMetadata;
+
+  /**
+   * @schema FirestartrGithubOrganizationSecretSection#spec
+   */
+  readonly spec: FirestartrGithubOrganizationSecretSectionSpec;
+}
+
+/**
+ * Converts an object of type 'FirestartrGithubOrganizationSecretSectionProps' to JSON representation.
+ */
+/* eslint-disable max-len, @stylistic/max-len, quote-props, @stylistic/quote-props */
+export function toJson_FirestartrGithubOrganizationSecretSectionProps(obj: FirestartrGithubOrganizationSecretSectionProps | undefined): Record<string, any> | undefined {
+  if (obj === undefined) { return undefined; }
+  const result = {
+    'metadata': obj.metadata,
+    'spec': toJson_FirestartrGithubOrganizationSecretSectionSpec(obj.spec),
+  };
+  // filter undefined values
+  return Object.entries(result).reduce((r, i) => (i[1] === undefined) ? r : ({ ...r, [i[0]]: i[1] }), {});
+}
+/* eslint-enable max-len, @stylistic/max-len, quote-props, @stylistic/quote-props */
+
+/**
+ * @schema FirestartrGithubOrganizationSecretSectionSpec
+ */
+export interface FirestartrGithubOrganizationSecretSectionSpec {
+  /**
+   * GitHub organization targeted by this resource
+   *
+   * @schema FirestartrGithubOrganizationSecretSectionSpec#org
+   */
+  readonly org: string;
+
+  /**
+   * A map of secret types, each containing a list of secrets.
+   *
+   * @schema FirestartrGithubOrganizationSecretSectionSpec#secrets
+   */
+  readonly secrets: FirestartrGithubOrganizationSecretSectionSpecSecrets;
+
+  /**
+   * @schema FirestartrGithubOrganizationSecretSectionSpec#context
+   */
+  readonly context: FirestartrGithubOrganizationSecretSectionSpecContext;
+
+  /**
+   * @schema FirestartrGithubOrganizationSecretSectionSpec#firestartr
+   */
+  readonly firestartr: FirestartrGithubOrganizationSecretSectionSpecFirestartr;
+
+  /**
+   * @schema FirestartrGithubOrganizationSecretSectionSpec#writeConnectionSecretToRef
+   */
+  readonly writeConnectionSecretToRef: FirestartrGithubOrganizationSecretSectionSpecWriteConnectionSecretToRef;
+}
+
+/**
+ * Converts an object of type 'FirestartrGithubOrganizationSecretSectionSpec' to JSON representation.
+ */
+/* eslint-disable max-len, @stylistic/max-len, quote-props, @stylistic/quote-props */
+export function toJson_FirestartrGithubOrganizationSecretSectionSpec(obj: FirestartrGithubOrganizationSecretSectionSpec | undefined): Record<string, any> | undefined {
+  if (obj === undefined) { return undefined; }
+  const result = {
+    'org': obj.org,
+    'secrets': toJson_FirestartrGithubOrganizationSecretSectionSpecSecrets(obj.secrets),
+    'context': toJson_FirestartrGithubOrganizationSecretSectionSpecContext(obj.context),
+    'firestartr': toJson_FirestartrGithubOrganizationSecretSectionSpecFirestartr(obj.firestartr),
+    'writeConnectionSecretToRef': toJson_FirestartrGithubOrganizationSecretSectionSpecWriteConnectionSecretToRef(obj.writeConnectionSecretToRef),
+  };
+  // filter undefined values
+  return Object.entries(result).reduce((r, i) => (i[1] === undefined) ? r : ({ ...r, [i[0]]: i[1] }), {});
+}
+/* eslint-enable max-len, @stylistic/max-len, quote-props, @stylistic/quote-props */
+
+/**
+ * A map of secret types, each containing a list of secrets.
+ *
+ * @schema FirestartrGithubOrganizationSecretSectionSpecSecrets
+ */
+export interface FirestartrGithubOrganizationSecretSectionSpecSecrets {
+  /**
+   * @schema FirestartrGithubOrganizationSecretSectionSpecSecrets#actions
+   */
+  readonly actions?: FirestartrGithubOrganizationSecretSectionSpecSecretsActions[];
+
+  /**
+   * @schema FirestartrGithubOrganizationSecretSectionSpecSecrets#codespaces
+   */
+  readonly codespaces?: FirestartrGithubOrganizationSecretSectionSpecSecretsCodespaces[];
+
+  /**
+   * @schema FirestartrGithubOrganizationSecretSectionSpecSecrets#dependabot
+   */
+  readonly dependabot?: FirestartrGithubOrganizationSecretSectionSpecSecretsDependabot[];
+}
+
+/**
+ * Converts an object of type 'FirestartrGithubOrganizationSecretSectionSpecSecrets' to JSON representation.
+ */
+/* eslint-disable max-len, @stylistic/max-len, quote-props, @stylistic/quote-props */
+export function toJson_FirestartrGithubOrganizationSecretSectionSpecSecrets(obj: FirestartrGithubOrganizationSecretSectionSpecSecrets | undefined): Record<string, any> | undefined {
+  if (obj === undefined) { return undefined; }
+  const result = {
+    'actions': obj.actions?.map(y => toJson_FirestartrGithubOrganizationSecretSectionSpecSecretsActions(y)),
+    'codespaces': obj.codespaces?.map(y => toJson_FirestartrGithubOrganizationSecretSectionSpecSecretsCodespaces(y)),
+    'dependabot': obj.dependabot?.map(y => toJson_FirestartrGithubOrganizationSecretSectionSpecSecretsDependabot(y)),
+  };
+  // filter undefined values
+  return Object.entries(result).reduce((r, i) => (i[1] === undefined) ? r : ({ ...r, [i[0]]: i[1] }), {});
+}
+/* eslint-enable max-len, @stylistic/max-len, quote-props, @stylistic/quote-props */
+
+/**
+ * @schema FirestartrGithubOrganizationSecretSectionSpecContext
+ */
+export interface FirestartrGithubOrganizationSecretSectionSpecContext {
+  /**
+   * @schema FirestartrGithubOrganizationSecretSectionSpecContext#backend
+   */
+  readonly backend: FirestartrGithubOrganizationSecretSectionSpecContextBackend;
+
+  /**
+   * @schema FirestartrGithubOrganizationSecretSectionSpecContext#provider
+   */
+  readonly provider: FirestartrGithubOrganizationSecretSectionSpecContextProvider;
+}
+
+/**
+ * Converts an object of type 'FirestartrGithubOrganizationSecretSectionSpecContext' to JSON representation.
+ */
+/* eslint-disable max-len, @stylistic/max-len, quote-props, @stylistic/quote-props */
+export function toJson_FirestartrGithubOrganizationSecretSectionSpecContext(obj: FirestartrGithubOrganizationSecretSectionSpecContext | undefined): Record<string, any> | undefined {
+  if (obj === undefined) { return undefined; }
+  const result = {
+    'backend': toJson_FirestartrGithubOrganizationSecretSectionSpecContextBackend(obj.backend),
+    'provider': toJson_FirestartrGithubOrganizationSecretSectionSpecContextProvider(obj.provider),
+  };
+  // filter undefined values
+  return Object.entries(result).reduce((r, i) => (i[1] === undefined) ? r : ({ ...r, [i[0]]: i[1] }), {});
+}
+/* eslint-enable max-len, @stylistic/max-len, quote-props, @stylistic/quote-props */
+
+/**
+ * @schema FirestartrGithubOrganizationSecretSectionSpecFirestartr
+ */
+export interface FirestartrGithubOrganizationSecretSectionSpecFirestartr {
+  /**
+   * @schema FirestartrGithubOrganizationSecretSectionSpecFirestartr#tfStateKey
+   */
+  readonly tfStateKey: string;
+}
+
+/**
+ * Converts an object of type 'FirestartrGithubOrganizationSecretSectionSpecFirestartr' to JSON representation.
+ */
+/* eslint-disable max-len, @stylistic/max-len, quote-props, @stylistic/quote-props */
+export function toJson_FirestartrGithubOrganizationSecretSectionSpecFirestartr(obj: FirestartrGithubOrganizationSecretSectionSpecFirestartr | undefined): Record<string, any> | undefined {
+  if (obj === undefined) { return undefined; }
+  const result = {
+    'tfStateKey': obj.tfStateKey,
+  };
+  // filter undefined values
+  return Object.entries(result).reduce((r, i) => (i[1] === undefined) ? r : ({ ...r, [i[0]]: i[1] }), {});
+}
+/* eslint-enable max-len, @stylistic/max-len, quote-props, @stylistic/quote-props */
+
+/**
+ * @schema FirestartrGithubOrganizationSecretSectionSpecWriteConnectionSecretToRef
+ */
+export interface FirestartrGithubOrganizationSecretSectionSpecWriteConnectionSecretToRef {
+  /**
+   * @schema FirestartrGithubOrganizationSecretSectionSpecWriteConnectionSecretToRef#name
+   */
+  readonly name: string;
+
+  /**
+   * @schema FirestartrGithubOrganizationSecretSectionSpecWriteConnectionSecretToRef#outputs
+   */
+  readonly outputs: FirestartrGithubOrganizationSecretSectionSpecWriteConnectionSecretToRefOutputs[];
+}
+
+/**
+ * Converts an object of type 'FirestartrGithubOrganizationSecretSectionSpecWriteConnectionSecretToRef' to JSON representation.
+ */
+/* eslint-disable max-len, @stylistic/max-len, quote-props, @stylistic/quote-props */
+export function toJson_FirestartrGithubOrganizationSecretSectionSpecWriteConnectionSecretToRef(obj: FirestartrGithubOrganizationSecretSectionSpecWriteConnectionSecretToRef | undefined): Record<string, any> | undefined {
+  if (obj === undefined) { return undefined; }
+  const result = {
+    'name': obj.name,
+    'outputs': obj.outputs?.map(y => toJson_FirestartrGithubOrganizationSecretSectionSpecWriteConnectionSecretToRefOutputs(y)),
+  };
+  // filter undefined values
+  return Object.entries(result).reduce((r, i) => (i[1] === undefined) ? r : ({ ...r, [i[0]]: i[1] }), {});
+}
+/* eslint-enable max-len, @stylistic/max-len, quote-props, @stylistic/quote-props */
+
+/**
+ * @schema FirestartrGithubOrganizationSecretSectionSpecSecretsActions
+ */
+export interface FirestartrGithubOrganizationSecretSectionSpecSecretsActions {
+  /**
+   * The name of the secret.
+   *
+   * @schema FirestartrGithubOrganizationSecretSectionSpecSecretsActions#name
+   */
+  readonly name: string;
+
+  /**
+   * A reference to the Kubernetes Secret resource that contains the value.
+   *
+   * @schema FirestartrGithubOrganizationSecretSectionSpecSecretsActions#ref
+   */
+  readonly ref: FirestartrGithubOrganizationSecretSectionSpecSecretsActionsRef;
+
+  /**
+   * Which repositories can access the secret.
+   *
+   * @schema FirestartrGithubOrganizationSecretSectionSpecSecretsActions#visibility
+   */
+  readonly visibility?: FirestartrGithubOrganizationSecretSectionSpecSecretsActionsVisibility;
+
+  /**
+   * List of repository names when visibility is selected.
+   *
+   * @schema FirestartrGithubOrganizationSecretSectionSpecSecretsActions#selectedRepositories
+   */
+  readonly selectedRepositories?: string[];
+}
+
+/**
+ * Converts an object of type 'FirestartrGithubOrganizationSecretSectionSpecSecretsActions' to JSON representation.
+ */
+/* eslint-disable max-len, @stylistic/max-len, quote-props, @stylistic/quote-props */
+export function toJson_FirestartrGithubOrganizationSecretSectionSpecSecretsActions(obj: FirestartrGithubOrganizationSecretSectionSpecSecretsActions | undefined): Record<string, any> | undefined {
+  if (obj === undefined) { return undefined; }
+  const result = {
+    'name': obj.name,
+    'ref': toJson_FirestartrGithubOrganizationSecretSectionSpecSecretsActionsRef(obj.ref),
+    'visibility': obj.visibility,
+    'selectedRepositories': obj.selectedRepositories?.map(y => y),
+  };
+  // filter undefined values
+  return Object.entries(result).reduce((r, i) => (i[1] === undefined) ? r : ({ ...r, [i[0]]: i[1] }), {});
+}
+/* eslint-enable max-len, @stylistic/max-len, quote-props, @stylistic/quote-props */
+
+/**
+ * @schema FirestartrGithubOrganizationSecretSectionSpecSecretsCodespaces
+ */
+export interface FirestartrGithubOrganizationSecretSectionSpecSecretsCodespaces {
+  /**
+   * The name of the secret.
+   *
+   * @schema FirestartrGithubOrganizationSecretSectionSpecSecretsCodespaces#name
+   */
+  readonly name: string;
+
+  /**
+   * A reference to the Kubernetes Secret resource that contains the value.
+   *
+   * @schema FirestartrGithubOrganizationSecretSectionSpecSecretsCodespaces#ref
+   */
+  readonly ref: FirestartrGithubOrganizationSecretSectionSpecSecretsCodespacesRef;
+
+  /**
+   * Which repositories can access the secret.
+   *
+   * @schema FirestartrGithubOrganizationSecretSectionSpecSecretsCodespaces#visibility
+   */
+  readonly visibility?: FirestartrGithubOrganizationSecretSectionSpecSecretsCodespacesVisibility;
+
+  /**
+   * List of repository names when visibility is selected.
+   *
+   * @schema FirestartrGithubOrganizationSecretSectionSpecSecretsCodespaces#selectedRepositories
+   */
+  readonly selectedRepositories?: string[];
+}
+
+/**
+ * Converts an object of type 'FirestartrGithubOrganizationSecretSectionSpecSecretsCodespaces' to JSON representation.
+ */
+/* eslint-disable max-len, @stylistic/max-len, quote-props, @stylistic/quote-props */
+export function toJson_FirestartrGithubOrganizationSecretSectionSpecSecretsCodespaces(obj: FirestartrGithubOrganizationSecretSectionSpecSecretsCodespaces | undefined): Record<string, any> | undefined {
+  if (obj === undefined) { return undefined; }
+  const result = {
+    'name': obj.name,
+    'ref': toJson_FirestartrGithubOrganizationSecretSectionSpecSecretsCodespacesRef(obj.ref),
+    'visibility': obj.visibility,
+    'selectedRepositories': obj.selectedRepositories?.map(y => y),
+  };
+  // filter undefined values
+  return Object.entries(result).reduce((r, i) => (i[1] === undefined) ? r : ({ ...r, [i[0]]: i[1] }), {});
+}
+/* eslint-enable max-len, @stylistic/max-len, quote-props, @stylistic/quote-props */
+
+/**
+ * @schema FirestartrGithubOrganizationSecretSectionSpecSecretsDependabot
+ */
+export interface FirestartrGithubOrganizationSecretSectionSpecSecretsDependabot {
+  /**
+   * The name of the secret.
+   *
+   * @schema FirestartrGithubOrganizationSecretSectionSpecSecretsDependabot#name
+   */
+  readonly name: string;
+
+  /**
+   * A reference to the Kubernetes Secret resource that contains the value.
+   *
+   * @schema FirestartrGithubOrganizationSecretSectionSpecSecretsDependabot#ref
+   */
+  readonly ref: FirestartrGithubOrganizationSecretSectionSpecSecretsDependabotRef;
+
+  /**
+   * Which repositories can access the secret.
+   *
+   * @schema FirestartrGithubOrganizationSecretSectionSpecSecretsDependabot#visibility
+   */
+  readonly visibility?: FirestartrGithubOrganizationSecretSectionSpecSecretsDependabotVisibility;
+
+  /**
+   * List of repository names when visibility is selected.
+   *
+   * @schema FirestartrGithubOrganizationSecretSectionSpecSecretsDependabot#selectedRepositories
+   */
+  readonly selectedRepositories?: string[];
+}
+
+/**
+ * Converts an object of type 'FirestartrGithubOrganizationSecretSectionSpecSecretsDependabot' to JSON representation.
+ */
+/* eslint-disable max-len, @stylistic/max-len, quote-props, @stylistic/quote-props */
+export function toJson_FirestartrGithubOrganizationSecretSectionSpecSecretsDependabot(obj: FirestartrGithubOrganizationSecretSectionSpecSecretsDependabot | undefined): Record<string, any> | undefined {
+  if (obj === undefined) { return undefined; }
+  const result = {
+    'name': obj.name,
+    'ref': toJson_FirestartrGithubOrganizationSecretSectionSpecSecretsDependabotRef(obj.ref),
+    'visibility': obj.visibility,
+    'selectedRepositories': obj.selectedRepositories?.map(y => y),
+  };
+  // filter undefined values
+  return Object.entries(result).reduce((r, i) => (i[1] === undefined) ? r : ({ ...r, [i[0]]: i[1] }), {});
+}
+/* eslint-enable max-len, @stylistic/max-len, quote-props, @stylistic/quote-props */
+
+/**
+ * @schema FirestartrGithubOrganizationSecretSectionSpecContextBackend
+ */
+export interface FirestartrGithubOrganizationSecretSectionSpecContextBackend {
+  /**
+   * @schema FirestartrGithubOrganizationSecretSectionSpecContextBackend#ref
+   */
+  readonly ref: FirestartrGithubOrganizationSecretSectionSpecContextBackendRef;
+}
+
+/**
+ * Converts an object of type 'FirestartrGithubOrganizationSecretSectionSpecContextBackend' to JSON representation.
+ */
+/* eslint-disable max-len, @stylistic/max-len, quote-props, @stylistic/quote-props */
+export function toJson_FirestartrGithubOrganizationSecretSectionSpecContextBackend(obj: FirestartrGithubOrganizationSecretSectionSpecContextBackend | undefined): Record<string, any> | undefined {
+  if (obj === undefined) { return undefined; }
+  const result = {
+    'ref': toJson_FirestartrGithubOrganizationSecretSectionSpecContextBackendRef(obj.ref),
+  };
+  // filter undefined values
+  return Object.entries(result).reduce((r, i) => (i[1] === undefined) ? r : ({ ...r, [i[0]]: i[1] }), {});
+}
+/* eslint-enable max-len, @stylistic/max-len, quote-props, @stylistic/quote-props */
+
+/**
+ * @schema FirestartrGithubOrganizationSecretSectionSpecContextProvider
+ */
+export interface FirestartrGithubOrganizationSecretSectionSpecContextProvider {
+  /**
+   * @schema FirestartrGithubOrganizationSecretSectionSpecContextProvider#ref
+   */
+  readonly ref: FirestartrGithubOrganizationSecretSectionSpecContextProviderRef;
+}
+
+/**
+ * Converts an object of type 'FirestartrGithubOrganizationSecretSectionSpecContextProvider' to JSON representation.
+ */
+/* eslint-disable max-len, @stylistic/max-len, quote-props, @stylistic/quote-props */
+export function toJson_FirestartrGithubOrganizationSecretSectionSpecContextProvider(obj: FirestartrGithubOrganizationSecretSectionSpecContextProvider | undefined): Record<string, any> | undefined {
+  if (obj === undefined) { return undefined; }
+  const result = {
+    'ref': toJson_FirestartrGithubOrganizationSecretSectionSpecContextProviderRef(obj.ref),
+  };
+  // filter undefined values
+  return Object.entries(result).reduce((r, i) => (i[1] === undefined) ? r : ({ ...r, [i[0]]: i[1] }), {});
+}
+/* eslint-enable max-len, @stylistic/max-len, quote-props, @stylistic/quote-props */
+
+/**
+ * @schema FirestartrGithubOrganizationSecretSectionSpecWriteConnectionSecretToRefOutputs
+ */
+export interface FirestartrGithubOrganizationSecretSectionSpecWriteConnectionSecretToRefOutputs {
+  /**
+   * @schema FirestartrGithubOrganizationSecretSectionSpecWriteConnectionSecretToRefOutputs#key
+   */
+  readonly key: string;
+}
+
+/**
+ * Converts an object of type 'FirestartrGithubOrganizationSecretSectionSpecWriteConnectionSecretToRefOutputs' to JSON representation.
+ */
+/* eslint-disable max-len, @stylistic/max-len, quote-props, @stylistic/quote-props */
+export function toJson_FirestartrGithubOrganizationSecretSectionSpecWriteConnectionSecretToRefOutputs(obj: FirestartrGithubOrganizationSecretSectionSpecWriteConnectionSecretToRefOutputs | undefined): Record<string, any> | undefined {
+  if (obj === undefined) { return undefined; }
+  const result = {
+    'key': obj.key,
+  };
+  // filter undefined values
+  return Object.entries(result).reduce((r, i) => (i[1] === undefined) ? r : ({ ...r, [i[0]]: i[1] }), {});
+}
+/* eslint-enable max-len, @stylistic/max-len, quote-props, @stylistic/quote-props */
+
+/**
+ * A reference to the Kubernetes Secret resource that contains the value.
+ *
+ * @schema FirestartrGithubOrganizationSecretSectionSpecSecretsActionsRef
+ */
+export interface FirestartrGithubOrganizationSecretSectionSpecSecretsActionsRef {
+  /**
+   * The type of Kubernetes resource to reference.
+   *
+   * @schema FirestartrGithubOrganizationSecretSectionSpecSecretsActionsRef#kind
+   */
+  readonly kind: FirestartrGithubOrganizationSecretSectionSpecSecretsActionsRefKind;
+
+  /**
+   * The name of the Kubernetes Secret resource.
+   *
+   * @schema FirestartrGithubOrganizationSecretSectionSpecSecretsActionsRef#name
+   */
+  readonly name: string;
+
+  /**
+   * The key within the Kubernetes Secret data.
+   *
+   * @schema FirestartrGithubOrganizationSecretSectionSpecSecretsActionsRef#key
+   */
+  readonly key: string;
+}
+
+/**
+ * Converts an object of type 'FirestartrGithubOrganizationSecretSectionSpecSecretsActionsRef' to JSON representation.
+ */
+/* eslint-disable max-len, @stylistic/max-len, quote-props, @stylistic/quote-props */
+export function toJson_FirestartrGithubOrganizationSecretSectionSpecSecretsActionsRef(obj: FirestartrGithubOrganizationSecretSectionSpecSecretsActionsRef | undefined): Record<string, any> | undefined {
+  if (obj === undefined) { return undefined; }
+  const result = {
+    'kind': obj.kind,
+    'name': obj.name,
+    'key': obj.key,
+  };
+  // filter undefined values
+  return Object.entries(result).reduce((r, i) => (i[1] === undefined) ? r : ({ ...r, [i[0]]: i[1] }), {});
+}
+/* eslint-enable max-len, @stylistic/max-len, quote-props, @stylistic/quote-props */
+
+/**
+ * Which repositories can access the secret.
+ *
+ * @schema FirestartrGithubOrganizationSecretSectionSpecSecretsActionsVisibility
+ */
+export enum FirestartrGithubOrganizationSecretSectionSpecSecretsActionsVisibility {
+  /** all */
+  ALL = "all",
+  /** selected */
+  SELECTED = "selected",
+  /** private */
+  PRIVATE = "private",
+}
+
+/**
+ * A reference to the Kubernetes Secret resource that contains the value.
+ *
+ * @schema FirestartrGithubOrganizationSecretSectionSpecSecretsCodespacesRef
+ */
+export interface FirestartrGithubOrganizationSecretSectionSpecSecretsCodespacesRef {
+  /**
+   * The type of Kubernetes resource to reference.
+   *
+   * @schema FirestartrGithubOrganizationSecretSectionSpecSecretsCodespacesRef#kind
+   */
+  readonly kind: FirestartrGithubOrganizationSecretSectionSpecSecretsCodespacesRefKind;
+
+  /**
+   * The name of the Kubernetes Secret resource.
+   *
+   * @schema FirestartrGithubOrganizationSecretSectionSpecSecretsCodespacesRef#name
+   */
+  readonly name: string;
+
+  /**
+   * The key within the Kubernetes Secret data.
+   *
+   * @schema FirestartrGithubOrganizationSecretSectionSpecSecretsCodespacesRef#key
+   */
+  readonly key: string;
+}
+
+/**
+ * Converts an object of type 'FirestartrGithubOrganizationSecretSectionSpecSecretsCodespacesRef' to JSON representation.
+ */
+/* eslint-disable max-len, @stylistic/max-len, quote-props, @stylistic/quote-props */
+export function toJson_FirestartrGithubOrganizationSecretSectionSpecSecretsCodespacesRef(obj: FirestartrGithubOrganizationSecretSectionSpecSecretsCodespacesRef | undefined): Record<string, any> | undefined {
+  if (obj === undefined) { return undefined; }
+  const result = {
+    'kind': obj.kind,
+    'name': obj.name,
+    'key': obj.key,
+  };
+  // filter undefined values
+  return Object.entries(result).reduce((r, i) => (i[1] === undefined) ? r : ({ ...r, [i[0]]: i[1] }), {});
+}
+/* eslint-enable max-len, @stylistic/max-len, quote-props, @stylistic/quote-props */
+
+/**
+ * Which repositories can access the secret.
+ *
+ * @schema FirestartrGithubOrganizationSecretSectionSpecSecretsCodespacesVisibility
+ */
+export enum FirestartrGithubOrganizationSecretSectionSpecSecretsCodespacesVisibility {
+  /** all */
+  ALL = "all",
+  /** selected */
+  SELECTED = "selected",
+  /** private */
+  PRIVATE = "private",
+}
+
+/**
+ * A reference to the Kubernetes Secret resource that contains the value.
+ *
+ * @schema FirestartrGithubOrganizationSecretSectionSpecSecretsDependabotRef
+ */
+export interface FirestartrGithubOrganizationSecretSectionSpecSecretsDependabotRef {
+  /**
+   * The type of Kubernetes resource to reference.
+   *
+   * @schema FirestartrGithubOrganizationSecretSectionSpecSecretsDependabotRef#kind
+   */
+  readonly kind: FirestartrGithubOrganizationSecretSectionSpecSecretsDependabotRefKind;
+
+  /**
+   * The name of the Kubernetes Secret resource.
+   *
+   * @schema FirestartrGithubOrganizationSecretSectionSpecSecretsDependabotRef#name
+   */
+  readonly name: string;
+
+  /**
+   * The key within the Kubernetes Secret data.
+   *
+   * @schema FirestartrGithubOrganizationSecretSectionSpecSecretsDependabotRef#key
+   */
+  readonly key: string;
+}
+
+/**
+ * Converts an object of type 'FirestartrGithubOrganizationSecretSectionSpecSecretsDependabotRef' to JSON representation.
+ */
+/* eslint-disable max-len, @stylistic/max-len, quote-props, @stylistic/quote-props */
+export function toJson_FirestartrGithubOrganizationSecretSectionSpecSecretsDependabotRef(obj: FirestartrGithubOrganizationSecretSectionSpecSecretsDependabotRef | undefined): Record<string, any> | undefined {
+  if (obj === undefined) { return undefined; }
+  const result = {
+    'kind': obj.kind,
+    'name': obj.name,
+    'key': obj.key,
+  };
+  // filter undefined values
+  return Object.entries(result).reduce((r, i) => (i[1] === undefined) ? r : ({ ...r, [i[0]]: i[1] }), {});
+}
+/* eslint-enable max-len, @stylistic/max-len, quote-props, @stylistic/quote-props */
+
+/**
+ * Which repositories can access the secret.
+ *
+ * @schema FirestartrGithubOrganizationSecretSectionSpecSecretsDependabotVisibility
+ */
+export enum FirestartrGithubOrganizationSecretSectionSpecSecretsDependabotVisibility {
+  /** all */
+  ALL = "all",
+  /** selected */
+  SELECTED = "selected",
+  /** private */
+  PRIVATE = "private",
+}
+
+/**
+ * @schema FirestartrGithubOrganizationSecretSectionSpecContextBackendRef
+ */
+export interface FirestartrGithubOrganizationSecretSectionSpecContextBackendRef {
+  /**
+   * @schema FirestartrGithubOrganizationSecretSectionSpecContextBackendRef#kind
+   */
+  readonly kind: FirestartrGithubOrganizationSecretSectionSpecContextBackendRefKind;
+
+  /**
+   * @schema FirestartrGithubOrganizationSecretSectionSpecContextBackendRef#name
+   */
+  readonly name: string;
+}
+
+/**
+ * Converts an object of type 'FirestartrGithubOrganizationSecretSectionSpecContextBackendRef' to JSON representation.
+ */
+/* eslint-disable max-len, @stylistic/max-len, quote-props, @stylistic/quote-props */
+export function toJson_FirestartrGithubOrganizationSecretSectionSpecContextBackendRef(obj: FirestartrGithubOrganizationSecretSectionSpecContextBackendRef | undefined): Record<string, any> | undefined {
+  if (obj === undefined) { return undefined; }
+  const result = {
+    'kind': obj.kind,
+    'name': obj.name,
+  };
+  // filter undefined values
+  return Object.entries(result).reduce((r, i) => (i[1] === undefined) ? r : ({ ...r, [i[0]]: i[1] }), {});
+}
+/* eslint-enable max-len, @stylistic/max-len, quote-props, @stylistic/quote-props */
+
+/**
+ * @schema FirestartrGithubOrganizationSecretSectionSpecContextProviderRef
+ */
+export interface FirestartrGithubOrganizationSecretSectionSpecContextProviderRef {
+  /**
+   * @schema FirestartrGithubOrganizationSecretSectionSpecContextProviderRef#kind
+   */
+  readonly kind: FirestartrGithubOrganizationSecretSectionSpecContextProviderRefKind;
+
+  /**
+   * @schema FirestartrGithubOrganizationSecretSectionSpecContextProviderRef#name
+   */
+  readonly name: string;
+}
+
+/**
+ * Converts an object of type 'FirestartrGithubOrganizationSecretSectionSpecContextProviderRef' to JSON representation.
+ */
+/* eslint-disable max-len, @stylistic/max-len, quote-props, @stylistic/quote-props */
+export function toJson_FirestartrGithubOrganizationSecretSectionSpecContextProviderRef(obj: FirestartrGithubOrganizationSecretSectionSpecContextProviderRef | undefined): Record<string, any> | undefined {
+  if (obj === undefined) { return undefined; }
+  const result = {
+    'kind': obj.kind,
+    'name': obj.name,
+  };
+  // filter undefined values
+  return Object.entries(result).reduce((r, i) => (i[1] === undefined) ? r : ({ ...r, [i[0]]: i[1] }), {});
+}
+/* eslint-enable max-len, @stylistic/max-len, quote-props, @stylistic/quote-props */
+
+/**
+ * The type of Kubernetes resource to reference.
+ *
+ * @schema FirestartrGithubOrganizationSecretSectionSpecSecretsActionsRefKind
+ */
+export enum FirestartrGithubOrganizationSecretSectionSpecSecretsActionsRefKind {
+  /** Secret */
+  SECRET = "Secret",
+}
+
+/**
+ * The type of Kubernetes resource to reference.
+ *
+ * @schema FirestartrGithubOrganizationSecretSectionSpecSecretsCodespacesRefKind
+ */
+export enum FirestartrGithubOrganizationSecretSectionSpecSecretsCodespacesRefKind {
+  /** Secret */
+  SECRET = "Secret",
+}
+
+/**
+ * The type of Kubernetes resource to reference.
+ *
+ * @schema FirestartrGithubOrganizationSecretSectionSpecSecretsDependabotRefKind
+ */
+export enum FirestartrGithubOrganizationSecretSectionSpecSecretsDependabotRefKind {
+  /** Secret */
+  SECRET = "Secret",
+}
+
+/**
+ * @schema FirestartrGithubOrganizationSecretSectionSpecContextBackendRefKind
+ */
+export enum FirestartrGithubOrganizationSecretSectionSpecContextBackendRefKind {
+  /** FirestartrProviderConfig */
+  FIRESTARTR_PROVIDER_CONFIG = "FirestartrProviderConfig",
+}
+
+/**
+ * @schema FirestartrGithubOrganizationSecretSectionSpecContextProviderRefKind
+ */
+export enum FirestartrGithubOrganizationSecretSectionSpecContextProviderRefKind {
+  /** FirestartrProviderConfig */
+  FIRESTARTR_PROVIDER_CONFIG = "FirestartrProviderConfig",
+}
+
+
+/**
  * A resource to handle GitHub Organization Settings.
  *
  * @schema FirestartrGithubOrganizationSettings

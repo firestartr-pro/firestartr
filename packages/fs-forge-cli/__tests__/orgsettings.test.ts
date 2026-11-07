@@ -417,7 +417,7 @@ describe('OrgSettingsClaim schema', () => {
       expect(result.valid).toBe(true);
     });
 
-    it('fails for org_secrets because they are not part of this schema', async () => {
+    it('passes for org_secrets with valid entries', async () => {
       const claim = {
         name: 'test',
         kind: 'OrgSettingsClaim',
@@ -434,6 +434,25 @@ describe('OrgSettingsClaim schema', () => {
                   visibility: 'all',
                 },
               ],
+            },
+          },
+        },
+      };
+      const result = await validator.validate(claim, 'OrgSettingsClaim');
+      expect(result.valid).toBe(true);
+    });
+
+    it('fails for org_secrets entries without a value', async () => {
+      const claim = {
+        name: 'test',
+        kind: 'OrgSettingsClaim',
+        providers: {
+          github: {
+            name: 'test',
+            org: 'my-org',
+            billing_email: 'test@example.com',
+            org_secrets: {
+              codespaces: [{ name: 'SEC', visibility: 'all' }],
             },
           },
         },
