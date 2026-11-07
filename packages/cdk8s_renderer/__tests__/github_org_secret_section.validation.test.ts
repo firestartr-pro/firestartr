@@ -28,7 +28,9 @@ function secretSectionCr(
   };
 }
 
-function validateRenderedSecretSecSingleton(crs: Record<string, unknown>): void {
+function validateRenderedSecretSecSingleton(
+  crs: Record<string, unknown>,
+): void {
   validateGithubOrgSecretSectionSingleton(crs as any);
 }
 
@@ -40,10 +42,14 @@ describe('validateGithubOrgSecretSectionSingleton', () => {
   it('allows one SecretSection CR per GitHub organization', () => {
     expect(() =>
       validateRenderedSecretSecSingleton({
-        'FirestartrGithubOrganizationSecretSection-org-a':
-          secretSectionCr('org-a', 'org-a'),
-        'FirestartrGithubOrganizationSecretSection-org-b':
-          secretSectionCr('org-b', 'org-b'),
+        'FirestartrGithubOrganizationSecretSection-org-a': secretSectionCr(
+          'org-a',
+          'org-a',
+        ),
+        'FirestartrGithubOrganizationSecretSection-org-b': secretSectionCr(
+          'org-b',
+          'org-b',
+        ),
       }),
     ).not.toThrow();
   });
@@ -51,18 +57,16 @@ describe('validateGithubOrgSecretSectionSingleton', () => {
   it('rejects duplicate SecretSection CRs for the same GitHub organization', () => {
     expect(() =>
       validateRenderedSecretSecSingleton({
-        'FirestartrGithubOrganizationSecretSection-sec-a':
-          secretSectionCr(
-            'sec-a',
-            'firestartr-test',
-            'OrgSettingsClaim/github_org_settings_a',
-          ),
-        'FirestartrGithubOrganizationSecretSection-sec-b':
-          secretSectionCr(
-            'sec-b',
-            'firestartr-test',
-            'OrgSettingsClaim/github_org_settings_b',
-          ),
+        'FirestartrGithubOrganizationSecretSection-sec-a': secretSectionCr(
+          'sec-a',
+          'firestartr-test',
+          'OrgSettingsClaim/github_org_settings_a',
+        ),
+        'FirestartrGithubOrganizationSecretSection-sec-b': secretSectionCr(
+          'sec-b',
+          'firestartr-test',
+          'OrgSettingsClaim/github_org_settings_b',
+        ),
       }),
     ).toThrow(
       /Duplicate FirestartrGithubOrganizationSecretSection resources found for GitHub organization "firestartr-test"/,
@@ -72,18 +76,16 @@ describe('validateGithubOrgSecretSectionSingleton', () => {
   it('rejects duplicate SecretSection CRs for orgs with different casing', () => {
     expect(() =>
       validateRenderedSecretSecSingleton({
-        'FirestartrGithubOrganizationSecretSection-sec-a':
-          secretSectionCr(
-            'sec-a',
-            'Firestartr-Test',
-            'OrgSettingsClaim/github_org_settings_a',
-          ),
-        'FirestartrGithubOrganizationSecretSection-sec-b':
-          secretSectionCr(
-            'sec-b',
-            'firestartr-test',
-            'OrgSettingsClaim/github_org_settings_b',
-          ),
+        'FirestartrGithubOrganizationSecretSection-sec-a': secretSectionCr(
+          'sec-a',
+          'Firestartr-Test',
+          'OrgSettingsClaim/github_org_settings_a',
+        ),
+        'FirestartrGithubOrganizationSecretSection-sec-b': secretSectionCr(
+          'sec-b',
+          'firestartr-test',
+          'OrgSettingsClaim/github_org_settings_b',
+        ),
       }),
     ).toThrow(
       /Duplicate FirestartrGithubOrganizationSecretSection resources found for GitHub organization "firestartr-test"/,
@@ -129,15 +131,25 @@ describe('validateSecretNamesUniqueness', () => {
   it('allows unique secret names within sections', () => {
     expect(() =>
       validateRenderedSecretUniqueness({
-        'FirestartrGithubOrganizationSecretSection-org-a':
-          secretSectionCr('org-a', 'org-a', undefined, {
+        'FirestartrGithubOrganizationSecretSection-org-a': secretSectionCr(
+          'org-a',
+          'org-a',
+          undefined,
+          {
             actions: [
-              { name: 'SECRET_A', ref: { kind: 'Secret', name: 'a', key: 'a' } },
-              { name: 'SECRET_B', ref: { kind: 'Secret', name: 'b', key: 'b' } },
+              {
+                name: 'SECRET_A',
+                ref: { kind: 'Secret', name: 'a', key: 'a' },
+              },
+              {
+                name: 'SECRET_B',
+                ref: { kind: 'Secret', name: 'b', key: 'b' },
+              },
             ],
             codespaces: [],
             dependabot: [],
-          }),
+          },
+        ),
       }),
     ).not.toThrow();
   });
@@ -145,15 +157,25 @@ describe('validateSecretNamesUniqueness', () => {
   it('rejects duplicate secret names within actions section', () => {
     expect(() =>
       validateRenderedSecretUniqueness({
-        'FirestartrGithubOrganizationSecretSection-org-a':
-          secretSectionCr('org-a', 'org-a', undefined, {
+        'FirestartrGithubOrganizationSecretSection-org-a': secretSectionCr(
+          'org-a',
+          'org-a',
+          undefined,
+          {
             actions: [
-              { name: 'MY_SECRET', ref: { kind: 'Secret', name: 'a', key: 'a' } },
-              { name: 'MY_SECRET', ref: { kind: 'Secret', name: 'b', key: 'b' } },
+              {
+                name: 'MY_SECRET',
+                ref: { kind: 'Secret', name: 'a', key: 'a' },
+              },
+              {
+                name: 'MY_SECRET',
+                ref: { kind: 'Secret', name: 'b', key: 'b' },
+              },
             ],
             codespaces: [],
             dependabot: [],
-          }),
+          },
+        ),
       }),
     ).toThrow(
       /Duplicate secret name "MY_SECRET" found in actions section of FirestartrGithubOrganizationSecretSection for organization "org-a"/,
@@ -163,16 +185,26 @@ describe('validateSecretNamesUniqueness', () => {
   it('allows same secret name in different sections', () => {
     expect(() =>
       validateRenderedSecretUniqueness({
-        'FirestartrGithubOrganizationSecretSection-org-a':
-          secretSectionCr('org-a', 'org-a', undefined, {
+        'FirestartrGithubOrganizationSecretSection-org-a': secretSectionCr(
+          'org-a',
+          'org-a',
+          undefined,
+          {
             actions: [
-              { name: 'MY_SECRET', ref: { kind: 'Secret', name: 'a', key: 'a' } },
+              {
+                name: 'MY_SECRET',
+                ref: { kind: 'Secret', name: 'a', key: 'a' },
+              },
             ],
             codespaces: [
-              { name: 'MY_SECRET', ref: { kind: 'Secret', name: 'b', key: 'b' } },
+              {
+                name: 'MY_SECRET',
+                ref: { kind: 'Secret', name: 'b', key: 'b' },
+              },
             ],
             dependabot: [],
-          }),
+          },
+        ),
       }),
     ).not.toThrow();
   });
@@ -180,8 +212,10 @@ describe('validateSecretNamesUniqueness', () => {
   it('ignores SecretSection CRs without secrets', () => {
     expect(() =>
       validateRenderedSecretUniqueness({
-        'FirestartrGithubOrganizationSecretSection-org-a':
-          secretSectionCr('org-a', 'org-a'),
+        'FirestartrGithubOrganizationSecretSection-org-a': secretSectionCr(
+          'org-a',
+          'org-a',
+        ),
       }),
     ).not.toThrow();
   });
@@ -200,10 +234,7 @@ describe('validateSecretNamesUniqueness', () => {
 });
 
 describe('validateOrgSecretsCrossReferences', () => {
-  function orgSettingsClaim(
-    name: string,
-    orgSecrets?: any,
-  ) {
+  function orgSettingsClaim(name: string, orgSecrets?: any) {
     return {
       claim: {
         kind: 'OrgSettingsClaim',

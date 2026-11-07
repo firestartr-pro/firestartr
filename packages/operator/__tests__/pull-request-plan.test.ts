@@ -188,10 +188,7 @@ describe('pullRequestPlan', () => {
   });
 
   it('plans GitHub organization settings with gh_provisioner', async () => {
-    const cr = resource(
-      'FirestartrGithubOrganizationSettings',
-      'org-settings',
-    );
+    const cr = resource('FirestartrGithubOrganizationSettings', 'org-settings');
 
     githubMock.pulls.getPrFiles.mockResolvedValue({
       data: [{ filename: 'org-settings.yaml', status: 'modified' }],
@@ -470,7 +467,10 @@ describe('pullRequestPlan', () => {
     await pullRequestPlan(opts);
 
     const addPlanStatusCheckMock = addPlanStatusCheck as jest.Mock;
-    const [, summary] = addPlanStatusCheckMock.mock.calls[addPlanStatusCheckMock.mock.calls.length - 1];
+    const [, summary] =
+      addPlanStatusCheckMock.mock.calls[
+        addPlanStatusCheckMock.mock.calls.length - 1
+      ];
 
     expect(summary).toContain('omitted detail lines: 6');
     expect(summary).toMatch(
@@ -642,7 +642,11 @@ describe('pullRequestPlan', () => {
       },
       { plan: true },
     );
-    expect(resolveSecretRef).toHaveBeenCalledWith('default', feature, getSecret);
+    expect(resolveSecretRef).toHaveBeenCalledWith(
+      'default',
+      feature,
+      getSecret,
+    );
     expect(
       (getItemByItemPath as jest.Mock).mock.calls.map(([path]) => path),
     ).not.toContain('default/githubrepositories/repo-a');

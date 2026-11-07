@@ -153,9 +153,11 @@ describe('orgSecrets', () => {
       const mockOctokit = {
         rest: {
           actions: {
-            getOrgSecret: jest.fn().mockRejectedValue(
-              Object.assign(new Error('Not Found'), { status: 404 }),
-            ),
+            getOrgSecret: jest
+              .fn()
+              .mockRejectedValue(
+                Object.assign(new Error('Not Found'), { status: 404 }),
+              ),
           },
         },
       };
@@ -174,9 +176,11 @@ describe('orgSecrets', () => {
       const mockOctokit = {
         rest: {
           actions: {
-            getOrgSecret: jest.fn().mockRejectedValue(
-              Object.assign(new Error('Forbidden'), { status: 403 }),
-            ),
+            getOrgSecret: jest
+              .fn()
+              .mockRejectedValue(
+                Object.assign(new Error('Forbidden'), { status: 403 }),
+              ),
           },
         },
       };

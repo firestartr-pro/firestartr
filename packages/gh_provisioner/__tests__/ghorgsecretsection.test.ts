@@ -25,9 +25,7 @@ describe('EntityGHOrgSecretSection entity', () => {
   let entity: EntityGHOrgSecretSection;
 
   function setupResolveSelfOutputs(value: any) {
-    (entity.cr as any).fResolveSelfOutputs = jest
-      .fn()
-      .mockReturnValue(value);
+    (entity.cr as any).fResolveSelfOutputs = jest.fn().mockReturnValue(value);
   }
 
   beforeEach(async () => {
@@ -161,9 +159,7 @@ describe('EntityGHOrgSecretSection entity', () => {
 
         expect(doc.config.actions_sha256.SECRET_A).toMatch(/^[a-f0-9]{64}$/);
         expect(doc.config.actions_sha256.SECRET_B).toMatch(/^[a-f0-9]{64}$/);
-        expect(doc.config.codespaces_sha256.SECRET_C).toMatch(
-          /^[a-f0-9]{64}$/,
-        );
+        expect(doc.config.codespaces_sha256.SECRET_C).toMatch(/^[a-f0-9]{64}$/);
 
         expect(mockEncryptOrgSecret).not.toHaveBeenCalled();
         expect(mockGetOrgPublicKey).not.toHaveBeenCalled();
@@ -204,9 +200,7 @@ describe('EntityGHOrgSecretSection entity', () => {
 
         expect(doc.config.actions_sha256.SECRET_A).toMatch(/^[a-f0-9]{64}$/);
         expect(doc.config.actions_sha256.SECRET_B).toMatch(/^[a-f0-9]{64}$/);
-        expect(doc.config.codespaces_sha256.SECRET_C).toMatch(
-          /^[a-f0-9]{64}$/,
-        );
+        expect(doc.config.codespaces_sha256.SECRET_C).toMatch(/^[a-f0-9]{64}$/);
       } finally {
         if (original === undefined) {
           delete process.env['AVOID_PROVIDER_SECRET_ENCRYPTION'];
@@ -222,8 +216,7 @@ describe('EntityGHOrgSecretSection entity', () => {
       setupResolveSelfOutputs(undefined);
       mockGetOrgSecret.mockImplementation(
         async (_org: string, _section: string, name: string) => {
-          if (name === 'SECRET_A' || name === 'SECRET_C')
-            return { name };
+          if (name === 'SECRET_A' || name === 'SECRET_C') return { name };
           return null;
         },
       );

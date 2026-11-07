@@ -12,9 +12,7 @@ function findOrgSecretSectionCr(
   );
 }
 
-function findAllOrgSecretSectionCrs(
-  renderedMap: Record<string, any>,
-): any[] {
+function findAllOrgSecretSectionCrs(renderedMap: Record<string, any>): any[] {
   return Object.values(renderedMap).filter(
     (cr: any) => cr.kind === 'FirestartrGithubOrganizationSecretSection',
   );
@@ -43,9 +41,7 @@ describe('GitHub organization secret section rendering', () => {
   it('renders SecretSection CR from org_secrets in OrgSettingsClaim', async () => {
     const { renderedMap } = await context.renderClaims(
       {
-        claimRefs: [
-          'OrgSettingsClaim-github_org_settings_secrets',
-        ],
+        claimRefs: ['OrgSettingsClaim-github_org_settings_secrets'],
       },
       { crsPath: rendererTestFixtures.noCrs },
     );
@@ -76,17 +72,13 @@ describe('GitHub organization secret section rendering', () => {
     expect(cr.metadata.name).toMatch(
       /^firestartr-test-secrets-org-settings-[0-9a-f-]{36}$/,
     );
-    expect(cr.spec.firestartr.tfStateKey).toMatch(
-      /^[0-9a-f-]{36}$/,
-    );
+    expect(cr.spec.firestartr.tfStateKey).toMatch(/^[0-9a-f-]{36}$/);
   });
 
   it('renders SecretSection CR with distinct tfStateKey from OrgSettings CR', async () => {
     const { renderedMap } = await context.renderClaims(
       {
-        claimRefs: [
-          'OrgSettingsClaim-github_org_settings_secrets',
-        ],
+        claimRefs: ['OrgSettingsClaim-github_org_settings_secrets'],
       },
       { crsPath: rendererTestFixtures.noCrs },
     );

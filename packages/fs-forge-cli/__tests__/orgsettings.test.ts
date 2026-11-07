@@ -138,8 +138,7 @@ describe('OrgSettingsClaim schema', () => {
           'providers.github.default_repository_permission': 'write',
           'providers.github.members_can_create_repositories': true,
           'providers.github.secret_scanning_enabled_for_new_repositories': true,
-          'providers.github.dependabot_alerts_enabled_for_new_repositories':
-            true,
+          'providers.github.dependabot_alerts_enabled_for_new_repositories': true,
         },
         flags,
         ['providers'],
@@ -480,7 +479,6 @@ describe('OrgSettingsClaim schema', () => {
       expect(result.valid).toBe(false);
     });
   });
-
 });
 
 describe('create orgsettings command', () => {

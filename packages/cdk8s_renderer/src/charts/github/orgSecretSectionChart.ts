@@ -9,8 +9,7 @@ import { BaseGithubChart } from './base';
 
 export class GithubOrgSecretSectionChart extends BaseGithubChart {
   public template():
-    | FirestartrGithubOrganizationSecretSectionProps
-    | IUnitializedStateKey {
+    FirestartrGithubOrganizationSecretSectionProps | IUnitializedStateKey {
     const claim: IGithubOrgSettingsClaim = this.get('claim');
     const firestartrId: string | null = this.get('firestartrId');
     const githubProvider = claim.providers.github;
