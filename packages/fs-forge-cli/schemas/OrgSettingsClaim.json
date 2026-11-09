@@ -216,13 +216,100 @@
                   "description": "GitHub organization secrets by domain",
                   "properties": {
                     "actions": {
-                      "$ref": "#/definitions/orgSecretList"
+                      "type": "array",
+                      "description": "Organization Actions secrets",
+                      "items": {
+                        "type": "object",
+                        "properties": {
+                          "name": {
+                            "type": "string",
+                            "description": "Secret name"
+                          },
+                          "value": {
+                            "type": "string",
+                            "pattern": "^ref:secretsclaim:[a-zA-Z0-9_-]+:[a-zA-Z0-9_-]+$",
+                            "description": "Secret value ref (ref:secretsclaim:<name>:<key>)"
+                          },
+                          "visibility": {
+                            "type": "string",
+                            "description": "Secret visibility scope (defaults to all)",
+                            "enum": ["all", "private", "selected"]
+                          },
+                          "selected_repositories": {
+                            "type": "array",
+                            "description": "Repository refs (component:<name>) when visibility is selected",
+                            "items": {
+                              "type": "string"
+                            }
+                          }
+                        },
+                        "required": ["name", "value"],
+                        "additionalProperties": false
+                      }
                     },
                     "codespaces": {
-                      "$ref": "#/definitions/orgSecretList"
+                      "type": "array",
+                      "description": "Organization Codespaces secrets",
+                      "items": {
+                        "type": "object",
+                        "properties": {
+                          "name": {
+                            "type": "string",
+                            "description": "Secret name"
+                          },
+                          "value": {
+                            "type": "string",
+                            "pattern": "^ref:secretsclaim:[a-zA-Z0-9_-]+:[a-zA-Z0-9_-]+$",
+                            "description": "Secret value ref (ref:secretsclaim:<name>:<key>)"
+                          },
+                          "visibility": {
+                            "type": "string",
+                            "description": "Secret visibility scope (defaults to all)",
+                            "enum": ["all", "private", "selected"]
+                          },
+                          "selected_repositories": {
+                            "type": "array",
+                            "description": "Repository refs (component:<name>) when visibility is selected",
+                            "items": {
+                              "type": "string"
+                            }
+                          }
+                        },
+                        "required": ["name", "value"],
+                        "additionalProperties": false
+                      }
                     },
                     "dependabot": {
-                      "$ref": "#/definitions/orgSecretList"
+                      "type": "array",
+                      "description": "Organization Dependabot secrets",
+                      "items": {
+                        "type": "object",
+                        "properties": {
+                          "name": {
+                            "type": "string",
+                            "description": "Secret name"
+                          },
+                          "value": {
+                            "type": "string",
+                            "pattern": "^ref:secretsclaim:[a-zA-Z0-9_-]+:[a-zA-Z0-9_-]+$",
+                            "description": "Secret value ref (ref:secretsclaim:<name>:<key>)"
+                          },
+                          "visibility": {
+                            "type": "string",
+                            "description": "Secret visibility scope (defaults to all)",
+                            "enum": ["all", "private", "selected"]
+                          },
+                          "selected_repositories": {
+                            "type": "array",
+                            "description": "Repository refs (component:<name>) when visibility is selected",
+                            "items": {
+                              "type": "string"
+                            }
+                          }
+                        },
+                        "required": ["name", "value"],
+                        "additionalProperties": false
+                      }
                     }
                   },
                   "additionalProperties": false
@@ -261,37 +348,5 @@
       "additionalProperties": false
     }
   },
-  "required": ["name", "kind", "providers"],
-  "definitions": {
-    "orgSecretList": {
-      "type": "array",
-      "items": {
-        "type": "object",
-        "properties": {
-          "name": {
-            "type": "string",
-            "description": "Secret name"
-          },
-          "value": {
-            "type": "string",
-            "description": "Secret value ref (ref:secretsclaim:<name>:<key>)"
-          },
-          "visibility": {
-            "type": "string",
-            "description": "Secret visibility scope",
-            "enum": ["all", "private", "selected"]
-          },
-          "selected_repositories": {
-            "type": "array",
-            "description": "Repository refs (component:<name>) when visibility is selected",
-            "items": {
-              "type": "string"
-            }
-          }
-        },
-        "required": ["name", "value", "visibility"],
-        "additionalProperties": false
-      }
-    }
-  }
+  "required": ["name", "kind", "providers"]
 }

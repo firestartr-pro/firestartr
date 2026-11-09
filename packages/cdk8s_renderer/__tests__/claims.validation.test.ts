@@ -328,6 +328,42 @@ describe('validateClaims', () => {
     await context.restart();
   });
 
+  it('Rejects an organization settings claim with selected visibility and no selected repositories', async () => {
+    expect.assertions(2);
+
+    await context.applyPatches('orgsettings_a', [
+      {
+        op: 'add',
+        path: '/providers/github/org_secrets',
+        value: {
+          actions: [
+            {
+              name: 'SELECTED_SECRET',
+              value: 'ref:secretsclaim:secret_a:rds_conn',
+              visibility: 'selected',
+            },
+          ],
+        },
+      },
+    ]);
+
+    const claim: string = await context.getFile('orgsettings_a');
+
+    try {
+      ClaimValidation.validateClaim(
+        common.io.fromYaml(claim),
+        'firestartr.dev://common/OrgSettingsClaim',
+      );
+    } catch (e: any) {
+      expect(e).toBeInstanceOf(Array);
+      expect(e[0].message).toBe(
+        "must have required property 'selected_repositories'",
+      );
+    }
+
+    await context.restart();
+  });
+
   it('Rejects an organization settings claim with an invalid org secret name', async () => {
     expect.assertions(3);
 

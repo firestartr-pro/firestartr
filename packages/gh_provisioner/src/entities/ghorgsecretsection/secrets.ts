@@ -171,13 +171,13 @@ export async function adoptSecretsIfNeeded(
   entity: EntityGHOrgSecretSection,
   secrets: Record<string, SecretEntry[]>,
 ): Promise<void> {
-  const managedSecrets = entity.cr.fResolveSelfOutputs('managed_secrets') || [];
-
   for (const section of SECTIONS) {
     const sectionSecrets: SecretEntry[] = secrets[section] || [];
 
     if (sectionSecrets.length === 0) continue;
 
+    const managedSecrets: string[] =
+      entity.cr.fResolveSelfOutputs(`${section}_secret_names`) || [];
     const declaredNames = sectionSecrets.map((s) => s.name);
     const newToModule = declaredNames.filter(
       (name) => !managedSecrets.includes(name),
@@ -192,7 +192,7 @@ export async function adoptSecretsIfNeeded(
 
     if (managedSecrets.length === 0) {
       log.info(
-        `[gh-provisioner] ${entity.k8sId} no managed_secrets output — first reconciliation, treating all ${newToModule.length} ${section} secret(s) as new to module`,
+        `[gh-provisioner] ${entity.k8sId} no ${section}_secret_names output — first reconciliation, treating all ${newToModule.length} ${section} secret(s) as new to module`,
       );
     }
 

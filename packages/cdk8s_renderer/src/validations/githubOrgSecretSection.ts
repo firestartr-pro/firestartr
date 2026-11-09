@@ -67,18 +67,20 @@ export function validateSecretNamesUniqueness(crs: RenderedCrMap): void {
       const sectionSecrets = secrets[section];
       if (!Array.isArray(sectionSecrets)) continue;
 
-      const names = new Set<string>();
+      const names = new Map<string, string>();
       for (const secret of sectionSecrets) {
         const secretName = secret?.name;
         if (!secretName) continue;
 
-        if (names.has(secretName)) {
+        const normalizedName = secretName.toLowerCase();
+        const previousName = names.get(normalizedName);
+        if (previousName !== undefined) {
           const org = cr.spec?.org || 'unknown';
           throw new Error(
             `Duplicate secret name "${secretName}" found in ${section} section of ${GITHUB_ORG_SECRET_SECTION_KIND} for organization "${org}"`,
           );
         }
-        names.add(secretName);
+        names.set(normalizedName, secretName);
       }
     }
   }

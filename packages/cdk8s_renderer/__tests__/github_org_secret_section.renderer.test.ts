@@ -55,7 +55,7 @@ describe('GitHub organization secret section rendering', () => {
       name: 'MY_SECRET',
       ref: {
         kind: 'Secret',
-        name: 'secret_a',
+        name: 'secret-a',
         key: 'rds_conn',
       },
     });
@@ -63,7 +63,7 @@ describe('GitHub organization secret section rendering', () => {
       name: 'ANOTHER_SECRET',
       ref: {
         kind: 'Secret',
-        name: 'secret_a',
+        name: 'secret-a',
         key: 'rds_conn',
       },
     });

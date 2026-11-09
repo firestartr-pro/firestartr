@@ -182,6 +182,34 @@ describe('validateSecretNamesUniqueness', () => {
     );
   });
 
+  it('rejects secret names that differ only by case within a section', () => {
+    expect(() =>
+      validateRenderedSecretUniqueness({
+        'FirestartrGithubOrganizationSecretSection-org-a': secretSectionCr(
+          'org-a',
+          'org-a',
+          undefined,
+          {
+            actions: [
+              {
+                name: 'TOKEN',
+                ref: { kind: 'Secret', name: 'a', key: 'a' },
+              },
+              {
+                name: 'token',
+                ref: { kind: 'Secret', name: 'b', key: 'b' },
+              },
+            ],
+            codespaces: [],
+            dependabot: [],
+          },
+        ),
+      }),
+    ).toThrow(
+      /Duplicate secret name "token" found in actions section of FirestartrGithubOrganizationSecretSection for organization "org-a"/,
+    );
+  });
+
   it('allows same secret name in different sections', () => {
     expect(() =>
       validateRenderedSecretUniqueness({

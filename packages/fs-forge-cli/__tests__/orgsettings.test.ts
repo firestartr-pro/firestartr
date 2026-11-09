@@ -53,15 +53,11 @@ describe('OrgSettingsClaim schema', () => {
       expect(paths).toContain('providers.github.tfStateKey');
     });
 
-    it('does not derive org_secrets flags', () => {
+    it('derives org_secrets flags for each secret domain', () => {
       const paths = flags.map((f) => f.path);
-      expect(paths).not.toContain('providers.github.org_secrets.actions.json');
-      expect(paths).not.toContain(
-        'providers.github.org_secrets.codespaces.json',
-      );
-      expect(paths).not.toContain(
-        'providers.github.org_secrets.dependabot.json',
-      );
+      expect(paths).toContain('providers.github.org_secrets.actions.json');
+      expect(paths).toContain('providers.github.org_secrets.codespaces.json');
+      expect(paths).toContain('providers.github.org_secrets.dependabot.json');
     });
 
     it('does not derive system or owner flags', () => {

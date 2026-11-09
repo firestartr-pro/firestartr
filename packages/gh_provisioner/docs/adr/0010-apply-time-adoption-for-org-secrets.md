@@ -9,8 +9,6 @@ and the GitHub existence reads are narrowed to secret names that are new to the
 module. Repo-level secrets keep the plain delivery path with no adoption, so the
 two scopes are not confused.
 
-That narrowing depends on the module's `managed_secrets` self-output, which the
-revision currently pinned in `src/terraform.ts` does not expose yet: it exposes
-only `actions_secret_names`, `codespaces_secret_names`, `dependabot_secret_names`,
-and `all_secret_names`, so the narrowing is not effective until the module is
-bumped.
+That narrowing depends on the module's per-domain self-outputs
+(`actions_secret_names`, `codespaces_secret_names`, `dependabot_secret_names`),
+which the revision pinned in `src/terraform.ts` exposes.

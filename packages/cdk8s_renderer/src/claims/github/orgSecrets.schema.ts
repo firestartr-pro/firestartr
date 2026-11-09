@@ -89,7 +89,12 @@ export default {
             },
             required: ['visibility'],
           },
-          then: {},
+          then: {
+            required: ['selected_repositories'],
+            properties: {
+              selected_repositories: { type: 'array', minItems: 1 },
+            },
+          },
           else: {
             properties: {
               selected_repositories: { type: 'array', maxItems: 0 },

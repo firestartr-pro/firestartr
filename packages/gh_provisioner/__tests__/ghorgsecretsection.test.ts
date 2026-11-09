@@ -212,7 +212,7 @@ describe('EntityGHOrgSecretSection entity', () => {
   });
 
   describe('adoption logic', () => {
-    it('adopts all declared secrets found on GitHub when managed_secrets is undefined (first reconciliation)', async () => {
+    it('adopts all declared secrets found on GitHub when no managed secret names are reported (first reconciliation)', async () => {
       setupResolveSelfOutputs(undefined);
       mockGetOrgSecret.mockImplementation(
         async (_org: string, _section: string, name: string) => {
@@ -340,6 +340,14 @@ describe('EntityGHOrgSecretSection entity', () => {
 
       expect(mockGetOrgSecret).not.toHaveBeenCalled();
       expect(entity.importDocument).toStrictEqual({ imports: [] });
+    });
+
+    it('does not resolve or encrypt secrets on destroy', async () => {
+      await expect(entity.loadResources('destroy')).resolves.toBeUndefined();
+
+      expect(mockGetOrgPublicKey).not.toHaveBeenCalled();
+      expect(mockEncryptOrgSecret).not.toHaveBeenCalled();
+      expect(mockGetOrgSecret).not.toHaveBeenCalled();
     });
   });
 

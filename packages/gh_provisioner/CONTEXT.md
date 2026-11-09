@@ -95,15 +95,14 @@ _Avoid_: previous variables, known variables
 
 **Managed secrets**:
 The list of secret names the TFM `github-org-secrets-section` module already
-manages, exposed as the `managed_secrets` self-output and persisted across
-reconciliations via the Kubernetes outputs Secret. On the next reconciliation,
-the gh-provisioner reads `managed_secrets` and computes
-`new_to_module = declared secrets - managed secrets`. Only new-to-module
-secrets trigger the GitHub existence check and import block generation; secrets
-already in `managed_secrets` are handled natively by Terraform. Treats `undefined` or `[]` as "no previously managed
-secrets." The pinned module revision does not expose `managed_secrets` yet, so
-`managed_secrets` resolves to undefined and every declared secret is treated as
-new to the module.
+manages, one per domain, exposed as the `actions_secret_names`,
+`codespaces_secret_names` and `dependabot_secret_names` self-outputs and
+persisted across reconciliations via the Kubernetes outputs Secret. On the next
+reconciliation, the gh-provisioner reads each domain's output and computes
+`new_to_module = declared secrets - managed secrets` for that domain. Only
+new-to-module secrets trigger the GitHub existence check and import block
+generation; secrets already in the module's output are handled natively by
+Terraform. Treats `undefined` or `[]` as "no previously managed secrets."
 _Avoid_: previous secrets, known secrets
 
 **Org-level secrets**:

@@ -40,7 +40,9 @@ export class EntityGHOrgSecretSection extends Entity {
         value: org,
       });
 
-      await provisionOrgSecrets(this, secrets);
+      if (tfOp !== 'destroy' && tfOp !== 'plan-destroy') {
+        await provisionOrgSecrets(this, secrets);
+      }
 
       const redactedDoc = JSON.parse(
         JSON.stringify(this._document, (key, value) => {

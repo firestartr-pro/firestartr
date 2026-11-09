@@ -1,3 +1,4 @@
+import common from 'catalog_common';
 import {
   FirestartrGithubOrganizationSecretSection,
   FirestartrGithubOrganizationSecretSectionProps,
@@ -56,7 +57,7 @@ export class GithubOrgSecretSectionChart extends BaseGithubChart {
           name: secret.name,
           ref: {
             kind: 'Secret',
-            name: parts[2],
+            name: common.generic.normalizeName(parts[2]),
             key: parts[3],
           },
           visibility: secret.visibility || 'all',
@@ -81,7 +82,11 @@ export class GithubOrgSecretSectionChart extends BaseGithubChart {
         },
         writeConnectionSecretToRef: {
           name: `firestartrgithuborganizationsecretsection-${githubProvider.name}-secrets-outputs`.toLowerCase(),
-          outputs: [{ key: 'managed_secrets' }, { key: 'secret_ids' }],
+          outputs: [
+            { key: 'actions_secret_names' },
+            { key: 'codespaces_secret_names' },
+            { key: 'dependabot_secret_names' },
+          ],
         },
       },
     };
