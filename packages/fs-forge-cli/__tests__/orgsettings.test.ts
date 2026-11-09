@@ -458,6 +458,14 @@ describe('OrgSettingsClaim schema', () => {
 
     it.each([
       [
+        'a name with a hyphen',
+        { name: 'BAD-NAME', value: 'ref:secretsclaim:a:b', visibility: 'all' },
+      ],
+      [
+        'an empty name',
+        { name: '', value: 'ref:secretsclaim:a:b', visibility: 'all' },
+      ],
+      [
         'selected visibility without repositories',
         { name: 'SEC', value: 'ref:secretsclaim:a:b', visibility: 'selected' },
       ],
