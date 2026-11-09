@@ -456,6 +456,46 @@ describe('OrgSettingsClaim schema', () => {
       expect(result.valid).toBe(false);
     });
 
+    it.each([
+      [
+        'selected visibility without repositories',
+        { name: 'SEC', value: 'ref:secretsclaim:a:b', visibility: 'selected' },
+      ],
+      [
+        'repositories without selected visibility',
+        {
+          name: 'SEC',
+          value: 'ref:secretsclaim:a:b',
+          visibility: 'all',
+          selected_repositories: ['component:my-component'],
+        },
+      ],
+      [
+        'selected repository that is not a component ref',
+        {
+          name: 'SEC',
+          value: 'ref:secretsclaim:a:b',
+          visibility: 'selected',
+          selected_repositories: ['my-component'],
+        },
+      ],
+    ])('fails for org_secrets with %s', async (_label, entry) => {
+      const claim = {
+        name: 'test',
+        kind: 'OrgSettingsClaim',
+        providers: {
+          github: {
+            name: 'test',
+            org: 'my-org',
+            billing_email: 'test@example.com',
+            org_secrets: { actions: [entry] },
+          },
+        },
+      };
+      const result = await validator.validate(claim, 'OrgSettingsClaim');
+      expect(result.valid).toBe(false);
+    });
+
     it('fails for additionalProperties in actions_variables items', async () => {
       const claim = {
         name: 'test',

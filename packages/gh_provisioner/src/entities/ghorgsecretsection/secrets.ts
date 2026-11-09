@@ -25,24 +25,28 @@ export async function provisionOrgSecrets(
 ) {
   log.info(`[gh-provisioner] ${entity.k8sId} provisioning org secrets`);
 
-  const encrypted = !process.env['AVOID_PROVIDER_SECRET_ENCRYPTION'];
+  const declared = SECTIONS.some((section) => (secrets[section] || []).length);
+
+  if (declared && process.env['AVOID_PROVIDER_SECRET_ENCRYPTION']) {
+    throw new Error(
+      `[gh-provisioner] ${entity.k8sId} AVOID_PROVIDER_SECRET_ENCRYPTION is not supported for org secrets: the github-org-secrets-section module only accepts encrypted values`,
+    );
+  }
 
   for (const section of SECTIONS) {
     const sectionSecrets: SecretEntry[] = secrets[section] || [];
 
     if (sectionSecrets.length === 0) continue;
 
-    let preFetchedKey: { key_id: string; key: string } | undefined;
+    let preFetchedKey: { key_id: string; key: string };
 
-    if (encrypted) {
-      try {
-        preFetchedKey = await fetchOrgPublicKey(entity, section);
-      } catch (err: any) {
-        const message = err instanceof Error ? err.message : String(err);
-        throw new Error(
-          `[gh-provisioner] ${entity.k8sId} failed to fetch ${section} org public key: ${message}`,
-        );
-      }
+    try {
+      preFetchedKey = await fetchOrgPublicKey(entity, section);
+    } catch (err: any) {
+      const message = err instanceof Error ? err.message : String(err);
+      throw new Error(
+        `[gh-provisioner] ${entity.k8sId} failed to fetch ${section} org public key: ${message}`,
+      );
     }
 
     for (const secret of sectionSecrets) {
@@ -64,17 +68,13 @@ async function provisionOrgSecret(
   entity: EntityGHOrgSecretSection,
   section: OrgSecretsSection,
   secret: SecretEntry,
-  preFetchedKey?: { key_id: string; key: string },
+  preFetchedKey: { key_id: string; key: string },
 ) {
   log.info(
     `[gh-provisioner] provisioning org secret ${entity.k8sId}/${section}/${secret.name}`,
   );
 
-  if (process.env['AVOID_PROVIDER_SECRET_ENCRYPTION']) {
-    await createUnencryptedSecret(entity, section, secret);
-  } else {
-    await createEncryptedSecret(entity, section, secret, preFetchedKey);
-  }
+  await createEncryptedSecret(entity, section, secret, preFetchedKey);
 
   log.info(`[gh-provisioner] org secret provisioned ${section}/${secret.name}`);
 }
@@ -114,45 +114,6 @@ async function createEncryptedSecret(
     path: `/config/${section}/${secret.name}`,
     value: {
       value: encrypted_value,
-      visibility: secret.visibility || 'all',
-      ...(secret.selectedRepositories && secret.selectedRepositories.length > 0
-        ? { selected_repositories: secret.selectedRepositories }
-        : {}),
-    },
-  });
-
-  entity.patchData({
-    op: PatchOperations.add,
-    path: `/config/${section}_sha256/${secret.name}`,
-    value: plaintextSha256,
-  });
-}
-
-async function createUnencryptedSecret(
-  entity: EntityGHOrgSecretSection,
-  section: OrgSecretsSection,
-  secret: SecretEntry,
-) {
-  const resolved = entity.resolveRef(secret.ref);
-
-  if (!resolved) {
-    throw new Error(
-      `[gh-provisioner] ${entity.k8sId} cannot resolve secret ref: ${secret.ref.kind}/${secret.ref.name}:${secret.ref.key} — ensure the referenced resource is available as a dependency`,
-    );
-  }
-
-  const plainTextSecret = resolved.getOutput(secret.ref.key);
-
-  const plaintextSha256 = crypto
-    .createHash('sha256')
-    .update(plainTextSecret)
-    .digest('hex');
-
-  entity.patchData({
-    op: PatchOperations.add,
-    path: `/config/${section}/${secret.name}`,
-    value: {
-      value: plainTextSecret,
       visibility: secret.visibility || 'all',
       ...(secret.selectedRepositories && secret.selectedRepositories.length > 0
         ? { selected_repositories: secret.selectedRepositories }
@@ -210,6 +171,11 @@ export async function adoptSecretsIfNeeded(
           log.info(
             `[gh-provisioner] ${entity.k8sId} adopting pre-existing ${section} secret '${secretName}' on GitHub org '${entity.cr.spec.org}'`,
           );
+
+          entity.patchData({
+            op: PatchOperations.remove,
+            path: `/config/${section}_sha256/${secretName}`,
+          });
 
           const resourceType = `github_${section}_organization_secret`;
 

@@ -134,73 +134,16 @@ describe('EntityGHOrgSecretSection entity', () => {
       expect(doc.config.dependabot).toEqual({});
     });
 
-    it('writes plaintext and SHA-256 when AVOID_PROVIDER_SECRET_ENCRYPTION is set', async () => {
+    it('rejects AVOID_PROVIDER_SECRET_ENCRYPTION for declared org secrets', async () => {
       const original = process.env['AVOID_PROVIDER_SECRET_ENCRYPTION'];
       process.env['AVOID_PROVIDER_SECRET_ENCRYPTION'] = '1';
 
       try {
-        await entity.loadResources('plan');
-
-        const doc = entity.document;
-
-        expect(doc.config.actions.SECRET_A).toEqual({
-          value: 'secret_a',
-          visibility: 'all',
-        });
-        expect(doc.config.actions.SECRET_B).toEqual({
-          value: 'secret_b',
-          visibility: 'selected',
-          selected_repositories: ['firestartr-test/component-a'],
-        });
-        expect(doc.config.codespaces.SECRET_C).toEqual({
-          value: 'secret_c',
-          visibility: 'all',
-        });
-
-        expect(doc.config.actions_sha256.SECRET_A).toMatch(/^[a-f0-9]{64}$/);
-        expect(doc.config.actions_sha256.SECRET_B).toMatch(/^[a-f0-9]{64}$/);
-        expect(doc.config.codespaces_sha256.SECRET_C).toMatch(/^[a-f0-9]{64}$/);
-
-        expect(mockEncryptOrgSecret).not.toHaveBeenCalled();
-        expect(mockGetOrgPublicKey).not.toHaveBeenCalled();
-      } finally {
-        if (original === undefined) {
-          delete process.env['AVOID_PROVIDER_SECRET_ENCRYPTION'];
-        } else {
-          process.env['AVOID_PROVIDER_SECRET_ENCRYPTION'] = original;
-        }
-      }
-    });
-
-    it('writes plaintext when the public key fetch would fail', async () => {
-      const original = process.env['AVOID_PROVIDER_SECRET_ENCRYPTION'];
-      process.env['AVOID_PROVIDER_SECRET_ENCRYPTION'] = '1';
-      mockGetOrgPublicKey.mockRejectedValue(new Error('no connectivity'));
-
-      try {
-        await entity.loadResources('plan');
-
-        const doc = entity.document;
-
+        await expect(entity.loadResources('plan')).rejects.toThrow(
+          /AVOID_PROVIDER_SECRET_ENCRYPTION is not supported for org secrets/,
+        );
         expect(mockGetOrgPublicKey).not.toHaveBeenCalled();
         expect(mockEncryptOrgSecret).not.toHaveBeenCalled();
-        expect(doc.config.actions.SECRET_A).toEqual({
-          value: 'secret_a',
-          visibility: 'all',
-        });
-        expect(doc.config.actions.SECRET_B).toEqual({
-          value: 'secret_b',
-          visibility: 'selected',
-          selected_repositories: ['firestartr-test/component-a'],
-        });
-        expect(doc.config.codespaces.SECRET_C).toEqual({
-          value: 'secret_c',
-          visibility: 'all',
-        });
-
-        expect(doc.config.actions_sha256.SECRET_A).toMatch(/^[a-f0-9]{64}$/);
-        expect(doc.config.actions_sha256.SECRET_B).toMatch(/^[a-f0-9]{64}$/);
-        expect(doc.config.codespaces_sha256.SECRET_C).toMatch(/^[a-f0-9]{64}$/);
       } finally {
         if (original === undefined) {
           delete process.env['AVOID_PROVIDER_SECRET_ENCRYPTION'];
@@ -212,6 +155,25 @@ describe('EntityGHOrgSecretSection entity', () => {
   });
 
   describe('adoption logic', () => {
+    it('drops the fingerprint of an adopted secret so the next reconcile rewrites its value', async () => {
+      setupResolveSelfOutputs(undefined);
+      mockGetOrgSecret.mockImplementation(
+        async (_org: string, _section: string, name: string) =>
+          name === 'SECRET_A' ? { name } : null,
+      );
+
+      await entity.loadResources('apply');
+
+      expect(entity.document.config.actions.SECRET_A).toEqual({
+        value: 'encrypted_secret_a',
+        visibility: 'all',
+      });
+      expect(entity.document.config.actions_sha256.SECRET_A).toBeUndefined();
+      expect(entity.document.config.actions_sha256.SECRET_B).toMatch(
+        /^[a-f0-9]{64}$/,
+      );
+    });
+
     it('adopts all declared secrets found on GitHub when no managed secret names are reported (first reconciliation)', async () => {
       setupResolveSelfOutputs(undefined);
       mockGetOrgSecret.mockImplementation(

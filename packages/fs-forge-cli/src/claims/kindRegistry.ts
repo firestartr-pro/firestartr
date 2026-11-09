@@ -133,6 +133,9 @@ const KIND_OVERRIDES = {
       'providers.github.org_secrets.actions[].value',
       'providers.github.org_secrets.codespaces[].value',
       'providers.github.org_secrets.dependabot[].value',
+      'providers.github.org_secrets.actions[].selected_repositories[]',
+      'providers.github.org_secrets.codespaces[].selected_repositories[]',
+      'providers.github.org_secrets.dependabot[].selected_repositories[]',
     ],
   },
   OrgWebhookClaim: {

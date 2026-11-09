@@ -115,22 +115,10 @@ export function validateOrgSecretsCrossReferences(
         const secretClaim = renderClaims[expectedKey]?.claim;
         const externalSecrets =
           secretClaim?.providers?.external_secrets?.externalSecrets?.secrets;
-        const pushSecrets =
-          secretClaim?.providers?.external_secrets?.pushSecrets;
 
-        let keyFound = false;
-
-        if (Array.isArray(pushSecrets)) {
-          keyFound =
-            pushSecrets.find((s: any) => s.secretName === secretKey) !==
-            undefined;
-        }
-
-        if (!keyFound && Array.isArray(externalSecrets)) {
-          keyFound =
-            externalSecrets.find((s: any) => s.secretName === secretKey) !==
-            undefined;
-        }
+        const keyFound =
+          Array.isArray(externalSecrets) &&
+          externalSecrets.some((s: any) => s.secretName === secretKey);
 
         if (!keyFound) {
           throw new Error(
