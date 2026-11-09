@@ -60,6 +60,49 @@ function readDiagnosticFromPod(
   }
 }
 
+function ensureOperatorWatchesKinds(kinds: string[]): void {
+  const kubectlPrefix = buildKubectlPrefix();
+  const namespace = resolveOperatorNamespace();
+  const label = resolveOperatorPodLabel();
+
+  let deployment: string;
+  try {
+    const cmd = `${kubectlPrefix} get deployment -n ${namespace} -l "${label}" -o jsonpath='{.items[0].metadata.name}'`;
+    deployment = execSync(cmd, { encoding: 'utf-8', timeout: 10_000 })
+      .trim()
+      .replace(/^'|'$/g, '');
+  } catch {
+    deployment = '';
+  }
+  if (!deployment) {
+    console.log(
+      `[kind-watch] no operator deployment found (ns=${namespace} label=${label}); skipping`,
+    );
+    return;
+  }
+
+  const currentRaw = execSync(
+    `${kubectlPrefix} get deployment ${deployment} -n ${namespace} -o jsonpath='{.spec.template.spec.containers[0].env[?(@.name=="OPERATOR_KIND_LIST")].value}'`,
+    { encoding: 'utf-8', timeout: 10_000 },
+  )
+    .trim()
+    .replace(/^'|'$/g, '');
+  const current = currentRaw.split(',').filter(Boolean);
+  const missing = kinds.filter((kind) => !current.includes(kind));
+  if (missing.length === 0) return;
+
+  const next = [...current, ...missing].join(',');
+  console.log(`[kind-watch] adding ${missing.join(',')} to ${deployment}`);
+  execSync(
+    `${kubectlPrefix} set env deployment/${deployment} -n ${namespace} OPERATOR_KIND_LIST=${next}`,
+    { encoding: 'utf-8', timeout: 30_000 },
+  );
+  execSync(
+    `${kubectlPrefix} rollout status deployment/${deployment} -n ${namespace} --timeout=180s`,
+    { encoding: 'utf-8', timeout: 200_000 },
+  );
+}
+
 function collectSnapshot(): void {
   const kubectlPrefix = buildKubectlPrefix();
   const namespace = resolveOperatorNamespace();
@@ -87,6 +130,8 @@ function collectSnapshot(): void {
 }
 
 export default async function globalSetup(): Promise<void> {
+  ensureOperatorWatchesKinds(['githuborganizationsecretsections']);
+
   if (process.env['DISABLE_DIAGNOSTIC_COLLECTOR']) {
     return;
   }
