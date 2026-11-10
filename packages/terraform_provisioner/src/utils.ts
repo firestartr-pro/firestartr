@@ -1,5 +1,6 @@
 import { spawn } from 'child_process';
 import { join as pathJoin } from 'path';
+import { randomUUID } from 'crypto';
 import common from 'catalog_common';
 import { planGet } from './tf/analyzer';
 import { countPlanDocumentChanges } from './tf/plan_document';
@@ -649,7 +650,6 @@ export async function configGit() {
   // (see CONSTITUTION and RULES: must not change test machinery)
   const githubModule = await import('github');
   const github = githubModule.default || githubModule;
-  removeGitConfig();
   const org = common.environment.getFromEnvironment(common.types.envVars.org);
   // Provided in your code logic, but may wrap for null fallback if required
   // Here, github.getGithubAppToken is async as used elsewhere
@@ -661,10 +661,23 @@ export async function configGit() {
   // and the resulting URL stays valid. Mode 0600 because the file holds a bearer token.
   // Residual: the token lives in the rewritten URL. If git prints that URL in an
   // error and it reaches logs, it leaks another way (SC-01), out of scope here.
-  fs.writeFileSync(
-    GITCONFIG_PATH,
-    `[url "https://firestartr:${ghToken}@github.com/"]\ninsteadOf = https://github.com/\n`,
-    { mode: 0o600 },
-  );
+  // Keep the previous credentials available until a complete 0600 file can be
+  // atomically renamed over it. A same-directory temp keeps rename on one filesystem.
+  const tempPath = `${GITCONFIG_PATH}.${process.pid}.${randomUUID()}.tmp`;
+  try {
+    fs.writeFileSync(
+      tempPath,
+      `[url "https://firestartr:${ghToken}@github.com/"]\ninsteadOf = https://github.com/\n`,
+      { mode: 0o600, flag: 'wx' },
+    );
+    fs.renameSync(tempPath, GITCONFIG_PATH);
+  } catch (error) {
+    try {
+      fs.rmSync(tempPath, { force: true });
+    } catch {
+      // Best-effort cleanup must not mask the original write or rename error.
+    }
+    throw error;
+  }
   ensureGitConfigExitCleanup();
 }

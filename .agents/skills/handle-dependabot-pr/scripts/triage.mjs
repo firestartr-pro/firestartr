@@ -170,10 +170,8 @@ function describeAlert(alert) {
   return `${alert.name} · ${alert.severity} · ${alert.category}${where}`;
 }
 
-// 🟢 dev bumps are hidden from release-please (chore). 🟡 and 🔴 must release (fix).
 export function squashSubject(name, from, to, level) {
-  const prefix = level === "dev" ? "chore" : "fix";
-  return `${prefix}(deps): bump ${name} from ${from} to ${to}`;
+  return `chore: bump ${name} from ${from} to ${to}`;
 }
 
 export function requiredChecks(level, path, jump) {
@@ -183,8 +181,8 @@ export function requiredChecks(level, path, jump) {
     return ["Copilot review", ...requiredChecks(effective, "A", jump).filter((c) => c !== "Copilot review")];
   }
   if (level === "dev") return ["CI"];
-  if (level === "critical") return ["Copilot review", "CI", "e2e with all suites", "operator and CLI snapshots on pre"];
-  return ["Copilot review", "CI", "e2e with default suites (github, terraform, crd-upgrade)"];
+  if (level === "critical") return ["Copilot review", "CI", "e2e all suites except massive (github, terraform, k8s-rate-limits, crd-upgrade, retry-lifecycle, core)", "operator and CLI snapshots on pre"];
+  return ["Copilot review", "CI", "e2e all suites except massive (github, terraform, k8s-rate-limits, crd-upgrade, retry-lifecycle, core)"];
 }
 
 export function buildTriage({ name, from, to, lock, levels, socketResult, replacement = null }) {
