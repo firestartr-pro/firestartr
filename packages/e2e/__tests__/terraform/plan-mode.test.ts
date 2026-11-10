@@ -27,7 +27,7 @@
 
 import fs from 'node:fs/promises';
 import path from 'node:path';
-import * as k8s from '@kubernetes/client-node';
+import type * as k8s from '@kubernetes/client-node';
 import common from 'catalog_common';
 import {
   CleanupRunner,
@@ -44,15 +44,7 @@ import {
   getFirestartrAnnotation,
 } from '../../src/claim-taxonomy';
 import { DELETE_TIMEOUT_SECONDS } from '../../src/cleanup/constants';
-import {
-  getStatusCode,
-  type StatusCodeError,
-} from '../../src/errors/status-code';
-import { createKubeConfigProvider } from '../../src/k8s/config';
-import {
-  JSON_PATCH_HEADERS,
-  STRATEGIC_MERGE_PATCH_HEADERS,
-} from '../../src/k8s/constants';
+import type { ControllerDeployment } from '../../src/k8s/controller';
 import { getPrimaryManifestResource } from '../../src/k8s/manifests';
 import { patchResourceSpecContext } from '../../src/cr-finder';
 import {
@@ -71,17 +63,8 @@ const describePlanMode =
 const OPERATOR_PLAN_MODE_ENV_VAR = 'OPERATOR_PLAN_MODE';
 const OPERATOR_KIND_LIST_ENV_VAR = 'OPERATOR_KIND_LIST';
 
-const CONTROLLER_LABELS = 'app=firestartr-controller,concern=controller';
-const CONTROLLER_LABEL_SELECTOR = {
-  app: 'firestartr-controller',
-  concern: 'controller',
-};
-
-const API_GROUP = 'firestartr.dev';
-const API_VERSION = 'v1';
 const TF_KIND = 'FirestartrTerraformWorkspace';
 const TF_PLURAL = 'terraformworkspaces';
-const TFRESULT_PLURAL = 'tfresults';
 
 const FIXTURE = 'tfworkspace-a';
 const CLAIM_KIND = 'TFWorkspaceClaim';
@@ -96,9 +79,6 @@ const PROVIDER_CONFIG_NAMES = {
   backend: 'plan-mode-kubernetes-backend',
   provider: 'plan-mode-kubernetes',
 };
-// OpenTofu's kubernetes backend stores state in `tfstate-<workspace>-<key>`
-// Secrets and locks it with `lock-tfstate-<workspace>-<key>` Leases.
-const TF_STATE_FRAGMENT = 'tfstate-';
 
 const LOG_PREFIX = 'plan-mode';
 
@@ -117,78 +97,8 @@ type Workspace = {
   crName?: string;
 };
 
-type CapturedDeployment = {
-  env: k8s.V1EnvVar[];
-  replicas: number;
-};
-
 function escapeRegExp(value: string): string {
   return value.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
-}
-
-async function findOperatorDeploymentName(
-  appsApi: k8s.AppsV1Api,
-  namespace: string,
-): Promise<string> {
-  const list = await appsApi.listNamespacedDeployment({ namespace });
-
-  for (const deployment of list.items) {
-    const labels = deployment.spec?.template?.metadata?.labels ?? {};
-    if (
-      labels['app'] === CONTROLLER_LABEL_SELECTOR['app'] &&
-      labels['concern'] === CONTROLLER_LABEL_SELECTOR['concern']
-    ) {
-      const name = deployment.metadata?.name;
-      if (name) return name;
-    }
-  }
-
-  throw new Error('firestartr controller deployment not found');
-}
-
-async function captureDeployment(
-  appsApi: k8s.AppsV1Api,
-  name: string,
-  namespace: string,
-): Promise<CapturedDeployment> {
-  const deployment = await appsApi.readNamespacedDeployment({
-    name,
-    namespace,
-  });
-  const container = deployment.spec?.template?.spec?.containers?.[0];
-
-  if (!container) {
-    throw new Error(`No operator container found in deployment ${name}`);
-  }
-
-  return {
-    env: container.env ?? [],
-    replicas: deployment.spec?.replicas ?? 1,
-  };
-}
-
-async function replaceDeploymentEnv(
-  appsApi: k8s.AppsV1Api,
-  name: string,
-  namespace: string,
-  env: k8s.V1EnvVar[],
-): Promise<void> {
-  // Strategic merge merges env entries by name, so it never removes an entry
-  // such as OPERATOR_PLAN_MODE. Replace the whole env array instead.
-  await appsApi.patchNamespacedDeployment(
-    {
-      name,
-      namespace,
-      body: [
-        {
-          op: 'add',
-          path: '/spec/template/spec/containers/0/env',
-          value: env,
-        },
-      ],
-    },
-    JSON_PATCH_HEADERS,
-  );
 }
 
 function mergeEnv(
@@ -203,223 +113,19 @@ function mergeEnv(
   ];
 }
 
-async function scaleOperator(
-  appsApi: k8s.AppsV1Api,
-  name: string,
-  namespace: string,
-  replicas: number,
-): Promise<void> {
-  await appsApi.patchNamespacedDeployment(
-    {
-      name,
-      namespace,
-      body: { spec: { replicas } },
-    },
-    STRATEGIC_MERGE_PATCH_HEADERS,
-  );
-}
-
-async function waitForReplicas(
-  appsApi: k8s.AppsV1Api,
-  name: string,
-  namespace: string,
-  expected: number,
-): Promise<void> {
-  await pollUntil(
-    async () => {
-      const deployment = await appsApi.readNamespacedDeployment({
-        name,
-        namespace,
-      });
-      return {
-        replicas: deployment.status?.replicas ?? 0,
-        ready: deployment.status?.readyReplicas ?? 0,
-      };
-    },
-    {
-      timeoutMs: OPERATOR_ROLLOUT_TIMEOUT_MS,
-      intervalMs: 2000,
-      isDone: (state) =>
-        state.replicas === expected && state.ready === expected,
-      createTimeoutError: (last) =>
-        new Error(
-          `Timed out waiting for deployment ${name} to reach ${expected} replicas ` +
-            `(replicas=${last?.replicas}, ready=${last?.ready})`,
-        ),
-    },
-  );
-}
-
-async function waitForDeploymentRollout(
-  appsApi: k8s.AppsV1Api,
-  name: string,
-  namespace: string,
-): Promise<void> {
-  await pollUntil(
-    async () => {
-      const deployment = await appsApi.readNamespacedDeployment({
-        name,
-        namespace,
-      });
-      return {
-        generation: deployment.metadata?.generation ?? 0,
-        observedGeneration: deployment.status?.observedGeneration ?? 0,
-        updatedReplicas: deployment.status?.updatedReplicas ?? 0,
-        readyReplicas: deployment.status?.readyReplicas ?? 0,
-        replicas: deployment.status?.replicas ?? 0,
-      };
-    },
-    {
-      timeoutMs: OPERATOR_ROLLOUT_TIMEOUT_MS,
-      intervalMs: 2000,
-      isDone: (state) =>
-        state.observedGeneration >= state.generation &&
-        state.updatedReplicas >= state.replicas &&
-        state.readyReplicas >= state.replicas,
-      createTimeoutError: (last) =>
-        new Error(
-          `Timed out waiting for deployment ${name} rollout. ` +
-            `generation=${last?.generation}, observedGeneration=${last?.observedGeneration}, ` +
-            `updatedReplicas=${last?.updatedReplicas}, readyReplicas=${last?.readyReplicas}, replicas=${last?.replicas}`,
-        ),
-    },
-  );
-}
-
-async function readOperatorLogs(
-  coreApi: k8s.CoreV1Api,
-  namespace: string,
-): Promise<string> {
-  const pods = await coreApi.listNamespacedPod({
-    namespace,
-    labelSelector: CONTROLLER_LABELS,
-  });
-  const running = pods.items.find(
-    (pod) =>
-      !pod.metadata?.deletionTimestamp && pod.status?.phase === 'Running',
-  );
-
-  if (!running?.metadata?.name) return '';
-
-  return coreApi.readNamespacedPodLog({
-    name: running.metadata.name,
-    namespace,
-  });
-}
-
 async function waitForOperatorLog(
-  coreApi: k8s.CoreV1Api,
-  namespace: string,
+  client: E2EApi,
   condition: (logs: string) => boolean,
   description: string,
   timeoutMs = OPERATOR_ROLLOUT_TIMEOUT_MS,
 ): Promise<string> {
-  return pollUntil(() => readOperatorLogs(coreApi, namespace), {
+  return pollUntil(() => client.k8s.readControllerLogs(), {
     timeoutMs,
     intervalMs: 2000,
     isDone: condition,
     createTimeoutError: () =>
       new Error(`Timed out waiting for operator log: ${description}`),
   });
-}
-
-async function readWorkspace(
-  customObjectsApi: k8s.CustomObjectsApi,
-  namespace: string,
-  name: string,
-): Promise<any> {
-  return customObjectsApi.getNamespacedCustomObject({
-    group: API_GROUP,
-    version: API_VERSION,
-    namespace,
-    plural: TF_PLURAL,
-    name,
-  });
-}
-
-async function deleteStaleTFResult(
-  customObjectsApi: k8s.CustomObjectsApi,
-  namespace: string,
-  crName: string,
-): Promise<void> {
-  const name = `${TF_KIND}-${crName}`.toLowerCase();
-
-  try {
-    await customObjectsApi.deleteNamespacedCustomObject({
-      group: API_GROUP,
-      version: API_VERSION,
-      namespace,
-      plural: TFRESULT_PLURAL,
-      name,
-    });
-  } catch (error: unknown) {
-    if (getStatusCode(error as StatusCodeError) !== 404) throw error;
-  }
-}
-
-async function snapshotBackendState(
-  coreApi: k8s.CoreV1Api,
-  coordinationApi: k8s.CoordinationV1Api,
-  namespace: string,
-): Promise<Record<string, string>> {
-  const secrets = await coreApi.listNamespacedSecret({ namespace });
-  const leases = await coordinationApi.listNamespacedLease({ namespace });
-  const snapshot: Record<string, string> = {};
-
-  for (const [kind, items] of [
-    ['Secret', secrets.items],
-    ['Lease', leases.items],
-  ] as const) {
-    for (const item of items) {
-      const name = item.metadata?.name ?? '';
-      if (!name.includes(TF_STATE_FRAGMENT)) continue;
-      snapshot[`${kind}/${name}`] = item.metadata?.resourceVersion ?? '';
-    }
-  }
-
-  return snapshot;
-}
-
-async function deleteIgnoringNotFound(
-  remove: () => Promise<unknown>,
-): Promise<void> {
-  try {
-    await remove();
-  } catch (error: unknown) {
-    if (getStatusCode(error as StatusCodeError) !== 404) throw error;
-  }
-}
-
-// Removes what a force-deleted workspace leaves behind: the ConfigMaps its
-// module created and its backend state Secret.
-async function deleteWorkspaceInfrastructure(
-  coreApi: k8s.CoreV1Api,
-  namespace: string,
-  claimNames: string[],
-  tfStateKeys: string[],
-): Promise<void> {
-  const configMaps = await coreApi.listNamespacedConfigMap({ namespace });
-
-  for (const configMap of configMaps.items) {
-    const name = configMap.metadata?.name;
-    if (
-      name &&
-      claimNames.some((claimName) => name.startsWith(`${claimName}-configmap-`))
-    ) {
-      await deleteIgnoringNotFound(() =>
-        coreApi.deleteNamespacedConfigMap({ name, namespace }),
-      );
-    }
-  }
-
-  for (const tfStateKey of tfStateKeys) {
-    await deleteIgnoringNotFound(() =>
-      coreApi.deleteNamespacedSecret({
-        name: `tfstate-default-${tfStateKey}`,
-        namespace,
-      }),
-    );
-  }
 }
 
 function hasProvisionedCondition(workspace: any): boolean {
@@ -429,26 +135,8 @@ function hasProvisionedCondition(workspace: any): boolean {
   );
 }
 
-async function configMapExists(
-  coreApi: k8s.CoreV1Api,
-  namespace: string,
-  name: string,
-): Promise<boolean> {
-  try {
-    await coreApi.readNamespacedConfigMap({ name, namespace });
-    return true;
-  } catch (error: unknown) {
-    if (getStatusCode(error as StatusCodeError) === 404) return false;
-    throw error;
-  }
-}
-
-async function waitForConfigMap(
-  coreApi: k8s.CoreV1Api,
-  namespace: string,
-  name: string,
-): Promise<void> {
-  await pollUntil(() => configMapExists(coreApi, namespace, name), {
+async function waitForConfigMap(client: E2EApi, name: string): Promise<void> {
+  await pollUntil(() => client.k8s.configMapExists(name), {
     timeoutMs: PROVISION_TIMEOUT_MS,
     intervalMs: 3000,
     isDone: (exists) => exists,
@@ -459,13 +147,8 @@ async function waitForConfigMap(
 
 describePlanMode('Operator plan mode', () => {
   let client: E2EApi;
-  let appsApi: k8s.AppsV1Api;
-  let coreApi: k8s.CoreV1Api;
-  let coordinationApi: k8s.CoordinationV1Api;
-  let customObjectsApi: k8s.CustomObjectsApi;
-  let namespace: string;
   let operatorDeploymentName: string;
-  let originalDeployment: CapturedDeployment;
+  let originalDeployment: ControllerDeployment;
   let providerConfigsTempDir: string | undefined;
   let operatorIsLive = false;
 
@@ -533,9 +216,7 @@ describePlanMode('Operator plan mode', () => {
       strict: true,
       logPrefix: LOG_PREFIX,
     });
-    await deleteWorkspaceInfrastructure(
-      coreApi,
-      namespace,
+    await client.k8s.deleteWorkspaceInfrastructure(
       workspaces.map((workspace) => workspace.claimName),
       tfStateKeys,
     );
@@ -544,36 +225,22 @@ describePlanMode('Operator plan mode', () => {
   }
 
   async function stopOperator(): Promise<void> {
-    await scaleOperator(appsApi, operatorDeploymentName, namespace, 0);
-    await waitForReplicas(appsApi, operatorDeploymentName, namespace, 0);
+    await client.k8s.scaleController(operatorDeploymentName, 0);
+    await client.k8s.waitForControllerReplicas(operatorDeploymentName, 0);
   }
 
   async function startOperatorWithEnv(env: k8s.V1EnvVar[]): Promise<void> {
-    await replaceDeploymentEnv(appsApi, operatorDeploymentName, namespace, env);
-    await scaleOperator(appsApi, operatorDeploymentName, namespace, 1);
-    await waitForDeploymentRollout(appsApi, operatorDeploymentName, namespace);
-    await waitForReplicas(appsApi, operatorDeploymentName, namespace, 1);
+    await client.k8s.setControllerEnv(operatorDeploymentName, env);
+    await client.k8s.scaleController(operatorDeploymentName, 1);
+    await client.k8s.waitForControllerRollout(operatorDeploymentName);
+    await client.k8s.waitForControllerReplicas(operatorDeploymentName, 1);
   }
 
   beforeAll(async () => {
     client = await initE2e(undefined, undefined, { namePrefix: LOG_PREFIX });
-    namespace = client.k8s.getNamespace();
 
-    const kubeConfig = createKubeConfigProvider({})();
-    appsApi = kubeConfig.makeApiClient(k8s.AppsV1Api);
-    coreApi = kubeConfig.makeApiClient(k8s.CoreV1Api);
-    coordinationApi = kubeConfig.makeApiClient(k8s.CoordinationV1Api);
-    customObjectsApi = kubeConfig.makeApiClient(k8s.CustomObjectsApi);
-
-    operatorDeploymentName = await findOperatorDeploymentName(
-      appsApi,
-      namespace,
-    );
-    originalDeployment = await captureDeployment(
-      appsApi,
-      operatorDeploymentName,
-      namespace,
-    );
+    originalDeployment = await client.k8s.readControllerDeployment();
+    operatorDeploymentName = originalDeployment.name;
 
     const runId = Date.now();
 
@@ -585,7 +252,7 @@ describePlanMode('Operator plan mode', () => {
     const providerConfigsPath = resolveE2eProviderConfigsPath();
     providerConfigsTempDir = await prepareProviderConfigManifests(
       providerConfigsPath,
-      namespace,
+      client.k8s.getNamespace(),
       PROVIDER_CONFIG_NAMES,
     );
 
@@ -611,8 +278,7 @@ describePlanMode('Operator plan mode', () => {
     await startOperatorWithEnv(planModeEnv);
 
     await waitForOperatorLog(
-      coreApi,
-      namespace,
+      client,
       (logs) => logs.includes(PLAN_STARTUP_FRAGMENT),
       `'${PLAN_STARTUP_FRAGMENT}'`,
     );
@@ -625,7 +291,7 @@ describePlanMode('Operator plan mode', () => {
     const providerConfigsDir = providerConfigsTempDir;
 
     const canManageOperator = Boolean(
-      appsApi && operatorDeploymentName && originalDeployment,
+      operatorDeploymentName && originalDeployment,
     );
 
     if (canManageOperator && !operatorIsLive) {
@@ -665,27 +331,17 @@ describePlanMode('Operator plan mode', () => {
       // startOperatorWithEnv always runs one replica: put back the captured
       // environment and replica count even when the live operator resumed.
       await cleanup.run('restore operator deployment', async () => {
-        await replaceDeploymentEnv(
-          appsApi,
+        await client.k8s.setControllerEnv(
           operatorDeploymentName,
-          namespace,
           originalDeployment.env,
         );
-        await scaleOperator(
-          appsApi,
+        await client.k8s.scaleController(
           operatorDeploymentName,
-          namespace,
           originalDeployment.replicas,
         );
-        await waitForDeploymentRollout(
-          appsApi,
+        await client.k8s.waitForControllerRollout(operatorDeploymentName);
+        await client.k8s.waitForControllerReplicas(
           operatorDeploymentName,
-          namespace,
-        );
-        await waitForReplicas(
-          appsApi,
-          operatorDeploymentName,
-          namespace,
           originalDeployment.replicas,
         );
       });
@@ -697,11 +353,7 @@ describePlanMode('Operator plan mode', () => {
   it(
     'plans every CR without writing status, finalizers, TFResults or infrastructure',
     async () => {
-      const backendStateBefore = await snapshotBackendState(
-        coreApi,
-        coordinationApi,
-        namespace,
-      );
+      const backendStateBefore = await client.k8s.readBackendStateVersions();
 
       for (const workspace of workspaces) {
         const rendered = await client.claims.renderLocally(FIXTURE, {
@@ -752,11 +404,7 @@ describePlanMode('Operator plan mode', () => {
 
         // A previous run of this suite may have left a TFResult for the same
         // CR name; Plan mode must not add one of its own.
-        await deleteStaleTFResult(
-          customObjectsApi,
-          namespace,
-          workspace.crName,
-        );
+        await client.k8s.deleteStaleTFResult(workspace.crName);
 
         await client.k8s.applyCr(crPath);
       }
@@ -765,8 +413,7 @@ describePlanMode('Operator plan mode', () => {
         const crName = workspace.crName!;
 
         const logs = await waitForOperatorLog(
-          coreApi,
-          namespace,
+          client,
           (current) =>
             new RegExp(
               `${PLANNED_OPERATION_FRAGMENT}/${escapeRegExp(
@@ -793,11 +440,7 @@ describePlanMode('Operator plan mode', () => {
           `/FirestartrTerraformWorkspace/${crName}.md`,
         );
 
-        const planned = await readWorkspace(
-          customObjectsApi,
-          namespace,
-          crName,
-        );
+        const planned = await client.k8s.readWorkspace(crName);
 
         expect(hasProvisionedCondition(planned)).toBe(false);
         expect(planned.status?.conditions ?? []).toEqual([]);
@@ -809,16 +452,16 @@ describePlanMode('Operator plan mode', () => {
           client.k8s.findTFResultByReference(TF_KIND, crName),
         ).resolves.toBeUndefined();
 
-        expect(
-          await configMapExists(coreApi, namespace, workspace.configMapName),
-        ).toBe(false);
+        expect(await client.k8s.configMapExists(workspace.configMapName)).toBe(
+          false,
+        );
       }
 
       // Plans read a snapshot of the state: they never take the backend's
       // Lease nor create or update its state Secret.
-      await expect(
-        snapshotBackendState(coreApi, coordinationApi, namespace),
-      ).resolves.toEqual(backendStateBefore);
+      await expect(client.k8s.readBackendStateVersions()).resolves.toEqual(
+        backendStateBefore,
+      );
     },
     PLAN_TIMEOUT_MS,
   );
@@ -830,8 +473,7 @@ describePlanMode('Operator plan mode', () => {
       await startOperatorWithEnv(originalDeployment.env);
 
       await waitForOperatorLog(
-        coreApi,
-        namespace,
+        client,
         (logs) =>
           logs.includes('started the operator with options') &&
           !logs.includes(PLAN_STARTUP_FRAGMENT),
@@ -853,7 +495,7 @@ describePlanMode('Operator plan mode', () => {
         );
 
         expect(hasProvisionedCondition(resource)).toBe(true);
-        await waitForConfigMap(coreApi, namespace, workspace.configMapName);
+        await waitForConfigMap(client, workspace.configMapName);
       }
     },
     PROVISION_TIMEOUT_MS,

@@ -1,4 +1,6 @@
 import type { JsonPatchOperation } from 'render/src/utils/auxiliar';
+import type * as k8s from '@kubernetes/client-node';
+import type { ControllerDeployment } from './k8s/controller';
 import type { K8sResource } from './k8s/types';
 import type { TFResult } from './k8s/tfresult';
 
@@ -228,6 +230,43 @@ export interface K8sApi {
     refKind: string,
     refName: string,
   ) => Promise<TFResult | undefined>;
+
+  // Read the operator controller Deployment: its name, env and replica count.
+  readControllerDeployment: () => Promise<ControllerDeployment>;
+
+  // Replace the controller container env, dropping entries not listed.
+  setControllerEnv: (name: string, env: k8s.V1EnvVar[]) => Promise<void>;
+
+  // Set the controller Deployment replica count.
+  scaleController: (name: string, replicas: number) => Promise<void>;
+
+  // Wait until the controller Deployment reports `expected` replicas, all ready.
+  waitForControllerReplicas: (name: string, expected: number) => Promise<void>;
+
+  // Wait until the controller Deployment rollout is complete.
+  waitForControllerRollout: (name: string) => Promise<void>;
+
+  // Logs of the running controller pod, or '' when none is running.
+  readControllerLogs: () => Promise<string>;
+
+  // resourceVersion of every tfstate Secret and lock Lease, keyed by kind/name.
+  readBackendStateVersions: () => Promise<Record<string, string>>;
+
+  // Whether a ConfigMap exists in the namespace.
+  configMapExists: (name: string) => Promise<boolean>;
+
+  // Remove the ConfigMaps of the given claims and the tfstate Secrets of the
+  // given state keys.
+  deleteWorkspaceInfrastructure: (
+    claimNames: string[],
+    tfStateKeys: string[],
+  ) => Promise<void>;
+
+  // Read a FirestartrTerraformWorkspace object by name.
+  readWorkspace: (name: string) => Promise<any>;
+
+  // Delete the TFResult of a CR name, ignoring not-found.
+  deleteStaleTFResult: (crName: string) => Promise<void>;
 }
 
 // GitHub API surface used by e2e tests.
