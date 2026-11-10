@@ -33,6 +33,12 @@ describe('Plan artifact Markdown', () => {
 
     expect(planned(text)).toContain(`\`\`\`\`\`text\n${text}\n\`\`\`\`\`\n`);
   });
+
+  it('handles plan text with more backtick runs than call arguments allow', () => {
+    const text = Array.from({ length: 200_000 }, () => '`').join(' ');
+
+    expect(planned(text)).toContain(`## Plan\n\`\`\`text\n${text}\n\`\`\`\n`);
+  });
 });
 
 describe('Plan summary line', () => {

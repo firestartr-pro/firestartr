@@ -47,9 +47,10 @@ export function renderPlanMarkdown(record: PlanRecord): string {
 
   if (record.result.status === 'PLANNED') {
     const text = record.result.text.trimEnd();
-    const longestRun = Math.max(
+    const runs: string[] = text.match(/`+/g) ?? [];
+    const longestRun = runs.reduce(
+      (longest, run) => Math.max(longest, run.length),
       0,
-      ...(text.match(/`+/g) ?? []).map((run) => run.length),
     );
     const fence = '`'.repeat(Math.max(3, longestRun + 1));
 
