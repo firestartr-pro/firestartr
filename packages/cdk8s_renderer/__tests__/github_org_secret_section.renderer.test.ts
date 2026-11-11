@@ -163,6 +163,38 @@ describe('GitHub organization secret section rendering', () => {
     ]);
   });
 
+  it('does not feed back org secrets from the previous CR when they are removed (one-way definition)', async () => {
+    const first = await context.renderClaims(
+      { claimRefs: ['OrgSettingsClaim-github_org_settings_secrets'] },
+      { crsPath: rendererTestFixtures.noCrs },
+    );
+
+    const firstCr = findOrgSecretSectionCr(first.renderedMap);
+
+    expect(firstCr.spec.secrets.actions).toHaveLength(2);
+    expect(firstCr.spec.secrets.codespaces).toHaveLength(1);
+
+    await context.applyPatches('orgsettings_secrets_a', [
+      { op: 'remove', path: '/providers/github/org_secrets' },
+    ]);
+
+    const second = await context.renderClaims(
+      { claimRefs: ['OrgSettingsClaim-github_org_settings_secrets'] },
+      { crsPath: context.getResourcesOutDir() },
+    );
+
+    const secondCr = findOrgSecretSectionCr(second.renderedMap);
+
+    expect(secondCr).toBeDefined();
+    expect(secondCr.spec.secrets.actions).toEqual([]);
+    expect(secondCr.spec.secrets.codespaces).toEqual([]);
+    expect(secondCr.spec.secrets.dependabot).toEqual([]);
+    expect(secondCr.metadata.name).toBe(firstCr.metadata.name);
+    expect(secondCr.spec.firestartr.tfStateKey).toBe(
+      firstCr.spec.firestartr.tfStateKey,
+    );
+  });
+
   it('rejects duplicate SecretSection CRs for same org', async () => {
     await context.duplicateFile(
       'orgsettings_secrets_a',
