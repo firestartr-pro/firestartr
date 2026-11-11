@@ -117,6 +117,33 @@ export function extractAllRefs(claimData: string) {
           }
         }
       }
+
+      const orgSecrets = parsedClaim.providers?.github?.org_secrets;
+      if (orgSecrets && typeof orgSecrets === 'object') {
+        const secretRefRegex =
+          /^ref:secretsclaim:([a-zA-Z0-9_-]+):([a-zA-Z0-9_-]+)$/;
+        for (const section of ['actions', 'codespaces', 'dependabot']) {
+          const secrets = orgSecrets[section];
+          if (!Array.isArray(secrets)) continue;
+          for (const secret of secrets) {
+            if (secret.value) {
+              const match = secret.value.match(secretRefRegex);
+              if (match) {
+                refs.push(`SecretsClaim-${match[1]}`);
+              }
+            }
+            if (Array.isArray(secret.selected_repositories)) {
+              for (const repoRef of secret.selected_repositories) {
+                const compMatch = repoRef.match(/^component:(.+)$/);
+                if (compMatch) {
+                  refs.push(`ComponentClaim-${compMatch[1]}`);
+                }
+              }
+            }
+          }
+        }
+      }
+
       break;
     }
   }

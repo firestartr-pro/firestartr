@@ -93,5 +93,28 @@ generation; variables already in `managed_variables` are handled natively by
 Terraform. Treats `undefined` or `[]` as "no previously managed variables."
 _Avoid_: previous variables, known variables
 
+**Managed secrets**:
+The list of secret names the TFM `github-org-secrets-section` module already
+manages, one per domain, exposed as the `actions_secret_names`,
+`codespaces_secret_names` and `dependabot_secret_names` self-outputs and
+persisted across reconciliations via the Kubernetes outputs Secret. On the next
+reconciliation, the gh-provisioner reads each domain's output and computes
+`new_to_module = declared secrets - managed secrets` for that domain. Only
+new-to-module secrets trigger the GitHub existence check and import block
+generation; secrets already in the module's output are handled natively by
+Terraform. Treats `undefined` or `[]` as "no previously managed secrets."
+_Avoid_: previous secrets, known secrets
+
+**Org-level secrets**:
+GitHub organization-level secrets (actions, codespaces, dependabot) managed via
+a `FirestartrGithubOrganizationSecretSection` CR. Each section entry has a
+`name` and a `value` that is always a reference to an upstream `SecretsClaim`.
+Encryption uses `encryptOrgSecret()` from `packages/github/src/orgSecrets.ts`
+with the org public key. Change detection uses SHA-256 plaintext fingerprinting,
+and org secrets use **Apply-time adoption** in v1 (mirroring org-level variables)
+to handle secrets that already exist on the org.
+_Available short name_: `ghorgsecrets`
+_Avoid_: org secrets, github org secrets
+
 > Auth uses **Profile** / `withProfile` — defined in the `github` context,
 > referenced here.

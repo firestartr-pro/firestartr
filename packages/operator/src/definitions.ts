@@ -15,6 +15,7 @@ const kindPluralMap: any = {
   githuborganizationsettings: 'FirestartrGithubOrganizationSettings',
   githuborganizationvariablesections:
     'FirestartrGithubOrganizationVariableSection',
+  githuborganizationsecretsections: 'FirestartrGithubOrganizationSecretSection',
   terraformworkspaces: 'FirestartrTerraformWorkspace',
   providerconfigs: 'FirestartrProviderConfig',
   externalsecrets: 'ExternalSecret',
@@ -144,7 +145,9 @@ type WriteConnectionSecretFn = (
   finalize?: boolean,
 ) => Promise<void>;
 
-type ResolveReferencesFn = () => Promise<Dependencies>;
+type ResolveReferencesFn = (opts?: {
+  destroy?: boolean;
+}) => Promise<Dependencies>;
 
 type DeleteSecretFn = () => Promise<null | undefined>;
 

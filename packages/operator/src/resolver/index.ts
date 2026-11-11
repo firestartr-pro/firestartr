@@ -83,6 +83,16 @@ export async function resolve(
   return deps;
 }
 
+/**
+ * Destroying an org-secret section never reads its plaintext values, so the
+ * Kubernetes Secrets they come from must not block the deletion.
+ */
+export function withoutPlaintextSecrets(cr: any) {
+  if (cr.kind !== 'FirestartrGithubOrganizationSecretSection') return cr;
+
+  return { ...cr, spec: { ...cr.spec, secrets: {} } };
+}
+
 export async function resolveSecretRef(
   namespace: string,
   crDependency: any,

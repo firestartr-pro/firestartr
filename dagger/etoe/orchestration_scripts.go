@@ -24,7 +24,7 @@ if [ -z "$current" ] && [ -n "$cm" ]; then
   current="$(kubectl -n default get configmap "$cm" -o jsonpath='{.data.OPERATOR_KIND_LIST}' 2>/dev/null || true)"
 fi` + "\n" +
 		// Append e2e-required kinds that may not yet be in the chart's default list.
-		`for required_kind in githuborganizationvariablesections; do
+		`for required_kind in githuborganizationvariablesections githuborganizationsecretsections; do
   case ",$current," in
     *",$required_kind,"*) ;;
     *)

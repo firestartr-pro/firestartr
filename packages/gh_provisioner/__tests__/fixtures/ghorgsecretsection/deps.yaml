@@ -1,0 +1,67 @@
+FirestartrProviderConfig-kubernetes-provider:
+  cr:
+    apiVersion: firestartr.dev/v1
+    kind: FirestartrProviderConfig
+    metadata:
+      name: kubernetes-provider
+    spec:
+      config: |
+        {"namespace":"default"}
+      source: hashicorp/kubernetes
+      type: kubernetes
+      version: 3.0.1
+  secret:
+    data:
+      KUBE_CONFIG: YXBpVmVyc2lvbjogdjEKa2luZDogQ29uZmlnCnByZWZlcmVuY2VzOiB7fQpjbHVzdGVyczogWwogIHsKICAgIG5hbWU6IGxvY2FsCn0KXQo=
+FirestartrProviderConfig-github:
+  cr:
+    apiVersion: firestartr.dev/v1
+    kind: FirestartrProviderConfig
+    metadata:
+      name: github
+    spec:
+      config: |
+        {"owner":"firestartr-test"}
+      source: integrations/github
+      type: github
+      version: ~> 6.0
+      secrets:
+        GITHUB_APP_ID:
+          secretRef:
+            name: github-app-credentials
+            namespace: default
+            key: GITHUB_APP_ID
+        GITHUB_APP_INSTALLATION_ID:
+          secretRef:
+            name: github-app-credentials
+            namespace: default
+            key: GITHUB_APP_INSTALLATION_ID
+        GITHUB_APP_PEM_FILE:
+          secretRef:
+            name: github-app-credentials
+            namespace: default
+            key: GITHUB_APP_PEM_FILE
+Secret-github-app-credentials:
+  cr:
+    apiVersion: v1
+    kind: Secret
+    metadata:
+      name: github-app-credentials
+      namespace: default
+    data:
+      GITHUB_APP_ID: MTIzNDU=
+      GITHUB_APP_INSTALLATION_ID: Njc4OTA=
+      GITHUB_APP_PEM_FILE: c2VjcmV0LXBlbS1maWxl
+Secret-my-secret:
+  cr:
+    apiVersion: v1
+    kind: Secret
+    metadata:
+      name: my-secret
+      namespace: default
+    data:
+      a: c2VjcmV0X2E=
+      b: c2VjcmV0X2I=
+      c: c2VjcmV0X2M=
+self-outputs:
+  cr: null

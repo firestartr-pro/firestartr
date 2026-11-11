@@ -1,0 +1,44 @@
+---
+kind: OrgSettingsClaim
+version: '1.0'
+name: github_org_settings_selected_repos
+providers:
+  github:
+    name: firestartr-test-selected-repos
+    org: firestartr-test-selected-repos
+    billing_email: billing@example.com
+    actions_variables:
+      - name: VAR_ALL
+        value: all-value
+        visibility: all
+      - name: VAR_PRIVATE
+        value: private-value
+        visibility: private
+      - name: VAR_SELECTED
+        value: selected-value
+        visibility: selected
+        selected_repositories:
+          - component:component_a
+      - name: VAR_SELECTED_B
+        value: selected-value-b
+        visibility: selected
+        selected_repositories:
+          - component:component_a
+    org_secrets:
+      actions:
+        - name: SECRET_WITH_REF
+          value: ref:secretsclaim:secret_a:rds_conn
+        - name: SECRET_WITH_SELECTED
+          value: ref:secretsclaim:secret_a:rds_conn
+          visibility: selected
+          selected_repositories:
+            - component:component_a
+      codespaces:
+        - name: CODESPACES_SECRET
+          value: ref:secretsclaim:secret_a:rds_conn
+        - name: CODESPACES_WITH_SELECTED
+          value: ref:secretsclaim:secret_a:rds_conn
+          visibility: selected
+          selected_repositories:
+            - component:component_a
+      dependabot: []

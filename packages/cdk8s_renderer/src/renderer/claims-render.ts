@@ -98,6 +98,15 @@ export async function renderClaims(
             )
           : false;
 
+      const secretSectionPreviousCR =
+        claim.kind === 'OrgSettingsClaim'
+          ? getPreviousCRfromClaim(
+              claim,
+              crs,
+              'FirestartrGithubOrganizationSecretSection',
+            )
+          : false;
+
       const patches = await extractPatches(
         renderClaims[claimKey as RenderClaimKey],
         previousCR,
@@ -106,11 +115,16 @@ export async function renderClaims(
 
       let variableSectionPatches: ICustomResourcePatch[] | undefined =
         undefined;
+      let secretSectionPatches: ICustomResourcePatch[] | undefined = undefined;
       if (claim.kind === 'OrgSettingsClaim') {
         variableSectionPatches = await extractPatches(
           renderClaims[claimKey as RenderClaimKey],
           variableSectionPreviousCR,
           crs,
+        );
+        secretSectionPatches = await extractPatches(
+          renderClaims[claimKey as RenderClaimKey],
+          secretSectionPreviousCR,
         );
       }
 
@@ -134,6 +148,8 @@ export async function renderClaims(
           variableSectionPreviousCR,
           variableSectionPatches,
           crs,
+          secretSectionPreviousCR,
+          secretSectionPatches,
         );
 
       if (catalogEntity) {
@@ -198,6 +214,10 @@ export async function renderClaim(
   variableSectionPatches?: ICustomResourcePatch[],
 
   crs?: any,
+
+  secretSectionPreviousCR: any | false = false,
+
+  secretSectionPatches?: ICustomResourcePatch[],
 ): Promise<IRenderClaimResult> {
   let catalogEntity: BaseChart | undefined = undefined;
   let firestartrEntity: BaseChart | undefined = undefined;
@@ -541,6 +561,40 @@ export async function renderClaim(
             name: `${claim.name}-variable-section`,
           },
           chart: variableSectionObject,
+        });
+
+        const secretSectionFirestartrId = secretSectionPreviousCR
+          ? secretSectionPreviousCR.spec?.firestartr?.tfStateKey
+          : firestartrId
+            ? `${firestartrId}-secrets`
+            : null;
+
+        const ssRenderPatches = secretSectionPatches
+          ? secretSectionPatches.filter((patch: any) => !patch.isPostPatch)
+          : renderPatches;
+        const ssPostPatches = secretSectionPatches
+          ? secretSectionPatches.filter((patch: any) => patch.isPostPatch)
+          : postPatches;
+
+        const secretSectionChart =
+          new charts.default.GithubOrgSecretSectionChart(
+            firestartrScope,
+            `github-secrets-${chartId}`,
+            secretSectionFirestartrId,
+            claim,
+            ssRenderPatches,
+          );
+
+        await secretSectionChart.render();
+        const secretSectionObject =
+          await secretSectionChart.postRenderer(ssPostPatches);
+
+        extraCharts.push({
+          claim: {
+            kind: claim.kind,
+            name: `${claim.name}-secret-section`,
+          },
+          chart: secretSectionObject,
         });
       }
       break;
