@@ -145,7 +145,9 @@ type WriteConnectionSecretFn = (
   finalize?: boolean,
 ) => Promise<void>;
 
-type ResolveReferencesFn = () => Promise<Dependencies>;
+type ResolveReferencesFn = (opts?: {
+  destroy?: boolean;
+}) => Promise<Dependencies>;
 
 type DeleteSecretFn = () => Promise<null | undefined>;
 

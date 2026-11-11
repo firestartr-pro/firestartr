@@ -171,7 +171,7 @@ async function* markedToDeletion(
       message: 'Destroying process started',
     };
 
-    const deps = await handler.resolveReferences();
+    const deps = await handler.resolveReferences({ destroy: true });
 
     const annotation = 'firestartr.dev/last-state-pr';
     const statePr = item?.metadata?.annotations?.[annotation];

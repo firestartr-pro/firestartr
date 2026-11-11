@@ -28,7 +28,11 @@ import {
   getTimeoutForOperation,
   retryOpForReason,
 } from './definitions';
-import { Dependencies, resolve } from './resolver';
+import {
+  Dependencies,
+  resolve,
+  withoutPlaintextSecrets,
+} from './resolver';
 
 import { setSyncStatus, getSyncStatus } from './syncCtl';
 
@@ -349,8 +353,14 @@ function enqueue(
 
     writeConnectionSecret: writeConnectionSecret,
 
-    resolveReferences: () =>
-      resolve(workItem.item, getItemByItemPath, getSecret),
+    resolveReferences: (opts?: { destroy?: boolean }) =>
+      resolve(
+        opts?.destroy
+          ? withoutPlaintextSecrets(workItem.item)
+          : workItem.item,
+        getItemByItemPath,
+        getSecret,
+      ),
 
     resolveOwnOutputs: () => {
       return resolveSecretRef(
