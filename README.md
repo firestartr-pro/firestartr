@@ -139,7 +139,8 @@ and a dev pod, `start` launches the operator, and `help` lists the rest.
   [`.github/BUILD_AND_DISPATCH_DOCKER_IMAGES_README.md`](.github/BUILD_AND_DISPATCH_DOCKER_IMAGES_README.md).
 - **npm packages:** `@firestartr/cli`, `@firestartr/fs-forge-cli`,
   `@firestartr/firestartr-features_renderer` and
-  `@firestartr/firestartr-claims_schemas`.
+  `@firestartr/firestartr-claims_schemas` (claim and `.firestartr`
+  organization schemas).
 
 ## Documentation
 
