@@ -13,10 +13,7 @@ import { WriterTerraform } from './writer_terraform';
 import { WriterTfVarsJson } from './writer_tfvars_json';
 import { WriterProviderJson } from './writer_provider_tf_json';
 import { WriterImports } from './writer_imports';
-import {
-  WriterPlanState,
-  plansAgainstLiveBackend,
-} from './writer_plan_state';
+import { WriterPlanState, plansAgainstLiveBackend } from './writer_plan_state';
 
 import common from 'catalog_common';
 import { spawn } from 'child_process';
