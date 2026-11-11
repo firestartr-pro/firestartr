@@ -5,7 +5,6 @@ import {
 
 export default {
   $schema: 'http://json-schema.org/draft-07/schema#',
-  $id: 'https://raw.githubusercontent.com/firestartr-pro/docs/refs/heads/main/site/raw/core/dot-firestartr/main/docker_registries.schema.json',
   title: 'Firestartr Docker registry',
   description:
     "A container registry's host, image types, authentication strategy and base paths.",

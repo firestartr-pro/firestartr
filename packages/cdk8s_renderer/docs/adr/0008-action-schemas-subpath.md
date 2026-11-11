@@ -15,7 +15,7 @@ and build results. Both registry consumers import one host rule from
 `src/schemas/registry-host.ts`.
 
 Publish through `actions` and `actions/*` in the existing npm artifact, not as
-claims. Do not change docs promotion or add an independent release. Strip action
+claims. Both views are npm-only, with no docs promotion or independent release. Strip action
 `$id` values to avoid collisions when both views compile together; retain
 descriptive metadata and the six-value authentication enum. Anchor the version
 grammar once and match the action ref helper rather than unsupported magic forms.

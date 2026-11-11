@@ -21,7 +21,7 @@ Individual files use `actions/<name>.schema.json`:
 These are data schemas, not claims: they are excluded from `ALL_SCHEMAS` and
 the claim directory. TypeScript remains the source of truth; JSON is generated
 for publication. Actions inherit the artifact's version and release workflow.
-The existing docs-promotion channel is unchanged; actions are npm-only.
+Both schema views are npm-only; there is no docs-repository promotion.
 
 ## Compatibility
 

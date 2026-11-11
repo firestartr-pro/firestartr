@@ -28,11 +28,11 @@ Individual JSON files are available at
 `@firestartr/firestartr-claims_schemas/dot-firestartr/apps.schema.json` and the
 other filenames in the table.
 
-Docs URL base:
-`https://raw.githubusercontent.com/firestartr-pro/docs/refs/heads/main/site/raw/core/dot-firestartr/`.
-Append `v<version>/<schema>.schema.json` for a pinned release, `latest/` for
-stable releases, or `main/` for development. Manual promotion uses the branch
-path. Stable releases advance `latest/`; prereleases do not.
+Schemas are published only through npm, with the artifact's release version.
+Pin the npm dependency for reproducible consumption. Schemas omit `$id` and
+can be compiled alongside the action view in the same validator instance.
+Docs-repository promotion is discontinued; any existing docs-hosted copies are
+not updated by this repository.
 
 ## Compatibility
 

@@ -1,6 +1,5 @@
 export default {
   $schema: 'http://json-schema.org/draft-07/schema#',
-  $id: 'https://raw.githubusercontent.com/firestartr-pro/docs/refs/heads/main/site/raw/core/dot-firestartr/main/apps.schema.json',
   title: 'Firestartr application',
   description:
     "An application's state repository, services and target platforms.",

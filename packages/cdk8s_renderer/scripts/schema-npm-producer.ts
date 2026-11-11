@@ -73,8 +73,6 @@ const CLAIM_KINDS: Record<string, string> = {
 };
 
 const GENERATED_PACKAGE_NAME = '@firestartr/firestartr-claims_schemas';
-const DOT_FIRESTARTR_BASE_URL =
-  'https://raw.githubusercontent.com/firestartr-pro/docs/refs/heads/main/site/raw/core/dot-firestartr';
 
 function toIdentifier(name: string): string {
   return name.replace(/-([a-z0-9])/g, (_, char: string) => char.toUpperCase());
@@ -266,20 +264,15 @@ void (async () => {
     }
   }
 
-  // Step 3b: Write .firestartr organization schemas with release-pinned IDs.
+  // Step 3b: Write standalone .firestartr organization schemas.
   await writeSchemaSet(
     dotFirestartrSchemas,
     path.join(pkgdir, 'dot-firestartr'),
-    (schema, filename) => ({
-      ...schema,
-      $id: `${DOT_FIRESTARTR_BASE_URL}/v${version}/${filename}`,
-    }),
+    (schema) => schema,
   );
 
-  // Step 3c: Write action schemas. They share their definitions with the
-  // .firestartr view, so `$id` is stripped: an action file must not claim the
-  // .firestartr identity, and two schemas carrying the same `$id` cannot be
-  // compiled into a single Ajv instance.
+  // Step 3c: Write action schemas without IDs so both views remain safe to
+  // compile together if a canonical source gains an ID in the future.
   await writeSchemaSet(
     actionSchemas,
     path.join(pkgdir, 'actions'),

@@ -11,10 +11,11 @@ default exports, matching the existing `cdk8s_renderer` authoring convention.
 They ship in the generated `@firestartr/firestartr-claims_schemas` artifact,
 under `dot-firestartr/`, rather than in a second package. This keeps one release
 line and one npm trusted publisher, and avoids a workspace package that only
-wraps JSON. JSON is generated for npm and for the docs repository; the
+wraps JSON. JSON is generated only for npm; the
 TypeScript source remains authoritative.
 
 The merge retains the recovered upstream contracts without additional
-tightening. Stable releases advance docs `latest/`; prereleases only publish
-their pinned directory and npm `prerelease` tag. Consumers migrate independently
+tightening. Docs promotion is discontinued in favor of npm-only delivery, and
+schemas omit docs-hosted IDs. Prereleases use the npm `prerelease` tag.
+Consumers migrate independently
 in action issue #166 and daggerverse issue #506.

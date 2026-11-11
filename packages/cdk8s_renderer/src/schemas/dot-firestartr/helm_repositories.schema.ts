@@ -1,6 +1,5 @@
 export default {
   $schema: 'http://json-schema.org/draft-07/schema#',
-  $id: 'https://raw.githubusercontent.com/firestartr-pro/docs/refs/heads/main/site/raw/core/dot-firestartr/main/helm_repositories.schema.json',
   title: 'Firestartr Helm repository',
   description: 'A named HTTP, HTTPS or OCI Helm chart repository.',
   type: 'object',

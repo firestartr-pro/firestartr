@@ -36,7 +36,11 @@ test('producer publishes disjoint views without duplicate IDs', () => {
     ).toContain("with { type: 'json' }");
     const ajv = new Ajv();
     for (const name of readdirSync(join(directory, 'dot-firestartr'))) {
-      if (name.endsWith('.json')) ajv.compile(json(`dot-firestartr/${name}`));
+      if (name.endsWith('.json')) {
+        const schema = json(`dot-firestartr/${name}`);
+        expect(schema).not.toHaveProperty('$id');
+        ajv.compile(schema);
+      }
     }
     for (const [name, source] of Object.entries(schemas)) {
       const schema = json(`actions/${name}.schema.json`);
