@@ -21,6 +21,9 @@ test('producer publishes disjoint views without duplicate IDs', () => {
   const json = (file: string) =>
     JSON.parse(readFileSync(join(directory, file), 'utf8'));
   try {
+    const rootEntrypoint = readFileSync(join(directory, 'index.mjs'), 'utf8');
+    expect(rootEntrypoint).not.toContain('./actions/');
+    expect(rootEntrypoint).not.toMatch(/\bactions\b/);
     expect(readdirSync(join(directory, 'actions')).sort()).toEqual(
       [
         ...Object.keys(schemas).map((name) => `${name}.schema.json`),

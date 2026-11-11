@@ -36,7 +36,11 @@ The action baseline is `prefapp/action-make-state-repos-dispatches` commit
   `$latest_release`, `$latest_prerelease`, `$branch_<branch>`,
   `$highest_semver_release_<suffix>`, `$highest_semver_prerelease_<suffix>`,
   or a nonempty plain version using `[a-z0-9 _.-]+`. Branches allow
-  `[A-Za-z0-9._/-]+`; semver suffixes allow `[A-Za-z0-9._/+-]+`.
+  `[A-Za-z0-9._/-]+`; semver suffixes allow `[A-Za-z0-9._/+-]+` and must
+  contain at least one ASCII digit. Digit-free filters such as
+  `$highest_semver_release_foo` and `$highest_semver_prerelease_foo` are rejected.
+  This is a necessary condition for the action resolver, not a guarantee that
+  every digit-containing filter resolves successfully.
   Bare `$highest_semver`, empty branch suffixes, and suffixed
   `$latest_release`/`$latest_prerelease` are rejected.
 

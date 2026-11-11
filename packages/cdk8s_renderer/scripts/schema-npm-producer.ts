@@ -337,7 +337,7 @@ void (async () => {
   // index.mjs
   await fs.writeFile(
     path.join(pkgdir, 'index.mjs'),
-    `// Auto-generated ESM entrypoint; do not hand-edit\n\n${schemaImports}\nimport { schemas as dotFirestartr } from './dot-firestartr/index.mjs';\nimport { schemas as actions } from './actions/index.mjs';\n\nexport {\n${schemaExports}\n};\n\nexport { dotFirestartr, actions };\n\nexport const ALL_SCHEMAS = {\n  ${allSchemasEntries}\n};\n`,
+    `// Auto-generated ESM entrypoint; do not hand-edit\n\n${schemaImports}\nimport { schemas as dotFirestartr } from './dot-firestartr/index.mjs';\n\nexport {\n${schemaExports}\n};\n\nexport { dotFirestartr };\n\nexport const ALL_SCHEMAS = {\n  ${allSchemasEntries}\n};\n`,
   );
 
   // ---- Step 5: Copy fixture and generate test file ---

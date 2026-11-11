@@ -32,6 +32,8 @@ test.each([
   '$latest_prerelease',
   '$branch_feature/my-branch',
   '$highest_semver_release_v1',
+  '$highest_semver_release_1',
+  '$highest_semver_release_v1.2',
   '$highest_semver_prerelease_v1.2+build',
 ])('accepts version %s', (version) => {
   expect(validateConfig({ deployments: [{ ...deployment, version }] })).toBe(
@@ -47,6 +49,10 @@ test.each([
   'prefix$branch_',
   '$highest_semver',
   '$highest_semverXYZ',
+  '$highest_semver_release_foo',
+  '$highest_semver_prerelease_foo',
+  '$highest_semver_release_',
+  '$highest_semver_prerelease_',
   '$latest_release_custom',
   '$latest_prerelease_custom',
   'Bad!',
