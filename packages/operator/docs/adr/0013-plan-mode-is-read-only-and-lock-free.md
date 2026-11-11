@@ -17,11 +17,14 @@ without disturbing the live operator running on the same cluster.
    `-lock=false`, so a shadow plan never blocks or fails a live apply. Each
    artifact says `Lock: none`: the plan is advisory and may read state in the
    middle of a live apply; the next plan corrects it. Even lock-free, OpenTofu
-   takes the Lease and writes an empty state for a workspace whose remote
-   state doesn't exist yet, so plans never initialize the remote backend: they
-   plan against an owner-only local snapshot of the `kubernetes` backend's
-   state secret (empty when absent). Backends that can't be snapshotted this
-   way give an ERROR artifact.
+   takes the Lease and writes an empty state for a `kubernetes` workspace whose
+   remote state doesn't exist yet, so plans never initialize a `kubernetes`
+   backend: they plan against an owner-only local snapshot of its state secret
+   (empty when absent). Every other backend the operator supports (`aws`,
+   `azurerm`) has no such side effect: plans initialize it and read state
+   through it like a live run, still with `-lock=false`. For these backends the
+   read-only guarantee rests on OpenTofu not writing state during `init` and
+   `plan`, not on the write gateway.
 3. **The operation comes from the live status.** The informer still reads the
    status, finalizers and `deletionTimestamp` written by the live operator to
    choose CREATED, UPDATED, MARKED_TO_DELETION or NOTHING, but never writes them.

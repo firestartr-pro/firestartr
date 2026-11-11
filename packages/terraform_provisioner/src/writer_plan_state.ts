@@ -9,13 +9,22 @@ export const PLAN_STATE_FILE = 'firestartr-plan.tfstate';
 export const PLAN_BACKEND_OVERRIDE_FILE = 'firestartr-plan-backend_override.tf';
 
 /**
- * Where a read-only plan reads the live state from. It only ever reads: the
- * remote backend is never initialized, so it can't take a lock or create an
- * empty state.
+ * Where a read-only plan reads a kubernetes backend's live state from. It only
+ * ever reads: that backend is never initialized, so it can't take its Lease or
+ * create an empty state.
  */
 export type ReadOnlyStateSource = {
   readKubernetesSecret: (namespace: string, name: string) => Promise<any>;
 };
+
+/**
+ * Only the kubernetes backend writes a Lease and an empty state on init, so
+ * only it is planned against a snapshot. Every other backend the operator
+ * supports is planned through the live backend with `-lock=false` (ADR 0013).
+ */
+export function plansAgainstLiveBackend(backend: any): boolean {
+  return !!backend && !('kubernetes' in backend);
+}
 
 /**
  * Points the workspace at a local, owner-only snapshot of the live state

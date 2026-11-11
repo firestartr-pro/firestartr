@@ -33,9 +33,10 @@ import {
 const TF_CACHES_PATH = '/tmp/tfcaches';
 
 /**
- * Plans read the live Terraform state from a snapshot of its backend secret,
- * never through the backend: OpenTofu would lock it and write an empty state
- * for a workspace that has none yet.
+ * Plans read a kubernetes backend's live state from a snapshot of its secret,
+ * never through the backend: OpenTofu would take its Lease and write an empty
+ * state for a workspace that has none yet. Other backends are planned through
+ * the live backend, lock-free.
  */
 const readOnlyState: ReadOnlyStateSource = {
   readKubernetesSecret: (namespace, name) => getSecret(namespace, name),

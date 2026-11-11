@@ -13,7 +13,10 @@ import { WriterTerraform } from './writer_terraform';
 import { WriterTfVarsJson } from './writer_tfvars_json';
 import { WriterProviderJson } from './writer_provider_tf_json';
 import { WriterImports } from './writer_imports';
-import { WriterPlanState } from './writer_plan_state';
+import {
+  WriterPlanState,
+  plansAgainstLiveBackend,
+} from './writer_plan_state';
 
 import common from 'catalog_common';
 import { spawn } from 'child_process';
@@ -104,7 +107,7 @@ export class TFProjectManagerRemote {
 
     this.writerTerraform = new WriterTerraform(
       ctx.requiredProviders,
-      ctx.readOnlyState ? undefined : ctx.backend,
+      this.snapshotsState() ? undefined : ctx.backend,
       ctx.tfStateKey,
       false,
     );
@@ -250,9 +253,9 @@ export class TFProjectManagerRemote {
       // Only reuse mode needs an extra init immediately after regenerating imports.tf.
     }
 
-    // Read-only plans never initialize the remote backend: they plan against
-    // a local snapshot of its state
-    if (this.ctx?.readOnlyState) {
+    // Read-only plans never initialize a kubernetes backend: they plan
+    // against a local snapshot of its state
+    if (this.snapshotsState()) {
       const writerPlanState = new WriterPlanState(
         this.ctx.backend,
         this.ctx.tfStatePath || this.ctx.tfStateKey,
@@ -288,7 +291,13 @@ export class TFProjectManagerRemote {
       this.secrets,
       undefined,
       this.ctl,
-      !this.ctx?.readOnlyState,
+      !this.snapshotsState(),
+    );
+  }
+
+  snapshotsState(): boolean {
+    return (
+      !!this.ctx?.readOnlyState && !plansAgainstLiveBackend(this.ctx.backend)
     );
   }
 

@@ -7,6 +7,7 @@ import {
   PLAN_BACKEND_OVERRIDE_FILE,
   PLAN_STATE_FILE,
   WriterPlanState,
+  plansAgainstLiveBackend,
 } from '../src/writer_plan_state';
 
 const BACKEND = { kubernetes: { config: { namespace: 'states' } } };
@@ -70,10 +71,19 @@ describe('WriterPlanState', () => {
   });
 
   it('refuses backends it cannot snapshot read-only', async () => {
-    const writer = new WriterPlanState({ aws: { config: {} } }, 'ws-key', {
+    const writer = new WriterPlanState({ gcs: { config: {} } }, 'ws-key', {
       readKubernetesSecret: async () => null,
     });
 
     await expect(writer.render()).rejects.toThrow(/needs a kubernetes backend/);
+  });
+});
+
+describe('plansAgainstLiveBackend', () => {
+  it('snapshots only kubernetes backends', () => {
+    expect(plansAgainstLiveBackend({ aws: { config: {} } })).toBe(true);
+    expect(plansAgainstLiveBackend({ azurerm: { config: {} } })).toBe(true);
+    expect(plansAgainstLiveBackend({ kubernetes: { config: {} } })).toBe(false);
+    expect(plansAgainstLiveBackend(undefined)).toBe(false);
   });
 });
