@@ -31,6 +31,7 @@ test.each([
   '$latest_release',
   '$latest_prerelease',
   '$branch_feature/my-branch',
+  '$branch_release+hotfix',
   '$highest_semver_release_v1',
   '$highest_semver_release_1',
   '$highest_semver_release_v1.2',
