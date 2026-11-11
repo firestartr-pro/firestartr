@@ -15,6 +15,7 @@ import { EntityGHFeature } from './ghfeature';
 import { EntityGHMembership } from './ghmembership';
 import { EntityGHOrgSettings } from './ghorgsettings';
 import { EntityGHOrgVarsSection } from './ghorgvarsection';
+import { EntityGHOrgSecretSection } from './ghorgsecretsection';
 import { EntityGHOrgWebHook } from './ghorgwebhook';
 
 import log from '../logger';
@@ -54,6 +55,8 @@ function getEntityClass(kind: string): EntityConstructor {
       return EntityGHOrgSettings as EntityConstructor;
     case 'FirestartrGithubOrganizationVariableSection':
       return EntityGHOrgVarsSection as EntityConstructor;
+    case 'FirestartrGithubOrganizationSecretSection':
+      return EntityGHOrgSecretSection as EntityConstructor;
 
     default:
       throw new Error(`kind ${kind} has no entity associated`);

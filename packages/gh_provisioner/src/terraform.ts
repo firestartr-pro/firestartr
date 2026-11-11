@@ -46,6 +46,12 @@ const MODULES = {
     // github-org-variables-section-v0.1.0
     ref: 'fb9c01d0a1e03e5134479da13d0faf55891dfedf',
   },
+  FirestartrGithubOrganizationSecretSection: {
+    module:
+      'git::https://github.com/prefapp/tfm.git//modules/github-org-secrets-section',
+    // github-org-secrets-section feat/1364-feat-add-github-org-secrets-section-module
+    ref: '170e6cf3d60508ff0566dffb7630e826b50d424a',
+  },
 };
 
 export function getFirestartrDefaultTFM(kind: string) {
