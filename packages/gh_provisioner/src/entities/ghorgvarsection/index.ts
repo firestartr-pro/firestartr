@@ -47,7 +47,8 @@ export class EntityGHOrgVarsSection extends Entity {
         value: variables,
       });
 
-      if (tfOp === 'apply' || tfOp === 'plan') {
+      // Only the apply and artifact plans consume the import blocks
+      if (tfOp === 'apply' || (tfOp === 'plan' && this.planArtifact)) {
         await this.adoptVariablesIfNeeded(actionsVariables);
       }
 

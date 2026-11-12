@@ -191,6 +191,7 @@ describe('EntityGHOrgVarsSection entity', () => {
     it('discovers adoptions on plan so artifact plans predict the imports', async () => {
       setupResolveSelfOutputs(['DEPLOY_KEY', 'INTERNAL_FLAG']);
       mockGetOrgVariable.mockResolvedValue({ name: 'STAGING_HOST' });
+      entity.planArtifact = true;
 
       await entity.loadResources('plan');
 
@@ -202,6 +203,16 @@ describe('EntityGHOrgVarsSection entity', () => {
           },
         ],
       });
+    });
+
+    it('does not discover adoptions on an ordinary PR plan', async () => {
+      setupResolveSelfOutputs(['DEPLOY_KEY', 'INTERNAL_FLAG']);
+      mockGetOrgVariable.mockResolvedValue({ name: 'STAGING_HOST' });
+
+      await entity.loadResources('plan');
+
+      expect(mockGetOrgVariable).not.toHaveBeenCalled();
+      expect(entity.importDocument).toStrictEqual({ imports: [] });
     });
 
     it('does not discover adoptions on plan-destroy', async () => {
