@@ -42,10 +42,9 @@ const readOnlyState: ReadOnlyStateSource = {
   readKubernetesSecret: (namespace, name) => getSecret(namespace, name),
 };
 
-export type PlanDecision =
-  | { plan: 'plan' | 'plan-destroy' }
-  | { nothing: true }
-  | { skip: string };
+type PlanChoice = { plan: 'plan' | 'plan-destroy' } | { nothing: true };
+
+export type PlanDecision = PlanChoice | { skip: string };
 
 type Planner = (
   item: any,
