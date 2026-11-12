@@ -27,8 +27,7 @@ import fs from 'fs/promises';
 import path from 'path';
 import { fileURLToPath } from 'url';
 import schemasModule from '../src/claims/base/schemas/index';
-import { schemas as dotFirestartrSchemas } from '../src/schemas/dot-firestartr';
-import { schemas as actionSchemas } from '../src/schemas/actions';
+import { dotFirestartr, actions } from '../src/schemas';
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
@@ -266,7 +265,7 @@ void (async () => {
 
   // Step 3b: Write standalone .firestartr organization schemas.
   await writeSchemaSet(
-    dotFirestartrSchemas,
+    dotFirestartr.schemas,
     path.join(pkgdir, 'dot-firestartr'),
     (schema) => schema,
   );
@@ -274,7 +273,7 @@ void (async () => {
   // Step 3c: Write action schemas without IDs so both views remain safe to
   // compile together if a canonical source gains an ID in the future.
   await writeSchemaSet(
-    actionSchemas,
+    actions.schemas,
     path.join(pkgdir, 'actions'),
     (schema) => {
       const copy = { ...schema };
