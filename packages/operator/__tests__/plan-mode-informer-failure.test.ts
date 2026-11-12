@@ -53,12 +53,14 @@ import { setSyncStatus } from '../src/syncCtl';
 import { syncer } from '../src/syncer';
 
 const ITEM_PATH = 'default/terraformworkspaces/ws';
+const ITEM_UID = 'uid-ws';
 
 const item = {
   kind: 'FirestartrTerraformWorkspace',
   metadata: {
     name: 'ws',
     namespace: 'default',
+    uid: ITEM_UID,
     annotations: { 'firestartr.dev/sync-enabled': 'true' },
   },
   spec: {},
@@ -142,6 +144,7 @@ describe('Plan mode informer: failed plans', () => {
       OperationType.SYNC,
       'True',
       'Plan process finished',
+      ITEM_UID,
     );
     expect(syncCtl.updateItem).toHaveBeenCalledWith(ITEM_PATH);
     expect(syncCtl.deleteItem).not.toHaveBeenCalled();
@@ -207,6 +210,7 @@ describe('Plan mode informer: failed plans', () => {
       OperationType.RETRY_SYNC,
       'False',
       'Plan process failed and its retries are exhausted',
+      ITEM_UID,
     );
     expect(syncCtl.updateItem).toHaveBeenCalledWith(ITEM_PATH);
     expect(syncCtl.deleteItem).toHaveBeenCalledTimes(1);

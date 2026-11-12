@@ -502,6 +502,7 @@ function enqueue(
             operation,
             'False',
             'Plan process failed and its retries are exhausted',
+            item.metadata?.uid,
           );
         } catch (e) {
           log.error(
@@ -536,6 +537,7 @@ function enqueue(
           operation,
           'True',
           'Plan process finished',
+          item.metadata?.uid,
         );
 
         void syncCtl.updateItem(itemPath(pluralKind, item));

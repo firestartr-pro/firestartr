@@ -114,6 +114,41 @@ describe('Plan mode synchronization', () => {
     );
   });
 
+  it('drops a plan completion when the CR was recreated while it ran', async () => {
+    const recreated = {
+      ...overdueHourlyCr,
+      metadata: { ...overdueHourlyCr.metadata, uid: 'uid-new' },
+    };
+
+    jest.mocked(getItemByItemPath).mockResolvedValue(recreated);
+
+    await setSyncStatus(
+      ITEM_PATH,
+      'SYNC',
+      'True',
+      'Plan process finished',
+      'uid-old',
+    );
+
+    expect((await getSyncStatus(ITEM_PATH, recreated)).intervalLapsed).toBe(
+      true,
+    );
+
+    await setSyncStatus(
+      ITEM_PATH,
+      'SYNC',
+      'True',
+      'Plan process finished',
+      'uid-new',
+    );
+
+    expect((await getSyncStatus(ITEM_PATH, recreated)).intervalLapsed).toBe(
+      false,
+    );
+
+    clearPlanSyncShadow(ITEM_PATH);
+  });
+
   it('keeps an overdue sync due when startup only writes a NOTHING artifact', async () => {
     const operation = planStartupOperation(overdueHourlyCr);
 

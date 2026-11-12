@@ -225,6 +225,7 @@ export async function setSyncStatus(
   reason: string,
   status: 'True' | 'False' | 'Unknown',
   message: string,
+  expectedUid?: string,
 ): Promise<SyncStatus> {
   const item = await getItemByItemPath(itemPath);
 
@@ -236,6 +237,13 @@ export async function setSyncStatus(
   syncStatus.syncStatusPresent = true;
 
   if (isPlanMode()) {
+    // A CR recreated while its plan ran must not inherit that plan's sync
+    if (expectedUid && item.metadata?.uid !== expectedUid) {
+      planSyncShadow.delete(itemPath);
+
+      return syncStatus;
+    }
+
     // Plan mode never writes CR status: the syncer rearms from this shadow
     planSyncShadow.set(itemPath, {
       uid: item.metadata?.uid,
