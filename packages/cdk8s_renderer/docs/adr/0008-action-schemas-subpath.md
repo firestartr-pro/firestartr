@@ -25,5 +25,7 @@ See [compatibility details](../actions-schemas.md).
 ## Consequences
 
 One definition serves both views with explicit publication metadata handling.
+Both views declare the claim dialect (`$schema` 2020-12) and compile in one
+2020-12 validator instance; consumers on the draft-07 default must switch.
 Equality to the originals is semantic, with approved enum and version changes,
 not byte-for-byte. Action-repository migration is out of scope.

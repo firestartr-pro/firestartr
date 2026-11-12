@@ -1,8 +1,10 @@
+import { SCHEMA } from '../../claims/base/schema';
+
 export const VERSION_PATTERN =
   '^(?:\\$latest_release|\\$latest_prerelease|\\$branch_[A-Za-z0-9._/+-]+|\\$highest_semver_(?:release|prerelease)_[A-Za-z0-9._/+-]*[0-9][A-Za-z0-9._/+-]*|[a-z0-9 _.-]+)$';
 
 export default {
-  $schema: 'http://json-schema.org/draft-07/schema#',
+  $schema: SCHEMA,
   type: 'object',
   properties: {
     deployments: {

@@ -1,10 +1,11 @@
+import { SCHEMA } from '../../claims/base/schema';
 import {
   REGISTRY_HOST_DESCRIPTION,
   REGISTRY_HOST_PATTERN,
 } from '../registry-host';
 
 export default {
-  $schema: 'http://json-schema.org/draft-07/schema#',
+  $schema: SCHEMA,
   title: 'Firestartr Docker registry',
   description:
     "A container registry's host, image types, authentication strategy and base paths.",

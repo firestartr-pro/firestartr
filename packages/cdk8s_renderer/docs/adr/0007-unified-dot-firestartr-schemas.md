@@ -11,7 +11,7 @@ Firestartr release version.
 
 ## Decision
 
-The four draft-07 schemas (`apps`, `platforms`, `docker_registries`,
+The four draft 2020-12 schemas (`apps`, `platforms`, `docker_registries`,
 `helm_repositories`) live under `src/schemas/dot-firestartr/` as TypeScript
 default exports, matching the existing `cdk8s_renderer` authoring convention.
 They ship in the generated `@firestartr/firestartr-claims_schemas` artifact,

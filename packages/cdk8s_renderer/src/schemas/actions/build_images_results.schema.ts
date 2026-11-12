@@ -1,10 +1,11 @@
+import { SCHEMA } from '../../claims/base/schema';
 import {
   REGISTRY_HOST_DESCRIPTION,
   REGISTRY_HOST_PATTERN,
 } from '../registry-host';
 
 export default {
-  $schema: 'http://json-schema.org/draft-07/schema#',
+  $schema: SCHEMA,
   title: 'Build images results',
   description:
     'Build summary produced by the image build workflows and consumed to dispatch images to state repositories. The registry, repository and image_tag fields compose the published image reference, so they are constrained to the character sets the build workflows can emit. Other fields (flavor, version, image_type, image_repo, build_args, platforms...) are build metadata that legitimately varies, and are therefore left unconstrained.',

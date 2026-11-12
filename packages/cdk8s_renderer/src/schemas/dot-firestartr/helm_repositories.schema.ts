@@ -1,5 +1,7 @@
+import { SCHEMA } from '../../claims/base/schema';
+
 export default {
-  $schema: 'http://json-schema.org/draft-07/schema#',
+  $schema: SCHEMA,
   title: 'Firestartr Helm repository',
   description: 'A named HTTP, HTTPS or OCI Helm chart repository.',
   type: 'object',

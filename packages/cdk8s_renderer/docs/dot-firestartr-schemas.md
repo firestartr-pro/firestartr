@@ -4,7 +4,7 @@ The action-facing view reuses these canonical sources; see
 [action schemas](actions-schemas.md). Registry host validation and its no-port
 rationale are shared through `src/schemas/registry-host.ts`.
 
-Four draft-07 schemas for `.firestartr` organization configuration live in
+Four draft 2020-12 schemas for `.firestartr` organization configuration live in
 `src/schemas/dot-firestartr/` and ship with the generated
 `@firestartr/firestartr-claims_schemas` npm package.
 

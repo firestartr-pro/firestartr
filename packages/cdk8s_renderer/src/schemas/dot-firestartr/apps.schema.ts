@@ -1,5 +1,7 @@
+import { SCHEMA } from '../../claims/base/schema';
+
 export default {
-  $schema: 'http://json-schema.org/draft-07/schema#',
+  $schema: SCHEMA,
   title: 'Firestartr application',
   description:
     "An application's state repository, services and target platforms.",

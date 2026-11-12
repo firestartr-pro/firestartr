@@ -1,7 +1,7 @@
 # Action schemas
 
 The existing `@firestartr/firestartr-claims_schemas` artifact publishes five
-draft-07 schemas through `actions` and `actions/*`:
+draft 2020-12 schemas through `actions` and `actions/*`:
 
 ```ts
 import { schemas } from '@firestartr/firestartr-claims_schemas/actions';
@@ -26,8 +26,12 @@ Both schema views are npm-only; there is no docs-repository promotion.
 ## Compatibility
 
 The action baseline is `prefapp/action-make-state-repos-dispatches` commit
-`a123c7c` (4.3.3). Three approved differences apply:
+`a123c7c` (4.3.3). Four approved differences apply:
 
+- Published schemas declare the claim dialect,
+  `$schema: https://json-schema.org/draft/2020-12/schema`, so consumers must
+  compile them with a 2020-12 validator (`ajv/dist/2020` for Ajv 8) instead of
+  the draft-07 default.
 - Registry `auth_strategy` retains the canonical enum: `aws_oidc`, `azure_oidc`,
   `generic`, `ghcr`, `dockerhub`, `none`, instead of any string.
 - Descriptive metadata is retained, but action JSON omits `$id` so both views

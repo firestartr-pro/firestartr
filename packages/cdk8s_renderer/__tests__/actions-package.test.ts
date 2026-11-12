@@ -1,7 +1,7 @@
 import { readFileSync, readdirSync, rmSync } from 'node:fs';
 import { join, resolve } from 'node:path';
 import { execFileSync } from 'node:child_process';
-import Ajv from 'ajv';
+import Ajv from 'ajv/dist/2020';
 import { schemas } from '../src/schemas/actions';
 
 test('producer publishes disjoint views without duplicate IDs', () => {
