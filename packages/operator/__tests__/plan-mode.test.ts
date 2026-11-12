@@ -521,6 +521,18 @@ describe('Plan mode: Terraform workspaces', () => {
 });
 
 describe('Plan mode: GitHub kinds', () => {
+  it('resolves references with destroy false for a forward plan', async () => {
+    const forwardHandler = handler();
+
+    await drain(
+      planGithubOperation(ghItem(), OperationType.UPDATED, forwardHandler),
+    );
+
+    expect(forwardHandler.resolveReferences).toHaveBeenCalledWith({
+      destroy: false,
+    });
+  });
+
   it('plans with the provisioner plan operation, never apply', async () => {
     await drain(planGithubOperation(ghItem(), OperationType.UPDATED, handler()));
 
@@ -539,9 +551,19 @@ describe('Plan mode: GitHub kinds', () => {
   });
 
   it('plans a destroy for CRs marked to deletion', async () => {
+    const destroyHandler = handler();
+
     await drain(
-      planGithubOperation(ghItem(), OperationType.MARKED_TO_DELETION, handler()),
+      planGithubOperation(
+        ghItem(),
+        OperationType.MARKED_TO_DELETION,
+        destroyHandler,
+      ),
     );
+
+    expect(destroyHandler.resolveReferences).toHaveBeenCalledWith({
+      destroy: true,
+    });
 
     expect(mockGh.mock.calls[0][1]).toMatchObject({
       planDestroy: true,

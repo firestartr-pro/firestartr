@@ -43,7 +43,9 @@ const readOnlyState: ReadOnlyStateSource = {
 };
 
 export type PlanDecision =
-  { plan: 'plan' | 'plan-destroy' } | { nothing: true } | { skip: string };
+  | { plan: 'plan' | 'plan-destroy' }
+  | { nothing: true }
+  | { skip: string };
 
 type Planner = (
   item: any,
@@ -223,7 +225,8 @@ const resolveGithubDependencies: DependencyResolver = async (
   handler,
   destroy,
 ) => {
-  const deps = await handler.resolveReferences();
+  // Like the live destroy: it needs no plaintext source Secrets
+  const deps = await handler.resolveReferences({ destroy });
 
   if (!destroy) {
     assertParentProvisioned(item, deps);
