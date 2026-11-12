@@ -1,4 +1,8 @@
-import { ResolverError, resolve } from '../src/resolver';
+import {
+  ResolverError,
+  resolve,
+  withoutPlaintextSecrets,
+} from '../src/resolver';
 import { getItemByItemPathMockFn, getSecretMockFn } from './fixtures/utils';
 
 describe('Resolver', () => {
@@ -421,5 +425,50 @@ describe('Resolver', () => {
       secret: undefined,
     });
     expect(getSecret).not.toHaveBeenCalled();
+  });
+
+  it('does not resolve plaintext secret sources when destroying an org secret section', async () => {
+    const providerRef = {
+      kind: 'FirestartrProviderConfig',
+      name: 'github',
+      secretRef: { kind: 'Secret', name: 'gh-creds', key: 'token' },
+    };
+    const cr = {
+      kind: 'FirestartrGithubOrganizationSecretSection',
+      metadata: { name: 'org-secrets', namespace: 'default' },
+      spec: {
+        provider: { ref: providerRef },
+        secrets: {
+          actions: [
+            {
+              name: 'TOKEN',
+              ref: { kind: 'Secret', name: 'gone', key: 'value' },
+            },
+          ],
+        },
+      },
+    };
+    const getItemByItemPath = jest.fn(async (itemPath: string) =>
+      itemPath.includes('/secrets/')
+        ? undefined
+        : {
+            kind: 'FirestartrProviderConfig',
+            metadata: { name: 'github', namespace: 'default' },
+            spec: {},
+          },
+    );
+    const getSecret = jest.fn(async () => undefined);
+
+    await expect(
+      resolve(cr, getItemByItemPath, getSecret),
+    ).rejects.toBeInstanceOf(ResolverError);
+
+    const deps = await resolve(
+      withoutPlaintextSecrets(cr),
+      getItemByItemPath,
+      getSecret,
+    );
+
+    expect(Object.keys(deps)).toEqual(['FirestartrProviderConfig-github']);
   });
 });

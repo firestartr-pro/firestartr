@@ -53,15 +53,11 @@ describe('OrgSettingsClaim schema', () => {
       expect(paths).toContain('providers.github.tfStateKey');
     });
 
-    it('does not derive org_secrets flags', () => {
+    it('derives org_secrets flags for each secret domain', () => {
       const paths = flags.map((f) => f.path);
-      expect(paths).not.toContain('providers.github.org_secrets.actions.json');
-      expect(paths).not.toContain(
-        'providers.github.org_secrets.codespaces.json',
-      );
-      expect(paths).not.toContain(
-        'providers.github.org_secrets.dependabot.json',
-      );
+      expect(paths).toContain('providers.github.org_secrets.actions.json');
+      expect(paths).toContain('providers.github.org_secrets.codespaces.json');
+      expect(paths).toContain('providers.github.org_secrets.dependabot.json');
     });
 
     it('does not derive system or owner flags', () => {
@@ -138,8 +134,7 @@ describe('OrgSettingsClaim schema', () => {
           'providers.github.default_repository_permission': 'write',
           'providers.github.members_can_create_repositories': true,
           'providers.github.secret_scanning_enabled_for_new_repositories': true,
-          'providers.github.dependabot_alerts_enabled_for_new_repositories':
-            true,
+          'providers.github.dependabot_alerts_enabled_for_new_repositories': true,
         },
         flags,
         ['providers'],
@@ -417,7 +412,7 @@ describe('OrgSettingsClaim schema', () => {
       expect(result.valid).toBe(true);
     });
 
-    it('fails for org_secrets because they are not part of this schema', async () => {
+    it('passes for org_secrets with valid entries', async () => {
       const claim = {
         name: 'test',
         kind: 'OrgSettingsClaim',
@@ -435,6 +430,73 @@ describe('OrgSettingsClaim schema', () => {
                 },
               ],
             },
+          },
+        },
+      };
+      const result = await validator.validate(claim, 'OrgSettingsClaim');
+      expect(result.valid).toBe(true);
+    });
+
+    it('fails for org_secrets entries without a value', async () => {
+      const claim = {
+        name: 'test',
+        kind: 'OrgSettingsClaim',
+        providers: {
+          github: {
+            name: 'test',
+            org: 'my-org',
+            billing_email: 'test@example.com',
+            org_secrets: {
+              codespaces: [{ name: 'SEC', visibility: 'all' }],
+            },
+          },
+        },
+      };
+      const result = await validator.validate(claim, 'OrgSettingsClaim');
+      expect(result.valid).toBe(false);
+    });
+
+    it.each([
+      [
+        'a name with a hyphen',
+        { name: 'BAD-NAME', value: 'ref:secretsclaim:a:b', visibility: 'all' },
+      ],
+      [
+        'an empty name',
+        { name: '', value: 'ref:secretsclaim:a:b', visibility: 'all' },
+      ],
+      [
+        'selected visibility without repositories',
+        { name: 'SEC', value: 'ref:secretsclaim:a:b', visibility: 'selected' },
+      ],
+      [
+        'repositories without selected visibility',
+        {
+          name: 'SEC',
+          value: 'ref:secretsclaim:a:b',
+          visibility: 'all',
+          selected_repositories: ['component:my-component'],
+        },
+      ],
+      [
+        'selected repository that is not a component ref',
+        {
+          name: 'SEC',
+          value: 'ref:secretsclaim:a:b',
+          visibility: 'selected',
+          selected_repositories: ['my-component'],
+        },
+      ],
+    ])('fails for org_secrets with %s', async (_label, entry) => {
+      const claim = {
+        name: 'test',
+        kind: 'OrgSettingsClaim',
+        providers: {
+          github: {
+            name: 'test',
+            org: 'my-org',
+            billing_email: 'test@example.com',
+            org_secrets: { actions: [entry] },
           },
         },
       };
@@ -461,7 +523,6 @@ describe('OrgSettingsClaim schema', () => {
       expect(result.valid).toBe(false);
     });
   });
-
 });
 
 describe('create orgsettings command', () => {

@@ -951,6 +951,30 @@
           "multiple": false,
           "type": "option"
         },
+        "providers.github.org_secrets.actions.json": {
+          "description": "Raw JSON value for providers.github.org_secrets.actions (escape hatch for complex arrays)",
+          "name": "providers.github.org_secrets.actions.json",
+          "required": false,
+          "hasDynamicHelp": false,
+          "multiple": false,
+          "type": "option"
+        },
+        "providers.github.org_secrets.codespaces.json": {
+          "description": "Raw JSON value for providers.github.org_secrets.codespaces (escape hatch for complex arrays)",
+          "name": "providers.github.org_secrets.codespaces.json",
+          "required": false,
+          "hasDynamicHelp": false,
+          "multiple": false,
+          "type": "option"
+        },
+        "providers.github.org_secrets.dependabot.json": {
+          "description": "Raw JSON value for providers.github.org_secrets.dependabot (escape hatch for complex arrays)",
+          "name": "providers.github.org_secrets.dependabot.json",
+          "required": false,
+          "hasDynamicHelp": false,
+          "multiple": false,
+          "type": "option"
+        },
         "providers.github.orgName": {
           "description": "Organization name on GitHub (required when its parent is supplied)",
           "name": "providers.github.orgName",
@@ -3800,6 +3824,30 @@
           "multiple": false,
           "type": "option"
         },
+        "providers.github.org_secrets.actions.json": {
+          "description": "Raw JSON value for providers.github.org_secrets.actions (escape hatch for complex arrays)",
+          "name": "providers.github.org_secrets.actions.json",
+          "required": false,
+          "hasDynamicHelp": false,
+          "multiple": false,
+          "type": "option"
+        },
+        "providers.github.org_secrets.codespaces.json": {
+          "description": "Raw JSON value for providers.github.org_secrets.codespaces (escape hatch for complex arrays)",
+          "name": "providers.github.org_secrets.codespaces.json",
+          "required": false,
+          "hasDynamicHelp": false,
+          "multiple": false,
+          "type": "option"
+        },
+        "providers.github.org_secrets.dependabot.json": {
+          "description": "Raw JSON value for providers.github.org_secrets.dependabot (escape hatch for complex arrays)",
+          "name": "providers.github.org_secrets.dependabot.json",
+          "required": false,
+          "hasDynamicHelp": false,
+          "multiple": false,
+          "type": "option"
+        },
         "profile.displayName": {
           "name": "profile.displayName",
           "required": false,
@@ -3917,7 +3965,7 @@
       "pluginName": "@firestartr/fs-forge-cli",
       "pluginType": "core",
       "strict": true,
-      "summary": "Configure GitHub organization settings and variables.",
+      "summary": "Configure GitHub organization settings, variables, and secrets.",
       "enableJsonFlag": false,
       "FLAG_SPECS": [
         {
@@ -4155,6 +4203,27 @@
           "type": "string",
           "required": false,
           "description": "Raw JSON value for providers.github.actions_variables (escape hatch for complex arrays)",
+          "multiple": false
+        },
+        {
+          "path": "providers.github.org_secrets.actions.json",
+          "type": "string",
+          "required": false,
+          "description": "Raw JSON value for providers.github.org_secrets.actions (escape hatch for complex arrays)",
+          "multiple": false
+        },
+        {
+          "path": "providers.github.org_secrets.codespaces.json",
+          "type": "string",
+          "required": false,
+          "description": "Raw JSON value for providers.github.org_secrets.codespaces (escape hatch for complex arrays)",
+          "multiple": false
+        },
+        {
+          "path": "providers.github.org_secrets.dependabot.json",
+          "type": "string",
+          "required": false,
+          "description": "Raw JSON value for providers.github.org_secrets.dependabot (escape hatch for complex arrays)",
           "multiple": false
         },
         {
@@ -6071,47 +6140,6 @@
         "show.js"
       ]
     },
-    "diagram:print": {
-      "aliases": [],
-      "args": {},
-      "description": "Render an arbitrary relation graph (nodes/edges JSON) as a tree, using the same graphics as `discovery map`",
-      "examples": [
-        "<%= config.bin %> <%= command.id %> --file graph.json",
-        "cat graph.json | <%= config.bin %> <%= command.id %>",
-        "<%= config.bin %> <%= command.id %> --file graph.json --ascii"
-      ],
-      "flags": {
-        "file": {
-          "char": "f",
-          "description": "Path to a JSON file with a relation graph ({ nodes, edges }); reads stdin if omitted",
-          "name": "file",
-          "hasDynamicHelp": false,
-          "multiple": false,
-          "type": "option"
-        },
-        "ascii": {
-          "description": "Use ASCII icons instead of emoji",
-          "name": "ascii",
-          "allowNo": false,
-          "type": "boolean"
-        }
-      },
-      "hasDynamicHelp": false,
-      "hiddenAliases": [],
-      "id": "diagram:print",
-      "pluginAlias": "@firestartr/fs-forge-cli",
-      "pluginName": "@firestartr/fs-forge-cli",
-      "pluginType": "core",
-      "strict": true,
-      "enableJsonFlag": false,
-      "isESM": true,
-      "relativePath": [
-        "dist",
-        "commands",
-        "diagram",
-        "print.js"
-      ]
-    },
     "discovery:map": {
       "aliases": [],
       "args": {},
@@ -6272,6 +6300,47 @@
         "commands",
         "discovery",
         "org-elements.js"
+      ]
+    },
+    "diagram:print": {
+      "aliases": [],
+      "args": {},
+      "description": "Render an arbitrary relation graph (nodes/edges JSON) as a tree, using the same graphics as `discovery map`",
+      "examples": [
+        "<%= config.bin %> <%= command.id %> --file graph.json",
+        "cat graph.json | <%= config.bin %> <%= command.id %>",
+        "<%= config.bin %> <%= command.id %> --file graph.json --ascii"
+      ],
+      "flags": {
+        "file": {
+          "char": "f",
+          "description": "Path to a JSON file with a relation graph ({ nodes, edges }); reads stdin if omitted",
+          "name": "file",
+          "hasDynamicHelp": false,
+          "multiple": false,
+          "type": "option"
+        },
+        "ascii": {
+          "description": "Use ASCII icons instead of emoji",
+          "name": "ascii",
+          "allowNo": false,
+          "type": "boolean"
+        }
+      },
+      "hasDynamicHelp": false,
+      "hiddenAliases": [],
+      "id": "diagram:print",
+      "pluginAlias": "@firestartr/fs-forge-cli",
+      "pluginName": "@firestartr/fs-forge-cli",
+      "pluginType": "core",
+      "strict": true,
+      "enableJsonFlag": false,
+      "isESM": true,
+      "relativePath": [
+        "dist",
+        "commands",
+        "diagram",
+        "print.js"
       ]
     },
     "features:add": {
@@ -6942,6 +7011,66 @@
         "remove.js"
       ]
     },
+    "kinds:show": {
+      "aliases": [],
+      "args": {
+        "kind": {
+          "description": "Claim kind (short ID; full *Claim names remain supported)",
+          "name": "kind",
+          "options": [
+            "argodeploy",
+            "ArgoDeployClaim",
+            "component",
+            "ComponentClaim",
+            "domain",
+            "DomainClaim",
+            "group",
+            "GroupClaim",
+            "orgsettings",
+            "OrgSettingsClaim",
+            "orgwebhook",
+            "OrgWebhookClaim",
+            "secrets",
+            "SecretsClaim",
+            "system",
+            "SystemClaim",
+            "tfworkspace",
+            "TFWorkspaceClaim",
+            "user",
+            "UserClaim"
+          ],
+          "required": true
+        }
+      },
+      "description": "Show what one claim kind supports",
+      "examples": [
+        "<%= config.bin %> <%= command.id %> component",
+        "<%= config.bin %> <%= command.id %> ComponentClaim --json"
+      ],
+      "flags": {
+        "json": {
+          "description": "Output as JSON",
+          "name": "json",
+          "allowNo": false,
+          "type": "boolean"
+        }
+      },
+      "hasDynamicHelp": false,
+      "hiddenAliases": [],
+      "id": "kinds:show",
+      "pluginAlias": "@firestartr/fs-forge-cli",
+      "pluginName": "@firestartr/fs-forge-cli",
+      "pluginType": "core",
+      "strict": true,
+      "enableJsonFlag": false,
+      "isESM": true,
+      "relativePath": [
+        "dist",
+        "commands",
+        "kinds",
+        "show.js"
+      ]
+    },
     "schema:list": {
       "aliases": [],
       "args": {},
@@ -7002,66 +7131,6 @@
         "dist",
         "commands",
         "schema",
-        "show.js"
-      ]
-    },
-    "kinds:show": {
-      "aliases": [],
-      "args": {
-        "kind": {
-          "description": "Claim kind (short ID; full *Claim names remain supported)",
-          "name": "kind",
-          "options": [
-            "argodeploy",
-            "ArgoDeployClaim",
-            "component",
-            "ComponentClaim",
-            "domain",
-            "DomainClaim",
-            "group",
-            "GroupClaim",
-            "orgsettings",
-            "OrgSettingsClaim",
-            "orgwebhook",
-            "OrgWebhookClaim",
-            "secrets",
-            "SecretsClaim",
-            "system",
-            "SystemClaim",
-            "tfworkspace",
-            "TFWorkspaceClaim",
-            "user",
-            "UserClaim"
-          ],
-          "required": true
-        }
-      },
-      "description": "Show what one claim kind supports",
-      "examples": [
-        "<%= config.bin %> <%= command.id %> component",
-        "<%= config.bin %> <%= command.id %> ComponentClaim --json"
-      ],
-      "flags": {
-        "json": {
-          "description": "Output as JSON",
-          "name": "json",
-          "allowNo": false,
-          "type": "boolean"
-        }
-      },
-      "hasDynamicHelp": false,
-      "hiddenAliases": [],
-      "id": "kinds:show",
-      "pluginAlias": "@firestartr/fs-forge-cli",
-      "pluginName": "@firestartr/fs-forge-cli",
-      "pluginType": "core",
-      "strict": true,
-      "enableJsonFlag": false,
-      "isESM": true,
-      "relativePath": [
-        "dist",
-        "commands",
-        "kinds",
         "show.js"
       ]
     }

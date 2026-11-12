@@ -188,10 +188,7 @@ describe('pullRequestPlan', () => {
   });
 
   it('plans GitHub organization settings with gh_provisioner', async () => {
-    const cr = resource(
-      'FirestartrGithubOrganizationSettings',
-      'org-settings',
-    );
+    const cr = resource('FirestartrGithubOrganizationSettings', 'org-settings');
 
     githubMock.pulls.getPrFiles.mockResolvedValue({
       data: [{ filename: 'org-settings.yaml', status: 'modified' }],
@@ -216,6 +213,44 @@ describe('pullRequestPlan', () => {
       true,
       'plan',
       'org-settings.yaml',
+    );
+  });
+
+  it('plans GitHub organization secret sections with gh_provisioner', async () => {
+    const cr = resource(
+      'FirestartrGithubOrganizationSecretSection',
+      'org-secrets',
+    );
+
+    githubMock.pulls.getPrFiles.mockResolvedValue({
+      data: [{ filename: 'org-secrets.yaml', status: 'modified' }],
+    });
+    githubMock.repo.getContent.mockResolvedValue(JSON.stringify(cr));
+
+    await pullRequestPlan(opts);
+
+    expect(ghProvisioner.runGhProvisioner).toHaveBeenCalledWith(
+      {
+        mainCr: cr,
+        deps: withSelfOutputs({ dep: true }),
+      },
+      { plan: true },
+    );
+    expect(publishPlan).toHaveBeenCalledWith(
+      cr,
+      'plan output',
+      42,
+      'state-github',
+      'prefapp',
+      true,
+      'plan',
+      'org-secrets.yaml',
+    );
+    expect(addPlanStatusCheck).toHaveBeenLastCalledWith(
+      'prefapp/state-github#42',
+      expect.stringContaining('Skipped files: 0'),
+      'completed',
+      false,
     );
   });
 
@@ -432,7 +467,10 @@ describe('pullRequestPlan', () => {
     await pullRequestPlan(opts);
 
     const addPlanStatusCheckMock = addPlanStatusCheck as jest.Mock;
-    const [, summary] = addPlanStatusCheckMock.mock.calls[addPlanStatusCheckMock.mock.calls.length - 1];
+    const [, summary] =
+      addPlanStatusCheckMock.mock.calls[
+        addPlanStatusCheckMock.mock.calls.length - 1
+      ];
 
     expect(summary).toContain('omitted detail lines: 6');
     expect(summary).toMatch(
@@ -604,7 +642,11 @@ describe('pullRequestPlan', () => {
       },
       { plan: true },
     );
-    expect(resolveSecretRef).toHaveBeenCalledWith('default', feature, getSecret);
+    expect(resolveSecretRef).toHaveBeenCalledWith(
+      'default',
+      feature,
+      getSecret,
+    );
     expect(
       (getItemByItemPath as jest.Mock).mock.calls.map(([path]) => path),
     ).not.toContain('default/githubrepositories/repo-a');

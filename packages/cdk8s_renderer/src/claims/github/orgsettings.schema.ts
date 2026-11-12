@@ -129,6 +129,30 @@ const organizationSettingsProperties = {
       ],
     },
   },
+  org_secrets: {
+    type: 'object',
+    properties: {
+      actions: {
+        type: 'array',
+        items: {
+          $ref: 'firestartr.dev://github/GithubOrgClaimSecret',
+        },
+      },
+      codespaces: {
+        type: 'array',
+        items: {
+          $ref: 'firestartr.dev://github/GithubOrgClaimSecret',
+        },
+      },
+      dependabot: {
+        type: 'array',
+        items: {
+          $ref: 'firestartr.dev://github/GithubOrgClaimSecret',
+        },
+      },
+    },
+    additionalProperties: false,
+  },
 };
 
 export default {

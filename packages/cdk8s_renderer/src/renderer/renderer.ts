@@ -17,6 +17,11 @@ import {
   validateGithubOrgVariableSectionSingleton,
   validateActionsVariablesUniqueness,
 } from '../validations/githubOrgVariableSection';
+import {
+  validateGithubOrgSecretSectionSingleton,
+  validateSecretNamesUniqueness,
+  validateOrgSecretsCrossReferences,
+} from '../validations/githubOrgSecretSection';
 
 /*
  * Function called when rendering but not importing
@@ -54,9 +59,12 @@ export async function render(
     validateComponentPagesPath(data.renderClaims);
     validateClaimRefOwnership(data.fullCrs, result);
     validateTfStateKeyUniqueness(fullCrSet);
+    validateOrgSecretsCrossReferences(data.renderClaims);
     validateGithubOrgSettingsSingleton(fullCrSet);
     validateGithubOrgVariableSectionSingleton(fullCrSet);
     validateActionsVariablesUniqueness(result);
+    validateGithubOrgSecretSectionSingleton(fullCrSet);
+    validateSecretNamesUniqueness(result);
     validateCrSizes(result);
     validatePermissionsUniqueness(result);
     validateNoBackstageAnnotationsInK8sCrs(result);

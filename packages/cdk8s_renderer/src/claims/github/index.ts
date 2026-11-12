@@ -16,6 +16,8 @@ import GithubComponentClaimLabels from './component.labels.schema';
 
 import GithubPagesSchema from './pages.schema';
 
+import GithubOrgSecretsClaimSchema from './orgSecrets.schema';
+
 export const GithubSchemas = [
   GithubTeamClaimSchema,
 
@@ -34,4 +36,6 @@ export const GithubSchemas = [
   GithubComponentClaimLabels,
 
   GithubPagesSchema,
+
+  GithubOrgSecretsClaimSchema,
 ];
