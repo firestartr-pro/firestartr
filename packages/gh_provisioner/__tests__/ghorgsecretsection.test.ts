@@ -1,8 +1,12 @@
 import { initSystemFS } from '../src';
 
 import path from 'path';
+import { createHash } from 'crypto';
 
 import { EntityGHOrgSecretSection } from '../src/entities/ghorgsecretsection';
+
+const sha256 = (plaintext: string) =>
+  createHash('sha256').update(plaintext).digest('hex');
 
 jest.mock('github', () => ({
   __esModule: true,
@@ -74,9 +78,9 @@ describe('EntityGHOrgSecretSection entity', () => {
       });
       expect(doc.config.dependabot).toEqual({});
 
-      expect(doc.config.actions_sha256.SECRET_A).toMatch(/^[a-f0-9]{64}$/);
-      expect(doc.config.actions_sha256.SECRET_B).toMatch(/^[a-f0-9]{64}$/);
-      expect(doc.config.codespaces_sha256.SECRET_C).toMatch(/^[a-f0-9]{64}$/);
+      expect(doc.config.actions_sha256.SECRET_A).toBe(sha256('secret_a'));
+      expect(doc.config.actions_sha256.SECRET_B).toBe(sha256('secret_b'));
+      expect(doc.config.codespaces_sha256.SECRET_C).toBe(sha256('secret_c'));
       expect(doc.config.dependabot_sha256).toEqual({});
     });
 
@@ -215,11 +219,36 @@ describe('EntityGHOrgSecretSection entity', () => {
       });
     });
 
-    it('imports only the secret resource for a selected-visibility secret', async () => {
+    it('imports the secret and its repository binding when both sides are selected', async () => {
       setupResolveSelfOutputs(undefined);
       mockGetOrgSecret.mockImplementation(
         async (_org: string, _section: string, name: string) => {
-          if (name === 'SECRET_B') return { name };
+          if (name === 'SECRET_B') return { name, visibility: 'selected' };
+          return null;
+        },
+      );
+
+      await entity.loadResources('apply');
+
+      expect(entity.importDocument).toStrictEqual({
+        imports: [
+          {
+            to: 'github_actions_organization_secret.this["SECRET_B"]',
+            id: 'SECRET_B',
+          },
+          {
+            to: 'github_actions_organization_secret_repositories.this["SECRET_B"]',
+            id: 'SECRET_B',
+          },
+        ],
+      });
+    });
+
+    it('imports only the secret when the existing GitHub secret is not selected', async () => {
+      setupResolveSelfOutputs(undefined);
+      mockGetOrgSecret.mockImplementation(
+        async (_org: string, _section: string, name: string) => {
+          if (name === 'SECRET_B') return { name, visibility: 'all' };
           return null;
         },
       );
@@ -234,18 +263,6 @@ describe('EntityGHOrgSecretSection entity', () => {
           },
         ],
       });
-
-      const importTargets = entity.importDocument.imports.map(
-        (entry: { to: string }) => entry.to,
-      );
-      expect(importTargets).toStrictEqual([
-        'github_actions_organization_secret.this["SECRET_B"]',
-      ]);
-      expect(
-        importTargets.some((target: string) =>
-          target.includes('_organization_secret_repositories'),
-        ),
-      ).toBe(false);
     });
 
     it('imports a new-to-module secret found on GitHub', async () => {

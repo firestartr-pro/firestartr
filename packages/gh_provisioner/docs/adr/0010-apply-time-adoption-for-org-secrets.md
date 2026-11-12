@@ -11,4 +11,11 @@ two scopes are not confused.
 
 That narrowing depends on the module's per-domain self-outputs
 (`actions_secret_names`, `codespaces_secret_names`, `dependabot_secret_names`),
-which the revision pinned in `src/terraform.ts` exposes.
+which the revision pinned in `src/terraform.ts` exposes. The combined
+`managed_secrets` output is not used: a name managed in one secret type would
+count as managed in the others.
+
+For Actions and Dependabot, a secret with `visibility: selected` keeps its
+repository list in a separate `github_<type>_organization_secret_repositories`
+resource. Adoption imports it too when the existing GitHub secret is already
+`selected`. Codespaces keeps the list inline on the secret.
