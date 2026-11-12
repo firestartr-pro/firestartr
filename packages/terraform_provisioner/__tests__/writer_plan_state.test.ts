@@ -7,6 +7,7 @@ import {
   PLAN_BACKEND_OVERRIDE_FILE,
   PLAN_STATE_FILE,
   WriterPlanState,
+  listsAbsentSnapshotState,
   plansAgainstLiveBackend,
 } from '../src/writer_plan_state';
 
@@ -94,5 +95,38 @@ describe('plansAgainstLiveBackend', () => {
     });
 
     await expect(writer.render()).rejects.toThrow(/needs a kubernetes backend/);
+  });
+});
+
+describe('listsAbsentSnapshotState', () => {
+  async function workspaceWith(secret: any): Promise<string> {
+    const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'plan-state-list-'));
+    const writer = new WriterPlanState(BACKEND, 'ws-key', {
+      readKubernetesSecret: async () => secret,
+    });
+
+    await writer.render();
+    writer.writeToTerraformProject(dir);
+
+    return dir;
+  }
+
+  it('lists an empty state when the live state does not exist', async () => {
+    const dir = await workspaceWith(null);
+
+    expect(listsAbsentSnapshotState(dir, ['state', 'list'])).toBe(true);
+    expect(listsAbsentSnapshotState(dir, ['state', 'rm', 'x'])).toBe(false);
+  });
+
+  it('runs state list against an existing snapshot', async () => {
+    const dir = await workspaceWith(secretWith(STATE));
+
+    expect(listsAbsentSnapshotState(dir, ['state', 'list'])).toBe(false);
+  });
+
+  it('never applies to a workspace planned against a live backend', () => {
+    const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'plan-state-list-'));
+
+    expect(listsAbsentSnapshotState(dir, ['state', 'list'])).toBe(false);
   });
 });

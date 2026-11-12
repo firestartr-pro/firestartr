@@ -30,6 +30,23 @@ export function plansAgainstLiveBackend(backend: any): boolean {
 }
 
 /**
+ * True for `state list` in a read-only workspace whose snapshot is absent:
+ * the live state is confirmed not to exist (its Secret is not found), so the
+ * list is empty. OpenTofu itself fails there with "No state file was found".
+ */
+export function listsAbsentSnapshotState(
+  projectPath: string,
+  args: string[],
+): boolean {
+  return (
+    args[0] === 'state' &&
+    args[1] === 'list' &&
+    fs.existsSync(path.join(projectPath, PLAN_BACKEND_OVERRIDE_FILE)) &&
+    !fs.existsSync(path.join(projectPath, PLAN_STATE_FILE))
+  );
+}
+
+/**
  * Points the workspace at a local, owner-only snapshot of the live state
  * (none when the state does not exist yet) instead of its remote backend.
  */

@@ -13,7 +13,11 @@ import { WriterTerraform } from './writer_terraform';
 import { WriterTfVarsJson } from './writer_tfvars_json';
 import { WriterProviderJson } from './writer_provider_tf_json';
 import { WriterImports } from './writer_imports';
-import { WriterPlanState, plansAgainstLiveBackend } from './writer_plan_state';
+import {
+  WriterPlanState,
+  listsAbsentSnapshotState,
+  plansAgainstLiveBackend,
+} from './writer_plan_state';
 
 import common from 'catalog_common';
 import { spawn } from 'child_process';
@@ -363,6 +367,12 @@ export class TFProjectManagerRemote {
 
     if (this.customArgs.length < 1) {
       throw new Error('Error in customCommand: there are no customArgs to run');
+    }
+
+    if (listsAbsentSnapshotState(this.projectPath, this.customArgs)) {
+      if (this.stream) this.stream.end();
+
+      return;
     }
 
     this.tfOutput += await customCommand(

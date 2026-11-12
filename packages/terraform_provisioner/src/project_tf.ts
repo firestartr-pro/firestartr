@@ -10,7 +10,11 @@ import {
 } from './utils';
 import { WriterAdditionalFiles } from './writer_additional_files';
 import { WriterImports } from './writer_imports';
-import { WriterPlanState, plansAgainstLiveBackend } from './writer_plan_state';
+import {
+  WriterPlanState,
+  listsAbsentSnapshotState,
+  plansAgainstLiveBackend,
+} from './writer_plan_state';
 import { WriterMainTf } from './writer_main_tf';
 import { WriterProviderJson } from './writer_provider_tf_json';
 import { WriterTfVarsJson } from './writer_tfvars_json';
@@ -443,6 +447,12 @@ export class TFProjectManager {
 
     if (this.customArgs.length < 1) {
       throw new Error('Error in customCommand: there are no customArgs to run');
+    }
+
+    if (listsAbsentSnapshotState(this.projectPath, this.customArgs)) {
+      if (this.stream) this.stream.end();
+
+      return;
     }
 
     this.tfOutput += await customCommand(
