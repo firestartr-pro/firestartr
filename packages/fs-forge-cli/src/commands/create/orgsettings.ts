@@ -253,6 +253,30 @@ export default class CreateOrgSettings extends Command {
       multiple: false,
     },
     {
+      path: 'providers.github.org_secrets.actions.json',
+      type: 'string',
+      required: false,
+      description:
+        'Raw JSON value for providers.github.org_secrets.actions (escape hatch for complex arrays)',
+      multiple: false,
+    },
+    {
+      path: 'providers.github.org_secrets.codespaces.json',
+      type: 'string',
+      required: false,
+      description:
+        'Raw JSON value for providers.github.org_secrets.codespaces (escape hatch for complex arrays)',
+      multiple: false,
+    },
+    {
+      path: 'providers.github.org_secrets.dependabot.json',
+      type: 'string',
+      required: false,
+      description:
+        'Raw JSON value for providers.github.org_secrets.dependabot (escape hatch for complex arrays)',
+      multiple: false,
+    },
+    {
       path: 'profile.displayName',
       type: 'string',
       required: false,
@@ -279,7 +303,8 @@ export default class CreateOrgSettings extends Command {
     },
   ] as unknown as FlagSpec[];
 
-  static summary = 'Configure GitHub organization settings and variables.';
+  static summary =
+    'Configure GitHub organization settings, variables, and secrets.';
 
   static description = 'Create a new OrgSettingsClaim.';
 

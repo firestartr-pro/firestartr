@@ -183,31 +183,14 @@ describe("A component", () => {
         app.synth()
         catalogApp.synth()
 
-        expect(
-            
-            await context.testRenderedCR(
+        const renderedCr = await context.getRenderedCR(
+            'FirestartrGithubRepository',
+            'component-a',
+            outDirPath,
+        )
 
-                'FirestartrGithubRepository', 
-
-                'component-a', 
-
-                {
-                    op: "test", 
-
-                    path: '/spec/vars',
-
-                    value: {}
-
-
-                },
-
-                outDirPath
-
-
-            )
-
-        ).toEqual(true)
-                                 
+        expect(renderedCr).toBeDefined()
+        expect((context.fromYaml(renderedCr as string) as any).spec.vars).toBeUndefined()
     })
 
 })

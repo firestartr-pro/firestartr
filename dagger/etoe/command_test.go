@@ -100,8 +100,10 @@ func TestBootOperatorScriptLeavesChartKindListUntouched(t *testing.T) {
 	}
 
 	// The boot script must append e2e-required kinds to the ConfigMap.
-	if !strings.Contains(script, "githuborganizationvariablesections") {
-		t.Fatalf("boot script does not append githuborganizationvariablesections to the kind list:\n%s", script)
+	for _, kind := range []string{"githuborganizationvariablesections", "githuborganizationsecretsections"} {
+		if !strings.Contains(script, kind) {
+			t.Fatalf("boot script does not append %s to the kind list:\n%s", kind, script)
+		}
 	}
 }
 

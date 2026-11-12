@@ -36,6 +36,26 @@ export interface IGithubOrgSettingsClaim extends IOrgSettingsClaim {
         visibility: 'all' | 'private' | 'selected';
         selected_repositories?: string[];
       }[];
+      org_secrets?: {
+        actions?: {
+          name: string;
+          value: string;
+          visibility?: 'all' | 'private' | 'selected';
+          selected_repositories?: string[];
+        }[];
+        codespaces?: {
+          name: string;
+          value: string;
+          visibility?: 'all' | 'private' | 'selected';
+          selected_repositories?: string[];
+        }[];
+        dependabot?: {
+          name: string;
+          value: string;
+          visibility?: 'all' | 'private' | 'selected';
+          selected_repositories?: string[];
+        }[];
+      };
     };
   };
 }

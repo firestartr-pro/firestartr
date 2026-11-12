@@ -105,3 +105,13 @@ _Avoid_: destination, target path, conflict key
 **Overwrite protection**:
 The stitching guarantee that governs conflicts between a feature claim-patch and a value already declared by the user or by `claims_defaults.yaml`. The raw claim is retained as the source of truth for what the user declared. For array appends (`add ... /-`, e.g. labels), the declared array value wins and the feature patch is silently dropped. For non-array paths the user declared in the raw claim, the feature patch cannot write: the stitching engine rejects it with `user-declared-path`. A feature patch may only overwrite a non-array value that exists solely via `claims_defaults.yaml` (absent from the raw claim), and then the patch wins. A `replace`/`remove` targeting an absent path is rejected.
 _Avoid_: overwrite guard, user-intent protection
+
+**Actions secrets (org-level)**:
+A list of GitHub Actions organization-level secrets declared under
+`providers.github.org_secrets.actions` in an `OrgSettingsClaim`. Each entry has a
+`name` and a `value` that is always a reference to an upstream `SecretsClaim`.
+The chart resolves references and produces a
+`FirestartrGithubOrganizationSecretSection` CR — at most one per org per render
+pass. The `org_secrets` object also contains `codespaces` and `dependabot` sections
+with identical structure.
+_Avoid_: org secrets, github secrets

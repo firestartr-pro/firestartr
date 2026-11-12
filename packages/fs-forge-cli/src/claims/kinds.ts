@@ -23,7 +23,7 @@ export const CLAIM_KINDS = {
   OrgSettingsClaim: {
     id: 'orgsettings',
     icon: { emoji: '🏢', ascii: '[ORG]' },
-    summary: 'Configure GitHub organization settings and variables.',
+    summary: 'Configure GitHub organization settings, variables, and secrets.',
   },
   OrgWebhookClaim: {
     id: 'orgwebhook',

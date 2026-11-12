@@ -110,7 +110,40 @@ function validateOrgSettingsComponentRefs(
   renderClaims: RenderClaims,
 ): void {
   const claim = renderClaims[ref].claim;
+
+  validateOrgSecretsSelectedRepositories(claim, renderClaims);
   validateActionsVariablesSelectedRepositories(claim, renderClaims);
+}
+
+function validateOrgSecretsSelectedRepositories(
+  claim: any,
+  renderClaims: RenderClaims,
+): void {
+  const orgSecrets = claim?.providers?.github?.org_secrets;
+  if (!orgSecrets || typeof orgSecrets !== 'object') return;
+
+  for (const section of ['actions', 'codespaces', 'dependabot']) {
+    const secrets = orgSecrets[section];
+    if (!Array.isArray(secrets)) continue;
+
+    for (const secret of secrets) {
+      if (!secret.selected_repositories) continue;
+
+      for (const repoRef of secret.selected_repositories) {
+        const match = repoRef.match(COMPONENT_REF_PATTERN);
+        if (!match) continue;
+
+        const [, componentName] = match;
+        const expectedKey = `ComponentClaim-${componentName}`;
+
+        if (!renderClaims[expectedKey]) {
+          throw new Error(
+            `CrossReference error: OrgSettingsClaim/${claim.name} references a non-existent component "${componentName}" in org_secrets.${section}.${secret.name}.selected_repositories`,
+          );
+        }
+      }
+    }
+  }
 }
 
 function validateActionsVariablesSelectedRepositories(

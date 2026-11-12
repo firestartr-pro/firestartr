@@ -17,8 +17,14 @@ import {
 } from './src/auth';
 
 import { encryptRepoSecret, getRepoPublicKey } from './src/encrypt';
+import {
+  getOrgPublicKey,
+  encryptOrgSecret,
+  getOrgSecret,
+} from './src/orgSecrets';
 
 import type { RepoSecretsSection } from './src/encrypt';
+import type { OrgSecretsSection } from './src/orgSecrets';
 import type {
   WorkflowCompletionResult,
   WorkflowDispatchInputs,
@@ -53,12 +59,16 @@ export default {
   encryption: {
     encryptRepoSecret,
     getRepoPublicKey,
+    getOrgPublicKey,
+    encryptOrgSecret,
+    getOrgSecret,
   },
   withProfile,
   createProfile,
 };
 
-export { RepoSecretsSection, createProfile };
+export { createProfile };
+export type { RepoSecretsSection, OrgSecretsSection };
 export type {
   WorkflowCompletionResult,
   WorkflowDispatchInputs,
