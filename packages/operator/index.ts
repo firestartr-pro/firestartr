@@ -235,7 +235,7 @@ export function runOperator(opts: any) {
   })();
 }
 
-const planImplementations = {
+export const planImplementations = {
   terraformworkspaces: planTerraformOperation,
   githubgroups: planGithubOperation,
   githubrepositories: planGithubOperation,
@@ -245,12 +245,13 @@ const planImplementations = {
   githuborgwebhooks: planGithubOperation,
   githuborganizationsettings: planGithubOperation,
   githuborganizationvariablesections: planGithubOperation,
+  githuborganizationsecretsections: planGithubOperation,
   fsdummiesa: planUnsupportedOperation,
   fsdummiesb: planUnsupportedOperation,
   fsdummiesc: planUnsupportedOperation,
 };
 
-const provisionImplementations = {
+export const provisionImplementations = {
   terraformworkspaces: processOperationTerraform,
   githubgroups: processOperationGH,
   githubrepositories: processOperationGH,
