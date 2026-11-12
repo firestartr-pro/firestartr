@@ -18,12 +18,15 @@ export type ReadOnlyStateSource = {
 };
 
 /**
- * Only the kubernetes backend writes a Lease and an empty state on init, so
- * only it is planned against a snapshot. Every other backend the operator
- * supports is planned through the live backend with `-lock=false` (ADR 0013).
+ * Backends whose `init` and `plan -lock=false` never write state, so a
+ * read-only plan can go through them directly. The kubernetes backend is
+ * snapshotted instead; any other backend (azurerm leases the blob and writes
+ * an empty state when it is absent) is refused in Plan mode (ADR 0013).
  */
+const LIVE_PLANNABLE_BACKENDS = ['aws'];
+
 export function plansAgainstLiveBackend(backend: any): boolean {
-  return !!backend && !('kubernetes' in backend);
+  return !!backend && LIVE_PLANNABLE_BACKENDS.some((type) => type in backend);
 }
 
 /**

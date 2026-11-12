@@ -80,10 +80,19 @@ describe('WriterPlanState', () => {
 });
 
 describe('plansAgainstLiveBackend', () => {
-  it('snapshots only kubernetes backends', () => {
+  it('plans only through the aws backend live', () => {
     expect(plansAgainstLiveBackend({ aws: { config: {} } })).toBe(true);
-    expect(plansAgainstLiveBackend({ azurerm: { config: {} } })).toBe(true);
+    expect(plansAgainstLiveBackend({ azurerm: { config: {} } })).toBe(false);
+    expect(plansAgainstLiveBackend({ gcs: { config: {} } })).toBe(false);
     expect(plansAgainstLiveBackend({ kubernetes: { config: {} } })).toBe(false);
     expect(plansAgainstLiveBackend(undefined)).toBe(false);
+  });
+
+  it('refuses an azurerm backend instead of initializing it', async () => {
+    const writer = new WriterPlanState({ azurerm: { config: {} } }, 'ws-key', {
+      readKubernetesSecret: async () => null,
+    });
+
+    await expect(writer.render()).rejects.toThrow(/needs a kubernetes backend/);
   });
 });

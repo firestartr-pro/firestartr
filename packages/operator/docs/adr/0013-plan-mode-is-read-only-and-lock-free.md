@@ -20,11 +20,13 @@ without disturbing the live operator running on the same cluster.
    takes the Lease and writes an empty state for a `kubernetes` workspace whose
    remote state doesn't exist yet, so plans never initialize a `kubernetes`
    backend: they plan against an owner-only local snapshot of its state secret
-   (empty when absent). Every other backend the operator supports (`aws`,
-   `azurerm`) has no such side effect: plans initialize it and read state
-   through it like a live run, still with `-lock=false`. For these backends the
-   read-only guarantee rests on OpenTofu not writing state during `init` and
-   `plan`, not on the write gateway.
+   (empty when absent). The `aws` backend has no such side effect: plans
+   initialize it and read state through it like a live run, still with
+   `-lock=false`, so its read-only guarantee rests on OpenTofu not writing
+   state during `init` and `plan`, not on the write gateway. `azurerm` does
+   write (it leases the blob and writes an empty state when the blob is
+   absent), and so would any other backend not listed here: Plan mode refuses
+   them with an ERROR artifact until a read-only snapshot path exists.
 3. **The operation comes from the live status.** The informer still reads the
    status, finalizers and `deletionTimestamp` written by the live operator to
    choose CREATED, UPDATED, MARKED_TO_DELETION or NOTHING, but never writes them.
