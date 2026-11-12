@@ -5,7 +5,8 @@ Status: Accepted
 ## Context
 
 Issue #199 brings five dispatch-action schemas into the TypeScript source of
-truth established by #185. Three describe the same organization data.
+truth established by [ADR 0007](0007-unified-dot-firestartr-schemas.md) (#185).
+Three describe the same organization data.
 
 ## Decision
 
@@ -14,11 +15,11 @@ reuses canonical apps, platforms and registry objects and defines only config
 and build results. Both registry consumers import one host rule from
 `src/schemas/registry-host.ts`.
 
-Publish through `actions` and `actions/*` in the existing npm artifact, not as
-claims. Both views are npm-only, with no docs promotion or independent release. Strip action
-`$id` values to avoid collisions when both views compile together; retain
-descriptive metadata and the six-value authentication enum. Anchor the version
-grammar once and match the action ref helper rather than unsupported magic forms.
+Publish through `actions` and `actions/*` in the same npm artifact, not as
+claims. Both views follow the npm-only delivery in ADR 0007. Strip action `$id`
+values to avoid collisions when both views compile together; retain descriptive
+metadata and the six-value authentication enum. Anchor the version grammar once
+and match the action ref helper rather than unsupported magic forms.
 See [compatibility details](../actions-schemas.md).
 
 ## Consequences
