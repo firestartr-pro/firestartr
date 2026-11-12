@@ -15,7 +15,7 @@ wraps JSON. JSON is generated only for npm; the
 TypeScript source remains authoritative.
 
 The merge retains the recovered upstream contracts without additional
-tightening. Docs promotion is discontinued in favor of npm-only delivery, and
-schemas omit docs-hosted IDs. Prereleases use the npm `prerelease` tag.
+tightening. `.firestartr` schemas are delivered only through npm, and omit
+docs-hosted IDs. Prereleases use the npm `prerelease` tag.
 Consumers migrate independently
 in action issue #166 and daggerverse issue #506.
