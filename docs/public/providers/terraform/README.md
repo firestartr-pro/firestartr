@@ -131,8 +131,8 @@ short name `prvcfg`) and carries the credential material:
 | Field | Required | Description |
 | --- | --- | --- |
 | `type` | Yes | Provider local name, or backend selector. |
-| `source` | Yes | Terraform required-provider source. Ignored for backends. |
-| `version` | Yes | Provider version constraint. Ignored for backends. |
+| `source` | No | Terraform required-provider source. Ignored for backends; not currently rendered into any `required_providers` block, so it has no effect on providers either. |
+| `version` | No | Provider version constraint. Ignored for backends; deprecated for providers — kept only for retro-compatibility with existing configs and not currently rendered anywhere. Pin provider versions in the module/inline Terraform instead. |
 | `config` | Yes | **JSON text.** Provider or backend configuration. |
 | `inline` | No | Literal HCL used instead of the JSON `config` when set. Applies to provider configs only; it is ignored for backends. |
 | `env` | No | JSON text of environment-style secrets. Parsed, but not merged into the spawned process environment. |
