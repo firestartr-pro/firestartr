@@ -1,5 +1,12 @@
 # Changelog
 
+## [3.1.0](https://github.com/firestartr-pro/firestartr/compare/fs-forge-cli-v3.0.0...fs-forge-cli-v3.1.0) (2026-11-13)
+
+
+### Features
+
+* add lacking org-secrets impl ([#193](https://github.com/firestartr-pro/firestartr/issues/193)) ([1271b17](https://github.com/firestartr-pro/firestartr/commit/1271b177e2d19c2a7e47c9de151979038ada1483))
+
 ## [3.0.0](https://github.com/firestartr-pro/firestartr/compare/fs-forge-cli-v2.0.1...fs-forge-cli-v3.0.0) (2026-11-02)
 
 
