@@ -80,6 +80,7 @@ const SUITE_CHECKBOXES = {
   'k8s-rate-limits': 'SUITE_K8S_RATE_LIMITS',
   'crd-upgrade': 'SUITE_CRD_UPGRADE',
   'retry-lifecycle': 'SUITE_RETRY_LIFECYCLE',
+  'plan-mode': 'SUITE_PLAN_MODE',
   'core': 'SUITE_CORE',
 };
 

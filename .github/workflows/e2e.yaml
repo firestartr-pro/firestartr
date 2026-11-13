@@ -46,6 +46,11 @@ on:
         required: false
         type: boolean
         default: false
+      suite_plan_mode:
+        description: "plan-mode"
+        required: false
+        type: boolean
+        default: false
       suites:
         description: "Comma-separated list of suites to run (empty = use checkboxes above)"
         required: false
@@ -285,7 +290,7 @@ jobs:
       - id: prepare
         env:
           # include 'core' in ALL_SUITES so it can be selected for e2e matrix
-          ALL_SUITES: github,terraform,massive,k8s-rate-limits,crd-upgrade,retry-lifecycle,core
+          ALL_SUITES: github,terraform,massive,k8s-rate-limits,crd-upgrade,retry-lifecycle,plan-mode,core
           PUSH_SUITES: github,terraform,crd-upgrade
           SUITES: ${{ github.event_name == 'workflow_dispatch' && inputs.suites || '' }}
           ALL_SUITES_FLAG: ${{ github.event_name == 'workflow_dispatch' && inputs.all_suites || false }}
@@ -295,6 +300,7 @@ jobs:
           SUITE_K8S_RATE_LIMITS: ${{ github.event_name == 'workflow_dispatch' && inputs.suite_k8s_rate_limits || 'false' }}
           SUITE_CRD_UPGRADE: ${{ github.event_name == 'workflow_dispatch' && inputs.suite_crd_upgrade || 'false' }}
           SUITE_RETRY_LIFECYCLE: ${{ github.event_name == 'workflow_dispatch' && inputs.suite_retry_lifecycle || 'false' }}
+          SUITE_PLAN_MODE: ${{ github.event_name == 'workflow_dispatch' && inputs.suite_plan_mode || 'false' }}
           SUITE_CORE: ${{ github.event_name == 'workflow_dispatch' && inputs.suite_core || 'false' }}
         run: node .github/scripts/prepare-suite-matrix.js
 

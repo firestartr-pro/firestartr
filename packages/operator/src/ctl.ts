@@ -11,6 +11,7 @@ import { getOperatorEnvSnapshot } from './operator-env';
 import log from './logger';
 import { getConnection as getCtlConnection } from './connection';
 import { withApiReadSlot } from './utils/api-read-limiter';
+import { assertWriteAllowed } from './plan-mode/write-gateway';
 
 const MAX_CHARS_OUPUT_PLAN = 20000;
 
@@ -140,6 +141,8 @@ async function writeManifest(
   item: any,
   apiSlug: string,
 ) {
+  assertWriteAllowed(`cluster object ${apiSlug}`);
+
   const { kc, opts } = await getCtlConnection();
 
   opts.headers['Content-Type'] = 'application/json';
@@ -395,6 +398,8 @@ export async function upsertResult(
   exitCode = 0,
   existingRetryCount?: number,
 ) {
+  assertWriteAllowed(`TFResult for ${item.kind}/${item.metadata.name}`);
+
   const { kc, opts } = await getCtlConnection();
 
   kc.makeApiClient(client.CoreV1Api);
@@ -533,6 +538,8 @@ export async function upsertResult(
 }
 
 export async function deleteSecret(secretName: string, namespace: string) {
+  assertWriteAllowed(`secret ${namespace}/${secretName} (delete)`);
+
   const { kc } = await getCtlConnection();
   const k8sApi = kc.makeApiClient(client.CoreV1Api);
 
@@ -551,6 +558,8 @@ export async function deleteSecret(secretName: string, namespace: string) {
 }
 
 export async function upsertSecret(namespace: string, secret: any) {
+  assertWriteAllowed(`secret ${namespace}/${secret.metadata.name}`);
+
   const { kc } = await getCtlConnection();
 
   const k8sApi = kc.makeApiClient(client.CoreV1Api);
@@ -694,6 +703,10 @@ export async function upsertFinalizer(
   item: any,
   finalizer: string,
 ) {
+  assertWriteAllowed(
+    `finalizer ${finalizer} on ${namespace}/${kind}/${item.metadata.name}`,
+  );
+
   const { kc, opts } = await getCtlConnection();
 
   const url = `${getServerUrl(kc)}/apis/firestartr.dev/v1/namespaces/${namespace}/${kind}/${item.metadata.name}`;
@@ -772,6 +785,8 @@ export async function unsetFinalizer(
   item: any | string,
   finalizer: string,
 ) {
+  assertWriteAllowed(`finalizer ${finalizer} removal on ${namespace}/${kind}`);
+
   const { kc, opts } = await getCtlConnection();
 
   let itemObj: any;
@@ -913,6 +928,8 @@ export function writeConnectionSecret(
 }
 
 export async function writePlanInGithubPR(prUrl: string, planText: string) {
+  assertWriteAllowed(`PR plan comment on ${prUrl}`);
+
   try {
     const url_parameters: string[] = prUrl.split('/');
 
@@ -946,6 +963,8 @@ export async function addApplyCommitStatus(
   description = '',
   context = '',
 ) {
+  assertWriteAllowed(`apply commit status for ${cr.kind}/${cr.metadata.name}`);
+
   try {
     await addCommitStatusToPrMergeCommit(
       cr.metadata.annotations['firestartr.dev/last-state-pr'],
@@ -967,6 +986,10 @@ export async function addDestroyCommitStatus(
   description = '',
   context = '',
 ) {
+  assertWriteAllowed(
+    `destroy commit status for ${cr.kind}/${cr.metadata.name}`,
+  );
+
   try {
     const prInfo = getPrInfoFromAnnotation(cr, LAST_STATE_PR_ANNOTATION);
 
@@ -992,6 +1015,8 @@ export async function addPlanStatusCheck(
   status = 'in_progress',
   isFailure = false,
 ) {
+  assertWriteAllowed(`plan check run on ${prUrl}`);
+
   try {
     log.debug(
       `The ctl is checking the length of the plan summary, which is '${summary.length}'.`,
