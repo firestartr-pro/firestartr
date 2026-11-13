@@ -67,8 +67,15 @@ const CLAIM_KINDS: Record<string, string> = {
   TFWorkspaceClaim: 'firestartr.dev://common/TFWorkspaceClaim',
   SecretsClaim: 'firestartr.dev://common/SecretsClaim',
   OrgWebhookClaim: 'firestartr.dev://common/OrgWebhookClaim',
+  OrgSettingsClaim: 'firestartr.dev://common/OrgSettingsClaim',
   ArgoDeployClaim: 'firestartr.dev://common/ArgoDeployClaim',
 };
+
+// One valid fixture per claim, checked by the generated smoke test.
+const SMOKE_FIXTURES = [
+  { claim: 'GroupClaim', source: 'groups/group_a.yaml' },
+  { claim: 'OrgSettingsClaim', source: 'orgSettings/orgsettings_a.yaml' },
+];
 
 const GENERATED_PACKAGE_NAME = '@firestartr/firestartr-claims_schemas';
 
@@ -278,40 +285,47 @@ void (async () => {
   );
 
   // ---- Step 5: Copy fixture and generate test file ---
-  // Copy and convert group_a.yaml fixture
+  // Copy and convert the fixtures used by the smoke test
   const { parse } = await import('yaml');
-  const fixtureSrc = path.resolve(
-    __dirname,
-    '../__tests__/fixtures/base_claims/groups/group_a.yaml',
-  );
-  const fixtureYaml = await fs.readFile(fixtureSrc, 'utf8');
-  const fixtureJson = parse(fixtureYaml);
-
-  await fs.writeFile(
-    path.join(pkgdir, 'group_a.fixture.json'),
-    JSON.stringify(fixtureJson, null, 2),
-    'utf8',
-  );
+  for (const { claim, source } of SMOKE_FIXTURES) {
+    const fixtureYaml = await fs.readFile(
+      path.resolve(__dirname, '../__tests__/fixtures/base_claims', source),
+      'utf8',
+    );
+    await fs.writeFile(
+      path.join(pkgdir, `${claim}.fixture.json`),
+      JSON.stringify(parse(fixtureYaml), null, 2),
+      'utf8',
+    );
+  }
 
   // Write test file
+  const smokeCases = SMOKE_FIXTURES.map(({ claim }) => `  '${claim}',`).join(
+    '\n',
+  );
   await fs.writeFile(
     path.join(pkgdir, 'smoke.test.js'),
     `import { createRequire } from 'module';
 const require = createRequire(import.meta.url);
 import Ajv2020 from 'ajv/dist/2020.js';
 
-const GroupClaim = require('./schemas/GroupClaim.json');
-const fixture = require('./group_a.fixture.json');
+const claims = [
+${smokeCases}
+];
 
-const ajv = new Ajv2020({ allErrors: true });
-const validate = ajv.compile(GroupClaim);
-const valid = validate(fixture);
-if (!valid) {
-  console.error(validate.errors);
-  process.exit(1);
-} else {
-  console.log('Fixture validated successfully.');
+let failed = false;
+for (const claim of claims) {
+  const schema = require(\`./schemas/\${claim}.json\`);
+  const fixture = require(\`./\${claim}.fixture.json\`);
+  const validate = new Ajv2020({ allErrors: true }).compile(schema);
+  if (validate(fixture)) {
+    console.log(\`\${claim}: fixture validated successfully.\`);
+  } else {
+    console.error(\`\${claim}: fixture is invalid\`, validate.errors);
+    failed = true;
+  }
 }
+if (failed) process.exit(1);
 `,
   );
 
