@@ -1,13 +1,13 @@
 import { describe, expect, it } from '@jest/globals';
 import { Command, Config } from '@oclif/core';
 import { captureOutput } from '@oclif/test';
-import { readFileSync } from 'fs';
 import { join } from 'path';
 
 import CreateComponent from '../src/commands/create/component';
 import Delete from '../src/commands/delete';
 import FeaturesAdd from '../src/commands/features/add';
 import CustomHelp from '../src/help';
+import { CLAIM_PRESENTATION } from '../src/schema/claimOverlay';
 import { createClaimValidator } from '../src/utils/ajvValidation';
 
 const ROOT = process.cwd();
@@ -60,10 +60,7 @@ describe('command help JSON contract', () => {
     await expectValidHelpJson(help);
 
     expect(help.description).toBe('Create a new ComponentClaim.');
-    const componentSchema = JSON.parse(
-      readFileSync(join(ROOT, 'schemas', 'ComponentClaim.json'), 'utf8'),
-    ) as { 'x-fs-forge-summary': string };
-    expect(help.summary).toBe(componentSchema['x-fs-forge-summary']);
+    expect(help.summary).toBe(CLAIM_PRESENTATION.ComponentClaim.summary);
 
     const githubOrg = findFlag(help, 'providers.github.org');
     expect(githubOrg?.description).toContain('--org');

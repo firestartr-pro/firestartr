@@ -23,7 +23,7 @@ git -C "$FSF_REPO" status --porcelain | sort > "$run/git-status.before"
 
 if [ "$build" = 1 ]; then
   [ -d "$FSF_REPO/node_modules" ] || (cd "$FSF_REPO" && npm ci) > "$run/evidence/launch/npm-ci.log" 2>&1
-  # prebuild regenerates tracked files from schemas/*.json; the state hash
+  # prebuild regenerates tracked files from the claims schemas package; the state hash
   # shows whether that changed anything.
   (cd "$FSF_PKG" && npm run build) > "$run/evidence/launch/build.log" 2>&1 ||
     { tail -n 30 "$run/evidence/launch/build.log" >&2; fsf_die "build failed; full log: $run/evidence/launch/build.log"; }

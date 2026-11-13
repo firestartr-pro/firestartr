@@ -2,12 +2,13 @@ import { afterEach, beforeAll, describe, expect, it } from '@jest/globals';
 import { captureOutput } from '@oclif/test';
 import { readFileSync } from 'fs';
 import { join } from 'path';
+import { claimSchemasDir } from '../src/schema/claimSchemas';
 import { createClaimValidator } from '../src/utils/ajvValidation';
 import { deriveFlags } from '../src/utils/deriveFlags';
 import { buildClaimFromFlags } from '../src/utils/buildClaim';
 import CreateOrgSettings from '../src/commands/create/orgsettings';
 
-const SCHEMA_DIR = join(process.cwd(), 'schemas');
+const SCHEMA_DIR = claimSchemasDir(process.cwd());
 
 function loadSchema(kind: string): Record<string, unknown> {
   const raw = readFileSync(join(SCHEMA_DIR, `${kind}.json`), 'utf8');
@@ -533,9 +534,16 @@ describe('create orgsettings command', () => {
   });
 
   it('parses flags and prints a valid OrgSettingsClaim', async () => {
-    const args = CreateOrgSettings.examples[0]
-      .replace('<%= config.bin %> <%= command.id %> ', '')
-      .split(' ');
+    const args = [
+      '--name',
+      'example',
+      '--providers.github.name',
+      'example',
+      '--providers.github.org',
+      'example',
+      '--providers.github.billing_email',
+      'example',
+    ];
     const { result, stdout, error } = await captureOutput(async () => {
       await CreateOrgSettings.run(args, { root: ROOT });
       return 0;
@@ -579,9 +587,16 @@ describe('create orgsettings command', () => {
   });
 
   it('rejects an explicit --path', async () => {
-    const args = CreateOrgSettings.examples[0]
-      .replace('<%= config.bin %> <%= command.id %> ', '')
-      .split(' ');
+    const args = [
+      '--name',
+      'example',
+      '--providers.github.name',
+      'example',
+      '--providers.github.org',
+      'example',
+      '--providers.github.billing_email',
+      'example',
+    ];
     args.push('--path', 'claims/orgSettings/example.yaml');
 
     const { error } = await captureOutput(() =>

@@ -222,20 +222,6 @@
           "multiple": false,
           "type": "option"
         },
-        "system": {
-          "name": "system",
-          "required": false,
-          "hasDynamicHelp": false,
-          "multiple": false,
-          "type": "option"
-        },
-        "project": {
-          "name": "project",
-          "required": false,
-          "hasDynamicHelp": false,
-          "multiple": false,
-          "type": "option"
-        },
         "providers.argocd.name": {
           "name": "providers.argocd.name",
           "required": false,
@@ -335,6 +321,20 @@
         "annotations.json": {
           "description": "Raw JSON object for annotations",
           "name": "annotations.json",
+          "required": false,
+          "hasDynamicHelp": false,
+          "multiple": false,
+          "type": "option"
+        },
+        "system": {
+          "name": "system",
+          "required": false,
+          "hasDynamicHelp": false,
+          "multiple": false,
+          "type": "option"
+        },
+        "project": {
+          "name": "project",
           "required": false,
           "hasDynamicHelp": false,
           "multiple": false,
@@ -564,6 +564,7 @@
           "type": "option"
         },
         "providers.github.pages.source.branch": {
+          "description": "providers.github.pages.source.branch (required when its parent is supplied)",
           "name": "providers.github.pages.source.branch",
           "required": false,
           "hasDynamicHelp": false,
@@ -571,6 +572,7 @@
           "type": "option"
         },
         "providers.github.pages.source.path": {
+          "description": "providers.github.pages.source.path (required when its parent is supplied)",
           "name": "providers.github.pages.source.path",
           "required": false,
           "hasDynamicHelp": false,
@@ -727,6 +729,18 @@
           "multiple": false,
           "type": "option"
         },
+        "providers.github.privacy": {
+          "description": "providers.github.privacy (required when its parent is supplied)",
+          "name": "providers.github.privacy",
+          "required": false,
+          "hasDynamicHelp": false,
+          "multiple": false,
+          "options": [
+            "closed",
+            "secret"
+          ],
+          "type": "option"
+        },
         "children": {
           "description": "children (repeating this flag replaces the whole array; values are not appended)",
           "name": "children",
@@ -750,21 +764,17 @@
           "multiple": true,
           "type": "option"
         },
-        "providers.github.privacy": {
-          "description": "providers.github.privacy (required when its parent is supplied)",
-          "name": "providers.github.privacy",
+        "providers.github.billing_email": {
+          "description": "Billing email for the organization (required when its parent is supplied)",
+          "name": "providers.github.billing_email",
           "required": false,
           "hasDynamicHelp": false,
           "multiple": false,
-          "options": [
-            "closed",
-            "secret"
-          ],
           "type": "option"
         },
-        "providers.github.billing_email": {
-          "description": "Billing email for the organization",
-          "name": "providers.github.billing_email",
+        "providers.github.twitter_username": {
+          "description": "Twitter username",
+          "name": "providers.github.twitter_username",
           "required": false,
           "hasDynamicHelp": false,
           "multiple": false,
@@ -789,14 +799,6 @@
         "providers.github.email": {
           "description": "Contact email",
           "name": "providers.github.email",
-          "required": false,
-          "hasDynamicHelp": false,
-          "multiple": false,
-          "type": "option"
-        },
-        "providers.github.twitter_username": {
-          "description": "Twitter username",
-          "name": "providers.github.twitter_username",
           "required": false,
           "hasDynamicHelp": false,
           "multiple": false,
@@ -1033,6 +1035,14 @@
           "multiple": false,
           "type": "option"
         },
+        "providers.external_secrets.json": {
+          "description": "Raw JSON value for providers.external_secrets (escape hatch for union types)",
+          "name": "providers.external_secrets.json",
+          "required": false,
+          "hasDynamicHelp": false,
+          "multiple": false,
+          "type": "option"
+        },
         "providers.external_secrets.externalSecrets.refreshInterval": {
           "name": "providers.external_secrets.externalSecrets.refreshInterval",
           "required": false,
@@ -1049,7 +1059,6 @@
           "type": "option"
         },
         "providers.external_secrets.secretStore.name": {
-          "description": "providers.external_secrets.secretStore.name (required when its parent is supplied)",
           "name": "providers.external_secrets.secretStore.name",
           "required": false,
           "hasDynamicHelp": false,
@@ -1068,16 +1077,8 @@
           "type": "option"
         },
         "providers.external_secrets.pushSecrets.json": {
-          "description": "Raw JSON value for providers.external_secrets.pushSecrets (escape hatch for complex arrays) (required when its parent is supplied)",
+          "description": "Raw JSON value for providers.external_secrets.pushSecrets (escape hatch for complex arrays)",
           "name": "providers.external_secrets.pushSecrets.json",
-          "required": false,
-          "hasDynamicHelp": false,
-          "multiple": false,
-          "type": "option"
-        },
-        "providers.external_secrets.json": {
-          "description": "Raw JSON value for providers.external_secrets (escape hatch for union types)",
-          "name": "providers.external_secrets.json",
           "required": false,
           "hasDynamicHelp": false,
           "multiple": false,
@@ -1085,13 +1086,6 @@
         },
         "domain": {
           "name": "domain",
-          "required": false,
-          "hasDynamicHelp": false,
-          "multiple": false,
-          "type": "option"
-        },
-        "resourceType": {
-          "name": "resourceType",
           "required": false,
           "hasDynamicHelp": false,
           "multiple": false,
@@ -1200,6 +1194,13 @@
         },
         "providers.terraform.context.backend.name": {
           "name": "providers.terraform.context.backend.name",
+          "required": false,
+          "hasDynamicHelp": false,
+          "multiple": false,
+          "type": "option"
+        },
+        "resourceType": {
+          "name": "resourceType",
           "required": false,
           "hasDynamicHelp": false,
           "multiple": false,
@@ -1649,20 +1650,6 @@
           "multiple": false,
           "type": "option"
         },
-        "system": {
-          "name": "system",
-          "required": false,
-          "hasDynamicHelp": false,
-          "multiple": false,
-          "type": "option"
-        },
-        "project": {
-          "name": "project",
-          "required": false,
-          "hasDynamicHelp": false,
-          "multiple": false,
-          "type": "option"
-        },
         "providers.argocd.name": {
           "name": "providers.argocd.name",
           "required": true,
@@ -1762,6 +1749,20 @@
         "annotations.json": {
           "description": "Raw JSON object for annotations",
           "name": "annotations.json",
+          "required": false,
+          "hasDynamicHelp": false,
+          "multiple": false,
+          "type": "option"
+        },
+        "system": {
+          "name": "system",
+          "required": false,
+          "hasDynamicHelp": false,
+          "multiple": false,
+          "type": "option"
+        },
+        "project": {
+          "name": "project",
           "required": false,
           "hasDynamicHelp": false,
           "multiple": false,
@@ -1889,18 +1890,6 @@
           "multiple": false
         },
         {
-          "path": "system",
-          "type": "string",
-          "required": false,
-          "multiple": false
-        },
-        {
-          "path": "project",
-          "type": "string",
-          "required": false,
-          "multiple": false
-        },
-        {
           "path": "providers.argocd.name",
           "type": "string",
           "required": true,
@@ -1994,6 +1983,18 @@
           "type": "string",
           "required": false,
           "description": "Raw JSON object for annotations",
+          "multiple": false
+        },
+        {
+          "path": "system",
+          "type": "string",
+          "required": false,
+          "multiple": false
+        },
+        {
+          "path": "project",
+          "type": "string",
+          "required": false,
           "multiple": false
         }
       ],
@@ -2272,6 +2273,7 @@
           "type": "option"
         },
         "providers.github.pages.source.branch": {
+          "description": "providers.github.pages.source.branch (required when its parent is supplied)",
           "name": "providers.github.pages.source.branch",
           "required": false,
           "hasDynamicHelp": false,
@@ -2279,6 +2281,7 @@
           "type": "option"
         },
         "providers.github.pages.source.path": {
+          "description": "providers.github.pages.source.path (required when its parent is supplied)",
           "name": "providers.github.pages.source.path",
           "required": false,
           "hasDynamicHelp": false,
@@ -2802,12 +2805,14 @@
           "path": "providers.github.pages.source.branch",
           "type": "string",
           "required": false,
+          "conditionalRequired": true,
           "multiple": false
         },
         {
           "path": "providers.github.pages.source.path",
           "type": "string",
           "required": false,
+          "conditionalRequired": true,
           "enumValues": [
             "/",
             "/docs"
@@ -3015,13 +3020,6 @@
           "multiple": false,
           "type": "option"
         },
-        "owner": {
-          "name": "owner",
-          "required": true,
-          "hasDynamicHelp": false,
-          "multiple": false,
-          "type": "option"
-        },
         "providers.catalog.json": {
           "description": "Raw JSON object for providers.catalog",
           "name": "providers.catalog.json",
@@ -3055,6 +3053,13 @@
           "description": "Raw JSON object for annotations",
           "name": "annotations.json",
           "required": false,
+          "hasDynamicHelp": false,
+          "multiple": false,
+          "type": "option"
+        },
+        "owner": {
+          "name": "owner",
+          "required": true,
           "hasDynamicHelp": false,
           "multiple": false,
           "type": "option"
@@ -3181,12 +3186,6 @@
           "multiple": false
         },
         {
-          "path": "owner",
-          "type": "string",
-          "required": true,
-          "multiple": false
-        },
-        {
           "path": "providers.catalog.json",
           "type": "string",
           "required": false,
@@ -3216,6 +3215,12 @@
           "type": "string",
           "required": false,
           "description": "Raw JSON object for annotations",
+          "multiple": false
+        },
+        {
+          "path": "owner",
+          "type": "string",
+          "required": true,
           "multiple": false
         }
       ],
@@ -3268,29 +3273,6 @@
           "required": false,
           "hasDynamicHelp": false,
           "multiple": false,
-          "type": "option"
-        },
-        "children": {
-          "description": "children (repeating this flag replaces the whole array; values are not appended)",
-          "name": "children",
-          "required": false,
-          "hasDynamicHelp": false,
-          "multiple": true,
-          "type": "option"
-        },
-        "parent": {
-          "name": "parent",
-          "required": false,
-          "hasDynamicHelp": false,
-          "multiple": false,
-          "type": "option"
-        },
-        "members": {
-          "description": "members (repeating this flag replaces the whole array; values are not appended)",
-          "name": "members",
-          "required": false,
-          "hasDynamicHelp": false,
-          "multiple": true,
           "type": "option"
         },
         "providers.github.name": {
@@ -3355,6 +3337,29 @@
           "required": false,
           "hasDynamicHelp": false,
           "multiple": false,
+          "type": "option"
+        },
+        "children": {
+          "description": "children (repeating this flag replaces the whole array; values are not appended)",
+          "name": "children",
+          "required": false,
+          "hasDynamicHelp": false,
+          "multiple": true,
+          "type": "option"
+        },
+        "parent": {
+          "name": "parent",
+          "required": false,
+          "hasDynamicHelp": false,
+          "multiple": false,
+          "type": "option"
+        },
+        "members": {
+          "description": "members (repeating this flag replaces the whole array; values are not appended)",
+          "name": "members",
+          "required": false,
+          "hasDynamicHelp": false,
+          "multiple": true,
           "type": "option"
         },
         "org": {
@@ -3479,24 +3484,6 @@
           "multiple": false
         },
         {
-          "path": "children",
-          "type": "string",
-          "required": false,
-          "multiple": true
-        },
-        {
-          "path": "parent",
-          "type": "string",
-          "required": false,
-          "multiple": false
-        },
-        {
-          "path": "members",
-          "type": "string",
-          "required": false,
-          "multiple": true
-        },
-        {
           "path": "providers.github.name",
           "type": "string",
           "required": false,
@@ -3552,6 +3539,24 @@
           "required": false,
           "description": "Raw JSON object for annotations",
           "multiple": false
+        },
+        {
+          "path": "children",
+          "type": "string",
+          "required": false,
+          "multiple": true
+        },
+        {
+          "path": "parent",
+          "type": "string",
+          "required": false,
+          "multiple": false
+        },
+        {
+          "path": "members",
+          "type": "string",
+          "required": false,
+          "multiple": true
         }
       ],
       "isESM": true,
@@ -3567,7 +3572,7 @@
       "args": {},
       "description": "Create a new OrgSettingsClaim.",
       "examples": [
-        "<%= config.bin %> <%= command.id %> --name example --providers.github.name example --providers.github.org example --providers.github.billing_email example"
+        "<%= config.bin %> <%= command.id %> --name example"
       ],
       "flags": {
         "name": {
@@ -3606,16 +3611,9 @@
           "type": "option"
         },
         "providers.github.name": {
+          "description": "providers.github.name (required when its parent is supplied)",
           "name": "providers.github.name",
-          "required": true,
-          "hasDynamicHelp": false,
-          "multiple": false,
-          "type": "option"
-        },
-        "providers.github.org": {
-          "description": "GitHub organization name",
-          "name": "providers.github.org",
-          "required": true,
+          "required": false,
           "hasDynamicHelp": false,
           "multiple": false,
           "type": "option"
@@ -3627,10 +3625,26 @@
           "multiple": false,
           "type": "option"
         },
+        "providers.github.org": {
+          "description": "GitHub organization name (required when its parent is supplied)",
+          "name": "providers.github.org",
+          "required": false,
+          "hasDynamicHelp": false,
+          "multiple": false,
+          "type": "option"
+        },
         "providers.github.billing_email": {
-          "description": "Billing email for the organization",
+          "description": "Billing email for the organization (required when its parent is supplied)",
           "name": "providers.github.billing_email",
-          "required": true,
+          "required": false,
+          "hasDynamicHelp": false,
+          "multiple": false,
+          "type": "option"
+        },
+        "providers.github.twitter_username": {
+          "description": "Twitter username",
+          "name": "providers.github.twitter_username",
+          "required": false,
           "hasDynamicHelp": false,
           "multiple": false,
           "type": "option"
@@ -3654,14 +3668,6 @@
         "providers.github.email": {
           "description": "Contact email",
           "name": "providers.github.email",
-          "required": false,
-          "hasDynamicHelp": false,
-          "multiple": false,
-          "type": "option"
-        },
-        "providers.github.twitter_username": {
-          "description": "Twitter username",
-          "name": "providers.github.twitter_username",
           "required": false,
           "hasDynamicHelp": false,
           "multiple": false,
@@ -4001,14 +4007,8 @@
         {
           "path": "providers.github.name",
           "type": "string",
-          "required": true,
-          "multiple": false
-        },
-        {
-          "path": "providers.github.org",
-          "type": "string",
-          "required": true,
-          "description": "GitHub organization name",
+          "required": false,
+          "conditionalRequired": true,
           "multiple": false
         },
         {
@@ -4018,10 +4018,26 @@
           "multiple": false
         },
         {
+          "path": "providers.github.org",
+          "type": "string",
+          "required": false,
+          "conditionalRequired": true,
+          "description": "GitHub organization name",
+          "multiple": false
+        },
+        {
           "path": "providers.github.billing_email",
           "type": "string",
-          "required": true,
+          "required": false,
+          "conditionalRequired": true,
           "description": "Billing email for the organization",
+          "multiple": false
+        },
+        {
+          "path": "providers.github.twitter_username",
+          "type": "string",
+          "required": false,
+          "description": "Twitter username",
           "multiple": false
         },
         {
@@ -4043,13 +4059,6 @@
           "type": "string",
           "required": false,
           "description": "Contact email",
-          "multiple": false
-        },
-        {
-          "path": "providers.github.twitter_username",
-          "type": "string",
-          "required": false,
-          "description": "Twitter username",
           "multiple": false
         },
         {
@@ -4265,7 +4274,7 @@
       "args": {},
       "description": "Create a new OrgWebhookClaim.",
       "examples": [
-        "<%= config.bin %> <%= command.id %> --name example"
+        "<%= config.bin %> <%= command.id %> --name example --owner group:platform"
       ],
       "flags": {
         "name": {
@@ -4298,20 +4307,6 @@
         },
         "version": {
           "name": "version",
-          "required": false,
-          "hasDynamicHelp": false,
-          "multiple": false,
-          "type": "option"
-        },
-        "system": {
-          "name": "system",
-          "required": false,
-          "hasDynamicHelp": false,
-          "multiple": false,
-          "type": "option"
-        },
-        "owner": {
-          "name": "owner",
           "required": false,
           "hasDynamicHelp": false,
           "multiple": false,
@@ -4401,6 +4396,20 @@
           "description": "Raw JSON object for annotations",
           "name": "annotations.json",
           "required": false,
+          "hasDynamicHelp": false,
+          "multiple": false,
+          "type": "option"
+        },
+        "system": {
+          "name": "system",
+          "required": false,
+          "hasDynamicHelp": false,
+          "multiple": false,
+          "type": "option"
+        },
+        "owner": {
+          "name": "owner",
+          "required": true,
           "hasDynamicHelp": false,
           "multiple": false,
           "type": "option"
@@ -4527,18 +4536,6 @@
           "multiple": false
         },
         {
-          "path": "system",
-          "type": "string",
-          "required": false,
-          "multiple": false
-        },
-        {
-          "path": "owner",
-          "type": "string",
-          "required": false,
-          "multiple": false
-        },
-        {
           "path": "providers.github.name",
           "type": "string",
           "required": false,
@@ -4620,6 +4617,18 @@
           "required": false,
           "description": "Raw JSON object for annotations",
           "multiple": false
+        },
+        {
+          "path": "system",
+          "type": "string",
+          "required": false,
+          "multiple": false
+        },
+        {
+          "path": "owner",
+          "type": "string",
+          "required": true,
+          "multiple": false
         }
       ],
       "isESM": true,
@@ -4635,7 +4644,7 @@
       "args": {},
       "description": "Create a new SecretsClaim.",
       "examples": [
-        "<%= config.bin %> <%= command.id %> --name example --providers.external_secrets.name example --providers.external_secrets.json \"{\\\"name\\\":\\\"example\\\",\\\"secretStore\\\":{\\\"name\\\":\\\"example\\\"},\\\"externalSecrets\\\":{}}\""
+        "<%= config.bin %> <%= command.id %> --name example --providers.external_secrets.name example --providers.external_secrets.secretStore.name example --owner group:platform --providers.external_secrets.json \"{\\\"name\\\":\\\"example\\\",\\\"secretStore\\\":{\\\"name\\\":\\\"example\\\"},\\\"externalSecrets\\\":{}}\""
       ],
       "flags": {
         "name": {
@@ -4673,23 +4682,17 @@
           "multiple": false,
           "type": "option"
         },
-        "system": {
-          "name": "system",
-          "required": false,
-          "hasDynamicHelp": false,
-          "multiple": false,
-          "type": "option"
-        },
-        "owner": {
-          "name": "owner",
-          "required": false,
-          "hasDynamicHelp": false,
-          "multiple": false,
-          "type": "option"
-        },
         "providers.external_secrets.name": {
           "name": "providers.external_secrets.name",
           "required": true,
+          "hasDynamicHelp": false,
+          "multiple": false,
+          "type": "option"
+        },
+        "providers.external_secrets.json": {
+          "description": "Raw JSON value for providers.external_secrets (escape hatch for union types)",
+          "name": "providers.external_secrets.json",
+          "required": false,
           "hasDynamicHelp": false,
           "multiple": false,
           "type": "option"
@@ -4710,9 +4713,8 @@
           "type": "option"
         },
         "providers.external_secrets.secretStore.name": {
-          "description": "providers.external_secrets.secretStore.name (required when its parent is supplied)",
           "name": "providers.external_secrets.secretStore.name",
-          "required": false,
+          "required": true,
           "hasDynamicHelp": false,
           "multiple": false,
           "type": "option"
@@ -4729,16 +4731,8 @@
           "type": "option"
         },
         "providers.external_secrets.pushSecrets.json": {
-          "description": "Raw JSON value for providers.external_secrets.pushSecrets (escape hatch for complex arrays) (required when its parent is supplied)",
+          "description": "Raw JSON value for providers.external_secrets.pushSecrets (escape hatch for complex arrays)",
           "name": "providers.external_secrets.pushSecrets.json",
-          "required": false,
-          "hasDynamicHelp": false,
-          "multiple": false,
-          "type": "option"
-        },
-        "providers.external_secrets.json": {
-          "description": "Raw JSON value for providers.external_secrets (escape hatch for union types)",
-          "name": "providers.external_secrets.json",
           "required": false,
           "hasDynamicHelp": false,
           "multiple": false,
@@ -4769,6 +4763,20 @@
           "description": "Raw JSON object for annotations",
           "name": "annotations.json",
           "required": false,
+          "hasDynamicHelp": false,
+          "multiple": false,
+          "type": "option"
+        },
+        "system": {
+          "name": "system",
+          "required": false,
+          "hasDynamicHelp": false,
+          "multiple": false,
+          "type": "option"
+        },
+        "owner": {
+          "name": "owner",
+          "required": true,
           "hasDynamicHelp": false,
           "multiple": false,
           "type": "option"
@@ -4895,21 +4903,16 @@
           "multiple": false
         },
         {
-          "path": "system",
-          "type": "string",
-          "required": false,
-          "multiple": false
-        },
-        {
-          "path": "owner",
-          "type": "string",
-          "required": false,
-          "multiple": false
-        },
-        {
           "path": "providers.external_secrets.name",
           "type": "string",
           "required": true,
+          "multiple": false
+        },
+        {
+          "path": "providers.external_secrets.json",
+          "type": "string",
+          "required": false,
+          "description": "Raw JSON value for providers.external_secrets (escape hatch for union types)",
           "multiple": false
         },
         {
@@ -4928,8 +4931,7 @@
         {
           "path": "providers.external_secrets.secretStore.name",
           "type": "string",
-          "required": false,
-          "conditionalRequired": true,
+          "required": true,
           "multiple": false
         },
         {
@@ -4946,15 +4948,7 @@
           "path": "providers.external_secrets.pushSecrets.json",
           "type": "string",
           "required": false,
-          "conditionalRequired": true,
           "description": "Raw JSON value for providers.external_secrets.pushSecrets (escape hatch for complex arrays)",
-          "multiple": false
-        },
-        {
-          "path": "providers.external_secrets.json",
-          "type": "string",
-          "required": false,
-          "description": "Raw JSON value for providers.external_secrets (escape hatch for union types)",
           "multiple": false
         },
         {
@@ -4980,6 +4974,18 @@
           "type": "string",
           "required": false,
           "description": "Raw JSON object for annotations",
+          "multiple": false
+        },
+        {
+          "path": "system",
+          "type": "string",
+          "required": false,
+          "multiple": false
+        },
+        {
+          "path": "owner",
+          "type": "string",
+          "required": true,
           "multiple": false
         }
       ],
@@ -5034,20 +5040,6 @@
           "multiple": false,
           "type": "option"
         },
-        "domain": {
-          "name": "domain",
-          "required": false,
-          "hasDynamicHelp": false,
-          "multiple": false,
-          "type": "option"
-        },
-        "owner": {
-          "name": "owner",
-          "required": false,
-          "hasDynamicHelp": false,
-          "multiple": false,
-          "type": "option"
-        },
         "providers.catalog.json": {
           "description": "Raw JSON object for providers.catalog",
           "name": "providers.catalog.json",
@@ -5080,6 +5072,20 @@
         "annotations.json": {
           "description": "Raw JSON object for annotations",
           "name": "annotations.json",
+          "required": false,
+          "hasDynamicHelp": false,
+          "multiple": false,
+          "type": "option"
+        },
+        "domain": {
+          "name": "domain",
+          "required": false,
+          "hasDynamicHelp": false,
+          "multiple": false,
+          "type": "option"
+        },
+        "owner": {
+          "name": "owner",
           "required": false,
           "hasDynamicHelp": false,
           "multiple": false,
@@ -5207,18 +5213,6 @@
           "multiple": false
         },
         {
-          "path": "domain",
-          "type": "string",
-          "required": false,
-          "multiple": false
-        },
-        {
-          "path": "owner",
-          "type": "string",
-          "required": false,
-          "multiple": false
-        },
-        {
           "path": "providers.catalog.json",
           "type": "string",
           "required": false,
@@ -5249,6 +5243,18 @@
           "required": false,
           "description": "Raw JSON object for annotations",
           "multiple": false
+        },
+        {
+          "path": "domain",
+          "type": "string",
+          "required": false,
+          "multiple": false
+        },
+        {
+          "path": "owner",
+          "type": "string",
+          "required": false,
+          "multiple": false
         }
       ],
       "isESM": true,
@@ -5264,7 +5270,7 @@
       "args": {},
       "description": "Create a new TFWorkspaceClaim.",
       "examples": [
-        "<%= config.bin %> <%= command.id %> --name example --owner group:platform --providers.terraform.name example --providers.terraform.source remote --providers.terraform.values.json \"{}\" --providers.terraform.context.providers.json \"[]\""
+        "<%= config.bin %> <%= command.id %> --name example --providers.terraform.name example --providers.terraform.source remote --providers.terraform.values.json \"{}\" --providers.terraform.context.providers.json \"[]\" --owner group:platform"
       ],
       "flags": {
         "name": {
@@ -5298,27 +5304,6 @@
         "version": {
           "name": "version",
           "required": false,
-          "hasDynamicHelp": false,
-          "multiple": false,
-          "type": "option"
-        },
-        "resourceType": {
-          "name": "resourceType",
-          "required": false,
-          "hasDynamicHelp": false,
-          "multiple": false,
-          "type": "option"
-        },
-        "system": {
-          "name": "system",
-          "required": false,
-          "hasDynamicHelp": false,
-          "multiple": false,
-          "type": "option"
-        },
-        "owner": {
-          "name": "owner",
-          "required": true,
           "hasDynamicHelp": false,
           "multiple": false,
           "type": "option"
@@ -5460,6 +5445,27 @@
           "multiple": false,
           "type": "option"
         },
+        "resourceType": {
+          "name": "resourceType",
+          "required": false,
+          "hasDynamicHelp": false,
+          "multiple": false,
+          "type": "option"
+        },
+        "system": {
+          "name": "system",
+          "required": false,
+          "hasDynamicHelp": false,
+          "multiple": false,
+          "type": "option"
+        },
+        "owner": {
+          "name": "owner",
+          "required": true,
+          "hasDynamicHelp": false,
+          "multiple": false,
+          "type": "option"
+        },
         "org": {
           "description": "GitHub organization containing the claims repo (default: FSCRT_ORG, then the config entry matching the current directory)",
           "env": "FSCRT_ORG",
@@ -5582,24 +5588,6 @@
           "multiple": false
         },
         {
-          "path": "resourceType",
-          "type": "string",
-          "required": false,
-          "multiple": false
-        },
-        {
-          "path": "system",
-          "type": "string",
-          "required": false,
-          "multiple": false
-        },
-        {
-          "path": "owner",
-          "type": "string",
-          "required": true,
-          "multiple": false
-        },
-        {
           "path": "providers.terraform.name",
           "type": "string",
           "required": true,
@@ -5718,6 +5706,24 @@
           "type": "string",
           "required": false,
           "description": "Raw JSON object for annotations",
+          "multiple": false
+        },
+        {
+          "path": "resourceType",
+          "type": "string",
+          "required": false,
+          "multiple": false
+        },
+        {
+          "path": "system",
+          "type": "string",
+          "required": false,
+          "multiple": false
+        },
+        {
+          "path": "owner",
+          "type": "string",
+          "required": true,
           "multiple": false
         }
       ],
@@ -6140,6 +6146,107 @@
         "show.js"
       ]
     },
+    "diagram:print": {
+      "aliases": [],
+      "args": {},
+      "description": "Render an arbitrary relation graph (nodes/edges JSON) as a tree, using the same graphics as `discovery map`",
+      "examples": [
+        "<%= config.bin %> <%= command.id %> --file graph.json",
+        "cat graph.json | <%= config.bin %> <%= command.id %>",
+        "<%= config.bin %> <%= command.id %> --file graph.json --ascii"
+      ],
+      "flags": {
+        "file": {
+          "char": "f",
+          "description": "Path to a JSON file with a relation graph ({ nodes, edges }); reads stdin if omitted",
+          "name": "file",
+          "hasDynamicHelp": false,
+          "multiple": false,
+          "type": "option"
+        },
+        "ascii": {
+          "description": "Use ASCII icons instead of emoji",
+          "name": "ascii",
+          "allowNo": false,
+          "type": "boolean"
+        }
+      },
+      "hasDynamicHelp": false,
+      "hiddenAliases": [],
+      "id": "diagram:print",
+      "pluginAlias": "@firestartr/fs-forge-cli",
+      "pluginName": "@firestartr/fs-forge-cli",
+      "pluginType": "core",
+      "strict": true,
+      "enableJsonFlag": false,
+      "isESM": true,
+      "relativePath": [
+        "dist",
+        "commands",
+        "diagram",
+        "print.js"
+      ]
+    },
+    "kinds:show": {
+      "aliases": [],
+      "args": {
+        "kind": {
+          "description": "Claim kind (short ID; full *Claim names remain supported)",
+          "name": "kind",
+          "options": [
+            "argodeploy",
+            "ArgoDeployClaim",
+            "component",
+            "ComponentClaim",
+            "domain",
+            "DomainClaim",
+            "group",
+            "GroupClaim",
+            "orgsettings",
+            "OrgSettingsClaim",
+            "orgwebhook",
+            "OrgWebhookClaim",
+            "secrets",
+            "SecretsClaim",
+            "system",
+            "SystemClaim",
+            "tfworkspace",
+            "TFWorkspaceClaim",
+            "user",
+            "UserClaim"
+          ],
+          "required": true
+        }
+      },
+      "description": "Show what one claim kind supports",
+      "examples": [
+        "<%= config.bin %> <%= command.id %> component",
+        "<%= config.bin %> <%= command.id %> ComponentClaim --json"
+      ],
+      "flags": {
+        "json": {
+          "description": "Output as JSON",
+          "name": "json",
+          "allowNo": false,
+          "type": "boolean"
+        }
+      },
+      "hasDynamicHelp": false,
+      "hiddenAliases": [],
+      "id": "kinds:show",
+      "pluginAlias": "@firestartr/fs-forge-cli",
+      "pluginName": "@firestartr/fs-forge-cli",
+      "pluginType": "core",
+      "strict": true,
+      "enableJsonFlag": false,
+      "isESM": true,
+      "relativePath": [
+        "dist",
+        "commands",
+        "kinds",
+        "show.js"
+      ]
+    },
     "discovery:map": {
       "aliases": [],
       "args": {},
@@ -6300,47 +6407,6 @@
         "commands",
         "discovery",
         "org-elements.js"
-      ]
-    },
-    "diagram:print": {
-      "aliases": [],
-      "args": {},
-      "description": "Render an arbitrary relation graph (nodes/edges JSON) as a tree, using the same graphics as `discovery map`",
-      "examples": [
-        "<%= config.bin %> <%= command.id %> --file graph.json",
-        "cat graph.json | <%= config.bin %> <%= command.id %>",
-        "<%= config.bin %> <%= command.id %> --file graph.json --ascii"
-      ],
-      "flags": {
-        "file": {
-          "char": "f",
-          "description": "Path to a JSON file with a relation graph ({ nodes, edges }); reads stdin if omitted",
-          "name": "file",
-          "hasDynamicHelp": false,
-          "multiple": false,
-          "type": "option"
-        },
-        "ascii": {
-          "description": "Use ASCII icons instead of emoji",
-          "name": "ascii",
-          "allowNo": false,
-          "type": "boolean"
-        }
-      },
-      "hasDynamicHelp": false,
-      "hiddenAliases": [],
-      "id": "diagram:print",
-      "pluginAlias": "@firestartr/fs-forge-cli",
-      "pluginName": "@firestartr/fs-forge-cli",
-      "pluginType": "core",
-      "strict": true,
-      "enableJsonFlag": false,
-      "isESM": true,
-      "relativePath": [
-        "dist",
-        "commands",
-        "diagram",
-        "print.js"
       ]
     },
     "features:add": {
@@ -7009,66 +7075,6 @@
         "commands",
         "features",
         "remove.js"
-      ]
-    },
-    "kinds:show": {
-      "aliases": [],
-      "args": {
-        "kind": {
-          "description": "Claim kind (short ID; full *Claim names remain supported)",
-          "name": "kind",
-          "options": [
-            "argodeploy",
-            "ArgoDeployClaim",
-            "component",
-            "ComponentClaim",
-            "domain",
-            "DomainClaim",
-            "group",
-            "GroupClaim",
-            "orgsettings",
-            "OrgSettingsClaim",
-            "orgwebhook",
-            "OrgWebhookClaim",
-            "secrets",
-            "SecretsClaim",
-            "system",
-            "SystemClaim",
-            "tfworkspace",
-            "TFWorkspaceClaim",
-            "user",
-            "UserClaim"
-          ],
-          "required": true
-        }
-      },
-      "description": "Show what one claim kind supports",
-      "examples": [
-        "<%= config.bin %> <%= command.id %> component",
-        "<%= config.bin %> <%= command.id %> ComponentClaim --json"
-      ],
-      "flags": {
-        "json": {
-          "description": "Output as JSON",
-          "name": "json",
-          "allowNo": false,
-          "type": "boolean"
-        }
-      },
-      "hasDynamicHelp": false,
-      "hiddenAliases": [],
-      "id": "kinds:show",
-      "pluginAlias": "@firestartr/fs-forge-cli",
-      "pluginName": "@firestartr/fs-forge-cli",
-      "pluginType": "core",
-      "strict": true,
-      "enableJsonFlag": false,
-      "isESM": true,
-      "relativePath": [
-        "dist",
-        "commands",
-        "kinds",
-        "show.js"
       ]
     },
     "schema:list": {

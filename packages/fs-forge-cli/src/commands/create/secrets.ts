@@ -1,9 +1,9 @@
 import { Command, Flags } from '@oclif/core';
-import { join } from 'path';
 
 import { assertCreatePath } from '../../claims/deterministicPath.js';
 import { parseStateRepos } from '../../context/resolve.js';
 import { runClaimCreation } from '../../mutations/creation.js';
+import { claimSchemasDir } from '../../schema/claimSchemas.js';
 import {
   AUDIT_TRAIL_FLAGS,
   MUTATION_CONTROL_FLAGS,
@@ -47,21 +47,17 @@ export default class CreateSecrets extends Command {
       multiple: false,
     },
     {
-      path: 'system',
-      type: 'string',
-      required: false,
-      multiple: false,
-    },
-    {
-      path: 'owner',
-      type: 'string',
-      required: false,
-      multiple: false,
-    },
-    {
       path: 'providers.external_secrets.name',
       type: 'string',
       required: true,
+      multiple: false,
+    },
+    {
+      path: 'providers.external_secrets.json',
+      type: 'string',
+      required: false,
+      description:
+        'Raw JSON value for providers.external_secrets (escape hatch for union types)',
       multiple: false,
     },
     {
@@ -81,8 +77,7 @@ export default class CreateSecrets extends Command {
     {
       path: 'providers.external_secrets.secretStore.name',
       type: 'string',
-      required: false,
-      conditionalRequired: true,
+      required: true,
       multiple: false,
     },
     {
@@ -96,17 +91,8 @@ export default class CreateSecrets extends Command {
       path: 'providers.external_secrets.pushSecrets.json',
       type: 'string',
       required: false,
-      conditionalRequired: true,
       description:
         'Raw JSON value for providers.external_secrets.pushSecrets (escape hatch for complex arrays)',
-      multiple: false,
-    },
-    {
-      path: 'providers.external_secrets.json',
-      type: 'string',
-      required: false,
-      description:
-        'Raw JSON value for providers.external_secrets (escape hatch for union types)',
       multiple: false,
     },
     {
@@ -134,6 +120,18 @@ export default class CreateSecrets extends Command {
       description: 'Raw JSON object for annotations',
       multiple: false,
     },
+    {
+      path: 'system',
+      type: 'string',
+      required: false,
+      multiple: false,
+    },
+    {
+      path: 'owner',
+      type: 'string',
+      required: true,
+      multiple: false,
+    },
   ] as unknown as FlagSpec[];
 
   static summary = 'Manage external secrets for a platform resource.';
@@ -154,7 +152,7 @@ export default class CreateSecrets extends Command {
   };
 
   static examples = [
-    '<%= config.bin %> <%= command.id %> --name example --providers.external_secrets.name example --providers.external_secrets.json "{\\"name\\":\\"example\\",\\"secretStore\\":{\\"name\\":\\"example\\"},\\"externalSecrets\\":{}}"',
+    '<%= config.bin %> <%= command.id %> --name example --providers.external_secrets.name example --providers.external_secrets.secretStore.name example --owner group:platform --providers.external_secrets.json "{\\"name\\":\\"example\\",\\"secretStore\\":{\\"name\\":\\"example\\"},\\"externalSecrets\\":{}}"',
   ];
 
   async run(): Promise<void> {
@@ -171,7 +169,7 @@ export default class CreateSecrets extends Command {
       ),
     };
     const validator = createClaimValidator({
-      schemasDir: join(this.config.root, 'schemas'),
+      schemasDir: claimSchemasDir(this.config.root),
     });
     const result = await validator.validate(claim, 'SecretsClaim');
     if (!result.valid) {

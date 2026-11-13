@@ -1,7 +1,7 @@
 import { Command, Flags } from '@oclif/core';
 import { readFile } from 'fs/promises';
 import { existsSync } from 'fs';
-import { join } from 'path';
+import { claimSchemasDir } from '../schema/claimSchemas.js';
 import { createClaimValidator } from '../utils/ajvValidation.js';
 import { getFeatureReferences } from '../utils/features.js';
 import {
@@ -41,7 +41,7 @@ export default class Validate extends Command {
     const files = flags.file as string[];
 
     const validator = createClaimValidator({
-      schemasDir: join(this.config.root, 'schemas'),
+      schemasDir: claimSchemasDir(this.config.root),
     });
 
     const results: Array<{

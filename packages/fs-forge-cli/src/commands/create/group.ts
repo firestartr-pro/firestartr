@@ -1,9 +1,9 @@
 import { Command, Flags } from '@oclif/core';
-import { join } from 'path';
 
 import { assertCreatePath } from '../../claims/deterministicPath.js';
 import { parseStateRepos } from '../../context/resolve.js';
 import { runClaimCreation } from '../../mutations/creation.js';
+import { claimSchemasDir } from '../../schema/claimSchemas.js';
 import {
   AUDIT_TRAIL_FLAGS,
   MUTATION_CONTROL_FLAGS,
@@ -45,24 +45,6 @@ export default class CreateGroup extends Command {
       type: 'string',
       required: false,
       multiple: false,
-    },
-    {
-      path: 'children',
-      type: 'string',
-      required: false,
-      multiple: true,
-    },
-    {
-      path: 'parent',
-      type: 'string',
-      required: false,
-      multiple: false,
-    },
-    {
-      path: 'members',
-      type: 'string',
-      required: false,
-      multiple: true,
     },
     {
       path: 'providers.github.name',
@@ -119,6 +101,24 @@ export default class CreateGroup extends Command {
       description: 'Raw JSON object for annotations',
       multiple: false,
     },
+    {
+      path: 'children',
+      type: 'string',
+      required: false,
+      multiple: true,
+    },
+    {
+      path: 'parent',
+      type: 'string',
+      required: false,
+      multiple: false,
+    },
+    {
+      path: 'members',
+      type: 'string',
+      required: false,
+      multiple: true,
+    },
   ] as unknown as FlagSpec[];
 
   static summary = 'Manage a GitHub team and its membership.';
@@ -154,7 +154,7 @@ export default class CreateGroup extends Command {
       ),
     };
     const validator = createClaimValidator({
-      schemasDir: join(this.config.root, 'schemas'),
+      schemasDir: claimSchemasDir(this.config.root),
     });
     const result = await validator.validate(claim, 'GroupClaim');
     if (!result.valid) {

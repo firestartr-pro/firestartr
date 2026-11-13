@@ -72,11 +72,11 @@ export function emitCreateCommand(model: ClaimCommandModel): string {
   const specsSource = commandFlags.map(flagSpecToSource).join(',\n');
 
   return `import { Command, Flags } from '@oclif/core';
-import { join } from 'path';
 
 import { assertCreatePath } from '../../claims/deterministicPath.js';
 import { parseStateRepos } from '../../context/resolve.js';
 import { runClaimCreation } from '../../mutations/creation.js';
+import { claimSchemasDir } from '../../schema/claimSchemas.js';
 import {
   AUDIT_TRAIL_FLAGS,
   MUTATION_CONTROL_FLAGS,
@@ -125,7 +125,7 @@ ${hasFeatureReferences ? "  feature: Flags.string({ description: 'Attach a Featu
       ),
     };
 ${hasFeatureReferences ? "    for (const value of flags.feature ?? []) {\n      claim = mutateFeatureReference(claim, 'add', parseFeatureReference(value));\n    }\n" : ''}    const validator = createClaimValidator({
-      schemasDir: join(this.config.root, 'schemas'),
+      schemasDir: claimSchemasDir(this.config.root),
     });
     const result = await validator.validate(claim, '${kind}');
     if (!result.valid) {
