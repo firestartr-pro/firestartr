@@ -1,5 +1,9 @@
 import { CLAIM_PRESENTATION, isHiddenFlag } from '../schema/claimOverlay.js';
-import { deriveFlags, deriveRequiredContainers } from '../utils/deriveFlags.js';
+import {
+  deferJsonCoveredRequirements,
+  deriveFlags,
+  deriveRequiredContainers,
+} from '../utils/deriveFlags.js';
 
 import type { ClaimPresentation } from '../schema/claimOverlay.js';
 import type { FlagSpec } from '../utils/deriveFlags.js';
@@ -36,8 +40,8 @@ export function buildCommandModel(
     id: kind.replace(/Claim$/, '').toLowerCase(),
     summary: presentation(kind).summary,
     icon: presentation(kind).icon,
-    flagSpecs: deriveFlags(schema).filter(
-      (flag) => !isHiddenFlag(kind, flag.path),
+    flagSpecs: deferJsonCoveredRequirements(
+      deriveFlags(schema).filter((flag) => !isHiddenFlag(kind, flag.path)),
     ),
     requiredContainers: deriveRequiredContainers(schema),
   };

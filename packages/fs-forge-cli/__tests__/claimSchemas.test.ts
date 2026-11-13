@@ -3,6 +3,7 @@ import { mkdtemp, rm, writeFile } from 'fs/promises';
 import { tmpdir } from 'os';
 import { join } from 'path';
 
+import { buildCommandModel } from '../src/codegen/model';
 import { isHiddenFlag } from '../src/schema/claimOverlay';
 import {
   claimSchemasDir,
@@ -106,5 +107,30 @@ describe('isHiddenFlag', () => {
     expect(
       isHiddenFlag('TFWorkspaceClaim', 'providers.terraform.sync.enabled'),
     ).toBe(false);
+  });
+});
+
+describe('required flags covered by a JSON escape hatch', () => {
+  function flag(kind: string, path: string) {
+    const schema = loadClaimSchema(claimSchemasDir(process.cwd()), kind);
+    return buildCommandModel(schema, kind).flagSpecs.find(
+      (spec) => spec.path === path,
+    );
+  }
+
+  it('leaves them to the schema validation, so the JSON can supply them', () => {
+    expect(flag('SecretsClaim', 'providers.external_secrets.secretStore.name')).toMatchObject(
+      { required: false, conditionalRequired: true },
+    );
+    expect(flag('SecretsClaim', 'providers.external_secrets.name')).toMatchObject(
+      { required: false, conditionalRequired: true },
+    );
+  });
+
+  it('keeps a requirement when the covering JSON flag is hidden', () => {
+    expect(flag('ArgoDeployClaim', 'providers.argocd.name')).toMatchObject({
+      required: true,
+    });
+    expect(flag('ArgoDeployClaim', 'providers.argocd.json')).toBeUndefined();
   });
 });

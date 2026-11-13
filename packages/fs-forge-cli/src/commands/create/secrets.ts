@@ -49,7 +49,8 @@ export default class CreateSecrets extends Command {
     {
       path: 'providers.external_secrets.name',
       type: 'string',
-      required: true,
+      required: false,
+      conditionalRequired: true,
       multiple: false,
     },
     {
@@ -77,7 +78,8 @@ export default class CreateSecrets extends Command {
     {
       path: 'providers.external_secrets.secretStore.name',
       type: 'string',
-      required: true,
+      required: false,
+      conditionalRequired: true,
       multiple: false,
     },
     {
@@ -152,7 +154,7 @@ export default class CreateSecrets extends Command {
   };
 
   static examples = [
-    '<%= config.bin %> <%= command.id %> --name example --providers.external_secrets.name example --providers.external_secrets.secretStore.name example --owner group:platform --providers.external_secrets.json "{\\"name\\":\\"example\\",\\"secretStore\\":{\\"name\\":\\"example\\"},\\"externalSecrets\\":{}}"',
+    '<%= config.bin %> <%= command.id %> --name example --owner group:platform --providers.external_secrets.json "{\\"name\\":\\"example\\",\\"secretStore\\":{\\"name\\":\\"example\\"},\\"externalSecrets\\":{}}"',
   ];
 
   async run(): Promise<void> {

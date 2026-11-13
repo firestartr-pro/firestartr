@@ -1029,6 +1029,7 @@
           "type": "option"
         },
         "providers.external_secrets.name": {
+          "description": "providers.external_secrets.name (required when its parent is supplied)",
           "name": "providers.external_secrets.name",
           "required": false,
           "hasDynamicHelp": false,
@@ -1059,6 +1060,7 @@
           "type": "option"
         },
         "providers.external_secrets.secretStore.name": {
+          "description": "providers.external_secrets.secretStore.name (required when its parent is supplied)",
           "name": "providers.external_secrets.secretStore.name",
           "required": false,
           "hasDynamicHelp": false,
@@ -4644,7 +4646,7 @@
       "args": {},
       "description": "Create a new SecretsClaim.",
       "examples": [
-        "<%= config.bin %> <%= command.id %> --name example --providers.external_secrets.name example --providers.external_secrets.secretStore.name example --owner group:platform --providers.external_secrets.json \"{\\\"name\\\":\\\"example\\\",\\\"secretStore\\\":{\\\"name\\\":\\\"example\\\"},\\\"externalSecrets\\\":{}}\""
+        "<%= config.bin %> <%= command.id %> --name example --owner group:platform --providers.external_secrets.json \"{\\\"name\\\":\\\"example\\\",\\\"secretStore\\\":{\\\"name\\\":\\\"example\\\"},\\\"externalSecrets\\\":{}}\""
       ],
       "flags": {
         "name": {
@@ -4683,8 +4685,9 @@
           "type": "option"
         },
         "providers.external_secrets.name": {
+          "description": "providers.external_secrets.name (required when its parent is supplied)",
           "name": "providers.external_secrets.name",
-          "required": true,
+          "required": false,
           "hasDynamicHelp": false,
           "multiple": false,
           "type": "option"
@@ -4713,8 +4716,9 @@
           "type": "option"
         },
         "providers.external_secrets.secretStore.name": {
+          "description": "providers.external_secrets.secretStore.name (required when its parent is supplied)",
           "name": "providers.external_secrets.secretStore.name",
-          "required": true,
+          "required": false,
           "hasDynamicHelp": false,
           "multiple": false,
           "type": "option"
@@ -4905,7 +4909,8 @@
         {
           "path": "providers.external_secrets.name",
           "type": "string",
-          "required": true,
+          "required": false,
+          "conditionalRequired": true,
           "multiple": false
         },
         {
@@ -4931,7 +4936,8 @@
         {
           "path": "providers.external_secrets.secretStore.name",
           "type": "string",
-          "required": true,
+          "required": false,
+          "conditionalRequired": true,
           "multiple": false
         },
         {
@@ -6146,107 +6152,6 @@
         "show.js"
       ]
     },
-    "diagram:print": {
-      "aliases": [],
-      "args": {},
-      "description": "Render an arbitrary relation graph (nodes/edges JSON) as a tree, using the same graphics as `discovery map`",
-      "examples": [
-        "<%= config.bin %> <%= command.id %> --file graph.json",
-        "cat graph.json | <%= config.bin %> <%= command.id %>",
-        "<%= config.bin %> <%= command.id %> --file graph.json --ascii"
-      ],
-      "flags": {
-        "file": {
-          "char": "f",
-          "description": "Path to a JSON file with a relation graph ({ nodes, edges }); reads stdin if omitted",
-          "name": "file",
-          "hasDynamicHelp": false,
-          "multiple": false,
-          "type": "option"
-        },
-        "ascii": {
-          "description": "Use ASCII icons instead of emoji",
-          "name": "ascii",
-          "allowNo": false,
-          "type": "boolean"
-        }
-      },
-      "hasDynamicHelp": false,
-      "hiddenAliases": [],
-      "id": "diagram:print",
-      "pluginAlias": "@firestartr/fs-forge-cli",
-      "pluginName": "@firestartr/fs-forge-cli",
-      "pluginType": "core",
-      "strict": true,
-      "enableJsonFlag": false,
-      "isESM": true,
-      "relativePath": [
-        "dist",
-        "commands",
-        "diagram",
-        "print.js"
-      ]
-    },
-    "kinds:show": {
-      "aliases": [],
-      "args": {
-        "kind": {
-          "description": "Claim kind (short ID; full *Claim names remain supported)",
-          "name": "kind",
-          "options": [
-            "argodeploy",
-            "ArgoDeployClaim",
-            "component",
-            "ComponentClaim",
-            "domain",
-            "DomainClaim",
-            "group",
-            "GroupClaim",
-            "orgsettings",
-            "OrgSettingsClaim",
-            "orgwebhook",
-            "OrgWebhookClaim",
-            "secrets",
-            "SecretsClaim",
-            "system",
-            "SystemClaim",
-            "tfworkspace",
-            "TFWorkspaceClaim",
-            "user",
-            "UserClaim"
-          ],
-          "required": true
-        }
-      },
-      "description": "Show what one claim kind supports",
-      "examples": [
-        "<%= config.bin %> <%= command.id %> component",
-        "<%= config.bin %> <%= command.id %> ComponentClaim --json"
-      ],
-      "flags": {
-        "json": {
-          "description": "Output as JSON",
-          "name": "json",
-          "allowNo": false,
-          "type": "boolean"
-        }
-      },
-      "hasDynamicHelp": false,
-      "hiddenAliases": [],
-      "id": "kinds:show",
-      "pluginAlias": "@firestartr/fs-forge-cli",
-      "pluginName": "@firestartr/fs-forge-cli",
-      "pluginType": "core",
-      "strict": true,
-      "enableJsonFlag": false,
-      "isESM": true,
-      "relativePath": [
-        "dist",
-        "commands",
-        "kinds",
-        "show.js"
-      ]
-    },
     "discovery:map": {
       "aliases": [],
       "args": {},
@@ -6407,6 +6312,107 @@
         "commands",
         "discovery",
         "org-elements.js"
+      ]
+    },
+    "diagram:print": {
+      "aliases": [],
+      "args": {},
+      "description": "Render an arbitrary relation graph (nodes/edges JSON) as a tree, using the same graphics as `discovery map`",
+      "examples": [
+        "<%= config.bin %> <%= command.id %> --file graph.json",
+        "cat graph.json | <%= config.bin %> <%= command.id %>",
+        "<%= config.bin %> <%= command.id %> --file graph.json --ascii"
+      ],
+      "flags": {
+        "file": {
+          "char": "f",
+          "description": "Path to a JSON file with a relation graph ({ nodes, edges }); reads stdin if omitted",
+          "name": "file",
+          "hasDynamicHelp": false,
+          "multiple": false,
+          "type": "option"
+        },
+        "ascii": {
+          "description": "Use ASCII icons instead of emoji",
+          "name": "ascii",
+          "allowNo": false,
+          "type": "boolean"
+        }
+      },
+      "hasDynamicHelp": false,
+      "hiddenAliases": [],
+      "id": "diagram:print",
+      "pluginAlias": "@firestartr/fs-forge-cli",
+      "pluginName": "@firestartr/fs-forge-cli",
+      "pluginType": "core",
+      "strict": true,
+      "enableJsonFlag": false,
+      "isESM": true,
+      "relativePath": [
+        "dist",
+        "commands",
+        "diagram",
+        "print.js"
+      ]
+    },
+    "kinds:show": {
+      "aliases": [],
+      "args": {
+        "kind": {
+          "description": "Claim kind (short ID; full *Claim names remain supported)",
+          "name": "kind",
+          "options": [
+            "argodeploy",
+            "ArgoDeployClaim",
+            "component",
+            "ComponentClaim",
+            "domain",
+            "DomainClaim",
+            "group",
+            "GroupClaim",
+            "orgsettings",
+            "OrgSettingsClaim",
+            "orgwebhook",
+            "OrgWebhookClaim",
+            "secrets",
+            "SecretsClaim",
+            "system",
+            "SystemClaim",
+            "tfworkspace",
+            "TFWorkspaceClaim",
+            "user",
+            "UserClaim"
+          ],
+          "required": true
+        }
+      },
+      "description": "Show what one claim kind supports",
+      "examples": [
+        "<%= config.bin %> <%= command.id %> component",
+        "<%= config.bin %> <%= command.id %> ComponentClaim --json"
+      ],
+      "flags": {
+        "json": {
+          "description": "Output as JSON",
+          "name": "json",
+          "allowNo": false,
+          "type": "boolean"
+        }
+      },
+      "hasDynamicHelp": false,
+      "hiddenAliases": [],
+      "id": "kinds:show",
+      "pluginAlias": "@firestartr/fs-forge-cli",
+      "pluginName": "@firestartr/fs-forge-cli",
+      "pluginType": "core",
+      "strict": true,
+      "enableJsonFlag": false,
+      "isESM": true,
+      "relativePath": [
+        "dist",
+        "commands",
+        "kinds",
+        "show.js"
       ]
     },
     "features:add": {
