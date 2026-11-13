@@ -5,6 +5,7 @@ import {
   initFromModule,
   output,
   plan,
+  planArtifact,
   validate,
   customCommand,
 } from './utils';
@@ -12,6 +13,11 @@ import { WriterTerraform } from './writer_terraform';
 import { WriterTfVarsJson } from './writer_tfvars_json';
 import { WriterProviderJson } from './writer_provider_tf_json';
 import { WriterImports } from './writer_imports';
+import {
+  WriterPlanState,
+  listsAbsentSnapshotState,
+  plansAgainstLiveBackend,
+} from './writer_plan_state';
 
 import common from 'catalog_common';
 import { spawn } from 'child_process';
@@ -102,7 +108,7 @@ export class TFProjectManagerRemote {
 
     this.writerTerraform = new WriterTerraform(
       ctx.requiredProviders,
-      ctx.backend,
+      this.snapshotsState() ? undefined : ctx.backend,
       ctx.tfStateKey,
       false,
     );
@@ -247,6 +253,18 @@ export class TFProjectManagerRemote {
       // Note: for freshly built workspaces, __init() will run before the import command executes.
       // Only reuse mode needs an extra init immediately after regenerating imports.tf.
     }
+
+    // Read-only plans never initialize a kubernetes backend: they plan
+    // against a local snapshot of its state
+    if (this.snapshotsState()) {
+      const writerPlanState = new WriterPlanState(
+        this.ctx.backend,
+        this.ctx.tfStatePath || this.ctx.tfStateKey,
+        this.ctx.readOnlyState,
+      );
+      await writerPlanState.render();
+      writerPlanState.writeToTerraformProject(this.projectPath);
+    }
   }
 
   async __init() {
@@ -274,6 +292,13 @@ export class TFProjectManagerRemote {
       this.secrets,
       undefined,
       this.ctl,
+      !this.snapshotsState(),
+    );
+  }
+
+  snapshotsState(): boolean {
+    return (
+      !!this.ctx?.readOnlyState && !plansAgainstLiveBackend(this.ctx.backend)
     );
   }
 
@@ -309,6 +334,21 @@ export class TFProjectManagerRemote {
     if (this.stream) this.stream.end();
   }
 
+  async planArtifact(destroy: boolean) {
+    await this.__init();
+
+    this.tfOutput = await planArtifact(
+      this.projectPath,
+      this.secrets,
+      destroy,
+      this.stream,
+      this.ctl,
+      this.ctx.planExcludes ?? [],
+    );
+
+    if (this.stream) this.stream.end();
+  }
+
   async apply() {
     await this.__init();
 
@@ -329,11 +369,18 @@ export class TFProjectManagerRemote {
       throw new Error('Error in customCommand: there are no customArgs to run');
     }
 
+    if (listsAbsentSnapshotState(this.projectPath, this.customArgs)) {
+      if (this.stream) this.stream.end();
+
+      return;
+    }
+
     this.tfOutput += await customCommand(
       this.projectPath,
       this.secrets,
       this.customArgs,
       this.stream,
+      this.ctl,
     );
 
     if (this.stream) this.stream.end();
@@ -357,6 +404,7 @@ export class TFProjectManagerRemote {
         this.secrets,
         ['state', 'list'],
         this.stream,
+        this.ctl,
       )) as string
     )
       .split(/\n/)
@@ -372,6 +420,7 @@ export class TFProjectManagerRemote {
         this.secrets,
         ['state', 'rm'].concat(addressesList),
         this.stream,
+        this.ctl,
       );
 
       log.info(

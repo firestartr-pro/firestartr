@@ -26,13 +26,24 @@ jest.mock('github', () => ({
   default: { createProfile: jest.fn() },
 }));
 
-import { filterImplementedKinds, runOperator } from '..';
+import {
+  filterImplementedKinds,
+  planImplementations,
+  provisionImplementations,
+  runOperator,
+} from '..';
 import { observeKind } from '../src/informer';
 import log from '../src/logger';
 import metricsServer from '../src/metricsServer';
 
 describe('operator kind configuration', () => {
   beforeEach(() => jest.clearAllMocks());
+
+  it('has a Plan mode implementation for every provisioned kind', () => {
+    expect(Object.keys(planImplementations).sort()).toEqual(
+      Object.keys(provisionImplementations).sort(),
+    );
+  });
 
   it('keeps implemented kinds and warns about configured kinds without implementations', () => {
     expect(

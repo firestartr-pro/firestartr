@@ -1,11 +1,16 @@
 import github from 'github';
 import { extractPrInfo } from './user-feedback-ops';
+import { assertWriteAllowed } from '../plan-mode/write-gateway';
 
 function operatorProfile() {
   return github.withProfile('operator');
 }
 
 export async function GHCheckRun(cmd: string, item: any) {
+  assertWriteAllowed(
+    `check run ${cmd} for ${item.kind}/${item.metadata?.name}`,
+  );
+
   const prInfo = extractPrInfo(item);
 
   if (!prInfo.prNumber) {

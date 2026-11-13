@@ -68,8 +68,15 @@ const CLAIM_KINDS: Record<string, string> = {
   TFWorkspaceClaim: 'firestartr.dev://common/TFWorkspaceClaim',
   SecretsClaim: 'firestartr.dev://common/SecretsClaim',
   OrgWebhookClaim: 'firestartr.dev://common/OrgWebhookClaim',
+  OrgSettingsClaim: 'firestartr.dev://common/OrgSettingsClaim',
   ArgoDeployClaim: 'firestartr.dev://common/ArgoDeployClaim',
 };
+
+// One valid fixture per claim, checked by the generated smoke test.
+const SMOKE_FIXTURES = [
+  { claim: 'GroupClaim', source: 'groups/group_a.yaml' },
+  { claim: 'OrgSettingsClaim', source: 'orgSettings/orgsettings_a.yaml' },
+];
 
 const GENERATED_PACKAGE_NAME = '@firestartr/firestartr-claims_schemas';
 
@@ -340,43 +347,53 @@ void (async () => {
   );
 
   // ---- Step 5: Copy fixture and generate test file ---
-  // Copy and convert group_a.yaml fixture
+  // Copy and convert the fixtures used by the smoke test
   const { parse } = await import('yaml');
-  const fixtureSrc = path.resolve(
-    __dirname,
-    '../__tests__/fixtures/base_claims/groups/group_a.yaml',
-  );
-  const fixtureYaml = await fs.readFile(fixtureSrc, 'utf8');
-  const fixtureJson = parse(fixtureYaml);
-
-  await fs.writeFile(
-    path.join(pkgdir, 'group_a.fixture.json'),
-    JSON.stringify(fixtureJson, null, 2),
-    'utf8',
-  );
+  for (const { claim, source } of SMOKE_FIXTURES) {
+    const fixtureYaml = await fs.readFile(
+      path.resolve(__dirname, '../__tests__/fixtures/base_claims', source),
+      'utf8',
+    );
+    await fs.writeFile(
+      path.join(pkgdir, `${claim}.fixture.json`),
+      JSON.stringify(parse(fixtureYaml), null, 2),
+      'utf8',
+    );
+  }
 
   // Write test file
+  const smokeCases = SMOKE_FIXTURES.map(({ claim }) => `  '${claim}',`).join(
+    '\n',
+  );
   await fs.writeFile(
     path.join(pkgdir, 'smoke.test.js'),
     `import { readdirSync, readFileSync } from 'fs';
-import Ajv from 'ajv';
 import Ajv2020 from 'ajv/dist/2020.js';
-import GroupClaim from './schemas/GroupClaim.json' with { type: 'json' };
 import apps from './dot-firestartr/apps.schema.json' with { type: 'json' };
 import { schemas as actions } from './actions/index.mjs';
-import fixture from './group_a.fixture.json' with { type: 'json' };
 const actionApps = actions['firestartr-apps'];
 const actionConfig = actions.config;
 const buildImagesResults = actions['build-images-results'];
 
-const ajv = new Ajv2020({ allErrors: true });
-const validate = ajv.compile(GroupClaim);
-if (!validate(fixture)) {
-  console.error(validate.errors);
-  process.exit(1);
-}
+const claims = [
+${smokeCases}
+];
 
-const dotFirestartrAjv = new Ajv({ allErrors: true });
+let failed = false;
+for (const claim of claims) {
+  const schema = JSON.parse(readFileSync(\`./schemas/\${claim}.json\`, 'utf8'));
+  const fixture = JSON.parse(readFileSync(\`./\${claim}.fixture.json\`, 'utf8'));
+  const validate = new Ajv2020({ allErrors: true }).compile(schema);
+  if (validate(fixture)) {
+    console.log(\`\${claim}: fixture validated successfully.\`);
+  } else {
+    console.error(\`\${claim}: fixture is invalid\`, validate.errors);
+    failed = true;
+  }
+}
+if (failed) process.exit(1);
+
+const dotFirestartrAjv = new Ajv2020({ allErrors: true });
 const validateApps = dotFirestartrAjv.compile(apps);
 const app = { name: 'app', state_repo: 'org/state', services: [] };
 if (!validateApps(app)) {
@@ -401,7 +418,7 @@ for (const file of actionFiles) {
   }
 }
 
-const actionsAjv = new Ajv({ allErrors: true });
+const actionsAjv = new Ajv2020({ allErrors: true });
 actionsAjv.compile(actionApps);
 const validateConfig = actionsAjv.compile(actionConfig);
 if (

@@ -10,7 +10,38 @@ import log from './logger';
 
 import { SYNC_DEFAULT_ERROR_MESSAGE } from './utils/operationErrorMessages';
 
+import { isPlanMode } from './plan-mode/config';
+
 const DEFAULT_REVISION_TIME = '1m';
+
+/**
+ * Plan mode's in-memory SYNCHRONIZED condition per item path, bound to the
+ * UID of the CR it was recorded for.
+ */
+const planSyncShadow = new Map<
+  string,
+  { uid?: string; condition: Condition }
+>();
+
+function getPlanSyncShadow(itemPath: string, item: any): Condition | undefined {
+  const shadow = planSyncShadow.get(itemPath);
+
+  if (!shadow) return undefined;
+
+  // A CR recreated at the same path must not inherit the old one's sync
+  if (shadow.uid !== item?.metadata?.uid) {
+    planSyncShadow.delete(itemPath);
+
+    return undefined;
+  }
+
+  return shadow.condition;
+}
+
+/** Forgets Plan mode's sync state for a CR that is gone. */
+export function clearPlanSyncShadow(itemPath: string): void {
+  planSyncShadow.delete(itemPath);
+}
 
 export type SyncMode = 'Scheduled' | 'Period' | 'NotSyncable';
 
@@ -151,10 +182,9 @@ export async function getSyncStatus(
 ): Promise<SyncStatus> {
   const item: any = itemCR ?? (await getItemByItemPath(itemPath));
 
-  const syncCondition = getConditionByType(
-    item.status?.conditions ?? [],
-    'SYNCHRONIZED',
-  );
+  const syncCondition =
+    (isPlanMode() && getPlanSyncShadow(itemPath, item)) ||
+    getConditionByType(item.status?.conditions ?? [], 'SYNCHRONIZED');
 
   // no sync condition present
   if (!syncCondition) {
@@ -195,6 +225,7 @@ export async function setSyncStatus(
   reason: string,
   status: 'True' | 'False' | 'Unknown',
   message: string,
+  expectedUid?: string,
 ): Promise<SyncStatus> {
   const item = await getItemByItemPath(itemPath);
 
@@ -204,6 +235,23 @@ export async function setSyncStatus(
 
   syncStatus.itemPath = itemPath;
   syncStatus.syncStatusPresent = true;
+
+  if (isPlanMode()) {
+    // A CR recreated while its plan ran must not inherit that plan's sync
+    if (expectedUid && item.metadata?.uid !== expectedUid) {
+      planSyncShadow.delete(itemPath);
+
+      return syncStatus;
+    }
+
+    // Plan mode never writes CR status: the syncer rearms from this shadow
+    planSyncShadow.set(itemPath, {
+      uid: item.metadata?.uid,
+      condition: syncStatus.conditions[0],
+    });
+
+    return syncStatus;
+  }
 
   log.info(
     `Setting sync status for ${itemPath}: ${JSON.stringify(syncStatus)}`,
