@@ -1,9 +1,9 @@
 import { Command, Flags } from '@oclif/core';
-import { join } from 'path';
 
 import { assertCreatePath } from '../../claims/deterministicPath.js';
 import { parseStateRepos } from '../../context/resolve.js';
 import { runClaimCreation } from '../../mutations/creation.js';
+import { claimSchemasDir } from '../../schema/claimSchemas.js';
 import {
   AUDIT_TRAIL_FLAGS,
   MUTATION_CONTROL_FLAGS,
@@ -42,18 +42,6 @@ export default class CreateOrgWebhook extends Command {
     },
     {
       path: 'version',
-      type: 'string',
-      required: false,
-      multiple: false,
-    },
-    {
-      path: 'system',
-      type: 'string',
-      required: false,
-      multiple: false,
-    },
-    {
-      path: 'owner',
       type: 'string',
       required: false,
       multiple: false,
@@ -139,6 +127,18 @@ export default class CreateOrgWebhook extends Command {
       description: 'Raw JSON object for annotations',
       multiple: false,
     },
+    {
+      path: 'system',
+      type: 'string',
+      required: false,
+      multiple: false,
+    },
+    {
+      path: 'owner',
+      type: 'string',
+      required: true,
+      multiple: false,
+    },
   ] as unknown as FlagSpec[];
 
   static summary = 'Configure a webhook for a GitHub organization.';
@@ -158,7 +158,9 @@ export default class CreateOrgWebhook extends Command {
     }),
   };
 
-  static examples = ['<%= config.bin %> <%= command.id %> --name example'];
+  static examples = [
+    '<%= config.bin %> <%= command.id %> --name example --owner group:platform',
+  ];
 
   async run(): Promise<void> {
     const { flags } = await this.parse(CreateOrgWebhook);
@@ -174,7 +176,7 @@ export default class CreateOrgWebhook extends Command {
       ),
     };
     const validator = createClaimValidator({
-      schemasDir: join(this.config.root, 'schemas'),
+      schemasDir: claimSchemasDir(this.config.root),
     });
     const result = await validator.validate(claim, 'OrgWebhookClaim');
     if (!result.valid) {

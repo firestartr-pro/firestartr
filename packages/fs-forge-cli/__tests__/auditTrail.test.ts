@@ -13,6 +13,7 @@ import Delete from '../src/commands/delete';
 import Edit from '../src/commands/edit';
 import { runFeatureMutation } from '../src/features/mutation';
 import { createGitHubApi } from '../src/github/index';
+import { claimSchemasDir } from '../src/schema/claimSchemas';
 import { MemoryGitHubApi } from './fixtures/memoryGitHubApi';
 
 import type { ClaimsRepo } from '../src/claims/claimsRepo';
@@ -325,7 +326,7 @@ describe('features audit trail', () => {
             createIssue: true,
             feature,
           },
-          { repo, schemasDir: join(ROOT, 'schemas') },
+          { repo, schemasDir: claimSchemasDir(ROOT) },
         );
         return 0;
       });
@@ -356,7 +357,7 @@ describe('features audit trail', () => {
             createIssue: true,
             feature: { name: 'feature_a' },
           },
-          { repo, schemasDir: join(ROOT, 'schemas') },
+          { repo, schemasDir: claimSchemasDir(ROOT) },
         );
         return 0;
       }),
@@ -402,7 +403,7 @@ describe('features audit trail', () => {
           issue: 8,
           feature: { name: 'feature_a', version: '1.0.0', args: {} },
         },
-        { repo, schemasDir: join(ROOT, 'schemas') },
+        { repo, schemasDir: claimSchemasDir(ROOT) },
       );
       return 0;
     });

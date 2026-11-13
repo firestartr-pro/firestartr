@@ -1,17 +1,14 @@
 import { describe, it, expect } from '@jest/globals';
-import { readFileSync } from 'fs';
-import { join } from 'path';
 import {
   deriveFlags,
   deriveRequiredContainers,
   deriveVariantGroups,
 } from '../src/utils/deriveFlags';
+import { claimSchemasDir, loadClaimSchema } from '../src/schema/claimSchemas';
 import type { FlagSpec } from '../src/utils/deriveFlags';
 
 function claimSchema(kind: string): Record<string, unknown> {
-  return JSON.parse(
-    readFileSync(join(process.cwd(), 'schemas', `${kind}.json`), 'utf8'),
-  ) as Record<string, unknown>;
+  return loadClaimSchema(claimSchemasDir(process.cwd()), kind);
 }
 
 function names(flags: FlagSpec[]): string[] {

@@ -31,8 +31,8 @@ Preconditions:
 - **Cover the other kinds.** Each drive below exits 0 and starts `stdout.txt` with the kind named:
   - `-- create argodeploy --name my-app --providers.argocd.name my-app` prints `kind: ArgoDeployClaim`.
   - `-- create orgsettings --name my-org --providers.github.name my-org --providers.github.org my-org --providers.github.billing_email billing@example.com` prints `kind: OrgSettingsClaim`.
-  - `-- create orgwebhook --name hook --providers.github.name hook --providers.github.orgName my-org --providers.github.webhook.url https://example.invalid/hook --providers.github.webhook.contentType json --providers.github.webhook.secretRef ref:secretsclaim:sec:token --providers.github.webhook.events push --providers.github.webhook.events pull_request` prints `kind: OrgWebhookClaim` with both events listed.
-  - `-- create secrets --name sec --providers.external_secrets.name sec --providers.external_secrets.secretStore.name store --providers.external_secrets.secretStore.kind SecretStore --providers.external_secrets.externalSecrets.refreshInterval 1h --providers.external_secrets.externalSecrets.secrets.json '[]' --providers.external_secrets.pushSecrets.json '[]'` prints `kind: SecretsClaim`.
+  - `-- create orgwebhook --name hook --owner group:platform --providers.github.name hook --providers.github.orgName my-org --providers.github.webhook.url https://example.invalid/hook --providers.github.webhook.contentType json --providers.github.webhook.secretRef ref:secretsclaim:sec:token --providers.github.webhook.events push --providers.github.webhook.events pull_request` prints `kind: OrgWebhookClaim` with both events listed.
+  - `-- create secrets --name sec --owner group:platform --providers.external_secrets.name sec --providers.external_secrets.secretStore.name store --providers.external_secrets.secretStore.kind SecretStore --providers.external_secrets.externalSecrets.refreshInterval 1h --providers.external_secrets.externalSecrets.secrets.json '[]' --providers.external_secrets.pushSecrets.json '[]'` prints `kind: SecretsClaim`.
   - `-- create system --name sys` prints `kind: SystemClaim`.
   - `-- create tfworkspace --name ws --owner group:platform --providers.terraform.name ws --providers.terraform.source remote --providers.terraform.values.json '{}' --providers.terraform.context.providers.json '[]'` prints `kind: TFWorkspaceClaim`.
   - `-- create user --name alice --providers.github.name alice --providers.github.org my-org --providers.github.role member` prints `kind: UserClaim`.
@@ -41,7 +41,7 @@ Preconditions:
 
 ## Gotchas
 
-- Usage text marks only some flags required. A kind's schema can require more, and `create` then fails with exit 2 and the schema paths. Orgwebhook needs `providers.github.name`, `orgName` and the whole `webhook` block; secrets needs `secretStore`, `externalSecrets` and `pushSecrets`; group, user and component need `providers.github.name` and `org`.
+- Usage text marks only some flags required. A kind's schema can require more, and `create` then fails with exit 2 and the schema paths. Orgwebhook needs `owner`, `providers.github.name`, `orgName` and the whole `webhook` block; secrets needs `owner`, `secretStore`, `externalSecrets` and `pushSecrets`; group, user and component need `providers.github.name` and `org`.
 - `providers.github.webhook.secretRef` must match `ref:secretsclaim:<name>:<key>`; any other string fails with exit 2.
 - Array flags repeat (`--providers.github.webhook.events push --providers.github.webhook.events pull_request`). The `.json` flags take a JSON string, so quote it for the shell.
 - A failed `create` leaves `stdout.txt` empty. Seeding it into `validate` then fails on the empty file; that is the seed, not a `validate` bug.

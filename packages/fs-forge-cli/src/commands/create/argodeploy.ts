@@ -1,9 +1,9 @@
 import { Command, Flags } from '@oclif/core';
-import { join } from 'path';
 
 import { assertCreatePath } from '../../claims/deterministicPath.js';
 import { parseStateRepos } from '../../context/resolve.js';
 import { runClaimCreation } from '../../mutations/creation.js';
+import { claimSchemasDir } from '../../schema/claimSchemas.js';
 import {
   AUDIT_TRAIL_FLAGS,
   MUTATION_CONTROL_FLAGS,
@@ -42,18 +42,6 @@ export default class CreateArgoDeploy extends Command {
     },
     {
       path: 'version',
-      type: 'string',
-      required: false,
-      multiple: false,
-    },
-    {
-      path: 'system',
-      type: 'string',
-      required: false,
-      multiple: false,
-    },
-    {
-      path: 'project',
       type: 'string',
       required: false,
       multiple: false,
@@ -155,6 +143,18 @@ export default class CreateArgoDeploy extends Command {
       description: 'Raw JSON object for annotations',
       multiple: false,
     },
+    {
+      path: 'system',
+      type: 'string',
+      required: false,
+      multiple: false,
+    },
+    {
+      path: 'project',
+      type: 'string',
+      required: false,
+      multiple: false,
+    },
   ] as unknown as FlagSpec[];
 
   static summary = 'Deploy an application to Argo CD from a claim.';
@@ -192,7 +192,7 @@ export default class CreateArgoDeploy extends Command {
       ),
     };
     const validator = createClaimValidator({
-      schemasDir: join(this.config.root, 'schemas'),
+      schemasDir: claimSchemasDir(this.config.root),
     });
     const result = await validator.validate(claim, 'ArgoDeployClaim');
     if (!result.valid) {

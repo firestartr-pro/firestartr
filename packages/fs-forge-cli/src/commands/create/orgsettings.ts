@@ -1,9 +1,9 @@
 import { Command, Flags } from '@oclif/core';
-import { join } from 'path';
 
 import { assertCreatePath } from '../../claims/deterministicPath.js';
 import { parseStateRepos } from '../../context/resolve.js';
 import { runClaimCreation } from '../../mutations/creation.js';
+import { claimSchemasDir } from '../../schema/claimSchemas.js';
 import {
   AUDIT_TRAIL_FLAGS,
   MUTATION_CONTROL_FLAGS,
@@ -49,14 +49,8 @@ export default class CreateOrgSettings extends Command {
     {
       path: 'providers.github.name',
       type: 'string',
-      required: true,
-      multiple: false,
-    },
-    {
-      path: 'providers.github.org',
-      type: 'string',
-      required: true,
-      description: 'GitHub organization name',
+      required: false,
+      conditionalRequired: true,
       multiple: false,
     },
     {
@@ -66,10 +60,26 @@ export default class CreateOrgSettings extends Command {
       multiple: false,
     },
     {
+      path: 'providers.github.org',
+      type: 'string',
+      required: false,
+      conditionalRequired: true,
+      description: 'GitHub organization name',
+      multiple: false,
+    },
+    {
       path: 'providers.github.billing_email',
       type: 'string',
-      required: true,
+      required: false,
+      conditionalRequired: true,
       description: 'Billing email for the organization',
+      multiple: false,
+    },
+    {
+      path: 'providers.github.twitter_username',
+      type: 'string',
+      required: false,
+      description: 'Twitter username',
       multiple: false,
     },
     {
@@ -91,13 +101,6 @@ export default class CreateOrgSettings extends Command {
       type: 'string',
       required: false,
       description: 'Contact email',
-      multiple: false,
-    },
-    {
-      path: 'providers.github.twitter_username',
-      type: 'string',
-      required: false,
-      description: 'Twitter username',
       multiple: false,
     },
     {
@@ -321,9 +324,7 @@ export default class CreateOrgSettings extends Command {
     }),
   };
 
-  static examples = [
-    '<%= config.bin %> <%= command.id %> --name example --providers.github.name example --providers.github.org example --providers.github.billing_email example',
-  ];
+  static examples = ['<%= config.bin %> <%= command.id %> --name example'];
 
   async run(): Promise<void> {
     const { flags } = await this.parse(CreateOrgSettings);
@@ -335,11 +336,11 @@ export default class CreateOrgSettings extends Command {
       ...buildClaimFromFlags(
         flags as Record<string, unknown>,
         CreateOrgSettings.FLAG_SPECS,
-        [],
+        ['providers'],
       ),
     };
     const validator = createClaimValidator({
-      schemasDir: join(this.config.root, 'schemas'),
+      schemasDir: claimSchemasDir(this.config.root),
     });
     const result = await validator.validate(claim, 'OrgSettingsClaim');
     if (!result.valid) {

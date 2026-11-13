@@ -1,9 +1,9 @@
 import { Command, Flags } from '@oclif/core';
-import { join } from 'path';
 
 import { assertCreatePath } from '../../claims/deterministicPath.js';
 import { parseStateRepos } from '../../context/resolve.js';
 import { runClaimCreation } from '../../mutations/creation.js';
+import { claimSchemasDir } from '../../schema/claimSchemas.js';
 import {
   AUDIT_TRAIL_FLAGS,
   MUTATION_CONTROL_FLAGS,
@@ -47,18 +47,6 @@ export default class CreateSystem extends Command {
       multiple: false,
     },
     {
-      path: 'domain',
-      type: 'string',
-      required: false,
-      multiple: false,
-    },
-    {
-      path: 'owner',
-      type: 'string',
-      required: false,
-      multiple: false,
-    },
-    {
       path: 'providers.catalog.json',
       type: 'string',
       required: false,
@@ -88,6 +76,18 @@ export default class CreateSystem extends Command {
       type: 'string',
       required: false,
       description: 'Raw JSON object for annotations',
+      multiple: false,
+    },
+    {
+      path: 'domain',
+      type: 'string',
+      required: false,
+      multiple: false,
+    },
+    {
+      path: 'owner',
+      type: 'string',
+      required: false,
       multiple: false,
     },
   ] as unknown as FlagSpec[];
@@ -125,7 +125,7 @@ export default class CreateSystem extends Command {
       ),
     };
     const validator = createClaimValidator({
-      schemasDir: join(this.config.root, 'schemas'),
+      schemasDir: claimSchemasDir(this.config.root),
     });
     const result = await validator.validate(claim, 'SystemClaim');
     if (!result.valid) {

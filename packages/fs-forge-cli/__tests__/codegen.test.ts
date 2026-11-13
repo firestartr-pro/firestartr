@@ -1,10 +1,16 @@
 import { describe, expect, it, jest } from '@jest/globals';
-import { mkdtemp, readFile, readdir, rm } from 'fs/promises';
+import { mkdtemp, readFile, rm } from 'fs/promises';
 import { tmpdir } from 'os';
 import { join } from 'path';
 
 import { buildCommandModel } from '../src/codegen/model';
 import { generateAllCommands } from '../src/codegen/generateCommands';
+import { isHiddenFlag } from '../src/schema/claimOverlay';
+import {
+  claimSchemasDir,
+  listClaimKinds,
+  loadClaimSchema,
+} from '../src/schema/claimSchemas';
 
 // prettier's CommonJS entry lazily imports its ESM build, which jest's VM
 // rejects without --experimental-vm-modules. Substitute the standalone build
@@ -24,7 +30,7 @@ jest.mock('prettier', () => ({
 }));
 
 const ROOT = process.cwd();
-const SCHEMAS_DIR = join(ROOT, 'schemas');
+const SCHEMAS_DIR = claimSchemasDir(ROOT);
 
 type SchemaObject = Record<string, unknown>;
 
@@ -96,29 +102,23 @@ function jsonEscapeHatchPaths(schema: SchemaObject): string[] {
   return [...paths];
 }
 
-async function readSchema(kind: string): Promise<Record<string, unknown>> {
-  return JSON.parse(
-    await readFile(join(SCHEMAS_DIR, `${kind}.json`), 'utf8'),
-  ) as Record<string, unknown>;
+function readSchema(kind: string): Record<string, unknown> {
+  return loadClaimSchema(SCHEMAS_DIR, kind);
 }
 
-async function claimSchemas(): Promise<Array<{ kind: string; schema: Record<string, unknown> }>> {
-  const files = (await readdir(SCHEMAS_DIR))
-    .filter((file) => file.endsWith('Claim.json'))
-    .sort();
-  return Promise.all(
-    files.map(async (file) => ({
-      kind: file.replace(/\.json$/, ''),
-      schema: JSON.parse(
-        await readFile(join(SCHEMAS_DIR, file), 'utf8'),
-      ) as Record<string, unknown>,
-    })),
-  );
+function claimSchemas(): Array<{
+  kind: string;
+  schema: Record<string, unknown>;
+}> {
+  return listClaimKinds(SCHEMAS_DIR).map((kind) => ({
+    kind,
+    schema: readSchema(kind),
+  }));
 }
 
 describe('claim command model', () => {
   it('builds one model per claim schema from its metadata', async () => {
-    const schemas = await claimSchemas();
+    const schemas = claimSchemas();
     expect(schemas).toHaveLength(10);
 
     for (const { kind, schema } of schemas) {
@@ -133,23 +133,16 @@ describe('claim command model', () => {
     }
   });
 
-  it('rejects a schema without summary or icon metadata', async () => {
-    const schema = await readSchema('ComponentClaim');
-    delete schema['x-fs-forge-summary'];
-    delete schema['x-fs-forge-icon'];
+  it('rejects a kind that has no presentation entry', () => {
+    const schema = readSchema('ComponentClaim');
 
-    expect(() => buildCommandModel(schema, 'ComponentClaim')).toThrow(
-      'ComponentClaim schema is missing x-fs-forge-summary metadata',
-    );
-
-    schema['x-fs-forge-summary'] = 'A component claim.';
-    expect(() => buildCommandModel(schema, 'ComponentClaim')).toThrow(
-      'ComponentClaim schema is missing x-fs-forge-icon metadata',
+    expect(() => buildCommandModel(schema, 'UnknownClaim')).toThrow(
+      'UnknownClaim has no entry in CLAIM_PRESENTATION',
     );
   });
 
   it('derives unique flag paths and the JSON escape hatches for complex fields', async () => {
-    const schemas = await claimSchemas();
+    const schemas = claimSchemas();
     const models = schemas.map(({ kind, schema }) =>
       buildCommandModel(schema, kind),
     );
@@ -173,7 +166,11 @@ describe('claim command model', () => {
       const model = models.find((candidate) => candidate.kind === kind)!;
       const paths = new Set(model.flagSpecs.map((flag) => flag.path));
       for (const path of jsonEscapeHatchPaths(schema)) {
-        expect(paths).toContain(path);
+        if (isHiddenFlag(kind, path)) {
+          expect(paths).not.toContain(path);
+        } else {
+          expect(paths).toContain(path);
+        }
       }
     }
   });

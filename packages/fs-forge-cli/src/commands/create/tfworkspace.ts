@@ -1,9 +1,9 @@
 import { Command, Flags } from '@oclif/core';
-import { join } from 'path';
 
 import { assertCreatePath } from '../../claims/deterministicPath.js';
 import { parseStateRepos } from '../../context/resolve.js';
 import { runClaimCreation } from '../../mutations/creation.js';
+import { claimSchemasDir } from '../../schema/claimSchemas.js';
 import {
   AUDIT_TRAIL_FLAGS,
   MUTATION_CONTROL_FLAGS,
@@ -44,24 +44,6 @@ export default class CreateTFWorkspace extends Command {
       path: 'version',
       type: 'string',
       required: false,
-      multiple: false,
-    },
-    {
-      path: 'resourceType',
-      type: 'string',
-      required: false,
-      multiple: false,
-    },
-    {
-      path: 'system',
-      type: 'string',
-      required: false,
-      multiple: false,
-    },
-    {
-      path: 'owner',
-      type: 'string',
-      required: true,
       multiple: false,
     },
     {
@@ -181,6 +163,24 @@ export default class CreateTFWorkspace extends Command {
       description: 'Raw JSON object for annotations',
       multiple: false,
     },
+    {
+      path: 'resourceType',
+      type: 'string',
+      required: false,
+      multiple: false,
+    },
+    {
+      path: 'system',
+      type: 'string',
+      required: false,
+      multiple: false,
+    },
+    {
+      path: 'owner',
+      type: 'string',
+      required: true,
+      multiple: false,
+    },
   ] as unknown as FlagSpec[];
 
   static summary = 'Manage a Terraform workspace and its infrastructure state.';
@@ -201,7 +201,7 @@ export default class CreateTFWorkspace extends Command {
   };
 
   static examples = [
-    '<%= config.bin %> <%= command.id %> --name example --owner group:platform --providers.terraform.name example --providers.terraform.source remote --providers.terraform.values.json "{}" --providers.terraform.context.providers.json "[]"',
+    '<%= config.bin %> <%= command.id %> --name example --providers.terraform.name example --providers.terraform.source remote --providers.terraform.values.json "{}" --providers.terraform.context.providers.json "[]" --owner group:platform',
   ];
 
   async run(): Promise<void> {
@@ -218,7 +218,7 @@ export default class CreateTFWorkspace extends Command {
       ),
     };
     const validator = createClaimValidator({
-      schemasDir: join(this.config.root, 'schemas'),
+      schemasDir: claimSchemasDir(this.config.root),
     });
     const result = await validator.validate(claim, 'TFWorkspaceClaim');
     if (!result.valid) {

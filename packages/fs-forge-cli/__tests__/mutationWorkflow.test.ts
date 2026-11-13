@@ -13,6 +13,7 @@ import { claimsRepo } from '../src/claims/claimsRepo';
 import { applyClaimDefaults } from '../src/defaults/applier';
 import { runClaimCreation } from '../src/mutations/creation';
 import { runClaimMutation } from '../src/mutations/orchestrator';
+import { claimSchemasDir, loadClaimSchema } from '../src/schema/claimSchemas';
 import { formatUnifiedDiff } from '../src/utils/mutateClaim';
 import { MemoryGitHubApi } from './fixtures/memoryGitHubApi';
 
@@ -31,9 +32,7 @@ const COMPONENT_YAML = readFileSync(
 );
 
 function loadSchema(kind: string): Record<string, unknown> {
-  return JSON.parse(
-    readFileSync(join(ROOT, 'schemas', `${kind}.json`), 'utf8'),
-  );
+  return loadClaimSchema(claimSchemasDir(ROOT), kind);
 }
 
 function createRepo(options: { existingReference?: string } = {}) {

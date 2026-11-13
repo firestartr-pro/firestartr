@@ -1,7 +1,12 @@
-import { mkdir, readFile, readdir, writeFile } from 'fs/promises';
+import { mkdir, writeFile } from 'fs/promises';
 import { basename, dirname, join, resolve } from 'path';
 import { format } from 'prettier';
 
+import {
+  claimSchemasDir,
+  listClaimKinds,
+  loadClaimSchema,
+} from '../schema/claimSchemas.js';
 import { buildCommandModel } from './model.js';
 import {
   emitCreateCommand,
@@ -29,7 +34,7 @@ function packageRoot(): string {
 const PKG_ROOT = packageRoot();
 
 export interface GenerateOptions {
-  /** Directory holding <Kind>.json claim schemas. Defaults to <pkg>/schemas. */
+  /** Directory holding <Kind>.json claim schemas. Defaults to the published claims schemas package. */
   schemasDir?: string;
   /** Destination root; mirrors src/commands and src/claims. Defaults to <pkg>/src. */
   outDir?: string;
@@ -51,29 +56,18 @@ async function prettify(source: string): Promise<string> {
 export async function generateAllCommands(
   options: GenerateOptions = {},
 ): Promise<GenerateResult> {
-  const schemasDir = options.schemasDir ?? join(PKG_ROOT, 'schemas');
+  const schemasDir = options.schemasDir ?? claimSchemasDir(PKG_ROOT);
   const outDir = options.outDir ?? join(PKG_ROOT, 'src');
 
   const commandsDir = join(outDir, 'commands', 'create');
   await mkdir(commandsDir, { recursive: true });
 
-  const claimKinds = (await readdir(schemasDir))
-    .filter((file) => file.endsWith('Claim.json'))
-    .map((file) => file.replace(/\.json$/, ''))
-    .sort();
+  const claimKinds = listClaimKinds(schemasDir);
 
   const written: string[] = [];
   const models: ClaimCommandModel[] = [];
   for (const kind of claimKinds) {
-    const schemaPath = join(schemasDir, `${kind}.json`);
-    let schema: Record<string, unknown>;
-    try {
-      const content = await readFile(schemaPath, 'utf8');
-      schema = JSON.parse(content) as Record<string, unknown>;
-    } catch {
-      console.warn(`Schema not found for ${kind}, skipping.`);
-      continue;
-    }
+    const schema = loadClaimSchema(schemasDir, kind);
 
     const model = buildCommandModel(schema, kind);
     models.push(model);
