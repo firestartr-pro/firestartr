@@ -187,6 +187,23 @@ export async function adoptSecretsIfNeeded(
               id: secretName,
             },
           });
+
+          const declared = sectionSecrets.find((s) => s.name === secretName);
+
+          if (
+            section !== 'codespaces' &&
+            declared?.visibility === 'selected' &&
+            existing.visibility === 'selected'
+          ) {
+            entity.patchImportData({
+              op: PatchOperations.add,
+              path: '/imports/-',
+              value: {
+                to: `${resourceType}_repositories.this["${secretName}"]`,
+                id: secretName,
+              },
+            });
+          }
         }
       } catch (err: any) {
         if (err && err.status === 404) {

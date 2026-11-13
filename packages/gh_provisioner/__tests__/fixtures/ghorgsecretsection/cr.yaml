@@ -50,5 +50,6 @@ spec:
   writeConnectionSecretToRef:
     name: firestartrgithuborganizationsecretsection-firestartr-test-secrets-outputs
     outputs:
-      - key: managed_secrets
-      - key: secret_ids
+      - key: actions_secret_names
+      - key: codespaces_secret_names
+      - key: dependabot_secret_names
