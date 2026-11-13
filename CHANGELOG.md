@@ -1,5 +1,26 @@
 # Changelog
 
+## [3.2.0](https://github.com/firestartr-pro/firestartr/compare/v3.1.1...v3.2.0) (2026-11-13)
+
+
+### Features
+
+* **`cdk8s_renderer`:** add .firestartrignore logic ([#172](https://github.com/firestartr-pro/firestartr/issues/172)) ([e3c6529](https://github.com/firestartr-pro/firestartr/commit/e3c6529dba3735adec1ef6b62480ac2650a60add))
+* add lacking org-secrets impl ([#193](https://github.com/firestartr-pro/firestartr/issues/193)) ([1271b17](https://github.com/firestartr-pro/firestartr/commit/1271b177e2d19c2a7e47c9de151979038ada1483))
+* add plan mode for the operator ([#157](https://github.com/firestartr-pro/firestartr/issues/157)) ([a05ae02](https://github.com/firestartr-pro/firestartr/commit/a05ae0204ff5730401b81d2919def9367d34f0de))
+* **operator:** make source/version optional on FirestartrProviderConfig ([#211](https://github.com/firestartr-pro/firestartr/issues/211)) ([4b922bf](https://github.com/firestartr-pro/firestartr/commit/4b922bf171880c041c644794bf0e9c5abe590cb3))
+* **operator:** start the diagnostic flight recorder at operator startup ([#124](https://github.com/firestartr-pro/firestartr/issues/124)) ([b50469c](https://github.com/firestartr-pro/firestartr/commit/b50469c6214f635046f69bfc381bef893078c88a))
+
+
+### Bug Fixes
+
+* **cdk8s_renderer:** omit empty vars from rendered repository CRs ([#184](https://github.com/firestartr-pro/firestartr/issues/184)) ([c88c3ec](https://github.com/firestartr-pro/firestartr/commit/c88c3ecccd8556324657e07377fa5117ecbccb0f))
+* groups pagination issue ([#178](https://github.com/firestartr-pro/firestartr/issues/178)) ([3e9eca0](https://github.com/firestartr-pro/firestartr/commit/3e9eca0c622e97c6444c3a2323754d11f8e9690b))
+* **handle-dependabot-pr:** multiple skill improvements ([#189](https://github.com/firestartr-pro/firestartr/issues/189)) ([4c2e764](https://github.com/firestartr-pro/firestartr/commit/4c2e764a5c65196b094a0c86589cb9495657e769))
+* missing .gitconfig file when refreshing GitHub App token ([#180](https://github.com/firestartr-pro/firestartr/issues/180)) ([c2911cd](https://github.com/firestartr-pro/firestartr/commit/c2911cdfb66abe1002cf1a809cb33ade8750dba1))
+* **operator:** inject self-outputs when planning GitHub resources ([#128](https://github.com/firestartr-pro/firestartr/issues/128)) ([2751e79](https://github.com/firestartr-pro/firestartr/commit/2751e799cfadda988a6cc06fea04ffe4760c4d92))
+* unprocessed CRs being treated as SYNC operations ([#179](https://github.com/firestartr-pro/firestartr/issues/179)) ([f2b093c](https://github.com/firestartr-pro/firestartr/commit/f2b093c72271b53fba481245a06d2f545cdacb36))
+
 ## [3.1.1](https://github.com/firestartr-pro/firestartr/compare/v3.1.0...v3.1.1) (2026-10-23)
 
 
