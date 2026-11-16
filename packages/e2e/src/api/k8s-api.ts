@@ -1,9 +1,24 @@
+import type * as k8s from '@kubernetes/client-node';
 import { createApplyFunction } from '../k8s/apply';
 import {
   applyInBranchFirestartrCrds,
   applyVersionedFirestartrCrds,
 } from '../k8s/crd-lifecycle';
 import { CRD_KIND } from '../k8s/constants';
+import {
+  configMapExists,
+  deleteStaleTFResult,
+  deleteWorkspaceInfrastructure,
+  readBackendStateVersions,
+  readControllerDeployment,
+  readControllerLogs,
+  readWorkspace,
+  scaleController,
+  setControllerEnv,
+  waitForControllerReplicas,
+  waitForControllerRollout,
+  type ControllerDeployment,
+} from '../k8s/controller';
 import { createDeleteFunction } from '../k8s/delete';
 import {
   deleteCustomResourcesByAnnotation as deleteCustomResourcesByAnnotationInternal,
@@ -277,6 +292,90 @@ export function createK8sApi(state: E2EState): K8sApi {
         refName,
       );
       return results[0];
+    },
+
+    async readControllerDeployment(): Promise<ControllerDeployment> {
+      return readControllerDeployment(
+        state.kubeConfigProvider,
+        state.namespace,
+      );
+    },
+
+    async setControllerEnv(name: string, env: k8s.V1EnvVar[]): Promise<void> {
+      await setControllerEnv(
+        state.kubeConfigProvider,
+        state.namespace,
+        name,
+        env,
+      );
+    },
+
+    async scaleController(name: string, replicas: number): Promise<void> {
+      await scaleController(
+        state.kubeConfigProvider,
+        state.namespace,
+        name,
+        replicas,
+      );
+    },
+
+    async waitForControllerReplicas(
+      name: string,
+      expected: number,
+    ): Promise<void> {
+      await waitForControllerReplicas(
+        state.kubeConfigProvider,
+        state.namespace,
+        name,
+        expected,
+      );
+    },
+
+    async waitForControllerRollout(name: string): Promise<void> {
+      await waitForControllerRollout(
+        state.kubeConfigProvider,
+        state.namespace,
+        name,
+      );
+    },
+
+    async readControllerLogs(): Promise<string> {
+      return readControllerLogs(state.kubeConfigProvider, state.namespace);
+    },
+
+    async readBackendStateVersions(): Promise<Record<string, string>> {
+      return readBackendStateVersions(
+        state.kubeConfigProvider,
+        state.namespace,
+      );
+    },
+
+    async configMapExists(name: string): Promise<boolean> {
+      return configMapExists(state.kubeConfigProvider, state.namespace, name);
+    },
+
+    async deleteWorkspaceInfrastructure(
+      claimNames: string[],
+      tfStateKeys: string[],
+    ): Promise<void> {
+      await deleteWorkspaceInfrastructure(
+        state.kubeConfigProvider,
+        state.namespace,
+        claimNames,
+        tfStateKeys,
+      );
+    },
+
+    async readWorkspace(name: string): Promise<any> {
+      return readWorkspace(state.kubeConfigProvider, state.namespace, name);
+    },
+
+    async deleteStaleTFResult(crName: string): Promise<void> {
+      await deleteStaleTFResult(
+        state.kubeConfigProvider,
+        state.namespace,
+        crName,
+      );
     },
   };
 }

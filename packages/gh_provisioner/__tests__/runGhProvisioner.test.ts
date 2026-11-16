@@ -6,6 +6,7 @@ const entity = {
   tfStateKey: 'mockStateKey',
   prepareToLoad: jest.fn(async () => undefined),
   loadResources: jest.fn(async () => undefined),
+  loadAddressesToImport: jest.fn(async () => undefined),
   postProvision: jest.fn(async () => undefined),
   synthEnd: jest.fn(),
 };
@@ -114,6 +115,50 @@ describe('runGhProvisioner plan mode', () => {
       plan: true,
     });
     expect(entity.postProvision).not.toHaveBeenCalled();
+    expect(entity.loadAddressesToImport).not.toHaveBeenCalled();
+  });
+
+  it('artifact plans load the import addresses of an import-annotated CR', async () => {
+    const importCr = {
+      ...cr,
+      metadata: {
+        ...cr.metadata,
+        annotations: { 'firestartr.dev/import': 'true' },
+      },
+    };
+
+    await runGhProvisioner(
+      { mainCr: importCr, deps: {} },
+      { plan: true, planArtifact: true },
+    );
+
+    expect(entity.loadAddressesToImport).toHaveBeenCalled();
+    expect(runOnTerraform).toHaveBeenCalledWith(
+      entity,
+      'plan-artifact',
+      undefined,
+      { plan: true, planArtifact: true },
+    );
+  });
+
+  it('artifact plans do not preview a reimport', async () => {
+    const reimportCr = {
+      ...cr,
+      metadata: {
+        ...cr.metadata,
+        annotations: {
+          'firestartr.dev/import': 'true',
+          'firestartr.dev/needs-re-import': 'true',
+        },
+      },
+    };
+
+    await runGhProvisioner(
+      { mainCr: reimportCr, deps: {} },
+      { plan: true, planArtifact: true },
+    );
+
+    expect(entity.loadAddressesToImport).not.toHaveBeenCalled();
   });
 
   it('gives delete mode precedence over import annotations', async () => {

@@ -1,10 +1,12 @@
 import * as k8s from '@kubernetes/client-node';
-import { Store } from './store';
+import { itemPath, Store } from './store';
+import { clearPlanSyncShadow } from './syncCtl';
 import { getConnection } from './ctl';
 import log from './logger';
 import { isKubernetesNotFoundError } from './status';
 import createCrdMonitor from './crdMonitor';
 import { logActivity } from './activity-log';
+import { isPlanMode } from './plan-mode/config';
 
 /**
  * Execute the callbacks for each item in the store
@@ -118,7 +120,16 @@ export async function observe(
         `Reflector has updated item '${obj.kind}/${obj.metadata.name}' to a new resource version: '${obj.metadata.resourceVersion}'.`,
       );
 
-      if (
+      // Plan mode skipped this deletion while a foreground finalizer held it.
+      // No live operator runs the deletion, so plan it again once it's gone.
+      if (isPlanMode() && store.deletionUnblocked(obj)) {
+        log.info(
+          `Reflector has updated item '${obj.kind}/${obj.metadata.name}': its deletion is no longer blocked by a foreground finalizer.`,
+        );
+        store.markToDelete(obj);
+
+        onDelete(obj);
+      } else if (
         !store.getItem(obj).markedToDelete &&
         store.hasDeletionTimestamp(obj) &&
         (store.hasBeenMarkedToDelete(obj) || store.modified(obj))
@@ -150,6 +161,8 @@ export async function observe(
         `Reflector has deleted item '${obj.kind}/${obj.metadata.name}' from the etcd.`,
       );
       store.remove(obj);
+
+      clearPlanSyncShadow(itemPath(plural, obj));
     });
 
     informer.on('error', (err: any) => {

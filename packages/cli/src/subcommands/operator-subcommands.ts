@@ -12,7 +12,8 @@ export const operatorSubcommands: Subcommand = {
     { name: 'start', alias: 's', type: String },
     { name: 'importMode', type: Boolean, defaultValue: false },
     { name: 'importModeSkipPlan', type: Boolean, defaultValue: false },
-    { name: 'observeMode', type: Boolean, defaultValue: false },
+    { name: 'plan-mode', type: Boolean, defaultValue: false },
+    { name: 'plan-output-dir', type: String },
     { name: 'withMetrics', type: Boolean },
     { name: 'plan', type: Boolean },
     { name: 'apply', type: Boolean },
@@ -28,6 +29,25 @@ export const operatorSubcommands: Subcommand = {
   run: async (options: CommandLineOptions) => {
     // This will show the command line options passed to the command
     console.table(options);
+
+    const planModeEnv = common.environment.getFromEnvironment(
+      common.types.envVars.operatorPlanMode,
+    );
+    if (
+      planModeEnv !== undefined &&
+      planModeEnv !== 'true' &&
+      planModeEnv !== 'false'
+    ) {
+      throw new Error(
+        `OPERATOR_PLAN_MODE must be 'true' or 'false' (or unset), got '${planModeEnv}'; refusing to start`,
+      );
+    }
+    if (options['plan-mode'] || planModeEnv === 'true') {
+      for (const command of ['apply', 'plan', 'pull-request-plan']) {
+        if (options[command])
+          throw `Error: --plan-mode cannot be combined with --${command}`;
+      }
+    }
 
     if (options['plan'] || options['apply']) {
       if (!options['claim']) throw 'Error: Missing arg: --claim';
@@ -71,6 +91,8 @@ export const operatorSubcommands: Subcommand = {
         dummyExec,
         namespace,
         kindList,
+        planMode: options['plan-mode'],
+        planOutputDir: options['plan-output-dir'],
         ...options,
       });
     }

@@ -26,9 +26,18 @@ function parseBackendConfig(
   }
 }
 
+export type ProviderConfigNames = {
+  backend: string;
+  provider: string;
+};
+
 export async function prepareProviderConfigManifests(
   sourceDir: string,
   namespace: string,
+  names: ProviderConfigNames = {
+    backend: TF_BACKEND_PROVIDER_NAME,
+    provider: TF_PROVIDER_NAME,
+  },
 ): Promise<string> {
   const tempDir = await fs.mkdtemp(
     path.join(os.tmpdir(), 'e2e-provider-configs-'),
@@ -45,9 +54,7 @@ export async function prepareProviderConfigManifests(
         : {};
 
     const manifestName =
-      fileName === 'kubernetes-backend.yaml'
-        ? TF_BACKEND_PROVIDER_NAME
-        : TF_PROVIDER_NAME;
+      fileName === 'kubernetes-backend.yaml' ? names.backend : names.provider;
 
     const spec =
       typeof manifest.spec === 'object' && manifest.spec !== null

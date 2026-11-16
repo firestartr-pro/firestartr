@@ -1,6 +1,7 @@
 import github from 'github';
 
 import log from '../logger';
+import { assertWriteAllowed } from '../plan-mode/write-gateway';
 
 function operatorProfile() {
   return github.withProfile('operator');
@@ -59,6 +60,10 @@ export async function tryPublishApply(
   isSuccess = true,
   exitCode?: number,
 ) {
+  assertWriteAllowed(
+    `apply PR comment for ${item.kind}/${item.metadata?.name}`,
+  );
+
   const kind = item.kind;
   const metadataName = item.metadata?.name ?? 'unknown';
 
@@ -94,6 +99,10 @@ export async function tryPublishDestroy(
   destroyOutput: string,
   isSuccess = true,
 ) {
+  assertWriteAllowed(
+    `destroy PR comment for ${item.kind}/${item.metadata?.name}`,
+  );
+
   const kind = item.kind;
 
   try {
@@ -161,6 +170,10 @@ export async function publishApply(
   applyOutput: string,
   isSuccess = true,
 ) {
+  assertWriteAllowed(
+    `apply PR comment for ${item.kind}/${item.metadata?.name}`,
+  );
+
   const kind = item.kind;
   const { prNumber, repo, org } = extractPrInfo(item);
 
@@ -259,6 +272,10 @@ export async function tryPublishError(
   reason: string,
   message: string,
 ) {
+  assertWriteAllowed(
+    `error PR comment for ${item.kind}/${item.metadata?.name}`,
+  );
+
   try {
     await publishError(item, reason, message);
   } catch (e: any) {
@@ -269,6 +286,10 @@ export async function tryPublishError(
 }
 
 export async function publishError(item: any, reason: string, message: string) {
+  assertWriteAllowed(
+    `error PR comment for ${item.kind}/${item.metadata?.name}`,
+  );
+
   const { prNumber, repo, org } = extractPrInfo(item);
 
   const comment = `# ❌ Error on claim ${item.metadata.annotations['firestartr.dev/claim-ref'].split('/')[1]}
@@ -296,6 +317,8 @@ export async function publishPlan(
   operation = 'plan',
   source = '',
 ) {
+  assertWriteAllowed(`plan PR comment for ${item.kind}/${item.metadata?.name}`);
+
   try {
     const kind = item.kind || 'UnknownKind';
     const name =

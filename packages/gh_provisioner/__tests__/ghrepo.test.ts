@@ -455,6 +455,27 @@ describe("provisionLabels - import and drift correction", () => {
     expect(labelImports().length).toBe(1);
   });
 
+  it.each(["plan", "plan-destroy"])(
+    "does not update a mismatched pre-existing label on %s",
+    async (tfOp) => {
+      buildGh();
+      gh.cr.spec.repo.labels = [
+        { name: "bug", color: "ff0000", description: "A bug report" },
+      ];
+      runWithGithubProviderMock
+        .mockResolvedValueOnce(true) // repoExists
+        .mockResolvedValueOnce([    // getRepoIssuesLabels - different color/desc
+          { name: "bug", color: "cccccc", description: "" },
+        ]);
+
+      await gh.loadResources(tfOp);
+
+      // Only repoExists and getRepoIssuesLabels: no updateRepoLabel
+      expect(runWithGithubProviderMock).toHaveBeenCalledTimes(2);
+      expect(labelImports().length).toBe(1);
+    },
+  );
+
   it("skips API normalize when label already matches CR values", async () => {
     buildGh();
     gh.cr.spec.repo.labels = [
