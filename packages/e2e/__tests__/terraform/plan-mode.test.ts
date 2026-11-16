@@ -33,6 +33,8 @@
  * 9. Workspace b: deletion finished by live operator (CR gone).
  * 10. afterAll: start live operator if needed, delete CRs/artifacts/provider
  *     configs, restore deployment; errors collected and rethrown.
+ * Any operator log wait that times out also throws the last 60 operator log
+ * lines.
  */
 
 import fs from 'node:fs/promises';
@@ -100,6 +102,7 @@ const PROVIDER_CONFIG_NAMES = {
 };
 
 const LOG_PREFIX = 'plan-mode';
+const OPERATOR_LOG_TAIL_LINES = 60;
 
 const PLAN_STARTUP_FRAGMENT = 'operator running in Plan mode';
 const PLANNED_OPERATION_FRAGMENT = 'PLAN FirestartrTerraformWorkspace';
@@ -144,13 +147,24 @@ async function waitForOperatorLog(
   description: string,
   timeoutMs = OPERATOR_ROLLOUT_TIMEOUT_MS,
 ): Promise<string> {
-  return pollUntil(() => client.k8s.readControllerLogs(), {
-    timeoutMs,
-    intervalMs: 2000,
-    isDone: condition,
-    createTimeoutError: () =>
-      new Error(`Timed out waiting for operator log: ${description}`),
-  });
+  try {
+    return await pollUntil(() => client.k8s.readControllerLogs(), {
+      timeoutMs,
+      intervalMs: 2000,
+      isDone: condition,
+      createTimeoutError: () =>
+        new Error(`Timed out waiting for operator log: ${description}`),
+    });
+  } catch (error: unknown) {
+    const tail = (await client.k8s.readControllerLogs())
+      .split('\n')
+      .slice(-OPERATOR_LOG_TAIL_LINES)
+      .join('\n');
+    throw new Error(
+      `${error instanceof Error ? error.message : String(error)}\n` +
+        `Last ${OPERATOR_LOG_TAIL_LINES} operator log lines:\n${tail}`,
+    );
+  }
 }
 
 function hasProvisionedCondition(workspace: any): boolean {
