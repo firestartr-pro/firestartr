@@ -49,8 +49,8 @@ const MODULES = {
   FirestartrGithubOrganizationSecretSection: {
     module:
       'git::https://github.com/prefapp/tfm.git//modules/github-org-secrets-section',
-    // github-org-secrets-section feat/1364-feat-add-github-org-secrets-section-module
-    ref: '170e6cf3d60508ff0566dffb7630e826b50d424a',
+    // github-org-secrets-section-v0.2.0
+    ref: '33ce28a4797bb6bfa863982cc440247901b0d41e',
   },
 };
 
