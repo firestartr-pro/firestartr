@@ -11,7 +11,7 @@ permissions:
   id-token: write
   contents: read
 
-name: Publish Claim Schemas NPM Package
+name: Publish Schemas NPM Package
 
 jobs:
   publish-npm:
@@ -82,7 +82,7 @@ jobs:
         echo "version=${VERSION}" >> $GITHUB_OUTPUT
         echo "Publishing @firestartr/firestartr-claims_schemas version: ${VERSION}"
 
-    - name: Build claim schemas package
+    - name: Build schemas package
       working-directory: packages/cdk8s_renderer
       id: build_schemas
       run: |
