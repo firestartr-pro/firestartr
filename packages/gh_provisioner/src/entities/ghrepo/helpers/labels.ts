@@ -7,6 +7,7 @@ import { EntityGHRepo } from '../';
 export async function provisionLabels(
   fsGithubRepository: EntityGHRepo,
   repoAlreadyExists: boolean,
+  tfOp: string,
 ): Promise<void> {
   try {
     const cr = fsGithubRepository.cr;
@@ -17,7 +18,11 @@ export async function provisionLabels(
     }
 
     if (repoAlreadyExists) {
-      await importLabelsIfNeeded(fsGithubRepository, labels);
+      await importLabelsIfNeeded(
+        fsGithubRepository,
+        labels,
+        tfOp === 'plan' || tfOp === 'plan-destroy',
+      );
     }
 
     for (const label of labels) {
@@ -46,6 +51,7 @@ export async function provisionLabels(
 async function importLabelsIfNeeded(
   fsGithubRepository: EntityGHRepo,
   declaredLabels: { name: string; color: string; description?: string }[],
+  planning: boolean,
 ): Promise<void> {
   const cr = fsGithubRepository.cr;
 
@@ -73,10 +79,15 @@ async function importLabelsIfNeeded(
         `[gh-provisioner] ${fsGithubRepository.k8sId} label '${label.name}' on GitHub: color="${existing.color}" desc="${existing.description}" | CR declares: color="${label.color}" desc="${label.description}"`,
       );
 
-      if (
+      const drifted =
         existing.color !== label.color ||
-        (label.description && existing.description !== label.description)
-      ) {
+        (label.description && existing.description !== label.description);
+
+      if (drifted && planning) {
+        log.info(
+          `[gh-provisioner] ${fsGithubRepository.k8sId} label '${label.name}' differs from CR values; not updated while planning, the plan shows the change`,
+        );
+      } else if (drifted) {
         log.info(
           `[gh-provisioner] ${fsGithubRepository.k8sId} updating pre-existing label '${label.name}' via GitHub API to match CR values`,
         );

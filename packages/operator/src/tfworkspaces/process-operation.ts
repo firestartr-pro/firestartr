@@ -29,7 +29,7 @@ const TF_PROJECTS_PATH = '/tmp/tfworkspaces';
 
 const TF_CACHES_PATH = '/tmp/tfcaches';
 
-function generateSessionId(): string {
+export function generateSessionId(): string {
   return Math.random().toString(36).substring(2, 6).padEnd(4, '0');
 }
 
@@ -55,7 +55,7 @@ async function copyDir(src: string, dest: string) {
   }
 }
 
-async function tearUpSessionWorkspace(
+export async function tearUpSessionWorkspace(
   item: any,
   deps: any,
   sessionId: string,

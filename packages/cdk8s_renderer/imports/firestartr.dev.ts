@@ -5584,12 +5584,12 @@ export interface FirestartrProviderConfigSpec {
   /**
    * @schema FirestartrProviderConfigSpec#source
    */
-  readonly source: string;
+  readonly source?: string;
 
   /**
    * @schema FirestartrProviderConfigSpec#version
    */
-  readonly version: string;
+  readonly version?: string;
 
   /**
    * @schema FirestartrProviderConfigSpec#config

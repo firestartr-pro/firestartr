@@ -545,6 +545,20 @@ Run the orchestrated terraform suite:
 npm run test-suites --workspace packages/e2e -- terraform
 ```
 
+Run the opt-in operator Plan mode suite. It stops and restarts the controller
+deployment, so it is excluded from `all` and must run on its own:
+
+```bash
+npm run test-suites --workspace packages/e2e -- plan-mode
+```
+
+The direct Jest equivalent needs `E2E_RUN_PLAN_MODE=true`:
+
+```bash
+E2E_RUN_PLAN_MODE=true npm test --workspace packages/e2e -- \
+  __tests__/terraform/plan-mode.test.ts
+```
+
 List suite directories:
 
 ```bash

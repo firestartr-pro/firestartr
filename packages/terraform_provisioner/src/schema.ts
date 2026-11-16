@@ -76,7 +76,7 @@ export default {
           },
         },
 
-        required: ['source', 'version', 'name', 'config'],
+        required: ['name', 'config'],
       },
     },
     tfStateKey: {

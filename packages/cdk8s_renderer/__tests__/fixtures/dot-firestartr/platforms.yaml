@@ -1,0 +1,8 @@
+type: kubernetes
+name: example-dev
+tenants: [example-team]
+envs: [dev, test]
+allowedClaims:
+  - resourceTypes: [Database]
+    providers: [example-provider]
+    backend: example-backend

@@ -1,5 +1,6 @@
 import github from 'github';
 import log from '../logger';
+import { assertWriteAllowed } from '../plan-mode/write-gateway';
 import {
   extractPrInfo,
   progressCommentBaseKind,
@@ -11,6 +12,10 @@ function operatorProfile() {
 }
 
 export async function TFCheckRun(cmd: string, item: any) {
+  assertWriteAllowed(
+    `check run ${cmd} for ${item.kind}/${item.metadata?.name}`,
+  );
+
   try {
     const prInfo = extractPrInfo(item);
 

@@ -64,8 +64,6 @@ spec:
               required:
                 - type
                 - config
-                - source
-                - version
             status:
               type: object
               properties:

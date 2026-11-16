@@ -54,6 +54,37 @@ describe('prepareProviderConfigManifests', () => {
     }
   });
 
+  it('uses the given provider names instead of the shared defaults', async () => {
+    const sourceDir = resolveE2eProviderConfigsPath();
+    const tempDir = await prepareProviderConfigManifests(sourceDir, 'demo-ns', {
+      backend: 'suite-kubernetes-backend',
+      provider: 'suite-kubernetes',
+    });
+
+    try {
+      const backendManifest = common.io.fromYaml(
+        await fs.readFile(
+          path.join(tempDir, 'kubernetes-backend.yaml'),
+          'utf-8',
+        ),
+      ) as ProviderConfigManifest;
+      const providerManifest = common.io.fromYaml(
+        await fs.readFile(path.join(tempDir, 'kubernetes.yaml'), 'utf-8'),
+      ) as ProviderConfigManifest;
+
+      expect(backendManifest.metadata).toMatchObject({
+        name: 'suite-kubernetes-backend',
+        namespace: 'demo-ns',
+      });
+      expect(providerManifest.metadata).toMatchObject({
+        name: 'suite-kubernetes',
+        namespace: 'demo-ns',
+      });
+    } finally {
+      await fs.rm(tempDir, { recursive: true, force: true });
+    }
+  });
+
   it('fails when a required provider-config fixture is missing', async () => {
     const sourceDir = await fs.mkdtemp(
       path.join(os.tmpdir(), 'e2e-provider-configs-missing-'),

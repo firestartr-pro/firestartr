@@ -27,6 +27,7 @@ import fs from 'fs/promises';
 import path from 'path';
 import { fileURLToPath } from 'url';
 import schemasModule from '../src/claims/base/schemas/index';
+import { dotFirestartr, actions } from '../src/schemas';
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
@@ -67,10 +68,52 @@ const CLAIM_KINDS: Record<string, string> = {
   TFWorkspaceClaim: 'firestartr.dev://common/TFWorkspaceClaim',
   SecretsClaim: 'firestartr.dev://common/SecretsClaim',
   OrgWebhookClaim: 'firestartr.dev://common/OrgWebhookClaim',
+  OrgSettingsClaim: 'firestartr.dev://common/OrgSettingsClaim',
   ArgoDeployClaim: 'firestartr.dev://common/ArgoDeployClaim',
 };
 
+// One valid fixture per claim, checked by the generated smoke test.
+const SMOKE_FIXTURES = [
+  { claim: 'GroupClaim', source: 'groups/group_a.yaml' },
+  { claim: 'OrgSettingsClaim', source: 'orgSettings/orgsettings_a.yaml' },
+];
+
 const GENERATED_PACKAGE_NAME = '@firestartr/firestartr-claims_schemas';
+
+function toIdentifier(name: string): string {
+  return name.replace(/-([a-z0-9])/g, (_, char: string) => char.toUpperCase());
+}
+
+async function writeSchemaSet(
+  schemas: Record<string, any>,
+  directory: string,
+  transform: (schema: any, filename: string) => any,
+): Promise<void> {
+  await fs.mkdir(directory, { recursive: true });
+  const imports: string[] = [];
+  const exports: string[] = [];
+  const entries: string[] = [];
+
+  for (const [name, schema] of Object.entries(schemas)) {
+    const filename = `${name}.schema.json`;
+    await fs.writeFile(
+      path.join(directory, filename),
+      JSON.stringify(transform(schema, filename), null, 2),
+      'utf8',
+    );
+    const identifier = toIdentifier(name);
+    imports.push(
+      `import ${identifier} from './${filename}' with { type: 'json' };`,
+    );
+    exports.push(identifier);
+    entries.push(`  ${JSON.stringify(name)}: ${identifier},`);
+  }
+
+  await fs.writeFile(
+    path.join(directory, 'index.mjs'),
+    `// Auto-generated ESM entrypoint; do not hand-edit\n\n${imports.join('\n')}\n\nexport { ${exports.join(', ')} };\n\nexport const schemas = {\n${entries.join('\n')}\n};\n`,
+  );
+}
 
 // ---- allOf Merge Utility ----
 const MERGEABLE_ALLOF_BRANCH_KEYS = new Set([
@@ -196,6 +239,7 @@ void (async () => {
   // --- Step 1: Prepare output dir ---
   const pkgdir = await fs.mkdtemp('/tmp/cdk8s-claims-npm-');
   await fs.mkdir(path.join(pkgdir, 'schemas'));
+  await fs.mkdir(path.join(pkgdir, 'dot-firestartr'));
   console.log(
     `[cdk8s_renderer:schema-npm-producer] Created output dir: ${pkgdir}`,
   );
@@ -226,11 +270,30 @@ void (async () => {
     }
   }
 
+  // Step 3b: Write standalone .firestartr organization schemas.
+  await writeSchemaSet(
+    dotFirestartr.schemas,
+    path.join(pkgdir, 'dot-firestartr'),
+    (schema) => schema,
+  );
+
+  // Step 3c: Write action schemas without IDs so both views remain safe to
+  // compile together if a canonical source gains an ID in the future.
+  await writeSchemaSet(
+    actions.schemas,
+    path.join(pkgdir, 'actions'),
+    (schema) => {
+      const copy = { ...schema };
+      delete copy.$id;
+      return copy;
+    },
+  );
+
   // --- Step 4: Output other package files (README, package.json, index.mjs) ---
   // README
   await fs.writeFile(
     path.join(pkgdir, 'README.md'),
-    "# cdk8s-claims-schemas (Generated)\n\nThis package was generated automatically by schema-npm-producer.ts.\nIt contains fully dereferenced JSON schemas for claim types used in Prefapp's cdk8s-renderer, intended for use in downstream tools like react-jsonschema-form.\n",
+    "# cdk8s-claims-schemas (Generated)\n\nThis package was generated automatically by schema-npm-producer.ts.\nIt contains fully dereferenced JSON schemas for claim types used in Prefapp's cdk8s-renderer, intended for use in downstream tools like react-jsonschema-form.\nIt also contains the .firestartr organization schemas under `dot-firestartr/` and the action-facing schemas under `actions/`.\n",
   );
 
   // package.json
@@ -241,9 +304,15 @@ void (async () => {
         name: GENERATED_PACKAGE_NAME,
         version,
         type: 'module',
-        description: 'Fully dereferenced JSON schemas from cdk8s_renderer',
+        description: 'JSON schemas from cdk8s_renderer',
         main: './index.mjs',
-        exports: { '.': './index.mjs' },
+        exports: {
+          '.': './index.mjs',
+          './dot-firestartr': './dot-firestartr/index.mjs',
+          './dot-firestartr/*': './dot-firestartr/*',
+          './actions': './actions/index.mjs',
+          './actions/*': './actions/*',
+        },
         devDependencies: { ajv: '^8.0.0' },
         repository: {
           type: 'git',
@@ -261,7 +330,7 @@ void (async () => {
   const schemaImports = Object.keys(CLAIM_KINDS)
     .map(
       (claimKind) =>
-        `import ${claimKind} from './schemas/${claimKind}.json' assert { type: 'json' };`,
+        `import ${claimKind} from './schemas/${claimKind}.json' with { type: 'json' };`,
     )
     .join('\n');
   const schemaExports = Object.keys(CLAIM_KINDS)
@@ -274,44 +343,117 @@ void (async () => {
   // index.mjs
   await fs.writeFile(
     path.join(pkgdir, 'index.mjs'),
-    `// Auto-generated ESM entrypoint; do not hand-edit\n\n${schemaImports}\n\nexport {\n${schemaExports}\n};\n\nexport const ALL_SCHEMAS = {\n  ${allSchemasEntries}\n};\n`,
+    `// Auto-generated ESM entrypoint; do not hand-edit\n\n${schemaImports}\nimport { schemas as dotFirestartr } from './dot-firestartr/index.mjs';\n\nexport {\n${schemaExports}\n};\n\nexport { dotFirestartr };\n\nexport const ALL_SCHEMAS = {\n  ${allSchemasEntries}\n};\n`,
   );
 
   // ---- Step 5: Copy fixture and generate test file ---
-  // Copy and convert group_a.yaml fixture
+  // Copy and convert the fixtures used by the smoke test
   const { parse } = await import('yaml');
-  const fixtureSrc = path.resolve(
-    __dirname,
-    '../__tests__/fixtures/base_claims/groups/group_a.yaml',
-  );
-  const fixtureYaml = await fs.readFile(fixtureSrc, 'utf8');
-  const fixtureJson = parse(fixtureYaml);
-
-  await fs.writeFile(
-    path.join(pkgdir, 'group_a.fixture.json'),
-    JSON.stringify(fixtureJson, null, 2),
-    'utf8',
-  );
+  for (const { claim, source } of SMOKE_FIXTURES) {
+    const fixtureYaml = await fs.readFile(
+      path.resolve(__dirname, '../__tests__/fixtures/base_claims', source),
+      'utf8',
+    );
+    await fs.writeFile(
+      path.join(pkgdir, `${claim}.fixture.json`),
+      JSON.stringify(parse(fixtureYaml), null, 2),
+      'utf8',
+    );
+  }
 
   // Write test file
+  const smokeCases = SMOKE_FIXTURES.map(({ claim }) => `  '${claim}',`).join(
+    '\n',
+  );
   await fs.writeFile(
     path.join(pkgdir, 'smoke.test.js'),
-    `import { createRequire } from 'module';
-const require = createRequire(import.meta.url);
+    `import { readdirSync, readFileSync } from 'fs';
 import Ajv2020 from 'ajv/dist/2020.js';
+import apps from './dot-firestartr/apps.schema.json' with { type: 'json' };
+import { schemas as actions } from './actions/index.mjs';
+const actionApps = actions['firestartr-apps'];
+const actionConfig = actions.config;
+const buildImagesResults = actions['build-images-results'];
 
-const GroupClaim = require('./schemas/GroupClaim.json');
-const fixture = require('./group_a.fixture.json');
+const claims = [
+${smokeCases}
+];
 
-const ajv = new Ajv2020({ allErrors: true });
-const validate = ajv.compile(GroupClaim);
-const valid = validate(fixture);
-if (!valid) {
-  console.error(validate.errors);
-  process.exit(1);
-} else {
-  console.log('Fixture validated successfully.');
+let failed = false;
+for (const claim of claims) {
+  const schema = JSON.parse(readFileSync(\`./schemas/\${claim}.json\`, 'utf8'));
+  const fixture = JSON.parse(readFileSync(\`./\${claim}.fixture.json\`, 'utf8'));
+  const validate = new Ajv2020({ allErrors: true }).compile(schema);
+  if (validate(fixture)) {
+    console.log(\`\${claim}: fixture validated successfully.\`);
+  } else {
+    console.error(\`\${claim}: fixture is invalid\`, validate.errors);
+    failed = true;
+  }
 }
+if (failed) process.exit(1);
+
+const dotFirestartrAjv = new Ajv2020({ allErrors: true });
+const validateApps = dotFirestartrAjv.compile(apps);
+const app = { name: 'app', state_repo: 'org/state', services: [] };
+if (!validateApps(app)) {
+  console.error(validateApps.errors);
+  process.exit(1);
+}
+
+// Actions must not carry an $id: an action file that reused the .firestartr
+// identity could not be compiled alongside it in one Ajv instance.
+const actionFiles = readdirSync('./actions')
+  .filter((name) => name.endsWith('.schema.json'))
+  .sort();
+if (actionFiles.length !== 5) {
+  console.error('expected 5 action schemas, got: ' + actionFiles.join(', '));
+  process.exit(1);
+}
+for (const file of actionFiles) {
+  const schema = JSON.parse(readFileSync('./actions/' + file, 'utf8'));
+  if ('$id' in schema) {
+    console.error('actions/' + file + ' must not declare an $id');
+    process.exit(1);
+  }
+}
+
+const actionsAjv = new Ajv2020({ allErrors: true });
+actionsAjv.compile(actionApps);
+const validateConfig = actionsAjv.compile(actionConfig);
+if (
+  !validateConfig({
+    deployments: [
+      {
+        tenant: 'tenant1',
+        platform: 'platform1',
+        env: 'pro',
+        type: 'releases',
+        flavor: 'default',
+        version: 'v1.2.3',
+        application: 'app1',
+      },
+    ],
+  })
+) {
+  console.error(validateConfig.errors);
+  process.exit(1);
+}
+const validateBuild = actionsAjv.compile(buildImagesResults);
+if (
+  !validateBuild([
+    {
+      registry: 'snapshots.reg',
+      repository: 'service/my-org/my-repo',
+      image_tag: 'abc1234_default',
+    },
+  ])
+) {
+  console.error(validateBuild.errors);
+  process.exit(1);
+}
+
+console.log('Fixtures validated successfully.');
 `,
   );
 
