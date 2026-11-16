@@ -116,6 +116,12 @@ type Workspace = {
   crName?: string;
 };
 
+type ProviderConfigRef = { kind: string; name: string };
+
+function providerConfigRef(name: string): ProviderConfigRef {
+  return { kind: 'FirestartrProviderConfig', name };
+}
+
 function escapeRegExp(value: string): string {
   return value.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
 }
@@ -447,8 +453,8 @@ describePlanMode('Operator plan mode', () => {
     }
 
     await patchResourceSpecContext(crPath, {
-      backend: { ref: PROVIDER_CONFIG_NAMES.backend },
-      providers: [{ ref: PROVIDER_CONFIG_NAMES.provider }],
+      backend: { ref: providerConfigRef(PROVIDER_CONFIG_NAMES.backend) },
+      providers: [{ ref: providerConfigRef(PROVIDER_CONFIG_NAMES.provider) }],
     });
 
     const resource = await getPrimaryManifestResource(crPath);
@@ -458,16 +464,16 @@ describePlanMode('Operator plan mode', () => {
     const resourceContext = (
       resource.spec as {
         context?: {
-          providers?: Array<{ ref: string }>;
-          backend?: { ref: string };
+          providers?: Array<{ ref: ProviderConfigRef }>;
+          backend?: { ref: ProviderConfigRef };
         };
       }
     )?.context;
     expect(resourceContext?.providers).toEqual([
-      { ref: PROVIDER_CONFIG_NAMES.provider },
+      { ref: providerConfigRef(PROVIDER_CONFIG_NAMES.provider) },
     ]);
     expect(resourceContext?.backend).toEqual({
-      ref: PROVIDER_CONFIG_NAMES.backend,
+      ref: providerConfigRef(PROVIDER_CONFIG_NAMES.backend),
     });
 
     workspace.crPath = crPath;
