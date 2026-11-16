@@ -1,0 +1,6 @@
+name: example-aws
+registry: aws-registry.example.com
+image_types: [services, charts]
+default: true
+auth_strategy: aws_oidc
+base_paths: {services: example/services, charts: example/charts}
