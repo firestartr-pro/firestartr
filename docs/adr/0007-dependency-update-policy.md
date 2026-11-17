@@ -35,15 +35,21 @@ and `jest` against `ts-jest` 29.
 - **Cooldown** in `dependabot.yml`: 7 days by default, 14 for majors, 7 for
   minors, 3 for patches. Security updates skip it and open immediately.
 - **Socket org policy is the single source of truth.** `firestartr-pro`'s Socket
-  policy decides Block vs Warn. Triage runs `socket scan create --report --json`
-  on a temporary worktree of the PR head (the replacement PR's head on Path B)
-  and only reads the result: `ok` continues, `block` stops with
-  `stopped: socket block`, anything without a report (CLI error, wrong org,
-  failed scan) stops with `stopped: socket unknown`. Warn alerts stay in the
-  dashboard and never reach triage. Block alerts are deduplicated by
-  `type + package@version`. Labels are `socket/ok|block|unknown`, so the old
-  `socket/alert` label is removed automatically and PRs stopped under the old
-  step resume at `triaged`.
+  policy decides Block vs Warn. Triage runs `socket scan create --report --json
+  --org firestartr-pro` on a temporary worktree of an exact commit, the PR head
+  (the replacement PR's head on Path B) resolved **before** the scan so a push
+  during it cannot record a verdict for another tree. It only reads the result:
+  `ok` continues, `block` stops with `stopped: socket block`, anything without an
+  explicit healthy report from a successful exit (CLI error, wrong org, failed
+  scan) stops with `stopped: socket unknown`. The org is pinned in the command
+  instead of inherited from the operator's config, so a permissive policy from
+  another org cannot pass the gate. Warn alerts stay in the dashboard and never
+  reach triage. Block alerts are deduplicated by `type + package@version`.
+  Labels are `socket/ok|block|unknown`, so the old `socket/alert` label is
+  removed automatically and PRs stopped under the old step resume at `triaged`.
+  The CLI's JSON is `{ ok, message, data }` and `data.alerts` is folded to
+  ecosystem → package → version for this command; the alert leaf also carries
+  `policy`, `url` and `manifest`.
 - **`ignore` freezes the major of a dependency, never the dependency.** Each
   entry carries `update-types: ["version-update:semver-major"]` and a comment
   saying what lifts the hold. Patches and minors keep arriving; security updates

@@ -12,11 +12,11 @@ merges, approves, clicks "Update branch", or pushes to a Dependabot branch.
 ## Prerequisites
 
 Run `gh auth status`. Check that `socket` is logged in with `socket login`
-(it shows the setup flow) and bound to the `firestartr-pro` org: `socket config
-get defaultOrg` must print it, or set `SOCKET_CLI_ORG_SLUG`. The API key needs
-`full-scans:create`, `full-scans:list` and `security-policy:read`. If either
-fails, stop and show the fix. If a Socket call fails mid-triage, the script
-records `socket unknown` and stops.
+(it shows the setup flow) and that the API key can reach the `firestartr-pro`
+org, with `full-scans:create`, `full-scans:list` and `security-policy:read`.
+The script passes `--org firestartr-pro` itself, so the CLI's default org does
+not matter. If either fails, stop and show the fix. If a Socket call fails
+mid-triage, the script records `socket unknown` and stops.
 
 ## Modes
 

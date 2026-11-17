@@ -19,6 +19,10 @@ const HERE = dirname(fileURLToPath(import.meta.url));
 const MARKER = "<!-- handle-dependabot-pr:summary -->";
 const MANAGED_LABEL = /^(jump|level|path|socket)\//;
 const RANK = { dev: 0, runtime: 1, unclassified: 1.5, critical: 2 };
+// The policy that decides Block vs Warn lives in this org. Binding it in the
+// command keeps the gate independent of whichever org the operator is logged
+// into; a token without access fails, and the failure is unknown, not a pass.
+const SOCKET_ORG = "firestartr-pro";
 
 export function parseLevels(text) {
   const levels = { dev: [], runtime: [], critical: [] };
@@ -152,9 +156,11 @@ export function pickSummary(comments, trusted) {
 
 // Socket gate. The org policy is the single source of truth, so triage never
 // classifies findings itself: `socket scan create --report` applies the policy
-// to a checkout of the PR head and exits 0 only when the scan passes. A report
-// with `healthy: false` means the policy blocked at least one alert. A missing
-// report, a CLI error or a scan under another org is unknown, never a pass.
+// to a checkout of the PR head and exits 0 only when the scan passes. The JSON
+// output is `{ ok, message, data: report }`, and `report.healthy` mirrors the
+// policy. Only an explicit healthy report from a successful command passes: a
+// missing report, a CLI error, a failed command or a scan under another org is
+// unknown, never a pass.
 export function jsonPayload(stdout) {
   for (const payload of [stdout, stdout?.slice(stdout.indexOf("{"), stdout.lastIndexOf("}") + 1)]) {
     try {
@@ -164,27 +170,34 @@ export function jsonPayload(stdout) {
   return null;
 }
 
-// The report nests alerts as ecosystem → package → version → file → position.
-// Flat arrays are accepted too, so both shapes collapse to one list.
+// The report arrives inside the command envelope when `--json` is used, and
+// bare in older output. Both carry `healthy` and `alerts`.
+export function socketReport(payload) {
+  const report = payload?.data ?? payload;
+  return report?.healthy !== undefined || report?.alerts !== undefined ? report : null;
+}
+
+function isAlertLeaf(node) {
+  return typeof node?.type === "string";
+}
+
+// `scan create --report` folds alerts to ecosystem → package → version, where
+// the version node is the leaf `{ type, policy, url, manifest }`. An unfolded
+// report adds file → position levels on top, so walk until the leaf.
+function alertLeaves(node) {
+  if (isAlertLeaf(node)) return [node];
+  return Object.values(node ?? {}).flatMap((child) => alertLeaves(child));
+}
+
 export function reportAlerts(report) {
   const alerts = report?.alerts;
   if (!alerts) return [];
+  if (Array.isArray(alerts)) return alerts.map((alert) => (isAlertLeaf(alert) ? alert : { type: String(alert) }));
   const found = [];
-  if (Array.isArray(alerts)) {
-    for (const alert of alerts) {
-      found.push(typeof alert === "object" && alert ? alert : { type: String(alert) });
-    }
-    return found;
-  }
   for (const packages of Object.values(alerts)) {
     for (const [pkg, versions] of Object.entries(packages ?? {})) {
-      for (const [version, files] of Object.entries(versions ?? {})) {
-        for (const positions of Object.values(files ?? {})) {
-          for (const alert of Object.values(positions ?? {})) {
-            const entry = typeof alert === "object" && alert ? alert : { type: String(alert) };
-            found.push({ ...entry, package: pkg, version });
-          }
-        }
+      for (const [version, node] of Object.entries(versions ?? {})) {
+        for (const leaf of alertLeaves(node)) found.push({ ...leaf, package: pkg, version });
       }
     }
   }
@@ -203,10 +216,10 @@ export function dedupeAlerts(alerts) {
 }
 
 export function parseSocketScan({ exitCode, stdout }) {
-  const report = jsonPayload(stdout);
+  const report = socketReport(jsonPayload(stdout));
   if (!report) return { verdict: "unknown", alerts: [] };
   if (report.healthy === false) return { verdict: "block", alerts: reportAlerts(report) };
-  if (report.healthy === true || exitCode === 0) return { verdict: "ok", alerts: [] };
+  if (report.healthy === true && exitCode === 0) return { verdict: "ok", alerts: [] };
   return { verdict: "unknown", alerts: [] };
 }
 
@@ -319,25 +332,28 @@ async function gitRoot() {
   return (await execFileAsync("git", ["rev-parse", "--show-toplevel"], { cwd: HERE })).stdout.trim();
 }
 
-// Scans a checkout of the PR head, so the manifests are the ones being merged,
-// not the local branch. The worktree is temporary and always removed. Anything
-// that prevents the scan (unfetchable branch, missing CLI, no report) is
-// unknown, so triage stops instead of passing silently.
-async function socketScan(branch) {
+// Scans a commit, not a branch, so the verdict always belongs to the tree the
+// summary records. The worktree is temporary and always removed. Anything that
+// prevents the scan (unfetchable commit, missing CLI, no report) is unknown, so
+// triage stops instead of passing silently.
+async function socketScan(sha) {
   const root = await gitRoot();
   const dir = await mkdtemp(join(tmpdir(), "socket-scan-"));
   try {
-    await execFileAsync("git", ["fetch", "origin", branch], { cwd: root });
-    await execFileAsync("git", ["worktree", "add", "--detach", dir, "FETCH_HEAD"], { cwd: root });
+    await execFileAsync("git", ["fetch", "origin", sha], { cwd: root });
+    const fetched = (await execFileAsync("git", ["rev-parse", "FETCH_HEAD"], { cwd: root })).stdout.trim();
+    if (fetched !== sha) throw new Error(`origin resolved ${sha} to ${fetched}`);
+    await execFileAsync("git", ["worktree", "add", "--detach", dir, sha], { cwd: root });
   } catch {
     await rm(dir, { recursive: true, force: true });
     return { verdict: "unknown", alerts: [] };
   }
   try {
-    const { stdout } = await execFileAsync("socket", ["scan", "create", "--report", "--json", "."], {
-      cwd: dir,
-      maxBuffer: 64 * 1024 * 1024,
-    });
+    const { stdout } = await execFileAsync(
+      "socket",
+      ["scan", "create", "--report", "--json", "--org", SOCKET_ORG, "."],
+      { cwd: dir, maxBuffer: 64 * 1024 * 1024 },
+    );
     return parseSocketScan({ exitCode: 0, stdout });
   } catch (err) {
     // A policy block is an ordinary non-zero exit that still prints the report.
@@ -394,15 +410,15 @@ async function triagePr(number, { dryRun, slug, levels, replacementOverride }) {
   const previous = existing ? parseState(existing.body) : null;
   const replacement = replacementOverride ?? previous?.replacement ?? null;
   // Path B is judged on the replacement PR's tree, which is the one that lands.
-  const scanned = replacement
-    ? (await gh(["pr", "view", String(replacement), "--json", "headRefName", "-q", ".headRefName"])).trim()
-    : pr.headRefName;
-  const socketResult = await socketScan(scanned);
+  // The head is resolved once, before the scan, so a push during the scan can
+  // never record a verdict that belongs to another tree.
+  const source = replacement
+    ? JSON.parse(await gh(["pr", "view", String(replacement), "--json", "headRefOid"]))
+    : pr;
+  const head = source.headRefOid;
+  const socketResult = await socketScan(head);
 
   const t = buildTriage({ ...bump, lock, levels, socketResult, replacement });
-  const head = replacement
-    ? (await gh(["pr", "view", String(replacement), "--json", "headRefOid", "-q", ".headRefOid"])).trim()
-    : pr.headRefOid;
   const state = nextState(t, previous, head, replacement);
   const body = renderComment(t, state);
 

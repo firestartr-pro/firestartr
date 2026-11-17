@@ -177,31 +177,67 @@ test("levelOf falls back to unclassified for unknown packages", () => {
   assert.equal(levelOf("not-in-lock", l, levels), "unclassified");
 });
 
-// Socket fixtures. The CLI prints a report where `healthy` mirrors the org
-// policy and alerts nest as ecosystem → package → version → file → position.
+// Socket fixtures, shaped like `socket scan create --report --json`: the report
+// arrives inside `{ ok, message?, data }`, `data.alerts` is folded to
+// ecosystem → package → version, and the version node is the alert leaf.
 function scanReport(alerts = {}, healthy = Object.keys(alerts).length === 0) {
-  return JSON.stringify({ healthy, alerts });
+  const payload = {
+    ok: true,
+    data: {
+      includeLicensePolicy: true,
+      healthy,
+      orgSlug: "firestartr-pro",
+      scanId: "scan-1",
+      options: { fold: "version", reportLevel: "error" },
+      alerts,
+    },
+  };
+  if (!healthy) {
+    payload.message = "The report contains at least one alert that violates the policies set by your organization";
+  }
+  return JSON.stringify(payload);
+}
+
+function leaf(type = "malware") {
+  return {
+    type,
+    policy: "error",
+    url: "https://socket.dev/npm/package/evil-pkg",
+    manifest: ["package.json"],
+  };
 }
 
 test("parseSocketScan passes when the org policy reports the scan healthy", () => {
   assert.deepEqual(parseSocketScan({ exitCode: 0, stdout: scanReport() }), { verdict: "ok", alerts: [] });
 });
 
-test("parseSocketScan blocks when the report is unhealthy and lists the alerts", () => {
-  const stdout = scanReport({
-    npm: { "evil-pkg": { "1.0.0": { "package.json": { "1:2": { type: "malware", severity: "critical" } } } } },
-  });
+test("parseSocketScan blocks when the report is unhealthy and lists the alert", () => {
+  const stdout = scanReport({ npm: { "evil-pkg": { "1.0.0": leaf() } } });
   const result = parseSocketScan({ exitCode: 1, stdout });
   assert.equal(result.verdict, "block");
-  assert.deepEqual(result.alerts, [
-    { type: "malware", severity: "critical", package: "evil-pkg", version: "1.0.0" },
-  ]);
+  assert.equal(result.alerts.length, 1);
+  assert.equal(result.alerts[0].type, "malware");
+  assert.equal(result.alerts[0].package, "evil-pkg");
+  assert.equal(result.alerts[0].version, "1.0.0");
+});
+
+test("parseSocketScan accepts a report without the command envelope", () => {
+  const stdout = JSON.stringify({ healthy: true, alerts: {} });
+  assert.equal(parseSocketScan({ exitCode: 0, stdout }).verdict, "ok");
+});
+
+test("parseSocketScan passes only on an explicit healthy report from a successful exit", () => {
+  assert.equal(parseSocketScan({ exitCode: 1, stdout: scanReport() }).verdict, "unknown");
+  assert.equal(parseSocketScan({ exitCode: 0, stdout: '{"ok":true}' }).verdict, "unknown");
+  assert.equal(
+    parseSocketScan({ exitCode: 0, stdout: JSON.stringify({ ok: true, data: { alerts: {} } }) }).verdict,
+    "unknown",
+  );
 });
 
 test("parseSocketScan treats a missing report or CLI error as unknown", () => {
   assert.equal(parseSocketScan({ exitCode: 1, stdout: "" }).verdict, "unknown");
   assert.equal(parseSocketScan({ exitCode: 0, stdout: "OK" }).verdict, "unknown");
-  assert.equal(parseSocketScan({ exitCode: 1, stdout: '{"ok":true}' }).verdict, "unknown");
 });
 
 test("parseSocketScan reads a report that also carries CLI noise around the JSON", () => {
@@ -209,14 +245,14 @@ test("parseSocketScan reads a report that also carries CLI noise around the JSON
   assert.equal(parseSocketScan({ exitCode: 0, stdout }).verdict, "ok");
 });
 
-test("reportAlerts reads the nested report and flat alert arrays", () => {
-  const nested = {
-    alerts: { npm: { a: { "1.0.0": { "package.json": { "1:1": { type: "malware" } } } } } },
-  };
-  assert.deepEqual(reportAlerts(nested), [{ type: "malware", package: "a", version: "1.0.0" }]);
-  assert.deepEqual(reportAlerts({ alerts: [{ type: "malware", package: "b", version: "2.0.0" }] }), [
-    { type: "malware", package: "b", version: "2.0.0" },
-  ]);
+test("reportAlerts reads the folded, unfolded and flat shapes", () => {
+  const folded = { alerts: { npm: { a: { "1.0.0": leaf() } } } };
+  const unfolded = { alerts: { npm: { a: { "1.0.0": { "package.json": { "1:1": leaf() } } } } } };
+  const flat = { alerts: [{ ...leaf(), package: "b", version: "2.0.0" }] };
+  for (const report of [folded, unfolded, flat]) {
+    assert.equal(reportAlerts(report).length, 1);
+    assert.equal(reportAlerts(report)[0].type, "malware");
+  }
   assert.deepEqual(reportAlerts(undefined), []);
 });
 
