@@ -621,6 +621,7 @@ describePlanMode('Operator plan mode', () => {
         'MARKED_TO_DELETION',
       );
 
+      expect(planned.counts?.destroy ?? 0).toBeGreaterThan(0);
       assertPlanned(
         await readPlanArtifact(client, planned),
         'MARKED_TO_DELETION',
