@@ -6,16 +6,18 @@ import { fileURLToPath } from "node:url";
 import {
   buildTriage,
   classify,
+  dedupeAlerts,
   levelOf,
   nextState,
   parseBumpTitle,
   parseLevels,
+  parseSocketScan,
   parseState,
   pathFor,
   pickSummary,
   renderComment,
+  reportAlerts,
   requiredChecks,
-  socketAlerts,
   versionJump,
 } from "./triage.mjs";
 
@@ -175,9 +177,57 @@ test("levelOf falls back to unclassified for unknown packages", () => {
   assert.equal(levelOf("not-in-lock", l, levels), "unclassified");
 });
 
-test("socketAlerts finds alerts at any depth and ignores empty lists", () => {
-  assert.deepEqual(socketAlerts({ score: 90, alerts: [] }), []);
-  assert.equal(socketAlerts({ a: { b: [{ alerts: [{ type: "malware" }] }] } }).length, 1);
+// Socket fixtures. The CLI prints a report where `healthy` mirrors the org
+// policy and alerts nest as ecosystem → package → version → file → position.
+function scanReport(alerts = {}, healthy = Object.keys(alerts).length === 0) {
+  return JSON.stringify({ healthy, alerts });
+}
+
+test("parseSocketScan passes when the org policy reports the scan healthy", () => {
+  assert.deepEqual(parseSocketScan({ exitCode: 0, stdout: scanReport() }), { verdict: "ok", alerts: [] });
+});
+
+test("parseSocketScan blocks when the report is unhealthy and lists the alerts", () => {
+  const stdout = scanReport({
+    npm: { "evil-pkg": { "1.0.0": { "package.json": { "1:2": { type: "malware", severity: "critical" } } } } },
+  });
+  const result = parseSocketScan({ exitCode: 1, stdout });
+  assert.equal(result.verdict, "block");
+  assert.deepEqual(result.alerts, [
+    { type: "malware", severity: "critical", package: "evil-pkg", version: "1.0.0" },
+  ]);
+});
+
+test("parseSocketScan treats a missing report or CLI error as unknown", () => {
+  assert.equal(parseSocketScan({ exitCode: 1, stdout: "" }).verdict, "unknown");
+  assert.equal(parseSocketScan({ exitCode: 0, stdout: "OK" }).verdict, "unknown");
+  assert.equal(parseSocketScan({ exitCode: 1, stdout: '{"ok":true}' }).verdict, "unknown");
+});
+
+test("parseSocketScan reads a report that also carries CLI noise around the JSON", () => {
+  const stdout = `socket scan\n✔ done\n${scanReport()}\n`;
+  assert.equal(parseSocketScan({ exitCode: 0, stdout }).verdict, "ok");
+});
+
+test("reportAlerts reads the nested report and flat alert arrays", () => {
+  const nested = {
+    alerts: { npm: { a: { "1.0.0": { "package.json": { "1:1": { type: "malware" } } } } } },
+  };
+  assert.deepEqual(reportAlerts(nested), [{ type: "malware", package: "a", version: "1.0.0" }]);
+  assert.deepEqual(reportAlerts({ alerts: [{ type: "malware", package: "b", version: "2.0.0" }] }), [
+    { type: "malware", package: "b", version: "2.0.0" },
+  ]);
+  assert.deepEqual(reportAlerts(undefined), []);
+});
+
+test("dedupeAlerts lists each type once per package@version", () => {
+  const alerts = [
+    { type: "malware", package: "a", version: "1.0.0" },
+    { type: "malware", package: "a", version: "1.0.0", file: "other.json" },
+    { type: "malware", package: "a", version: "2.0.0" },
+    { type: "typosquat", package: "a", version: "1.0.0" },
+  ];
+  assert.equal(dedupeAlerts(alerts).length, 3);
 });
 
 test("requiredChecks follow the level and path rules", () => {
@@ -198,7 +248,7 @@ test("requiredChecks follow the level and path rules", () => {
   assert.deepEqual(requiredChecks("dev", "B", "major"), ["Copilot review", "CI"]);
 });
 
-test("buildTriage produces labels, squash subject and a stopping socket alert", () => {
+test("buildTriage produces labels, squash subject and a stopping socket block", () => {
   const l = lock({
     "": { dependencies: { lodash: "^4" } },
     "node_modules/lodash": {},
@@ -209,13 +259,16 @@ test("buildTriage produces labels, squash subject and a stopping socket alert", 
     to: "4.18.1",
     lock: l,
     levels,
-    socketResult: { alerts: [{ name: "malware", severity: "critical", category: "malware" }] },
+    socketResult: {
+      verdict: "block",
+      alerts: [{ type: "malware", severity: "critical", package: "lodash", version: "4.18.1" }],
+    },
   });
   assert.equal(t.jump, "minor");
   assert.equal(t.path, "A");
   assert.equal(t.level, "runtime");
-  assert.equal(t.socket, "alert");
-  assert.deepEqual(t.labels, ["jump/minor", "level/runtime", "path/A", "socket/alert"]);
+  assert.equal(t.socket, "block");
+  assert.deepEqual(t.labels, ["jump/minor", "level/runtime", "path/A", "socket/block"]);
   assert.equal(t.squash, "chore: bump lodash from 4.17.21 to 4.18.1");
 });
 
@@ -226,7 +279,7 @@ test("buildTriage uses chore subjects for all dependency levels", () => {
     to: "5.4.1",
     lock: lock({ "": { devDependencies: { typescript: "^5" } }, "node_modules/typescript": {} }),
     levels,
-    socketResult: { alerts: [] },
+    socketResult: { verdict: "ok", alerts: [] },
   });
   assert.equal(dev.squash, "chore: bump typescript from 5.4.0 to 5.4.1");
   assert.equal(dev.socket, "ok");
@@ -237,7 +290,7 @@ test("buildTriage uses chore subjects for all dependency levels", () => {
     to: "4.17.22",
     lock: lock({ "": { dependencies: { lodash: "^4" } }, "node_modules/lodash": {} }),
     levels,
-    socketResult: { alerts: [] },
+    socketResult: { verdict: "ok", alerts: [] },
   });
   assert.equal(runtime.squash, "chore: bump lodash from 4.17.21 to 4.17.22");
 
@@ -247,7 +300,7 @@ test("buildTriage uses chore subjects for all dependency levels", () => {
     to: "1.0.1",
     lock: lock({ "": { dependencies: { "@kubernetes/client-node": "^1" } }, "node_modules/@kubernetes/client-node": {} }),
     levels,
-    socketResult: { alerts: [] },
+    socketResult: { verdict: "ok", alerts: [] },
   });
   assert.equal(critical.squash, "chore: bump @kubernetes/client-node from 1.0.0 to 1.0.1");
 });
@@ -260,17 +313,32 @@ test("nextState keeps step and runs while the head is unchanged", () => {
   assert.deepEqual(nextState(t, null, "abc"), { head: "abc", step: "triaged", runs: "", replacement: null });
 });
 
-test("nextState always stops on a Socket alert", () => {
+test("nextState always stops on a Socket block", () => {
   const previous = { head: "abc", step: "e2e started", runs: "9", replacement: null };
-  assert.deepEqual(nextState({ socket: "alert" }, previous, "abc"), {
+  assert.deepEqual(nextState({ socket: "block" }, previous, "abc"), {
     head: "abc",
-    step: "stopped: socket alert",
+    step: "stopped: socket block",
     runs: "",
     replacement: null,
   });
 });
 
-test("nextState resumes after a Socket stop once the alert clears", () => {
+test("nextState always stops on an unknown Socket result", () => {
+  const previous = { head: "abc", step: "e2e started", runs: "9", replacement: null };
+  assert.deepEqual(nextState({ socket: "unknown" }, previous, "abc"), {
+    head: "abc",
+    step: "stopped: socket unknown",
+    runs: "",
+    replacement: null,
+  });
+});
+
+test("nextState resumes after a Socket stop once the verdict clears", () => {
+  const previous = { head: "abc", step: "stopped: socket block", runs: "", replacement: null };
+  assert.deepEqual(nextState({ socket: "ok" }, previous, "abc"), { head: "abc", step: "triaged", runs: "", replacement: null });
+});
+
+test("an old stopped: socket alert step resumes to triaged on retriage", () => {
   const previous = { head: "abc", step: "stopped: socket alert", runs: "", replacement: null };
   assert.deepEqual(nextState({ socket: "ok" }, previous, "abc"), { head: "abc", step: "triaged", runs: "", replacement: null });
 });
@@ -313,7 +381,7 @@ test("a recorded replacement PR keeps Path B and its checks on retriage", () => 
     to: "5.4.1",
     lock: lock({ "": { devDependencies: { typescript: "^5" } }, "node_modules/typescript": {} }),
     levels,
-    socketResult: { alerts: [] },
+    socketResult: { verdict: "ok", alerts: [] },
     replacement: 170,
   });
   assert.equal(t.path, "B");
@@ -330,21 +398,58 @@ test("pickSummary only trusts summaries from authorized collaborators", () => {
   assert.equal(pickSummary(comments.slice(0, 1), new Set(["teammate"])), null);
 });
 
-test("any Socket finding, even a low one, stops the flow", () => {
-  const alerts = [
-    { name: "shellAccess", severity: "middle", category: "supplyChainRisk", example: "npm/cdk8s@2.70.114" },
-    { name: "networkAccess", severity: "low", category: "supplyChainRisk", example: "npm/x@1.0.0" },
-  ];
+test("a Socket block lists each alert once, even when it appears in several files", () => {
   const t = buildTriage({
     name: "typescript",
     from: "5.4.0",
     to: "5.4.1",
     lock: lock({ "": { devDependencies: { typescript: "^5" } }, "node_modules/typescript": {} }),
     levels,
-    socketResult: { alerts },
+    socketResult: {
+      verdict: "block",
+      alerts: [
+        { type: "malware", severity: "critical", package: "a", version: "1.0.0", file: "package.json" },
+        { type: "malware", severity: "critical", package: "a", version: "1.0.0", file: "other.json" },
+      ],
+    },
   });
-  assert.equal(t.socket, "alert");
-  assert.equal(t.socketAlerts.length, 2);
-  assert.ok(t.labels.includes("socket/alert"));
-  assert.ok(renderComment(t, { head: "h", step: "stopped: socket alert", runs: "", replacement: null }).includes("Stopped: Socket alert"));
+  assert.equal(t.socket, "block");
+  assert.equal(t.socketAlerts.length, 1);
+  assert.ok(t.labels.includes("socket/block"));
+  const body = renderComment(t, { head: "h", step: "stopped: socket block", runs: "", replacement: null });
+  assert.ok(body.includes("Stopped: Socket block"));
+  assert.equal(body.match(/malware/g).length, 1);
+});
+
+test("a Socket unknown reports the notice and no alerts", () => {
+  const t = buildTriage({
+    name: "typescript",
+    from: "5.4.0",
+    to: "5.4.1",
+    lock: lock({ "": { devDependencies: { typescript: "^5" } }, "node_modules/typescript": {} }),
+    levels,
+    socketResult: { verdict: "unknown", alerts: [] },
+  });
+  assert.ok(t.labels.includes("socket/unknown"));
+  assert.ok(
+    renderComment(t, { head: "h", step: "stopped: socket unknown", runs: "", replacement: null }).includes(
+      "Stopped: Socket unknown",
+    ),
+  );
+});
+
+test("a warn-level finding in the org does not stop the flow", () => {
+  // The org policy reports only Block alerts, so a healthy report is a pass
+  // even while `recentlyPublished` warnings stay visible in the dashboard.
+  const result = parseSocketScan({ exitCode: 0, stdout: scanReport({}, true) });
+  const t = buildTriage({
+    name: "globals",
+    from: "17.13.0",
+    to: "17.14.0",
+    lock: lock({ "": { devDependencies: { globals: "^17" } }, "node_modules/globals": {} }),
+    levels,
+    socketResult: result,
+  });
+  assert.equal(t.socket, "ok");
+  assert.deepEqual(t.socketAlerts, []);
 });

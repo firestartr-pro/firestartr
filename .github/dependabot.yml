@@ -17,25 +17,47 @@ updates:
       interval: "daily"
     versioning-strategy: increase
     open-pull-requests-limit: 30
+    # Wait before proposing freshly published versions (supply chain risk:
+    # malware is usually pulled within days). Security updates skip the
+    # cooldown and are still opened immediately.
+    cooldown:
+      default-days: 7
+      semver-major-days: 14
+      semver-minor-days: 7
+      semver-patch-days: 3
     # Dev dependencies use chore(deps), which release-please hides. Runtime and
     # critical bumps use fix(deps) so they release. The skill squash subject
     # follows levels.yaml and overrides this when they disagree.
     commit-message:
       prefix: fix
       prefix-development: chore
-    # Ignore these dependencies to allow manual review of possible errors and conflicts
+    # Every entry here is a deliberate hold with its reason next to it, and none
+    # of them freezes the package: update-types only stops the major, so patches
+    # and minors keep arriving and security updates always arrive. If the reason
+    # stops being true, drop the line and let Dependabot open the PR.
+    # Rationale and what lifts each hold: docs/adr/0007-dependency-update-policy.md
     ignore:
-      - dependency-name: "uuid"
+      # oclif moves as one set: @oclif/core 5 is a CLI rewrite, not a bump.
       - dependency-name: "@oclif/core"
-      - dependency-name: "@kubernetes/client-node"
-      - dependency-name: "@octokit/plugin-paginate-rest"
+        update-types: ["version-update:semver-major"]
       - dependency-name: "@oclif/test"
+        update-types: ["version-update:semver-major"]
       - dependency-name: "@oclif/plugin-help"
+        update-types: ["version-update:semver-major"]
+      # v2 is a rewrite of the client. Five packages share it, so upgrade together.
+      - dependency-name: "@kubernetes/client-node"
+        update-types: ["version-update:semver-major"]
+      # Majors must move with @octokit/rest (22 asks for ^14) and @octokit/core.
+      - dependency-name: "@octokit/plugin-paginate-rest"
+        update-types: ["version-update:semver-major"]
+      # Types must match the Node version we support, not the newest release.
+      # Bump together with engines, never on its own.
       - dependency-name: "@types/node"
+        update-types: ["version-update:semver-major"]
+      # ts-jest 29 only supports jest 29. Move the whole workspace to 30 first.
       - dependency-name: "jest"
+        update-types: ["version-update:semver-major"]
       - dependency-name: "@types/jest"
+        update-types: ["version-update:semver-major"]
       - dependency-name: "@jest/globals"
-      - dependency-name: "@octokit/request"
-      - dependency-name: "@octokit/auth-app"
-      - dependency-name: "@octokit/core"
-      - dependency-name: "cron-parser"
+        update-types: ["version-update:semver-major"]

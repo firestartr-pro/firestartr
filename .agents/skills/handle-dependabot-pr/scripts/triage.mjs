@@ -8,6 +8,8 @@
 
 import { execFile } from "node:child_process";
 import { readFileSync } from "node:fs";
+import { mkdtemp, rm } from "node:fs/promises";
+import { tmpdir } from "node:os";
 import { dirname, join } from "node:path";
 import { fileURLToPath, pathToFileURL } from "node:url";
 import { promisify } from "node:util";
@@ -148,26 +150,71 @@ export function pickSummary(comments, trusted) {
   return comments.find((c) => c.body?.includes(MARKER) && trusted.has(c.user?.login)) ?? null;
 }
 
-// Socket gate. Any alert found anywhere in the score output stops the flow.
-export function socketAlerts(node, found = []) {
-  if (Array.isArray(node)) {
-    node.forEach((child) => socketAlerts(child, found));
-  } else if (node && typeof node === "object") {
-    for (const [key, value] of Object.entries(node)) {
-      if (key === "alerts" && Array.isArray(value) && value.length > 0) {
-        found.push(...value);
-      } else {
-        socketAlerts(value, found);
+// Socket gate. The org policy is the single source of truth, so triage never
+// classifies findings itself: `socket scan create --report` applies the policy
+// to a checkout of the PR head and exits 0 only when the scan passes. A report
+// with `healthy: false` means the policy blocked at least one alert. A missing
+// report, a CLI error or a scan under another org is unknown, never a pass.
+export function jsonPayload(stdout) {
+  for (const payload of [stdout, stdout?.slice(stdout.indexOf("{"), stdout.lastIndexOf("}") + 1)]) {
+    try {
+      return JSON.parse(payload);
+    } catch {}
+  }
+  return null;
+}
+
+// The report nests alerts as ecosystem → package → version → file → position.
+// Flat arrays are accepted too, so both shapes collapse to one list.
+export function reportAlerts(report) {
+  const alerts = report?.alerts;
+  if (!alerts) return [];
+  const found = [];
+  if (Array.isArray(alerts)) {
+    for (const alert of alerts) {
+      found.push(typeof alert === "object" && alert ? alert : { type: String(alert) });
+    }
+    return found;
+  }
+  for (const packages of Object.values(alerts)) {
+    for (const [pkg, versions] of Object.entries(packages ?? {})) {
+      for (const [version, files] of Object.entries(versions ?? {})) {
+        for (const positions of Object.values(files ?? {})) {
+          for (const alert of Object.values(positions ?? {})) {
+            const entry = typeof alert === "object" && alert ? alert : { type: String(alert) };
+            found.push({ ...entry, package: pkg, version });
+          }
+        }
       }
     }
   }
   return found;
 }
 
+// One finding shows up once per file and position. The comment lists it once.
+export function dedupeAlerts(alerts) {
+  const seen = new Set();
+  return alerts.filter((alert) => {
+    const key = `${alert.type ?? alert.name ?? "?"} ${alert.package ?? ""}@${alert.version ?? ""}`;
+    if (seen.has(key)) return false;
+    seen.add(key);
+    return true;
+  });
+}
+
+export function parseSocketScan({ exitCode, stdout }) {
+  const report = jsonPayload(stdout);
+  if (!report) return { verdict: "unknown", alerts: [] };
+  if (report.healthy === false) return { verdict: "block", alerts: reportAlerts(report) };
+  if (report.healthy === true || exitCode === 0) return { verdict: "ok", alerts: [] };
+  return { verdict: "unknown", alerts: [] };
+}
+
 function describeAlert(alert) {
-  if (typeof alert === "string") return alert;
-  const where = alert.example ? ` (${alert.example})` : "";
-  return `${alert.name} · ${alert.severity} · ${alert.category}${where}`;
+  const type = alert.type ?? alert.name ?? "alert";
+  const severity = alert.severity ? ` · ${alert.severity}` : "";
+  const where = alert.package ? ` · ${alert.package}${alert.version ? `@${alert.version}` : ""}` : "";
+  return `${type}${severity}${where}`;
 }
 
 export function squashSubject(name, from, to, level) {
@@ -189,7 +236,7 @@ export function buildTriage({ name, from, to, lock, levels, socketResult, replac
   const jump = versionJump(from, to);
   const path = replacement ? "B" : pathFor(jump);
   const level = levelOf(name, lock, levels);
-  const socket = socketResult.alerts.length > 0 ? "alert" : "ok";
+  const socket = socketResult.verdict;
   return {
     name,
     from,
@@ -201,7 +248,7 @@ export function buildTriage({ name, from, to, lock, levels, socketResult, replac
     labels: [`jump/${jump}`, `level/${level}`, `path/${path}`, `socket/${socket}`],
     checks: requiredChecks(level, path, jump),
     squash: squashSubject(name, from, to, level),
-    socketAlerts: socketResult.alerts,
+    socketAlerts: dedupeAlerts(socketResult.alerts),
   };
 }
 
@@ -216,9 +263,11 @@ export function parseState(body) {
 // Keep the recorded step and run IDs while the head being checked and the
 // replacement PR are unchanged, so resuming never repeats work. The head is the
 // replacement PR's when one is set, otherwise the Dependabot PR's. A Socket
-// alert always stops the flow.
+// block or unknown result always stops the flow, and every old
+// `stopped: socket*` step restarts at triaged so #182-style PRs recover.
 export function nextState(t, previous, head, replacement = previous?.replacement ?? null) {
-  if (t.socket === "alert") return { head, step: "stopped: socket alert", runs: "", replacement };
+  if (t.socket === "block") return { head, step: "stopped: socket block", runs: "", replacement };
+  if (t.socket === "unknown") return { head, step: "stopped: socket unknown", runs: "", replacement };
   const resumable =
     previous &&
     previous.head === head &&
@@ -238,9 +287,21 @@ export function renderComment(t, state) {
     `- Checks still required: ${t.checks.join(", ")}`,
     `- Squash subject: \`${t.squash}\``,
   ];
-  if (t.socket === "alert") {
-    lines.push("", "**Stopped: Socket alert.** Review the findings before going further.");
+  if (t.socket === "block") {
+    lines.push(
+      "",
+      "**Stopped: Socket block.** The scan failed the org policy (security or license).",
+      "Review these alerts before going further.",
+    );
     for (const alert of t.socketAlerts.slice(0, 20)) lines.push(`- ${describeAlert(alert)}`);
+  }
+  if (t.socket === "unknown") {
+    lines.push(
+      "",
+      "**Stopped: Socket unknown.** No scan report, or the scan did not run under",
+      "the firestartr org. Run `socket scan create --report` on the PR head by",
+      "hand, then retriage.",
+    );
   }
   lines.push("", `head: ${state.head}`);
   if (state.replacement) lines.push(`replacement: #${state.replacement}`);
@@ -254,24 +315,38 @@ async function gh(args) {
   return stdout;
 }
 
-async function socketScore(name, version) {
-  let stdout;
+async function gitRoot() {
+  return (await execFileAsync("git", ["rev-parse", "--show-toplevel"], { cwd: HERE })).stdout.trim();
+}
+
+// Scans a checkout of the PR head, so the manifests are the ones being merged,
+// not the local branch. The worktree is temporary and always removed. Anything
+// that prevents the scan (unfetchable branch, missing CLI, no report) is
+// unknown, so triage stops instead of passing silently.
+async function socketScan(branch) {
+  const root = await gitRoot();
+  const dir = await mkdtemp(join(tmpdir(), "socket-scan-"));
   try {
-    ({ stdout } = await execFileAsync(
-      "socket",
-      ["package", "score", "npm", `${name}@${version}`, "--json"],
-      { maxBuffer: 64 * 1024 * 1024 },
-    ));
-  } catch (err) {
-    throw new Error(`socket failed for ${name}@${version}: ${err.stderr || err.message}`);
-  }
-  let json;
-  try {
-    json = JSON.parse(stdout);
+    await execFileAsync("git", ["fetch", "origin", branch], { cwd: root });
+    await execFileAsync("git", ["worktree", "add", "--detach", dir, "FETCH_HEAD"], { cwd: root });
   } catch {
-    throw new Error(`socket returned non-JSON output for ${name}@${version}`);
+    await rm(dir, { recursive: true, force: true });
+    return { verdict: "unknown", alerts: [] };
   }
-  return { alerts: socketAlerts(json), raw: json };
+  try {
+    const { stdout } = await execFileAsync("socket", ["scan", "create", "--report", "--json", "."], {
+      cwd: dir,
+      maxBuffer: 64 * 1024 * 1024,
+    });
+    return parseSocketScan({ exitCode: 0, stdout });
+  } catch (err) {
+    // A policy block is an ordinary non-zero exit that still prints the report.
+    if (typeof err.stdout === "string") return parseSocketScan({ exitCode: err.code, stdout: err.stdout });
+    return { verdict: "unknown", alerts: [] };
+  } finally {
+    await execFileAsync("git", ["worktree", "remove", "--force", dir], { cwd: root }).catch(() => {});
+    await rm(dir, { recursive: true, force: true });
+  }
 }
 
 async function repoSlug() {
@@ -314,11 +389,16 @@ async function triagePr(number, { dryRun, slug, levels, replacementOverride }) {
   if (!bump) throw new Error(`#${number}: cannot read package and versions from title "${pr.title}"`);
 
   const lock = JSON.parse(await fileAt(slug, pr.headRefName, "package-lock.json"));
-  const socketResult = await socketScore(bump.name, bump.to);
 
   const existing = await findSummary(slug, number);
   const previous = existing ? parseState(existing.body) : null;
   const replacement = replacementOverride ?? previous?.replacement ?? null;
+  // Path B is judged on the replacement PR's tree, which is the one that lands.
+  const scanned = replacement
+    ? (await gh(["pr", "view", String(replacement), "--json", "headRefName", "-q", ".headRefName"])).trim()
+    : pr.headRefName;
+  const socketResult = await socketScan(scanned);
+
   const t = buildTriage({ ...bump, lock, levels, socketResult, replacement });
   const head = replacement
     ? (await gh(["pr", "view", String(replacement), "--json", "headRefOid", "-q", ".headRefOid"])).trim()

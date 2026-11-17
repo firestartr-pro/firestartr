@@ -12,8 +12,11 @@ merges, approves, clicks "Update branch", or pushes to a Dependabot branch.
 ## Prerequisites
 
 Run `gh auth status`. Check that `socket` is logged in with `socket login`
-(it shows the setup flow). If either fails, stop and show the fix: `gh auth login`
-or `socket login`. If the Socket call fails mid-triage, the script stops with its error.
+(it shows the setup flow) and bound to the `firestartr-pro` org: `socket config
+get defaultOrg` must print it, or set `SOCKET_CLI_ORG_SLUG`. The API key needs
+`full-scans:create`, `full-scans:list` and `security-policy:read`. If either
+fails, stop and show the fix. If a Socket call fails mid-triage, the script
+records `socket unknown` and stops.
 
 ## Modes
 
@@ -29,9 +32,36 @@ PR and keeps one summary comment up to date. Use `--dry-run` to preview. The
 script prints jump, level, path, Socket verdict, required checks and the squash
 subject. Those are the source of truth; don't recompute them.
 
-If `socket` is `alert`, the script sets `step: stopped: socket alert` and posts
-the findings. **Stop.** Report the findings to the user and wait. Any Socket
-finding stops the flow, whatever its severity.
+The Socket gate runs `socket scan create --report` on a checkout of the PR head
+under our org, so the verdict is our policy's, not the script's:
+
+| Verdict | Meaning | Script does | Label |
+|---|---|---|---|
+| `ok` | the scan passes the org policy | continue | `socket/ok` |
+| `block` | the policy blocks at least one alert | `stopped: socket block`, lists the Block alerts | `socket/block` |
+| `unknown` | no report: CLI error, wrong org, failed scan | `stopped: socket unknown` | `socket/unknown` |
+
+**Stop** on `block` and on `unknown`. Report the findings or the missing scan to
+the user and wait. Warn-level alerts stay in the Socket dashboard and never reach
+triage, so they don't stop anything. Each run uploads a full scan to the org; that
+is accepted. Rationale and the `dependabot.yml` holds:
+`docs/adr/0007-dependency-update-policy.md`.
+
+## Socket override
+
+Only when the org policy blocks a legitimate PR. All four steps, in order:
+
+1. `npm diff --diff=<pkg>@<old> --diff=<pkg>@<new>`: no new install scripts,
+   network calls, obfuscation or dependencies, and the change matches the advisory.
+2. The advisory is real (GitHub Advisory Database, release notes) and the npm
+   publisher is unchanged.
+3. Add a dashboard Alert Triage rule (Settings → Security Policy → Alert Triage)
+   scoped to that alert on `<pkg>@<new>`. Never weaken the policy as a whole.
+   `@SocketSecurity ignore` PR comments need the GitHub App and don't apply.
+4. Leave a PR comment saying it was reviewed, then retriage.
+
+If the override would need to cover other alerts or other versions, stop and ask a
+person: that is a policy change, not a triage step.
 
 ## Path A: merge the Dependabot PR
 
@@ -84,4 +114,5 @@ replies and resolves the threads. Never resolve a thread without a reply.
 - Never stack a PR on top of the Dependabot PR.
 - Let Dependabot close a superseded PR after the replacement updates the dependency.
 - Never comment `@dependabot ignore this major version`.
+- Never weaken the Socket policy to unblock a PR; use the override instead.
 - Never merge or approve. Only a person does that.
