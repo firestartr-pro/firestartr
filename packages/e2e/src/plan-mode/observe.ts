@@ -22,6 +22,7 @@ export type PlanArtifact = {
 const PLAN_LINE = /^PLAN (\S+)\/(\S+) (\S+): (.*) \((.+\.md)\)$/;
 const PLANNED_OUTCOME = /^\+(\d+) ~(\d+) -(\d+)$/;
 
+// eslint-disable-next-line no-control-regex -- matching the ESC byte is the point
 const ANSI_ESCAPE = /\x1b\[[0-9;]*m/g;
 const CONSOLE_LEVEL_PREFIX = /^\[[a-z]+\]:\s*/i;
 
