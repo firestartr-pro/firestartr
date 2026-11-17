@@ -22,8 +22,28 @@ export type PlanArtifact = {
 const PLAN_LINE = /^PLAN (\S+)\/(\S+) (\S+): (.*) \((.+\.md)\)$/;
 const PLANNED_OUTCOME = /^\+(\d+) ~(\d+) -(\d+)$/;
 
+const ANSI_ESCAPE = /\x1b\[[0-9;]*m/g;
+const CONSOLE_LEVEL_PREFIX = /^\[[a-z]+\]:\s*/i;
+
+// The operator logs JSON lines in-cluster and `[level]: message` with ANSI
+// colours on a console: the plan message is the same in both.
+export function logMessage(line: string): string {
+  const trimmed = line.trim();
+
+  if (trimmed.startsWith('{')) {
+    try {
+      const parsed = JSON.parse(trimmed);
+      if (typeof parsed.message === 'string') return parsed.message;
+    } catch {
+      // not a JSON line: fall through to the console form
+    }
+  }
+
+  return trimmed.replace(ANSI_ESCAPE, '').replace(CONSOLE_LEVEL_PREFIX, '');
+}
+
 export function parsePlanLogLine(line: string): PlanLogLine | undefined {
-  const match = line.trim().match(PLAN_LINE);
+  const match = logMessage(line).match(PLAN_LINE);
   if (!match) return undefined;
 
   const [, kind, name, operation, outcome, artifactMd] = match;
@@ -145,5 +165,17 @@ export function assertObserveOnly(
     JSON.stringify(after.finalizers ?? [])
   ) {
     throw new Error(`Plan mode changed finalizers of ${kind}/${name}`);
+  }
+}
+
+// A PLANNED artifact carries its Terraform plan in a fenced `## Plan` block:
+// the heading alone is not a plan.
+export function assertPlanMarkdown(markdown: string, planned: PlanLogLine) {
+  const block = markdown.match(/## Plan\n(`{3,})text\n([\s\S]*?)\n\1/);
+
+  if (!block || block[2].trim() === '') {
+    throw new Error(
+      `Plan markdown for ${planned.kind}/${planned.name} has no plan text`,
+    );
   }
 }

@@ -18,6 +18,7 @@ import {
   assertArtifactMatchesLog,
   assertObserveOnly,
   assertPlanned,
+  assertPlanMarkdown,
   findPlanLogLine,
   parsePlanLogLine,
   type PlanArtifact,
@@ -54,6 +55,30 @@ describe('plan-mode observe', () => {
         'PLAN FirestartrGithubRepository/demo MARKED_TO_DELETION: SKIPPED (parent not provisioned) (/tmp/plans/FirestartrGithubRepository/demo.md)';
 
       expect(parsePlanLogLine(line)?.counts).toBeUndefined();
+    });
+
+    it('parses the JSON log form emitted in-cluster', () => {
+      const line = JSON.stringify({
+        level: 'info',
+        message: PLANNED_LINE,
+        timestamp: '2026-11-16 09:54:16',
+      });
+
+      expect(parsePlanLogLine(line)?.counts).toEqual({
+        add: 3,
+        change: 1,
+        destroy: 0,
+      });
+    });
+
+    it('parses the coloured console form emitted in CI', () => {
+      const line = `\u001b[32m[info]: ${PLANNED_LINE}\u001b[39m`;
+
+      expect(parsePlanLogLine(line)?.counts).toEqual({
+        add: 3,
+        change: 1,
+        destroy: 0,
+      });
     });
 
     it('ignores unrelated log lines', () => {
@@ -182,6 +207,29 @@ describe('plan-mode observe', () => {
           { finalizers: [] },
         ),
       ).toThrow(/changed finalizers/);
+    });
+  });
+
+  describe('assertPlanMarkdown', () => {
+    const logLine = parsePlanLogLine(PLANNED_LINE)!;
+
+    it('accepts a fenced plan with content', () => {
+      const md =
+        '# FirestartrTerraformWorkspace/demo-a\n\n## Plan\n```text\n~ resource changed\n```\n';
+
+      expect(() => assertPlanMarkdown(md, logLine)).not.toThrow();
+    });
+
+    it('rejects a heading without a plan block', () => {
+      expect(() =>
+        assertPlanMarkdown('# FirestartrTerraformWorkspace/demo-a\n', logLine),
+      ).toThrow(/no plan text/);
+    });
+
+    it('rejects an empty plan block', () => {
+      const md = '# X\n\n## Plan\n```text\n\n```\n';
+
+      expect(() => assertPlanMarkdown(md, logLine)).toThrow(/no plan text/);
     });
   });
 });
