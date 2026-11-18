@@ -128,6 +128,30 @@ describe('GitHub organization variables with SecretsClaim refs', () => {
         /OrgSettingsClaim\/github_org_settings references a non-existent secret key "does_not_exist" in SecretsClaim\/secret_a via actions_variables\.DEPLOY_HOST/,
       );
     });
+
+    it('fails when the referenced key is only a push secret', async () => {
+      await context.applyPatches('orgsettings_a', [
+        {
+          op: 'add',
+          path: '/providers/github/actions_variables',
+          value: [
+            {
+              ...SECRET_REF_VAR,
+              value: 'ref:secretsclaim:secret_a:my-postgres',
+            },
+          ],
+        },
+      ]);
+
+      await expect(
+        context.renderClaims(
+          { claimRefs: ['OrgSettingsClaim-github_org_settings'] },
+          { crsPath: rendererTestFixtures.noCrs },
+        ),
+      ).rejects.toThrow(
+        /OrgSettingsClaim\/github_org_settings references a non-existent secret key "my-postgres" in SecretsClaim\/secret_a via actions_variables\.DEPLOY_HOST/,
+      );
+    });
   });
 
   describe('when the referenced SecretsClaim is missing', () => {

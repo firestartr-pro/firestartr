@@ -88,6 +88,14 @@ export async function resolve(
  * Kubernetes Secrets they come from must not block the deletion.
  */
 export function withoutPlaintextSecrets(cr: any) {
+  if (cr.kind === 'FirestartrGithubOrganizationVariableSection') {
+    const actionsVariables = (cr.spec?.actionsVariables ?? []).filter(
+      (variable: any) => !variable.ref,
+    );
+
+    return { ...cr, spec: { ...cr.spec, actionsVariables } };
+  }
+
   if (cr.kind !== 'FirestartrGithubOrganizationSecretSection') return cr;
 
   return { ...cr, spec: { ...cr.spec, secrets: {} } };

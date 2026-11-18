@@ -108,6 +108,17 @@ function searchSecretKey(secretClaim: any, key: string): boolean {
   return found;
 }
 
+/** Only externalSecrets populate the Kubernetes Secret; pushSecrets do not. */
+function searchPopulatedSecretKey(secretClaim: any, key: string): boolean {
+  const externalSecrets =
+    secretClaim?.providers?.external_secrets?.externalSecrets?.secrets;
+
+  return (
+    Array.isArray(externalSecrets) &&
+    externalSecrets.some((secret: any) => secret.secretName === key)
+  );
+}
+
 function validateOrgSettingsComponentRefs(
   ref: string,
   renderClaims: RenderClaims,
@@ -138,7 +149,10 @@ function validateActionsVariablesSecretRefs(
       );
     }
 
-    const keyFound = searchSecretKey(renderClaims[secretClaimKey].claim, key);
+    const keyFound = searchPopulatedSecretKey(
+      renderClaims[secretClaimKey].claim,
+      key,
+    );
 
     if (!keyFound) {
       throw new Error(
