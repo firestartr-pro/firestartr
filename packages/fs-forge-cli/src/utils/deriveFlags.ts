@@ -235,6 +235,33 @@ export function deriveFlags(
   return walk(schema, prefix, true);
 }
 
+/**
+ * A required leaf below a `<ancestor>.json` escape hatch can arrive through
+ * that JSON, which oclif only decodes after it has checked required flags. So
+ * the leaf is left to the schema validation that runs on the built claim.
+ * Run it on the flags a command really exposes: a hidden hatch covers nothing.
+ */
+export function deferJsonCoveredRequirements(flags: FlagSpec[]): FlagSpec[] {
+  const hatches = flags
+    .map(({ path }) => path)
+    .filter((path) => path.endsWith('.json'))
+    .map((path) => path.slice(0, -'.json'.length));
+  for (const flag of flags) {
+    if (!flag.required) continue;
+    if (
+      hatches.some(
+        (ancestor) =>
+          flag.path.startsWith(`${ancestor}.`) &&
+          flag.path !== `${ancestor}.json`,
+      )
+    ) {
+      flag.required = false;
+      flag.conditionalRequired = true;
+    }
+  }
+  return flags;
+}
+
 function acceptsEmptyObject(schema: Record<string, unknown>): boolean {
   if (requiredNames(schema).size > 0) return false;
   const oneOf = branches(schema, 'oneOf');

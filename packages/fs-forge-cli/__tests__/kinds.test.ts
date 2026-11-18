@@ -1,9 +1,8 @@
 import { describe, expect, it } from '@jest/globals';
 import { captureOutput } from '@oclif/test';
-import { readFileSync } from 'fs';
-import { join } from 'path';
 
 import Kinds from '../src/commands/kinds';
+import { CLAIM_PRESENTATION } from '../src/schema/claimOverlay';
 
 const ROOT = process.cwd();
 const CLAIM_KINDS = [
@@ -55,10 +54,7 @@ it('uses each claim schema summary in the kinds output', async () => {
 
   expect(kinds.map(({ kind }) => kind)).toEqual(CLAIM_KINDS);
   for (const entry of kinds) {
-    const schema = JSON.parse(
-      readFileSync(join(ROOT, 'schemas', `${entry.kind}.json`), 'utf8'),
-    ) as { 'x-fs-forge-summary': string };
-    expect(entry.description).toBe(schema['x-fs-forge-summary']);
+    expect(entry.description).toBe(CLAIM_PRESENTATION[entry.kind].summary);
     expect(entry.description).not.toMatch(/^A(n)? \w+ claim$/);
   }
 });

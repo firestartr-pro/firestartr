@@ -1,5 +1,11 @@
-import { deriveFlags, deriveRequiredContainers } from '../utils/deriveFlags.js';
+import { CLAIM_PRESENTATION, isHiddenFlag } from '../schema/claimOverlay.js';
+import {
+  deferJsonCoveredRequirements,
+  deriveFlags,
+  deriveRequiredContainers,
+} from '../utils/deriveFlags.js';
 
+import type { ClaimPresentation } from '../schema/claimOverlay.js';
 import type { FlagSpec } from '../utils/deriveFlags.js';
 
 export interface ClaimIcon {
@@ -16,27 +22,12 @@ export interface ClaimCommandModel {
   requiredContainers: string[];
 }
 
-function claimSummary(schema: Record<string, unknown>, kind: string): string {
-  const value = schema['x-fs-forge-summary'];
-  if (typeof value !== 'string' || value.trim() === '') {
-    throw new Error(`${kind} schema is missing x-fs-forge-summary metadata`);
+function presentation(kind: string): ClaimPresentation {
+  const value = CLAIM_PRESENTATION[kind];
+  if (!value) {
+    throw new Error(`${kind} has no entry in CLAIM_PRESENTATION`);
   }
   return value;
-}
-
-function claimIcon(schema: Record<string, unknown>, kind: string): ClaimIcon {
-  const value = schema['x-fs-forge-icon'];
-  if (
-    typeof value !== 'object' ||
-    value === null ||
-    !('emoji' in value) ||
-    typeof value.emoji !== 'string' ||
-    !('ascii' in value) ||
-    typeof value.ascii !== 'string'
-  ) {
-    throw new Error(`${kind} schema is missing x-fs-forge-icon metadata`);
-  }
-  return { emoji: value.emoji, ascii: value.ascii };
 }
 
 /** Pure: schema in, everything the emitter needs out. */
@@ -47,9 +38,11 @@ export function buildCommandModel(
   return {
     kind,
     id: kind.replace(/Claim$/, '').toLowerCase(),
-    summary: claimSummary(schema, kind),
-    icon: claimIcon(schema, kind),
-    flagSpecs: deriveFlags(schema),
+    summary: presentation(kind).summary,
+    icon: presentation(kind).icon,
+    flagSpecs: deferJsonCoveredRequirements(
+      deriveFlags(schema).filter((flag) => !isHiddenFlag(kind, flag.path)),
+    ),
     requiredContainers: deriveRequiredContainers(schema),
   };
 }

@@ -62,8 +62,15 @@ Catalog hydration is handled downstream by the claims-index workflow regeneratin
 `claims-map.json` on merge to the default branch.
 
 **Schema**:
-A JSON Schema (draft 2020-12) file under `schemas/` that defines the structure
-and constraints of a claim kind.
+A JSON Schema (draft 2020-12) that defines the structure and constraints of a
+claim kind. Claim schemas come from the published
+`@firestartr/firestartr-claims_schemas` package; the CLI's own output contracts
+(`CommandHelpJson`, `MutationDiff`, `RelationGraph`) live under `schemas/`.
+
+**Claim overlay**:
+What the CLI adds on top of a published claim schema, in
+`src/schema/claimOverlay.ts`: the kind's icon and summary, flag descriptions,
+extra keywords, and the flags hidden from `create`.
 
 **Kind**:
 The type of a claim — `ArgoDeployClaim`, `ComponentClaim`, `DomainClaim`,
