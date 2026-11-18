@@ -1,28 +1,46 @@
 /**
- * Operator Plan mode e2e.
+ * Live: operator Plan mode e2e (TerraformWorkspace kind only).
  *
- * Goal: every CR gets planned, nothing gets written.
+ * Runs alone: restarts the controller. Opt-in E2E_RUN_PLAN_MODE=true or the
+ * `plan-mode` suite.
  *
- * Runs alone (it restarts the controller). Opt-in via E2E_RUN_PLAN_MODE=true,
- * or run the `plan-mode` suite.
- *
- * 1. Save the controller's env and replica count.
- * 2. Start the live operator, delete leftovers from past runs, stop it.
- * 3. Start Plan mode: OPERATOR_PLAN_MODE=true, watching only
- *    terraformworkspaces.
- * 4. Apply two CRs from fixture tfworkspace-a (suffixes a and b).
- * 5. Wait for `PLAN FirestartrTerraformWorkspace/<cr> CREATED: +N ~M -K
- *    (.../<cr>.md)`.
- * 6. Assert nothing was written: plan has +N > 0, artifact path printed, CR
- *    has no conditions, no finalizer, no TFResult, no ConfigMap, and the
- *    tfstate Secrets and lock Leases keep the same resourceVersion (no lock,
- *    no state write).
- * 7. Restart the live operator without the plan flag.
- * 8. Both CRs still reach PROVISIONED=True and their ConfigMaps appear.
- * 9. Restore the original deployment, delete the CRs and the artifacts.
- *
- * Catches the two leaks: Plan mode writing to the CR, and Plan mode writing to
- * the Terraform backend.
+ * 1. Save controller env + replicas.
+ * 2. Start live operator, delete leftovers from earlier runs.
+ * 3. Live operator provisions a (update) and b (destroy), each: render with
+ *    configmap_name=<cm>-<run>, apply CR, wait PROVISIONED=True, finalizer
+ *    `firestartr.dev/finalizer` present, ConfigMap created.
+ * 4. Stop live operator; start Plan mode: OPERATOR_PLAN_MODE=true,
+ *    OPERATOR_KIND_LIST=terraformworkspaces.
+ * 5. Create phase, workspace c (fresh):
+ *    5a. Render with configmap_name=<cm>-<run>, delete stale TFResult, apply CR.
+ *    5b. Wait log `PLAN ... CREATED`.
+ *    5c. Read .md and .json from /tmp/plans in controller pod (exec cat).
+ *    5d. Markdown has a non-empty fenced `## Plan` block; JSON parses; operation
+ *        CREATED; status PLANNED; plan non-null.
+ *    5e. JSON counts equal log counts; +N > 0.
+ *    5f. CR: no status/conditions, no finalizer.
+ *    5g. No TFResult; no ConfigMap.
+ *    5h. Backend tfstate Secrets/Leases resourceVersion unchanged.
+ * 6. Update phase, workspace a:
+ *    6a. Snapshot CR status + finalizers.
+ *    6b. Re-render with configmap_name=<cm>-<run>-updated, apply CR.
+ *    6c. Wait log `PLAN ... UPDATED`; read + check artifact (5c-5e).
+ *    6d. CR status + finalizers equal snapshot (observe-only).
+ *    6e. Updated ConfigMap not created; backend unchanged.
+ * 7. Destroy phase, workspace b:
+ *    7a. Snapshot CR status + finalizers.
+ *    7b. Request deletion (no wait).
+ *    7c. Wait log `PLAN ... MARKED_TO_DELETION`; read + check artifact.
+ *    7d. CR has deletionTimestamp and finalizer still set.
+ *    7e. CR status + finalizers equal snapshot; backend unchanged.
+ * 8. Stop Plan mode; restart live operator with original env.
+ * 9. Workspace a: PROVISIONED=True and updated ConfigMap exists.
+ * 10. Workspace c: PROVISIONED=True and its ConfigMap exists.
+ * 11. Workspace b: deletion finished by live operator (CR gone).
+ * 12. afterAll: start live operator if needed, delete CRs/artifacts/provider
+ *     configs, restore deployment; errors collected and rethrown.
+ * Any operator log wait that times out also throws the last 60 operator log
+ * lines.
  */
 
 import fs from 'node:fs/promises';
@@ -52,6 +70,16 @@ import {
   WAIT_FOR_CR_TIMEOUT_SECONDS,
 } from '../../src/test-constants';
 import { pollUntil } from '../../src/utils/async-control';
+import {
+  assertArtifactMatchesLog,
+  assertPlanned,
+  assertPlanMarkdown,
+  findPlanLogLine,
+  assertObserveOnly,
+  type ObservedFields,
+  type PlanArtifact,
+  type PlanLogLine,
+} from '../../src/plan-mode/observe';
 
 const PLAN_MODE_SUITE_ENV_VAR = 'E2E_RUN_PLAN_MODE';
 
@@ -81,6 +109,7 @@ const PROVIDER_CONFIG_NAMES = {
 };
 
 const LOG_PREFIX = 'plan-mode';
+const OPERATOR_LOG_TAIL_LINES = 60;
 
 const PLAN_STARTUP_FRAGMENT = 'operator running in Plan mode';
 const PLANNED_OPERATION_FRAGMENT = 'PLAN FirestartrTerraformWorkspace';
@@ -96,6 +125,12 @@ type Workspace = {
   crPath?: string;
   crName?: string;
 };
+
+type ProviderConfigRef = { kind: string; name: string };
+
+function providerConfigRef(name: string): ProviderConfigRef {
+  return { kind: 'FirestartrProviderConfig', name };
+}
 
 function escapeRegExp(value: string): string {
   return value.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
@@ -119,13 +154,24 @@ async function waitForOperatorLog(
   description: string,
   timeoutMs = OPERATOR_ROLLOUT_TIMEOUT_MS,
 ): Promise<string> {
-  return pollUntil(() => client.k8s.readControllerLogs(), {
-    timeoutMs,
-    intervalMs: 2000,
-    isDone: condition,
-    createTimeoutError: () =>
-      new Error(`Timed out waiting for operator log: ${description}`),
-  });
+  try {
+    return await pollUntil(() => client.k8s.readControllerLogs(), {
+      timeoutMs,
+      intervalMs: 2000,
+      isDone: condition,
+      createTimeoutError: () =>
+        new Error(`Timed out waiting for operator log: ${description}`),
+    });
+  } catch (error: unknown) {
+    const tail = (await client.k8s.readControllerLogs())
+      .split('\n')
+      .slice(-OPERATOR_LOG_TAIL_LINES)
+      .join('\n');
+    throw new Error(
+      `${error instanceof Error ? error.message : String(error)}\n` +
+        `Last ${OPERATOR_LOG_TAIL_LINES} operator log lines:\n${tail}`,
+    );
+  }
 }
 
 function hasProvisionedCondition(workspace: any): boolean {
@@ -145,6 +191,64 @@ async function waitForConfigMap(client: E2EApi, name: string): Promise<void> {
   });
 }
 
+async function waitForPlan(
+  client: E2EApi,
+  crName: string,
+  operation: string,
+): Promise<PlanLogLine> {
+  const logs = await waitForOperatorLog(
+    client,
+    (current) =>
+      findPlanLogLine(current, TF_KIND, crName, operation) !== undefined,
+    `PLAN ${operation} for ${TF_KIND}/${crName}`,
+    PLAN_TIMEOUT_MS,
+  );
+
+  return findPlanLogLine(logs, TF_KIND, crName, operation)!;
+}
+
+// Reads the plan the operator wrote into its pod and checks it against the
+// log line that announced it.
+async function readPlanArtifact(
+  client: E2EApi,
+  planned: PlanLogLine,
+): Promise<PlanArtifact> {
+  const md = await client.k8s.readControllerFile(planned.artifactMd);
+  expect(md).toContain(`# ${TF_KIND}/${planned.name}`);
+
+  const json = await client.k8s.readControllerFile(
+    planned.artifactMd.replace(/\.md$/, '.json'),
+  );
+  const artifact = JSON.parse(json) as PlanArtifact;
+  assertArtifactMatchesLog(artifact, planned);
+
+  if (artifact.result.status === 'PLANNED') assertPlanMarkdown(md, planned);
+
+  return artifact;
+}
+
+async function waitForWorkspaceGone(
+  client: E2EApi,
+  claimRef: string,
+): Promise<void> {
+  await pollUntil(
+    () =>
+      client.k8s.listCustomResourcesByAnnotation({
+        kind: TF_KIND,
+        apiVersion: FIRESTARTR_API_VERSION,
+        annotationKey: CLAIM_REF_ANNOTATION,
+        annotationValues: [claimRef],
+      }),
+    {
+      timeoutMs: PROVISION_TIMEOUT_MS,
+      intervalMs: 3000,
+      isDone: (items) => items.length === 0,
+      createTimeoutError: () =>
+        new Error(`Timed out waiting for ${claimRef} to be deleted`),
+    },
+  );
+}
+
 describePlanMode('Operator plan mode', () => {
   let client: E2EApi;
   let operatorDeploymentName: string;
@@ -152,11 +256,14 @@ describePlanMode('Operator plan mode', () => {
   let providerConfigsTempDir: string | undefined;
   let operatorIsLive = false;
 
-  const workspaces: Workspace[] = ['a', 'b'].map((suffix) => ({
+  // a and b exist before Plan mode starts, so update and destroy work on real
+  // Terraform state; c is created under Plan mode.
+  const workspaces: Workspace[] = ['a', 'b', 'c'].map((suffix) => ({
     claimName: '',
     configMapName: '',
     suffix,
   }));
+  const [updatedWorkspace, destroyedWorkspace, createdWorkspace] = workspaces;
 
   function fixtureInputs() {
     return workspaces.map((workspace) => ({
@@ -266,6 +373,28 @@ describePlanMode('Operator plan mode', () => {
       await startOperatorWithEnv(originalDeployment.env);
     }
     await deleteWorkspaces(true);
+
+    // Update and destroy need provisioned state with the finalizer set, so the
+    // live operator provisions them before Plan mode starts.
+    const provisioning = [updatedWorkspace, destroyedWorkspace];
+    for (const workspace of provisioning) {
+      const crPath = await renderWorkspace(workspace, workspace.configMapName);
+      await client.k8s.deleteStaleTFResult(workspace.crName!);
+      await client.k8s.applyCr(crPath);
+    }
+    for (const workspace of provisioning) {
+      const resource = await client.k8s.waitForCr(
+        workspace.crPath!,
+        WAIT_FOR_CR_TIMEOUT_SECONDS,
+      );
+
+      expect(hasProvisionedCondition(resource)).toBe(true);
+      expect(resource.metadata?.finalizers ?? []).toContain(
+        'firestartr.dev/finalizer',
+      );
+      await waitForConfigMap(client, workspace.configMapName);
+    }
+
     await stopOperator();
 
     // Start only Plan mode, watching only workspace CRs so unrelated cluster
@@ -282,7 +411,7 @@ describePlanMode('Operator plan mode', () => {
       (logs) => logs.includes(PLAN_STARTUP_FRAGMENT),
       `'${PLAN_STARTUP_FRAGMENT}'`,
     );
-  }, LOCAL_RENDER_APPLY_TEST_TIMEOUT_MS);
+  }, 2 * PROVISION_TIMEOUT_MS);
 
   afterAll(async () => {
     if (!client) return;
@@ -350,101 +479,97 @@ describePlanMode('Operator plan mode', () => {
     cleanup.throwOnErrors(`${LOG_PREFIX} afterAll`);
   }, LOCAL_RENDER_APPLY_TEST_TIMEOUT_MS);
 
+  async function renderWorkspace(
+    workspace: Workspace,
+    configMapName: string,
+  ): Promise<string> {
+    const rendered = await client.claims.renderLocally(FIXTURE, {
+      sourceFixtureName: FIXTURE,
+      claimName: workspace.claimName,
+      patches: [
+        {
+          op: 'replace',
+          path: '/providers/terraform/values/configmap_name',
+          value: configMapName,
+        },
+      ],
+    });
+
+    const crPath = rendered.crPaths[0];
+    if (!crPath) {
+      throw new Error(`No rendered CR path found for ${workspace.claimName}`);
+    }
+
+    await patchResourceSpecContext(crPath, {
+      backend: { ref: providerConfigRef(PROVIDER_CONFIG_NAMES.backend) },
+      providers: [{ ref: providerConfigRef(PROVIDER_CONFIG_NAMES.provider) }],
+    });
+
+    const resource = await getPrimaryManifestResource(crPath);
+    if (!resource.metadata?.name) {
+      throw new Error(`Missing name for rendered ${workspace.claimName}`);
+    }
+    const resourceContext = (
+      resource.spec as {
+        context?: {
+          providers?: Array<{ ref: ProviderConfigRef }>;
+          backend?: { ref: ProviderConfigRef };
+        };
+      }
+    )?.context;
+    expect(resourceContext?.providers).toEqual([
+      { ref: providerConfigRef(PROVIDER_CONFIG_NAMES.provider) },
+    ]);
+    expect(resourceContext?.backend).toEqual({
+      ref: providerConfigRef(PROVIDER_CONFIG_NAMES.backend),
+    });
+
+    workspace.crPath = crPath;
+    workspace.crName = resource.metadata.name;
+
+    return crPath;
+  }
+
+  async function observe(workspace: Workspace): Promise<ObservedFields> {
+    const resource = await client.k8s.readWorkspace(workspace.crName!);
+
+    return {
+      status: resource.status,
+      finalizers: resource.metadata?.finalizers,
+    };
+  }
+
   it(
-    'plans every CR without writing status, finalizers, TFResults or infrastructure',
+    'plans create, update and destroy without writing status, finalizers, TFResults or infrastructure',
     async () => {
       const backendStateBefore = await client.k8s.readBackendStateVersions();
 
-      for (const workspace of workspaces) {
-        const rendered = await client.claims.renderLocally(FIXTURE, {
-          sourceFixtureName: FIXTURE,
-          claimName: workspace.claimName,
-          patches: [
-            {
-              op: 'replace',
-              path: '/providers/terraform/values/configmap_name',
-              value: workspace.configMapName,
-            },
-          ],
-        });
-
-        const crPath = rendered.crPaths[0];
-        if (!crPath) {
-          throw new Error(
-            `No rendered CR path found for ${workspace.claimName}`,
-          );
-        }
-
-        await patchResourceSpecContext(crPath, {
-          backend: { ref: PROVIDER_CONFIG_NAMES.backend },
-          providers: [{ ref: PROVIDER_CONFIG_NAMES.provider }],
-        });
-
-        const resource = await getPrimaryManifestResource(crPath);
-        if (!resource.metadata?.name) {
-          throw new Error(`Missing name for rendered ${workspace.claimName}`);
-        }
-        const resourceContext = (
-          resource.spec as {
-            context?: {
-              providers?: Array<{ ref: string }>;
-              backend?: { ref: string };
-            };
-          }
-        )?.context;
-        expect(resourceContext?.providers).toEqual([
-          { ref: PROVIDER_CONFIG_NAMES.provider },
-        ]);
-        expect(resourceContext?.backend).toEqual({
-          ref: PROVIDER_CONFIG_NAMES.backend,
-        });
-
-        workspace.crPath = crPath;
-        workspace.crName = resource.metadata.name;
+      // Create: a fresh workspace, planned under Plan mode.
+      for (const workspace of [createdWorkspace]) {
+        const crPath = await renderWorkspace(
+          workspace,
+          workspace.configMapName,
+        );
 
         // A previous run of this suite may have left a TFResult for the same
         // CR name; Plan mode must not add one of its own.
-        await client.k8s.deleteStaleTFResult(workspace.crName);
+        await client.k8s.deleteStaleTFResult(workspace.crName!);
 
         await client.k8s.applyCr(crPath);
       }
 
-      for (const workspace of workspaces) {
+      for (const workspace of [createdWorkspace]) {
         const crName = workspace.crName!;
+        const planned = await waitForPlan(client, crName, 'CREATED');
 
-        const logs = await waitForOperatorLog(
-          client,
-          (current) =>
-            new RegExp(
-              `${PLANNED_OPERATION_FRAGMENT}/${escapeRegExp(
-                crName,
-              )} CREATED: \\+\\d+ ~\\d+ -\\d+ \\(.+\\)`,
-            ).test(current),
-          `PLAN artifact for ${TF_KIND}/${crName}`,
-          PLAN_TIMEOUT_MS,
-        );
+        expect(planned.counts?.add ?? 0).toBeGreaterThan(0);
+        assertPlanned(await readPlanArtifact(client, planned), 'CREATED');
 
-        const planLine = logs
-          .split('\n')
-          .find((line) =>
-            line.includes(`${PLANNED_OPERATION_FRAGMENT}/${crName} CREATED:`),
-          );
-        expect(planLine).toBeDefined();
+        const created = await client.k8s.readWorkspace(crName);
 
-        const planMatch = planLine?.match(
-          /CREATED: \+(\d+) ~(\d+) -(\d+) \((.+)\)/,
-        );
-        expect(planMatch).not.toBeNull();
-        expect(Number(planMatch?.[1])).toBeGreaterThan(0);
-        expect(planMatch?.[4]).toContain(
-          `/FirestartrTerraformWorkspace/${crName}.md`,
-        );
-
-        const planned = await client.k8s.readWorkspace(crName);
-
-        expect(hasProvisionedCondition(planned)).toBe(false);
-        expect(planned.status?.conditions ?? []).toEqual([]);
-        expect(planned.metadata?.finalizers ?? []).not.toContain(
+        expect(hasProvisionedCondition(created)).toBe(false);
+        expect(created.status?.conditions ?? []).toEqual([]);
+        expect(created.metadata?.finalizers ?? []).not.toContain(
           'firestartr.dev/finalizer',
         );
 
@@ -456,6 +581,64 @@ describePlanMode('Operator plan mode', () => {
           false,
         );
       }
+
+      // Update: provisioned workspace a, new configmap_name. Status and
+      // finalizers must not move, and the updated ConfigMap must not appear.
+      for (const workspace of [updatedWorkspace]) {
+        const before = await observe(workspace);
+
+        workspace.configMapName = `${workspace.configMapName}-updated`;
+        const crPath = await renderWorkspace(
+          workspace,
+          workspace.configMapName,
+        );
+        await client.k8s.applyCr(crPath);
+
+        const planned = await waitForPlan(client, workspace.crName!, 'UPDATED');
+
+        assertPlanned(await readPlanArtifact(client, planned), 'UPDATED');
+        assertObserveOnly(
+          TF_KIND,
+          workspace.crName!,
+          before,
+          await observe(workspace),
+        );
+        expect(await client.k8s.configMapExists(workspace.configMapName)).toBe(
+          false,
+        );
+      }
+
+      // Destroy: only workspace b. The live operator would remove its finalizer;
+      // Plan mode must leave the CR stuck in deletion.
+      const destroyed = destroyedWorkspace;
+      const beforeDestroy = await observe(destroyed);
+
+      await client.k8s.requestWorkspaceDeletion(destroyed.crName!);
+
+      const planned = await waitForPlan(
+        client,
+        destroyed.crName!,
+        'MARKED_TO_DELETION',
+      );
+
+      expect(planned.counts?.destroy ?? 0).toBeGreaterThan(0);
+      assertPlanned(
+        await readPlanArtifact(client, planned),
+        'MARKED_TO_DELETION',
+      );
+
+      const pending = await client.k8s.readWorkspace(destroyed.crName!);
+
+      expect(pending.metadata?.deletionTimestamp).toBeDefined();
+      expect(pending.metadata?.finalizers ?? []).toContain(
+        'firestartr.dev/finalizer',
+      );
+      assertObserveOnly(
+        TF_KIND,
+        destroyed.crName!,
+        beforeDestroy,
+        await observe(destroyed),
+      );
 
       // Plans read a snapshot of the state: they never take the backend's
       // Lease nor create or update its state Secret.
@@ -486,17 +669,32 @@ describePlanMode('Operator plan mode', () => {
   );
 
   it(
-    'provisions every planned CR once Plan mode is off',
+    'provisions the updated CR and finishes the deletion once Plan mode is off',
     async () => {
-      for (const workspace of workspaces) {
-        const resource = await client.k8s.waitForCr(
-          workspace.crPath!,
-          WAIT_FOR_CR_TIMEOUT_SECONDS,
-        );
+      const kept = updatedWorkspace;
+      const destroyed = destroyedWorkspace;
 
-        expect(hasProvisionedCondition(resource)).toBe(true);
-        await waitForConfigMap(client, workspace.configMapName);
-      }
+      const resource = await client.k8s.waitForCr(
+        kept.crPath!,
+        WAIT_FOR_CR_TIMEOUT_SECONDS,
+      );
+
+      expect(hasProvisionedCondition(resource)).toBe(true);
+      await waitForConfigMap(client, kept.configMapName);
+
+      const created = createdWorkspace;
+      const createdResource = await client.k8s.waitForCr(
+        created.crPath!,
+        WAIT_FOR_CR_TIMEOUT_SECONDS,
+      );
+
+      expect(hasProvisionedCondition(createdResource)).toBe(true);
+      await waitForConfigMap(client, created.configMapName);
+
+      await waitForWorkspaceGone(
+        client,
+        buildClaimRef(CLAIM_KIND, destroyed.claimName),
+      );
     },
     PROVISION_TIMEOUT_MS,
   );

@@ -248,6 +248,7 @@ export interface K8sApi {
 
   // Logs of the running controller pod, or '' when none is running.
   readControllerLogs: () => Promise<string>;
+  readControllerFile: (filePath: string) => Promise<string>;
 
   // resourceVersion of every tfstate Secret and lock Lease, keyed by kind/name.
   readBackendStateVersions: () => Promise<Record<string, string>>;
@@ -264,6 +265,7 @@ export interface K8sApi {
 
   // Read a FirestartrTerraformWorkspace object by name.
   readWorkspace: (name: string) => Promise<any>;
+  requestWorkspaceDeletion: (name: string) => Promise<void>;
 
   // Delete the TFResult of a CR name, ignoring not-found.
   deleteStaleTFResult: (crName: string) => Promise<void>;
