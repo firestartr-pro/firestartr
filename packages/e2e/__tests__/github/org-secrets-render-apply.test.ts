@@ -15,7 +15,7 @@ import {
   type TempOpaqueSecret,
 } from '../..';
 import { buildComponentClaimPatches } from '../../src/claim-patches';
-import { pickRenderedCr } from '../../src/render-artifacts';
+import { pickRenderedCr, setReconcileAt } from '../../src/render-artifacts';
 import { isNotFound, type GithubError } from '../../src/gh/errors';
 import {
   prepareWorkflowVerification,
@@ -39,8 +39,11 @@ const VERIFY_ORG_SECRET_WORKFLOW_FILE_NAME = 'verify-org-secret.yaml';
 const ORG_SECRET_READ_TIMEOUT_MS = 5 * 60 * 1000;
 const ORG_SECRET_READ_INTERVAL_MS = 5000;
 const WORKFLOW_RUN_TIMEOUT_MS = 5 * 60 * 1000;
+// One extra read window for the post-adoption rewrite reconciliation.
 const ORG_SECRETS_TEST_TIMEOUT_MS =
-  LOCAL_RENDER_APPLY_TEST_TIMEOUT_MS + 3 * WORKFLOW_RUN_TIMEOUT_MS;
+  LOCAL_RENDER_APPLY_TEST_TIMEOUT_MS +
+  3 * WORKFLOW_RUN_TIMEOUT_MS +
+  ORG_SECRET_READ_TIMEOUT_MS;
 
 const ACTIONS_ALL_VALUE = 'org-secret-all-value';
 const ACTIONS_SELECTED_VALUE = 'org-secret-selected-value';
@@ -72,6 +75,16 @@ function buildOrgSecretNames(client: E2EApi): OrgSecretNames {
     codespaces: `${safePrefix}_CODESPACES`,
     dependabot: `${safePrefix}_DEPENDABOT`,
   };
+}
+
+function listOrgSecretNames(names: OrgSecretNames): string[] {
+  return [
+    names.actionsAll,
+    names.actionsSelected,
+    names.actionsAdopt,
+    names.codespaces,
+    names.dependabot,
+  ];
 }
 
 function buildOrgSecretsMerge(options: {
@@ -200,6 +213,60 @@ async function waitForOrgSecretAbsence(
   console.log(`[waitForOrgSecretAbsence] '${name}' confirmed absent`);
 }
 
+// Readiness poll for fingerprint-triggered rewrites: the secret's value is
+// never observable through the API, so `updated_at` advancing past a baseline
+// is the signal that a reconciliation has rewritten it (ADR-0002 pattern).
+async function waitForOrgSecretUpdate(
+  gh: GhApi,
+  section: GhOrgSecretSection,
+  name: string,
+  baselineUpdatedAt?: string,
+): Promise<GhOrgSecret> {
+  const baselineTime = baselineUpdatedAt ? Date.parse(baselineUpdatedAt) : NaN;
+  if (Number.isNaN(baselineTime)) {
+    throw new Error(
+      `Invalid baseline updatedAt for ${section} org secret '${name}': ${baselineUpdatedAt}`,
+    );
+  }
+
+  const secret = await pollUntil(() => readOrgSecret(gh, section, name), {
+    timeoutMs: ORG_SECRET_READ_TIMEOUT_MS,
+    intervalMs: ORG_SECRET_READ_INTERVAL_MS,
+    isDone: (value) => {
+      if (value === null) {
+        return false;
+      }
+
+      if (!value.updatedAt) {
+        return false;
+      }
+
+      const updatedTime = Date.parse(value.updatedAt);
+      if (Number.isNaN(updatedTime)) {
+        throw new Error(
+          `Invalid updatedAt for ${section} org secret '${name}': ${value.updatedAt}`,
+        );
+      }
+
+      return updatedTime > baselineTime;
+    },
+    shouldRetryError: isRetryableError,
+    createTimeoutError: (lastValue) =>
+      new Error(
+        `Timed out waiting for ${section} org secret '${name}' updatedAt to advance past ${baselineUpdatedAt}; last value was ${lastValue?.updatedAt ?? 'unavailable'}`,
+      ),
+  });
+
+  if (secret === null) {
+    throw new Error(`Expected ${section} org secret '${name}' to exist`);
+  }
+
+  console.log(
+    `[waitForOrgSecretUpdate] '${name}' updatedAt advanced past ${baselineUpdatedAt}`,
+  );
+  return secret;
+}
+
 // Single serialized lifecycle: one org-secret section CR owns all declared
 // secrets, so create, adoption and deletion are updates to the same resource.
 describe('Claim Render Local Org Secrets E2E', () => {
@@ -264,13 +331,7 @@ describe('Claim Render Local Org Secrets E2E', () => {
     // groups; org secrets left behind by a crashed run need explicit cleanup.
     for (const section of Object.keys(domains) as GhOrgSecretSection[]) {
       if (!domains[section]) continue;
-      for (const name of [
-        names.actionsAll,
-        names.actionsSelected,
-        names.actionsAdopt,
-        names.codespaces,
-        names.dependabot,
-      ]) {
+      for (const name of listOrgSecretNames(names)) {
         await client.gh.deleteOrgSecret(section, name);
       }
     }
@@ -283,31 +344,11 @@ describe('Claim Render Local Org Secrets E2E', () => {
 
     const cleanup = new CleanupRunner();
 
-    // The test deletes the section CR and asserts remote absence; this only
-    // fires when it threw earlier.
-    if (names) {
-      await cleanup.run('delete stale org secrets', async () => {
-        for (const section of Object.keys(domains) as GhOrgSecretSection[]) {
-          if (!domains[section]) continue;
-          for (const name of [
-            names.actionsAll,
-            names.actionsSelected,
-            names.actionsAdopt,
-            names.codespaces,
-            names.dependabot,
-          ]) {
-            await client.gh.deleteOrgSecret(section, name);
-          }
-        }
-      });
-    }
-
-    if (tempSecret) {
-      await cleanup.run('dispose plain org secret values', async () => {
-        await tempSecret?.dispose();
-      });
-    }
-
+    // Delete the owning CRs before touching GitHub directly: an in-flight
+    // reconciliation could recreate a secret right after a direct deletion,
+    // and teardown with forced finalizers would then leave the recreated
+    // secret behind. The direct deletion below is the final fallback once
+    // no CR can recreate the secrets anymore.
     await cleanup.run('destroy org secrets fixture resources', async () => {
       await destroyFixtureResources(client, client.getPrefix(), fixtures, {
         logPrefix: 'org-secrets-render-apply-afterall',
@@ -318,6 +359,27 @@ describe('Claim Render Local Org Secrets E2E', () => {
     await cleanup.run('cleanup rendered artifacts', async () => {
       await cleanupRenderedArtifacts(client);
     });
+
+    // The test deletes the section CR and asserts remote absence; these
+    // deletions only fire when it threw earlier. Each one is recorded
+    // separately so a single failure does not skip the remaining secrets.
+    if (names) {
+      for (const section of Object.keys(domains) as GhOrgSecretSection[]) {
+        if (!domains[section]) continue;
+        for (const name of listOrgSecretNames(names)) {
+          await cleanup.run(
+            `delete stale ${section} org secret '${name}'`,
+            () => client.gh.deleteOrgSecret(section, name),
+          );
+        }
+      }
+    }
+
+    if (tempSecret) {
+      await cleanup.run('dispose plain org secret values', async () => {
+        await tempSecret?.dispose();
+      });
+    }
 
     cleanup.warnOnErrors('org-secrets-render-apply', 'afterAll');
   }, ORG_SECRETS_TEST_TIMEOUT_MS);
@@ -513,11 +575,42 @@ describe('Claim Render Local Org Secrets E2E', () => {
         'FirestartrGithubOrganizationSecretSection',
       );
 
-      console.log('[test] STEP 11: apply CR with adoption and verify value');
+      console.log('[test] STEP 11: apply CR with adoption');
       await client.k8s.applyCr(adoptedSectionCrPath);
       await client.k8s.waitForCr(
         adoptedSectionCrPath,
         WAIT_FOR_CR_TIMEOUT_SECONDS,
+      );
+
+      // The adoption apply imports the pre-existing secret and drops its
+      // fingerprint, but the declared value is only written by the *next*
+      // reconciliation: the module rewrites values via replace_triggered_by,
+      // and Terraform does not fire that trigger when the fingerprint
+      // resource is first created. The imported secret therefore still
+      // carries the external value here. Force one more reconciliation with
+      // the same manifest — the same mechanism the repo-secrets suite uses
+      // for fingerprint-triggered rewrites — and wait for it.
+      console.log(
+        '[test] STEP 12: force a reconciliation to rewrite the adopted value',
+      );
+      const adoptedBeforeRewrite = await waitForOrgSecret(
+        client.gh,
+        'actions',
+        names.actionsAdopt,
+      );
+      await setReconcileAt(adoptedSectionCrPath);
+      await client.k8s.applyCr(adoptedSectionCrPath);
+      await waitForOrgSecretUpdate(
+        client.gh,
+        'actions',
+        names.actionsAdopt,
+        adoptedBeforeRewrite.updatedAt,
+      );
+
+      // updated_at advancing is only a readiness signal for the rewrite;
+      // the authoritative value assertion is the workflow run below.
+      console.log(
+        '[test] STEP 13: verify value of the adopted secret via workflow',
       );
       await verifyValueViaWorkflow(verification, {
         failureLabel: 'Organization secret',
@@ -531,7 +624,7 @@ describe('Claim Render Local Org Secrets E2E', () => {
       // Scenario 5: cleanup — deleting the section CR removes every declared
       // secret from the GitHub org.
       console.log(
-        '[test] STEP 12: delete section CR and verify org-secret cleanup',
+        '[test] STEP 14: delete section CR and verify org-secret cleanup',
       );
       await client.k8s.deleteCr(
         adoptedSectionCrPath,

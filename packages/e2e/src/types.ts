@@ -453,10 +453,13 @@ export interface GhOrgVariable {
 export type GhOrgSecretSection = 'actions' | 'codespaces' | 'dependabot';
 
 // Subset of organization secret metadata that e2e assertions read back.
-// Values are never returned by the GitHub API.
+// Values are never returned by the GitHub API. `updatedAt` is the readiness
+// signal for fingerprint-triggered rewrites, since the secret value itself
+// cannot be observed through the API.
 export interface GhOrgSecret {
   name: string;
   visibility: 'all' | 'private' | 'selected';
+  updatedAt?: string;
 }
 
 // Subset of GitHub organization settings that e2e assertions read back.

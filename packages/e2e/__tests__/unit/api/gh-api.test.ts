@@ -792,7 +792,11 @@ describe('createGhApi org secret helpers', () => {
 
   it('reads org secret metadata for a domain', async () => {
     const getOrgSecret = jest.fn().mockResolvedValue({
-      data: { name: 'ORG_SECRET', visibility: 'selected' },
+      data: {
+        name: 'ORG_SECRET',
+        visibility: 'selected',
+        updated_at: '2026-11-18T10:00:00Z',
+      },
     });
     mockSectionRest('actions', { getOrgSecret });
 
@@ -801,6 +805,7 @@ describe('createGhApi org secret helpers', () => {
     await expect(api.getOrgSecret('actions', 'ORG_SECRET')).resolves.toEqual({
       name: 'ORG_SECRET',
       visibility: 'selected',
+      updatedAt: '2026-11-18T10:00:00Z',
     });
     expect(getOrgSecret).toHaveBeenCalledWith({
       org: 'demo-org',
@@ -966,6 +971,21 @@ describe('createGhApi org secret helpers', () => {
 
     await expect(api.orgSecretSectionAvailable('dependabot')).rejects.toThrow(
       'server error',
+    );
+  });
+
+  it('propagates primary rate-limit responses instead of skipping the domain', async () => {
+    const listOrgSecrets = jest.fn().mockRejectedValue(
+      Object.assign(new Error('API rate limit exceeded for 203.0.113.10.'), {
+        status: 403,
+      }),
+    );
+    mockSectionRest('codespaces', { listOrgSecrets });
+
+    const api = createGhApi(createState());
+
+    await expect(api.orgSecretSectionAvailable('codespaces')).rejects.toThrow(
+      'API rate limit exceeded',
     );
   });
 });

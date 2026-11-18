@@ -43,9 +43,20 @@ hard-requires them would fail for an environment limit rather than a regression.
    org-settings and org-variables suites; applying it here would make the parallel
    regular Jest batch fight over `github_organization_settings`. Rendering still
    uses the claim, so the full claim → CR path stays covered.
-5. **Cleanup is asserted remotely.** Deleting the section CR must make every
+5. **Adoption is verified across two reconciliations.** The adoption apply imports
+   the pre-existing secret and drops its SHA-256 fingerprint, but the module
+   rewrites values through `replace_triggered_by`, which Terraform does not fire
+   when the fingerprint trigger resource is first created — the imported secret
+   keeps the external value after that apply. The suite forces the next
+   reconciliation with the `firestartr.dev/reconcile-at` annotation (the same
+   mechanism ADR-0002/0003 use for repo-secret rotation), treats `updated_at`
+   advancing as the readiness signal, and only then dispatches the value
+   workflow.
+6. **Cleanup is asserted remotely.** Deleting the section CR must make every
    declared secret disappear from GitHub; the test polls for absence instead of
-   trusting the finalizer.
+   trusting the finalizer. Teardown deletes the owning CRs before any direct
+   GitHub deletion, and every direct deletion is recorded separately so one
+   failure cannot skip the rest.
 
 ## Consequences
 

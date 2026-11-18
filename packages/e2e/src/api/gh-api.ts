@@ -102,6 +102,7 @@ type RawOrgVariable = {
 type RawOrgSecret = {
   name?: unknown;
   visibility?: unknown;
+  updated_at?: unknown;
 };
 
 type RawSelectedRepo = {
@@ -145,6 +146,9 @@ function normalizeOrgSecret(raw: RawOrgSecret): GhOrgSecret | null {
   return {
     name: raw.name,
     visibility,
+    ...(typeof raw.updated_at === 'string'
+      ? { updatedAt: raw.updated_at }
+      : {}),
   };
 }
 
