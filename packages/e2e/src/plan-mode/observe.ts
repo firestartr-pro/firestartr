@@ -106,8 +106,13 @@ export function assertArtifactMatchesLog(
       `Plan artifact operation ${artifact.operation} does not match log ${where}`,
     );
   }
+  const { result } = artifact;
+  if (result.status === 'PLANNED' && !logLine.counts) {
+    throw new Error(
+      `Plan artifact for ${where} is PLANNED but its log line has no counts`,
+    );
+  }
   if (logLine.counts) {
-    const { result } = artifact;
     const mismatch =
       result.add !== logLine.counts.add ||
       result.change !== logLine.counts.change ||

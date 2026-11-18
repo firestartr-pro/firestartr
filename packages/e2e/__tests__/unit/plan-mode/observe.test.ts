@@ -155,6 +155,25 @@ describe('plan-mode observe', () => {
         assertArtifactMatchesLog(artifact({ operation: 'UPDATED' }), logLine),
       ).toThrow(/operation/);
     });
+
+    it('requires log counts when the artifact is PLANNED', () => {
+      const logLine = parsePlanLogLine(
+        'PLAN FirestartrTerraformWorkspace/demo-a CREATED: plan (/tmp/plans/demo-a.md)',
+      )!;
+
+      expect(() => assertArtifactMatchesLog(artifact(), logLine)).toThrow(
+        /no counts/,
+      );
+    });
+
+    it('accepts count-free log lines for non-PLANNED artifacts', () => {
+      const logLine = parsePlanLogLine(
+        'PLAN FirestartrTerraformWorkspace/demo-a CREATED: error (/tmp/plans/demo-a.md)',
+      )!;
+      const errored = artifact({ result: { status: 'ERROR' } });
+
+      expect(() => assertArtifactMatchesLog(errored, logLine)).not.toThrow();
+    });
   });
 
   describe('assertPlanned', () => {
