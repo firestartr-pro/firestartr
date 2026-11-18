@@ -30,7 +30,12 @@ export class EntityGHOrgVarsSection extends Entity {
 
       for (const v of actionsVariables) {
         const entry: Record<string, any> = {
-          value: v.value,
+          value: v.ref
+            ? this.requireOutput(
+                { name: v.ref.name, kind: 'Secret' },
+                v.ref.key,
+              )
+            : v.value,
           visibility: v.visibility,
         };
 
