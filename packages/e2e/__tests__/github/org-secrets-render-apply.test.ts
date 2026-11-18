@@ -1,3 +1,48 @@
+/**
+ * Claim Render Local Org Secrets e2e.
+ *
+ * Goal: one org-secret section CR provisions GitHub organization secrets
+ * across the supported domains, the claim's value beats a pre-existing
+ * external secret, and deleting the CR removes every secret from GitHub.
+ *
+ * Runs in the regular parallel batch (`org-secrets-render-apply` suite).
+ * Codespaces and Dependabot are probed first and skipped (logged) when the
+ * org does not expose them; only the section CR is applied, never the
+ * org-settings singleton shared with other suites.
+ *
+ * 1. Render and apply component-a: the selected-binding assertion and the
+ *    verification workflow both need the disposable repository.
+ * 2. Create a plain Secret holding every expected value, one key per org
+ *    secret, and patch the SecretsClaim context metadata to match.
+ * 3. Render orgsettings-secrets-a for the supported domains.
+ * 4. Apply the section CR and wait for PROVISIONED.
+ * 5. Wait for the `all` visibility actions secret.
+ * 6. Wait for the `selected` actions secret and assert its repository
+ *    binding resolves to org/component-a; assert the codespaces/dependabot
+ *    secrets by existence and visibility when their probe allowed them.
+ * 7. Verify the `all` secret's value through the in-repo workflow (only
+ *    actions org secrets reach `secrets.*` in a workflow run).
+ * 8. Verify the `selected` secret's value through the same workflow.
+ * 9. Create an external adoption secret on GitHub, outside the system.
+ * 10. Render the claim again, now declaring the adopted secret.
+ * 11. Apply and wait: the provisioner imports the secret and drops its
+ *     fingerprint; with the pinned module the declared value is only written
+ *     by the next reconciliation, so the external value is still live here.
+ * 12. Force that reconciliation with `firestartr.dev/reconcile-at` and wait
+ *     for `updated_at` to advance past the pre-adoption baseline.
+ * 13. Verify the adopted value through the workflow: the CR value must win.
+ * 14. Delete the section CR and poll GitHub until every declared secret is
+ *     absent.
+ *
+ * Teardown deletes the owning CRs before any direct GitHub deletion, records
+ * every stale-secret deletion separately, and warns instead of throwing so it
+ * never masks the original failure.
+ *
+ * Catches: missing or mis-scoped org secrets per domain, unresolved selected
+ * bindings, adoption that never rewrites the declared value, and cleanup that
+ * leaves secrets on the org after the CR is gone.
+ */
+
 import {
   CleanupRunner,
   applyAndWaitCrPaths,
