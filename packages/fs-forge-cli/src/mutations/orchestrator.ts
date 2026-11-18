@@ -1,5 +1,3 @@
-import { join } from 'path';
-
 import { parseStateRepos } from '../context/resolve.js';
 
 import { loadClaimsMap, resolveClaim } from '../claims/claimsRepo.js';
@@ -13,6 +11,7 @@ import {
   loadVariantGroups,
   parseClaimYaml,
 } from './support.js';
+import { claimSchemasDir } from '../schema/claimSchemas.js';
 import { createClaimValidator } from '../utils/ajvValidation.js';
 import {
   diffClaims,
@@ -140,7 +139,7 @@ export async function runClaimMutation(
     assertClaimIdentity(base, kind, sourceName);
 
     const validator = createClaimValidator({
-      schemasDir: join(root, 'schemas'),
+      schemasDir: claimSchemasDir(root),
     });
     const mutated = mutateClaim(
       base,
