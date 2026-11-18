@@ -8,6 +8,7 @@ export class InitializerClaimRef extends InitializerPatches {
     'TFWorkspaceClaim',
     'OrgWebhookClaim',
     'OrgSettingsClaim',
+    'OrgRulesetClaim',
   ];
 
   applicableProviders = ['github', 'terraform'];

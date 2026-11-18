@@ -10,6 +10,7 @@ export class UUIDInitializer extends InitializerPatches {
     'TFWorkspaceClaim',
     'OrgWebhookClaim',
     'OrgSettingsClaim',
+    'OrgRulesetClaim',
   ];
 
   applicableProviders = ['github', 'terraform'];

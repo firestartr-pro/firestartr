@@ -17,6 +17,7 @@ provisioner reconciles them through pinned OpenTofu modules from
 | `OrgSettingsClaim` | `providers.github` | `FirestartrGithubOrganizationSettings` | Organization settings. |
 | `OrgSettingsClaim` | `providers.github.actions_variables` | `FirestartrGithubOrganizationVariableSection` | Organization Actions variables. |
 | `OrgWebhookClaim` | `providers.github` | `FirestartrGithubOrgWebhook` | An organization webhook. |
+| `OrgRulesetClaim` | `providers.github` | `FirestartrGithubOrgRuleset` | An organization ruleset (branch, tag or push). |
 
 The renderer picks the CR by the claim kind; the provisioner picks a pinned
 OpenTofu module by the CR kind. Each CR can override its module with the
@@ -37,6 +38,7 @@ commits:
 | `FirestartrGithubOrganizationSettings` | `github-org-settings` |
 | `FirestartrGithubOrganizationVariableSection` | `github-org-variables-section` |
 | `FirestartrGithubOrgWebhook` | `github-org-webhook` |
+| `FirestartrGithubOrgRuleset` | `github-org-ruleset` |
 
 ## Shared conventions
 
@@ -108,6 +110,7 @@ coverage is entity-specific:
 | Repository labels | Adopted during `apply` when they already exist (and updated to match the claim). |
 | Organization variables | Adopted during `apply` only; explicit import discovers nothing. |
 | Organization webhook | Imported by matching webhook URL. |
+| Organization ruleset | Imported by matching ruleset name. |
 | Repository secrets | No import/adoption. |
 | Repository features | Special migration semantics for user-managed files. |
 
@@ -132,3 +135,4 @@ Several fields reference other claims:
 - [ComponentClaim](./component.md)
 - [OrgSettingsClaim](./org-settings.md)
 - [OrgWebhookClaim](./org-webhook.md)
+- [OrgRulesetClaim](./org-ruleset.md)

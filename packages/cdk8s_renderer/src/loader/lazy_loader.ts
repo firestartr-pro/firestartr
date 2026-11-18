@@ -151,8 +151,11 @@ export async function loadClaim(
 
       if (Array.isArray(error)) {
         for (const data of error) {
+          const allowed = data.params?.allowedValues
+            ? ` (${data.params.allowedValues.join(', ')})`
+            : '';
           errorMsg = `${errorMsg}
-  - ${data.instancePath}: ${data.message}`;
+  - ${data.instancePath}: ${data.message}${allowed}`;
         }
       } else {
         errorMsg = error instanceof Error ? error.message : String(error);

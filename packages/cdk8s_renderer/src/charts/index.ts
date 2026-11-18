@@ -4,6 +4,7 @@ import {
   GithubRepositoryChart,
   GithubOrgWebhookChart,
   GithubOrgSettingsChart,
+  GithubOrgRulesetChart,
   GithubOrgVariableSectionChart,
   GithubOrgSecretSectionChart,
 } from './github';
@@ -18,6 +19,7 @@ import {
   CatalogArgoDeployChart,
   CatalogSecretsChart,
   CatalogOrgWebhookChart,
+  CatalogOrgRulesetChart,
   CatalogApiChart,
 } from './catalog';
 
@@ -35,6 +37,7 @@ export default {
   CatalogArgoDeployChart,
   CatalogSecretsChart,
   CatalogOrgWebhookChart,
+  CatalogOrgRulesetChart,
   CatalogApiChart,
   GithubGroupChart,
   GithubMembershipChart,
@@ -44,6 +47,7 @@ export default {
   SecretsChart,
   GithubOrgWebhookChart,
   GithubOrgSettingsChart,
+  GithubOrgRulesetChart,
   GithubOrgVariableSectionChart,
   GithubOrgSecretSectionChart,
 };
