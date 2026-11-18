@@ -102,4 +102,80 @@ describe('createTempOpaqueSecret', () => {
       }),
     ).rejects.toThrow('Secret namespace is required');
   });
+
+  it('writes extra values to the same secret and resolves a ref per key', async () => {
+    const { client } = createClient();
+    const secret = await createTempOpaqueSecret(client, {
+      name: 'demo-secret',
+      key: 'primary',
+      value: 'primary-value',
+      extraValues: {
+        secondary: 'secondary-value',
+      },
+    });
+
+    try {
+      const manifest = common.io.fromYaml(
+        await fs.readFile(secret.manifestPath, 'utf-8'),
+      ) as { stringData: Record<string, string> };
+
+      expect(manifest.stringData).toEqual({
+        primary: 'primary-value',
+        secondary: 'secondary-value',
+      });
+      expect(secret.values).toEqual({
+        primary: 'primary-value',
+        secondary: 'secondary-value',
+      });
+      expect(secret.claimSecretRef).toBe(
+        'ref:secretsclaim:demo-secret:primary',
+      );
+      expect(secret.claimSecretRefForKey('secondary')).toBe(
+        'ref:secretsclaim:demo-secret:secondary',
+      );
+      expect(() => secret.claimSecretRefForKey('missing')).toThrow(
+        "Secret 'demo-secret' has no key 'missing'",
+      );
+    } finally {
+      await secret.cleanup();
+    }
+  });
+
+  it('supports a secret declared only through extra values', async () => {
+    const { client } = createClient();
+    const secret = await createTempOpaqueSecret(client, {
+      name: 'demo-secret',
+      extraValues: {
+        first: 'first-value',
+        second: 'second-value',
+      },
+    });
+
+    try {
+      const manifest = common.io.fromYaml(
+        await fs.readFile(secret.manifestPath, 'utf-8'),
+      ) as { stringData: Record<string, string> };
+
+      expect(manifest.stringData).toEqual({
+        first: 'first-value',
+        second: 'second-value',
+      });
+      expect(secret.key).toBe('first');
+      expect(secret.value).toBe('first-value');
+    } finally {
+      await secret.cleanup();
+    }
+  });
+
+  it('rejects a primary key repeated in extra values', async () => {
+    const { client } = createClient();
+
+    await expect(
+      createTempOpaqueSecret(client, {
+        name: 'demo-secret',
+        key: 'primary',
+        extraValues: { primary: 'duplicated' },
+      }),
+    ).rejects.toThrow("Secret 'demo-secret' declares key 'primary' twice");
+  });
 });

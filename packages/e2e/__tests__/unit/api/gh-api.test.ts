@@ -766,6 +766,210 @@ describe('createGhApi org variable helpers', () => {
   });
 });
 
+describe('createGhApi org secret helpers', () => {
+  type Section = 'actions' | 'codespaces' | 'dependabot';
+
+  function mockSectionRest(
+    section: Section,
+    methods: Record<string, unknown>,
+    options: { paginateData?: unknown[] } = {},
+  ) {
+    const paginate = jest.fn().mockResolvedValue(options.paginateData ?? []);
+    const getOctokitForOrg = jest
+      .spyOn(github, 'getOctokitForOrg')
+      .mockResolvedValue({
+        rest: { [section]: methods },
+        paginate,
+        request: jest.fn(),
+      } as never);
+
+    return { getOctokitForOrg, paginate };
+  }
+
+  afterEach(() => {
+    jest.restoreAllMocks();
+  });
+
+  it('reads org secret metadata for a domain', async () => {
+    const getOrgSecret = jest.fn().mockResolvedValue({
+      data: { name: 'ORG_SECRET', visibility: 'selected' },
+    });
+    mockSectionRest('actions', { getOrgSecret });
+
+    const api = createGhApi(createState());
+
+    await expect(api.getOrgSecret('actions', 'ORG_SECRET')).resolves.toEqual({
+      name: 'ORG_SECRET',
+      visibility: 'selected',
+    });
+    expect(getOrgSecret).toHaveBeenCalledWith({
+      org: 'demo-org',
+      secret_name: 'ORG_SECRET',
+    });
+  });
+
+  it('returns null when an org secret does not exist', async () => {
+    const getOrgSecret = jest
+      .fn()
+      .mockRejectedValue({ status: 404, message: 'not found' });
+    mockSectionRest('dependabot', { getOrgSecret });
+
+    const api = createGhApi(createState());
+
+    await expect(api.getOrgSecret('dependabot', 'MISSING')).resolves.toBeNull();
+  });
+
+  it('encrypts with the domain public key when creating a secret', async () => {
+    const encryptOrgSecret = jest
+      .spyOn(github.encryption, 'encryptOrgSecret')
+      .mockResolvedValue({
+        key_id: 'key-1',
+        encrypted_value: 'encrypted-1',
+      } as never);
+    const createOrUpdateOrgSecret = jest.fn().mockResolvedValue({ data: {} });
+    mockSectionRest('codespaces', { createOrUpdateOrgSecret });
+
+    const api = createGhApi(createState());
+
+    await expect(
+      api.createOrgSecret(
+        'codespaces',
+        'ORG_SECRET',
+        'value-a',
+        'selected',
+        [7, 8],
+      ),
+    ).resolves.toBeUndefined();
+
+    expect(encryptOrgSecret).toHaveBeenCalledWith(
+      'demo-org',
+      'codespaces',
+      'value-a',
+    );
+    expect(createOrUpdateOrgSecret).toHaveBeenCalledWith({
+      org: 'demo-org',
+      secret_name: 'ORG_SECRET',
+      encrypted_value: 'encrypted-1',
+      key_id: 'key-1',
+      visibility: 'selected',
+      selected_repository_ids: [7, 8],
+    });
+  });
+
+  it('rejects selected visibility without repository ids', async () => {
+    const createOrUpdateOrgSecret = jest.fn();
+    mockSectionRest('actions', { createOrUpdateOrgSecret });
+
+    const api = createGhApi(createState());
+
+    await expect(
+      api.createOrgSecret('actions', 'ORG_SECRET', 'value-a', 'selected'),
+    ).rejects.toThrow('selectedRepositoryIds is required');
+    expect(createOrUpdateOrgSecret).not.toHaveBeenCalled();
+  });
+
+  it('ignores not-found when deleting an org secret', async () => {
+    const deleteOrgSecret = jest
+      .fn()
+      .mockRejectedValue({ status: 404, message: 'not found' });
+    mockSectionRest('actions', { deleteOrgSecret });
+
+    const api = createGhApi(createState());
+
+    await expect(
+      api.deleteOrgSecret('actions', 'MISSING'),
+    ).resolves.toBeUndefined();
+  });
+
+  it('lists selected repositories from the domain route', async () => {
+    const { paginate } = mockSectionRest(
+      'dependabot',
+      {},
+      {
+        paginateData: [
+          { full_name: 'demo-org/repo-a' },
+          { full_name: 'demo-org/repo-b' },
+          { full_name: 42 },
+        ],
+      },
+    );
+
+    const api = createGhApi(createState());
+
+    await expect(
+      api.getOrgSecretSelectedRepositories('dependabot', 'ORG_SECRET'),
+    ).resolves.toEqual(['demo-org/repo-a', 'demo-org/repo-b']);
+
+    expect(paginate).toHaveBeenCalledWith(
+      'GET /orgs/{org}/dependabot/secrets/{secret_name}/repositories',
+      {
+        org: 'demo-org',
+        secret_name: 'ORG_SECRET',
+        per_page: 100,
+      },
+    );
+  });
+
+  it('reports a domain as unavailable when the org does not expose it', async () => {
+    const listOrgSecrets = jest
+      .fn()
+      .mockRejectedValue({ status: 403, message: 'Forbidden' });
+    const getOrgPublicKey = jest.fn();
+    mockSectionRest('codespaces', { listOrgSecrets, getOrgPublicKey });
+
+    const api = createGhApi(createState());
+
+    await expect(api.orgSecretSectionAvailable('codespaces')).resolves.toBe(
+      false,
+    );
+    expect(listOrgSecrets).toHaveBeenCalledWith({
+      org: 'demo-org',
+      per_page: 1,
+    });
+    expect(getOrgPublicKey).not.toHaveBeenCalled();
+  });
+
+  it('reports a domain as unavailable when its public key is missing', async () => {
+    const listOrgSecrets = jest.fn().mockResolvedValue({ data: {} });
+    const getOrgPublicKey = jest
+      .fn()
+      .mockRejectedValue({ status: 404, message: 'not found' });
+    mockSectionRest('dependabot', { listOrgSecrets, getOrgPublicKey });
+
+    const api = createGhApi(createState());
+
+    await expect(api.orgSecretSectionAvailable('dependabot')).resolves.toBe(
+      false,
+    );
+    expect(getOrgPublicKey).toHaveBeenCalledWith({ org: 'demo-org' });
+  });
+
+  it('reports a domain as available when both probes succeed', async () => {
+    const listOrgSecrets = jest.fn().mockResolvedValue({ data: {} });
+    const getOrgPublicKey = jest.fn().mockResolvedValue({ data: {} });
+    mockSectionRest('actions', { listOrgSecrets, getOrgPublicKey });
+
+    const api = createGhApi(createState());
+
+    await expect(api.orgSecretSectionAvailable('actions')).resolves.toBe(true);
+  });
+
+  it('propagates transient errors from the capability probe', async () => {
+    const listOrgSecrets = jest
+      .fn()
+      .mockRejectedValue(
+        Object.assign(new Error('server error'), { status: 500 }),
+      );
+    mockSectionRest('dependabot', { listOrgSecrets });
+
+    const api = createGhApi(createState());
+
+    await expect(api.orgSecretSectionAvailable('dependabot')).rejects.toThrow(
+      'server error',
+    );
+  });
+});
+
 describe('createGhApi repo file helpers', () => {
   afterEach(() => {
     jest.restoreAllMocks();
