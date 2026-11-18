@@ -11,8 +11,10 @@ import {
   deleteWorkspaceInfrastructure,
   readBackendStateVersions,
   readControllerDeployment,
+  readControllerFile,
   readControllerLogs,
   readWorkspace,
+  requestWorkspaceDeletion,
   scaleController,
   setControllerEnv,
   waitForControllerReplicas,
@@ -343,6 +345,14 @@ export function createK8sApi(state: E2EState): K8sApi {
       return readControllerLogs(state.kubeConfigProvider, state.namespace);
     },
 
+    async readControllerFile(filePath: string): Promise<string> {
+      return readControllerFile(
+        state.kubeConfigProvider,
+        state.namespace,
+        filePath,
+      );
+    },
+
     async readBackendStateVersions(): Promise<Record<string, string>> {
       return readBackendStateVersions(
         state.kubeConfigProvider,
@@ -368,6 +378,14 @@ export function createK8sApi(state: E2EState): K8sApi {
 
     async readWorkspace(name: string): Promise<any> {
       return readWorkspace(state.kubeConfigProvider, state.namespace, name);
+    },
+
+    async requestWorkspaceDeletion(name: string): Promise<void> {
+      return requestWorkspaceDeletion(
+        state.kubeConfigProvider,
+        state.namespace,
+        name,
+      );
     },
 
     async deleteStaleTFResult(crName: string): Promise<void> {

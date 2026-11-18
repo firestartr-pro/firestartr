@@ -1,4 +1,5 @@
 import * as k8s from '@kubernetes/client-node';
+import { PassThrough } from 'node:stream';
 import { getStatusCode, type StatusCodeError } from '../errors/status-code';
 import { pollUntil } from '../utils/async-control';
 import { JSON_PATCH_HEADERS, STRATEGIC_MERGE_PATCH_HEADERS } from './constants';
@@ -170,26 +171,85 @@ export async function waitForControllerRollout(
   );
 }
 
-export async function readControllerLogs(
+async function findRunningControllerPod(
   getKubeConfig: KubeConfigProvider,
   namespace: string,
-): Promise<string> {
+): Promise<k8s.V1Pod | undefined> {
   const coreApi = getKubeConfig().makeApiClient(k8s.CoreV1Api);
   const pods = await coreApi.listNamespacedPod({
     namespace,
     labelSelector: CONTROLLER_LABELS,
   });
-  const running = pods.items.find(
+
+  return pods.items.find(
     (pod) =>
       !pod.metadata?.deletionTimestamp && pod.status?.phase === 'Running',
   );
+}
+
+export async function readControllerLogs(
+  getKubeConfig: KubeConfigProvider,
+  namespace: string,
+): Promise<string> {
+  const running = await findRunningControllerPod(getKubeConfig, namespace);
 
   if (!running?.metadata?.name) return '';
 
+  const coreApi = getKubeConfig().makeApiClient(k8s.CoreV1Api);
   return coreApi.readNamespacedPodLog({
     name: running.metadata.name,
     namespace,
   });
+}
+
+export async function readControllerFile(
+  getKubeConfig: KubeConfigProvider,
+  namespace: string,
+  filePath: string,
+): Promise<string> {
+  const running = await findRunningControllerPod(getKubeConfig, namespace);
+  const podName = running?.metadata?.name;
+  const container = running?.spec?.containers[0]?.name;
+
+  if (!podName || !container) {
+    throw new Error(`No running controller pod to read ${filePath} from`);
+  }
+
+  const exec = new k8s.Exec(getKubeConfig());
+  const stdout = new PassThrough();
+  const stderr = new PassThrough();
+  let content = '';
+  let errors = '';
+  stdout.on('data', (chunk: Buffer) => {
+    content += chunk.toString();
+  });
+  stderr.on('data', (chunk: Buffer) => {
+    errors += chunk.toString();
+  });
+
+  const status = await new Promise<k8s.V1Status>((resolve, reject) => {
+    exec
+      .exec(
+        namespace,
+        podName,
+        container,
+        ['cat', filePath],
+        stdout,
+        stderr,
+        null,
+        false,
+        resolve,
+      )
+      .catch(reject);
+  });
+
+  if (status.status !== 'Success') {
+    throw new Error(
+      `Cannot read ${filePath} in ${podName}: ${errors.trim() || status.message || status.status}`,
+    );
+  }
+
+  return content;
 }
 
 export async function readBackendStateVersions(
@@ -282,6 +342,23 @@ export async function readWorkspace(
 ): Promise<any> {
   const customObjectsApi = getKubeConfig().makeApiClient(k8s.CustomObjectsApi);
   return customObjectsApi.getNamespacedCustomObject({
+    group: API_GROUP,
+    version: API_VERSION,
+    namespace,
+    plural: TF_PLURAL,
+    name,
+  });
+}
+
+// Marks the workspace for deletion without waiting: with Plan mode running the
+// finalizer stays, so the CR is expected to remain in deletion.
+export async function requestWorkspaceDeletion(
+  getKubeConfig: KubeConfigProvider,
+  namespace: string,
+  name: string,
+): Promise<void> {
+  const customObjectsApi = getKubeConfig().makeApiClient(k8s.CustomObjectsApi);
+  await customObjectsApi.deleteNamespacedCustomObject({
     group: API_GROUP,
     version: API_VERSION,
     namespace,

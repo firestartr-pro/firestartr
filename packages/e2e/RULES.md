@@ -22,3 +22,7 @@
   the end.
 - Logic that can be checked without a cluster (formatting, planning, cleanup
   ordering, failure handling) gets unit tests.
+- Every e2e test file starts with a header comment listing EXACTLY, point by
+  point, what the test does: each check, mutation, cluster or GitHub write and
+  cleanup step, in order. Concise over grammatical. Keep it in sync when the
+  test changes.
