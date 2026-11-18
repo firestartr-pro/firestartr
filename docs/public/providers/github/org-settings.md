@@ -74,9 +74,29 @@ providers:
 | Field | Required | Description |
 | --- | --- | --- |
 | `name` | Yes | Variable name (`^[A-Za-z0-9_]+$`). |
-| `value` | Yes | Variable value. |
+| `value` | Yes | Variable value, or a `ref:secretsclaim:<name>:<key>` reference (see below). |
 | `visibility` | Yes | `all`, `private`, or `selected`. |
 | `selected_repositories` | For `selected` | `component:<name>` references. Resolved to `org/repo` strings. |
+
+### Secret references in `value`
+
+A `value` of `ref:secretsclaim:<secret-claim>:<key>` reads the key from a
+`SecretsClaim`, the same way repository variables do. The provisioner resolves
+it at apply time, and the rendered CR never contains the secret.
+
+```yaml
+actions_variables:
+  - name: DEPLOY_HOST
+    value: ref:secretsclaim:deploy_secrets:host
+    visibility: all
+```
+
+> **Warning:** GitHub stores the resolved value as plain text, and it is also
+> written to Terraform state. Refs work for every visibility, but real secrets
+> belong in `org_secrets`, which encrypts them before they reach GitHub.
+
+A reference to a missing `SecretsClaim` or to a key it does not declare fails at
+render time, naming `actions_variables.<name>`.
 
 ## Rendering
 
@@ -87,7 +107,9 @@ providers:
 - `FirestartrGithubOrganizationVariableSection`: `metadata.name` is the
   normalized `providers.github.name` with the state key appended
   (`<name>-<tfStateKey>`); `spec.actionsVariables` is an array of
-  `{ name, value, visibility, selectedRepositories? }`. A `selected` variable's
+  `{ name, value, visibility, selectedRepositories? }`. A `ref:secretsclaim` value
+  becomes `{ name, ref: { kind: 'Secret', name, key }, visibility }` instead, and the
+  provisioner resolves it. A `selected` variable's
   `selected_repositories` (claim) becomes `selectedRepositories` holding `org/repo`
   strings. The write connection Secret exposes `managed_variables` and
   `variable_ids`.
