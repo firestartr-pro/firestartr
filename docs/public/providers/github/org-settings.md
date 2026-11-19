@@ -29,7 +29,7 @@ Default modules: `github-org-settings`, `github-org-variables-section`,
 
 ```yaml
 kind: OrgSettingsClaim
-version: "1.0"
+version: '1.0'
 name: github_org_settings
 providers:
   github:
@@ -80,30 +80,30 @@ providers:
 
 ### `providers.github`
 
-| Field | Required | Description |
-| --- | --- | --- |
-| `name` | Yes | Entity/workspace name (operational/external name). Not the GitHub org name. |
-| `org` | Yes | GitHub organization to configure. |
-| `tfStateKey` | No | Explicit UUID state key. |
-| `billing_email` | Yes | Organization billing email. |
-| `company`, `blog`, `email`, `twitter_username`, `location`, `description` | No | Organization profile fields. |
-| `has_organization_projects`, `has_repository_projects` | No | Projects permissions. |
-| `default_repository_permission` | No | `read`, `write`, `admin`, or `none`. |
-| `members_can_create_*` | No | Repository/page creation controls. |
-| `members_can_fork_private_repositories` | No | Fork permission. |
-| `web_commit_signoff_required` | No | Require sign-off. |
-| `advanced_security_enabled_for_new_repositories` and related Dependabot/secret-scanning flags | No | New-repository security defaults. |
-| `actions_variables[]` | No | Organization Actions variables (below). |
-| `org_secrets` | No | Organization secrets by domain: `actions`, `codespaces`, `dependabot` (below). |
+| Field                                                                                         | Required | Description                                                                    |
+| --------------------------------------------------------------------------------------------- | -------- | ------------------------------------------------------------------------------ |
+| `name`                                                                                        | Yes      | Entity/workspace name (operational/external name). Not the GitHub org name.    |
+| `org`                                                                                         | Yes      | GitHub organization to configure.                                              |
+| `tfStateKey`                                                                                  | No       | Explicit UUID state key.                                                       |
+| `billing_email`                                                                               | Yes      | Organization billing email.                                                    |
+| `company`, `blog`, `email`, `twitter_username`, `location`, `description`                     | No       | Organization profile fields.                                                   |
+| `has_organization_projects`, `has_repository_projects`                                        | No       | Projects permissions.                                                          |
+| `default_repository_permission`                                                               | No       | `read`, `write`, `admin`, or `none`.                                           |
+| `members_can_create_*`                                                                        | No       | Repository/page creation controls.                                             |
+| `members_can_fork_private_repositories`                                                       | No       | Fork permission.                                                               |
+| `web_commit_signoff_required`                                                                 | No       | Require sign-off.                                                              |
+| `advanced_security_enabled_for_new_repositories` and related Dependabot/secret-scanning flags | No       | New-repository security defaults.                                              |
+| `actions_variables[]`                                                                         | No       | Organization Actions variables (below).                                        |
+| `org_secrets`                                                                                 | No       | Organization secrets by domain: `actions`, `codespaces`, `dependabot` (below). |
 
 ### `actions_variables[]`
 
-| Field | Required | Description |
-| --- | --- | --- |
-| `name` | Yes | Variable name (`^[A-Za-z0-9_]+$`). |
-| `value` | Yes | Variable value, or a `ref:secretsclaim:<name>:<key>` reference (see below). |
-| `visibility` | Yes | `all`, `private`, or `selected`. |
-| `selected_repositories` | For `selected` | `component:<name>` references. Resolved to `org/repo` strings. |
+| Field                   | Required       | Description                                                                 |
+| ----------------------- | -------------- | --------------------------------------------------------------------------- |
+| `name`                  | Yes            | Variable name (`^[A-Za-z0-9_]+$`).                                          |
+| `value`                 | Yes            | Variable value, or a `ref:secretsclaim:<name>:<key>` reference (see below). |
+| `visibility`            | Yes            | `all`, `private`, or `selected`.                                            |
+| `selected_repositories` | For `selected` | `component:<name>` references. Resolved to `org/repo` strings.              |
 
 ### Secret references in `value`
 
@@ -132,11 +132,11 @@ render time, naming `actions_variables.<name>`.
 per organization per render pass; duplicate secret names within a domain are
 rejected, and two claims cannot target the same organization.
 
-| Field | Required | Description |
-| --- | --- | --- |
-| `name` | Yes | Secret name (`^[A-Za-z0-9_]+$`), unique within its domain. |
-| `value` | Yes | `ref:secretsclaim:<claim>:<key>` reference to the plaintext secret. |
-| `visibility` | No | `all` (default), `private`, or `selected`. |
+| Field                   | Required       | Description                                                                              |
+| ----------------------- | -------------- | ---------------------------------------------------------------------------------------- |
+| `name`                  | Yes            | Secret name (`^[A-Za-z0-9_]+$`), unique within its domain.                               |
+| `value`                 | Yes            | `ref:secretsclaim:<claim>:<key>` reference to the plaintext secret.                      |
+| `visibility`            | No             | `all` (default), `private`, or `selected`.                                               |
 | `selected_repositories` | For `selected` | `component:<name>` references. Resolved to `org/repo` strings; at least one is required. |
 
 Values are read from the Kubernetes `Secret` the `SecretsClaim` resolves to,
