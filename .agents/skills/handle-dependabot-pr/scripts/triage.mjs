@@ -283,9 +283,12 @@ export function renderComment(t, state) {
     );
     for (const alert of t.socketAlerts.filter(isBlocker).slice(0, 20)) lines.push(`- ${describeAlert(alert)}`);
   }
-  if (t.socket === "ok" && t.socketAlerts.length > 0) {
+  // A block review needs the rest of the picture too: a CVE does not stop the
+  // bump, but it belongs in front of whoever decides.
+  const contextual = t.socket === "unknown" ? [] : t.socketAlerts.filter((alert) => !isBlocker(alert));
+  if (contextual.length > 0) {
     lines.push("", "**Informational findings.** Not blocking, listed for context.");
-    for (const alert of t.socketAlerts.slice(0, 20)) lines.push(`- ${describeAlert(alert)}`);
+    for (const alert of contextual.slice(0, 20)) lines.push(`- ${describeAlert(alert)}`);
   }
   if (t.socket === "unknown") {
     lines.push(

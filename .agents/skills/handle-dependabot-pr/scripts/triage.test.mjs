@@ -460,6 +460,27 @@ test("a Socket block lists each alert once", () => {
   const body = renderComment(t, { head: "h", step: "stopped: socket block", runs: "", replacement: null });
   assert.ok(body.includes("Stopped: Socket block"));
   assert.equal(body.match(/malware/g).length, 1);
+  assert.ok(!body.includes("Informational findings"));
+});
+
+test("a block review still shows the nonblocking findings", () => {
+  const t = buildTriage({
+    name: "node-ipc",
+    from: "10.1.0",
+    to: "10.1.1",
+    lock: lock({ "": { dependencies: { "node-ipc": "^10" } }, "node_modules/node-ipc": {} }),
+    levels,
+    socketResult: {
+      verdict: "block",
+      alerts: [alert("malware"), alert("criticalCVE", "critical", "vulnerability")],
+    },
+  });
+  const body = renderComment(t, { head: "h", step: "stopped: socket block", runs: "", replacement: null });
+  assert.ok(body.includes("Stopped: Socket block"));
+  assert.ok(body.includes("Informational findings"));
+  assert.ok(body.includes("criticalCVE"));
+  // The blocker is listed above the informational section, once.
+  assert.ok(body.indexOf("- malware") < body.indexOf("Informational findings"));
 });
 
 test("a Socket unknown reports the notice and no alerts", () => {
