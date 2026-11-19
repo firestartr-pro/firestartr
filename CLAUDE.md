@@ -31,6 +31,12 @@ local kind cluster; `help` lists its commands.
   `/tmp/queue` and `/tmp/diagnostic` in the pod (read them with `exec`).
 - Don't edit files or run `down` while validating.
 
+## Documentation
+
+- Link another file in the repo with an explicit relative path:
+  `[OrgSettingsClaim](./org-settings.md#imports-and-adoption)`, never a bare
+  `org-settings.md`. Check every outbound link when you edit a document.
+
 ## Issues and skills
 
 - Issues live in GitHub Issues on `firestartr-pro/firestartr` (use `gh`).
