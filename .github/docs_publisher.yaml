@@ -38,4 +38,23 @@
 #   collect:
 #     - from: docs/**
 #       to: .
-[]
+- area: core/crds
+  mode: release
+  mainFile: index.yaml
+  publishSourceBranch: true
+  build: cat packages/k8s/src/crds/*.yaml > index.yaml
+  collect:
+    - { from: index.yaml, to: index.yaml }
+
+- area: core/docs
+  mode: mirror
+  collect:
+    - { from: "docs/public/**", to: . }
+
+- area: core/claims
+  mode: mirror
+  paths:
+    - "packages/cdk8s_renderer/**"
+  build: npx --yes tsx packages/cdk8s_renderer/scripts/schema-exporter.ts > claims.schema.json
+  collect:
+    - { from: claims.schema.json, to: claims.schema.json }
