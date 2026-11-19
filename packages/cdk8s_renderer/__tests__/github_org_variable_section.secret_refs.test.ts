@@ -175,7 +175,9 @@ describe('GitHub organization variables with SecretsClaim refs', () => {
         )
         .catch((e) => e);
 
-      expect(String(error)).toMatch(/SecretsClaim-secret_a not found/);
+      expect(String(error)).toMatch(
+        /OrgSettingsClaim-github_org_settings references SecretsClaim-secret_a via providers\.github\.actions_variables\.DEPLOY_HOST\.value: .*SecretsClaim-secret_a not found/,
+      );
     });
   });
 
