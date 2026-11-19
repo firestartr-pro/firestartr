@@ -361,6 +361,10 @@ tests as the source of truth for end-to-end patterns:
   `packages/e2e/__tests__/github/org-script-render-apply.test.ts`
 - orgScript CRD upgrade path:
   `packages/e2e/__tests__/github/org-script-crd-upgrade.test.ts`
+- org variables with adoption and value verification:
+  `packages/e2e/__tests__/github/org-variables-render-apply.test.ts`
+- org secrets with per-domain capability gating, value verification, adoption
+  and cleanup: `packages/e2e/__tests__/github/org-secrets-render-apply.test.ts`
 - TFWorkspace render/apply flow with provider config setup:
   `packages/e2e/__tests__/terraform/tfworkspace-render-apply.test.ts`
 

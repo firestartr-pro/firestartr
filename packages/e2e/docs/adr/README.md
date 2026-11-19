@@ -15,3 +15,4 @@ Authored lazily via `/domain-modeling`.
 - [0003 — Repo-secrets e2e verifies the exact secret value via an in-repo Actions workflow](./0003-repo-secrets-e2e-verifies-value-via-actions-workflow.md)
 - [0004 — Org-variables e2e asserts apply-time adoption on first reconciliation](./0004-org-variables-e2e-adoption-tested-in-two-reconciliations.md)
 - [0005 — e2e global diagnostic collector via Jest globalSetup](./0005-e2e-global-diagnostic-collector-via-jest-global-setup.md)
+- [0006 — Org-secrets e2e verifies Actions by value and the other domains by existence](./0006-org-secrets-e2e-value-vs-existence.md)

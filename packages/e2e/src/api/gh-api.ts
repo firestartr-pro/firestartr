@@ -1,11 +1,16 @@
+import { randomBytes } from 'crypto';
 import github from 'github';
+import { getStatusCode } from '../errors/status-code';
 import { isNotFound, type GithubError } from '../gh/errors';
+import { isRetryableGitHubError } from '../gh/wait';
 import { retryAsync } from '../utils/async-control';
 import { E2EState } from './state';
 
 import type {
   GhApi,
   GhFeatureRepoRateLimit,
+  GhOrgSecret,
+  GhOrgSecretSection,
   GhOrgSettings,
   GhOrgVariable,
   GhOrgWebhook,
@@ -16,6 +21,8 @@ import type {
 // shared PAT, so a request to it observes the quota that 403s.
 const FEATURE_REPO_OWNER = 'prefapp';
 const FEATURE_REPO_NAME = 'features';
+
+const CAPABILITY_PROBE_SECRET_PREFIX = 'E2E_CAPABILITY_PROBE_';
 
 type RateLimitHeaders = Record<string, unknown> | null | undefined;
 
@@ -95,6 +102,12 @@ type RawOrgVariable = {
   visibility?: unknown;
 };
 
+type RawOrgSecret = {
+  name?: unknown;
+  visibility?: unknown;
+  updated_at?: unknown;
+};
+
 type RawSelectedRepo = {
   full_name?: unknown;
 };
@@ -120,6 +133,25 @@ function normalizeOrgVariable(raw: RawOrgVariable): GhOrgVariable | null {
   return {
     name: raw.name,
     visibility,
+  };
+}
+
+function normalizeOrgSecret(raw: RawOrgSecret): GhOrgSecret | null {
+  if (typeof raw.name !== 'string' || typeof raw.visibility !== 'string') {
+    return null;
+  }
+
+  const visibility = raw.visibility as GhOrgSecret['visibility'];
+  if (!['all', 'private', 'selected'].includes(visibility)) {
+    return null;
+  }
+
+  return {
+    name: raw.name,
+    visibility,
+    ...(typeof raw.updated_at === 'string'
+      ? { updatedAt: raw.updated_at }
+      : {}),
   };
 }
 
@@ -455,6 +487,144 @@ export function createGhApi(state: E2EState): GhApi {
           typeof repo.full_name === 'string' ? repo.full_name : undefined,
         )
         .filter((name): name is string => typeof name === 'string');
+    },
+
+    async getOrgSecret(
+      section: GhOrgSecretSection,
+      name: string,
+    ): Promise<GhOrgSecret | null> {
+      const octokit = await github.getOctokitForOrg(state.org);
+
+      try {
+        const response = await (octokit.rest as any)[section].getOrgSecret({
+          org: state.org,
+          secret_name: name,
+        });
+        return normalizeOrgSecret(response.data as RawOrgSecret);
+      } catch (err) {
+        if (isNotFound(err as GithubError)) {
+          return null;
+        }
+
+        throw err;
+      }
+    },
+
+    async createOrgSecret(
+      section: GhOrgSecretSection,
+      name: string,
+      value: string,
+      visibility: 'all' | 'private' | 'selected',
+      selectedRepositoryIds?: number[],
+    ): Promise<void> {
+      if (
+        visibility === 'selected' &&
+        (!selectedRepositoryIds || selectedRepositoryIds.length === 0)
+      ) {
+        throw new Error(
+          'createOrgSecret: selectedRepositoryIds is required when visibility is "selected"',
+        );
+      }
+
+      const { key_id, encrypted_value } =
+        await github.encryption.encryptOrgSecret(state.org, section, value);
+      const octokit = await github.getOctokitForOrg(state.org);
+
+      await (octokit.rest as any)[section].createOrUpdateOrgSecret({
+        org: state.org,
+        secret_name: name,
+        encrypted_value,
+        key_id,
+        visibility,
+        ...(visibility === 'selected'
+          ? { selected_repository_ids: selectedRepositoryIds! }
+          : {}),
+      });
+    },
+
+    async deleteOrgSecret(
+      section: GhOrgSecretSection,
+      name: string,
+    ): Promise<void> {
+      const octokit = await github.getOctokitForOrg(state.org);
+
+      try {
+        await (octokit.rest as any)[section].deleteOrgSecret({
+          org: state.org,
+          secret_name: name,
+        });
+      } catch (err) {
+        if (isNotFound(err as GithubError)) {
+          return;
+        }
+
+        throw err;
+      }
+    },
+
+    async getOrgSecretSelectedRepositories(
+      section: GhOrgSecretSection,
+      name: string,
+    ): Promise<string[]> {
+      const octokit = await github.getOctokitForOrg(state.org, true);
+      const repos = (await octokit.paginate(
+        `GET /orgs/{org}/${section}/secrets/{secret_name}/repositories` as any,
+        {
+          org: state.org,
+          secret_name: name,
+          per_page: 100,
+        },
+      )) as RawSelectedRepo[];
+
+      return repos
+        .map((repo) =>
+          typeof repo.full_name === 'string' ? repo.full_name : undefined,
+        )
+        .filter((name): name is string => typeof name === 'string');
+    },
+
+    async orgSecretSectionAvailable(
+      section: GhOrgSecretSection,
+    ): Promise<boolean> {
+      try {
+        const octokit = await github.getOctokitForOrg(state.org);
+        const domainRest = (octokit.rest as any)[section];
+        // The list endpoint proves the domain is readable and the public key
+        // is required to encrypt any declared value.
+        await domainRest.listOrgSecrets({ org: state.org, per_page: 1 });
+        await domainRest.getOrgPublicKey({ org: state.org });
+        // Reads also succeed for a read-only app. Deleting a randomly named
+        // secret that cannot exist is a non-mutating write probe: 404 means
+        // the call was authorized, 403 means the app lacks write access to
+        // the domain. The random suffix keeps the probe from ever matching a
+        // real secret.
+        try {
+          await domainRest.deleteOrgSecret({
+            org: state.org,
+            secret_name: `${CAPABILITY_PROBE_SECRET_PREFIX}${randomBytes(8)
+              .toString('hex')
+              .toUpperCase()}`,
+          });
+        } catch (err) {
+          if (!isNotFound(err as GithubError)) {
+            throw err;
+          }
+        }
+        return true;
+      } catch (err) {
+        // Rate limiting and transport errors are environmental, not a missing
+        // capability: surface them instead of silently skipping a domain.
+        if (isRetryableGitHubError(err)) {
+          throw err;
+        }
+
+        const statusCode = getStatusCode(err as { status?: number });
+        if (statusCode === 403 || statusCode === 404 || statusCode === 422) {
+          return false;
+        }
+
+        throw err;
+      }
     },
 
     async getRateLimit() {
