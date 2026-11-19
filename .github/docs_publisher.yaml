@@ -1,0 +1,41 @@
+# .github/docs_publisher.yaml: the Areas this repo publishes to the docs repo.
+#
+# Installed once by the docs_publisher feature; now yours to edit. Add one entry per Area.
+# The empty list below publishes nothing on a new install. Once Areas are published,
+# emptying the list or removing an entry prunes them from the docs repo on the next
+# push or manual run.
+#
+#   area:        the Area relative to the docs root folder, e.g. features or core/crds
+#   mode:        required: release or mirror
+#   collect:     at least one { from, to } rule for the files to publish
+#   build:       optional shell command run before collecting
+#   paths:       mirror: source globs that trigger a publish on a push to source_branch;
+#                defaults to collect's from values, but is required with build
+#   packages:    release: folder containing named packages. Tags use <name>-v<semver>
+#                with packages, and v<semver> without packages
+#   mainFile:    release: link target in versions.json (default README.md)
+#   prereleases: release: true publishes prerelease tags (default false)
+#   tagNames:    release with packages: path to a release-please config whose packages
+#                map translates component or package-name tags to package folders
+#   areaFiles:   release: { from, to } rules for files at the top of the Area
+#
+# A release entry: one Version folder per package release.
+# - area: features
+#   mode: release
+#   packages: packages
+#   mainFile: schema.json
+#   collect:
+#     - from: templates/docs/*.md
+#       to: .
+#     - from: CHANGELOG.md
+#       to: CHANGELOG.md
+#     - from: schema.json
+#       to: schema.json
+#
+# A mirror entry: replace the Area when source files change.
+# - area: core/docs
+#   mode: mirror
+#   collect:
+#     - from: docs/**
+#       to: .
+[]

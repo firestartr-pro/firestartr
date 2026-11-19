@@ -2,8 +2,8 @@
 # FEATURE_NAME: release_please
 # FEATURE_VERSION: release_please-v2
 # FEATURE_URL: https://github.com/prefapp/features/tree/release_please-v2/packages/release_please
-# FEATURE_GIT_SHA: "74a34b61de0625058600a2cc8cbd78765d983124"
-# FEATURE_GIT_TAGS: ["release_please-v2.0.0","release_please-v2"]
+# FEATURE_GIT_SHA: "b4956bad732ad98e160d43a5f85cb5128634a34b"
+# FEATURE_GIT_TAGS: ["release_please-v2.0.1","release_please-v2"]
 
 name: Validate Release Please Configuration
 
@@ -22,7 +22,7 @@ jobs:
     name: Validate JSON Syntax
     runs-on: ubuntu-24.04
     steps:
-      - uses: actions/checkout@v6
+      - uses: actions/checkout@v7
         with:
           ref: ${{ github.event_name == 'pull_request' && github.event.pull_request.head.sha || github.sha }}
 

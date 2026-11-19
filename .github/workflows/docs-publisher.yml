@@ -1,0 +1,126 @@
+---
+# FEATURE_NAME: docs_publisher
+# FEATURE_VERSION: docs_publisher-v1
+# FEATURE_URL: https://github.com/prefapp/features/tree/docs_publisher-v1/packages/docs_publisher
+# FEATURE_GIT_SHA: "88734cf3ef613ce032d466c299d41ff078523945"
+# FEATURE_GIT_TAGS: ["docs_publisher-v1.1.0","docs_publisher-v1"]
+
+name: Docs publisher
+
+on:
+  release:
+    types: [published]
+  workflow_dispatch:
+  push:
+    branches:
+      - |-
+        main
+  pull_request:
+    branches:
+      - |-
+        main
+    types: [opened, synchronize, reopened]
+permissions:
+  contents: read
+  pull-requests: write
+
+# A new push to a pull request cancels the plan still running for it. Every other run
+# has a group of its own here, so nothing cancels it: the job below is where it queues.
+concurrency:
+  group: "docs-publisher-${{ github.repository }}-${{ github.event_name == 'pull_request' && format('plan-{0}', github.event.pull_request.number) || format('run-{0}', github.run_id) }}"
+  cancel-in-progress: ${{ github.event_name == 'pull_request' }}
+
+jobs:
+  publish:
+    # Pull requests from forks and Dependabot get no Actions secrets and a read-only token:
+    # they cannot create the docs token or post the plan, so the job below explains the skip.
+    if: ${{ github.event_name != 'pull_request' || (github.event.pull_request.head.repo.full_name == github.repository && github.actor != 'dependabot[bot]') }}
+    name: Publish release docs
+    runs-on: ubuntu-24.04
+    # Runs of one kind publish one at a time. By default GitHub keeps one pending run per
+    # group and cancels the older one; `queue: max` keeps up to 100 waiting, so a queued
+    # push, release or manual run is not dropped. `queue: max` is not allowed together
+    # with `cancel-in-progress: true`, which is why the PR cancellation lives above.
+    concurrency:
+      group: "docs-publisher-job-${{ github.repository }}-${{ github.event_name == 'pull_request' && format('plan-{0}', github.event.pull_request.number) || github.event_name == 'release' && format('release-{0}', github.event.release.tag_name) || github.event_name == 'push' && 'mirror' || 'backfill' }}"
+      queue: max
+    # A block scalar keeps quotes in the branch name; the checkout ref below reads it from env
+    # instead of embedding it in a quoted literal.
+    env:
+      SOURCE_BRANCH: |-
+        main
+    steps:
+      # The source repo is the only checkout here: the action clones the docs repo itself.
+      # A build command runs code from this checkout, so it must find no token in its git config.
+      - name: Checkout source
+        uses: actions/checkout@v6
+        with:
+          fetch-depth: 0
+          persist-credentials: false
+          ref: ${{ github.event.pull_request.head.sha || env.SOURCE_BRANCH }}
+
+      - name: Split docs repository
+        id: docs-repo
+        env:
+          DOCS_REPOSITORY: firestartr-pro/docs
+        run: |
+          set -euo pipefail
+
+          if [[ ! "$DOCS_REPOSITORY" =~ ^[A-Za-z0-9-]+/[A-Za-z0-9._-]+$ ]]; then
+            echo "::error::docs_repository must be org/repo, got: $DOCS_REPOSITORY"
+            exit 2
+          fi
+          echo "owner=${DOCS_REPOSITORY%%/*}" >> "$GITHUB_OUTPUT"
+          echo "name=${DOCS_REPOSITORY#*/}" >> "$GITHUB_OUTPUT"
+
+      # A build command must never receive a token that can write to the docs repo, so a
+      # pull request plan gets a read-only one.
+      - name: Generate GitHub App token
+        id: app-token
+        uses: actions/create-github-app-token@v2
+        with:
+          app-id: ${{ vars.FIRESTARTER_DOCS_APP_ID }}
+          private-key: ${{ secrets.FIRESTARTR_DOCS_APP_PEM_FILE }}
+          owner: ${{ steps.docs-repo.outputs.owner }}
+          repositories: ${{ steps.docs-repo.outputs.name }}
+          permission-contents: ${{ github.event_name == 'pull_request' && 'read' || 'write' }}
+
+      # The action owns everything else: it reads the event and picks the mode, reads
+      # .github/docs_publisher.yaml, clones and pushes the docs repo, and posts the plan comment.
+      - name: Publish docs
+        id: publish
+        uses: prefapp/action-docs-publisher@v1.0.0
+        with:
+          docs-repository: firestartr-pro/docs
+          # Block scalars pass names such as `null`, `on` or `#published` to the action as
+          # plain strings: a bare YAML scalar would turn them into null, a boolean or a comment.
+          docs-root-folder: |-
+            site/raw
+          docs-branch: |-
+            main
+          source-branch: |-
+            main
+          docs-token: ${{ steps.app-token.outputs.token }}
+          github-token: ${{ github.token }}
+
+      # The action's outputs are otherwise visible to no one: record them in the run summary.
+      - name: Record publish outputs
+        env:
+          RUN_MODE: ${{ steps.publish.outputs.run-mode }}
+          DOCS_CHANGED: ${{ steps.publish.outputs.docs-changed }}
+          DOCS_COMMIT_SHA: ${{ steps.publish.outputs.docs-commit-sha }}
+        run: |
+          {
+            echo "| run-mode | docs-changed | docs-commit-sha |"
+            echo "| --- | --- | --- |"
+            echo "| ${RUN_MODE:--} | ${DOCS_CHANGED:--} | ${DOCS_COMMIT_SHA:--} |"
+          } >> "$GITHUB_STEP_SUMMARY"
+
+  skip-note:
+    if: ${{ github.event_name == 'pull_request' && (github.event.pull_request.head.repo.full_name != github.repository || github.actor == 'dependabot[bot]') }}
+    name: Skip plan without secrets
+    runs-on: ubuntu-24.04
+    steps:
+      - name: Explain plan skip
+        run: |
+          echo "Skipped docs publisher plan: pull requests from forks and Dependabot receive no secrets." >> "$GITHUB_STEP_SUMMARY"
