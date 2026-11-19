@@ -1,10 +1,8 @@
 import Ajv2020 from 'ajv/dist/2020.js';
-import { readFile } from 'fs/promises';
-import { join } from 'path';
+
+import { loadClaimSchema } from '../schema/claimSchemas.js';
 
 const ajv = new Ajv2020({ allErrors: true });
-ajv.addKeyword({ keyword: 'x-fs-forge-icon', schemaType: 'object' });
-ajv.addKeyword({ keyword: 'x-fs-forge-summary', schemaType: 'string' });
 
 type UniqueItemPropertyValidator = {
   (propertyName: string, data: unknown): boolean;
@@ -89,8 +87,7 @@ async function loadValidator(
   if (cached) return cached;
 
   try {
-    const schemaJson = await readFile(join(schemasDir, `${kind}.json`), 'utf8');
-    const validate = ajv.compile(JSON.parse(schemaJson));
+    const validate = ajv.compile(loadClaimSchema(schemasDir, kind));
     cache.set(kind, validate);
     return validate;
   } catch (err) {

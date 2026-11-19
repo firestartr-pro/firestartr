@@ -1,9 +1,8 @@
 import { Flags } from '@oclif/core';
-import { readFile } from 'fs/promises';
-import { join } from 'path';
 import YAML from 'yaml';
 
 import { orgFromContext, resolveContext } from '../context/resolve.js';
+import { claimSchemasDir, loadClaimSchema } from '../schema/claimSchemas.js';
 import { deriveVariantGroups } from '../utils/deriveFlags.js';
 
 import type { AuditTrailOptions } from './auditIssue.js';
@@ -131,6 +130,5 @@ export async function loadVariantGroups(
   root: string,
   kind: ClaimKind,
 ): Promise<VariantGroup[]> {
-  const content = await readFile(join(root, 'schemas', `${kind}.json`), 'utf8');
-  return deriveVariantGroups(JSON.parse(content) as Record<string, unknown>);
+  return deriveVariantGroups(loadClaimSchema(claimSchemasDir(root), kind));
 }

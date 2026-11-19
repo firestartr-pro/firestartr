@@ -1,7 +1,4 @@
 import { describe, expect, it } from '@jest/globals';
-import { readFileSync } from 'fs';
-import { readdir } from 'fs/promises';
-import { join } from 'path';
 
 import {
   CLAIM_KIND_OPTIONS,
@@ -14,6 +11,11 @@ import {
   resolveClaimReference,
 } from '../src/claims/kindRegistry';
 import { PREFLIGHT_KINDS } from '../src/commands/preflight';
+import {
+  claimSchemasDir,
+  listClaimKinds,
+  loadClaimSchema,
+} from '../src/schema/claimSchemas';
 
 import type { ClaimKindName } from '../src/claims/kinds';
 
@@ -74,9 +76,7 @@ function orgPaths(node: Schema): string[] {
 }
 
 function loadSchema(kind: string): Schema {
-  return JSON.parse(
-    readFileSync(join(ROOT, 'schemas', `${kind}.json`), 'utf8'),
-  ) as Schema;
+  return loadClaimSchema(claimSchemasDir(ROOT), kind) as Schema;
 }
 
 /**
@@ -99,11 +99,8 @@ function referenceFields(schema: Schema): string[] {
   });
 }
 
-async function schemaKindOrder(): Promise<string[]> {
-  return (await readdir(join(ROOT, 'schemas')))
-    .filter((file) => file.endsWith('Claim.json'))
-    .map((file) => file.replace(/\.json$/, ''))
-    .sort();
+function schemaKindOrder(): string[] {
+  return listClaimKinds(claimSchemasDir(ROOT));
 }
 
 describe('kind registry', () => {
