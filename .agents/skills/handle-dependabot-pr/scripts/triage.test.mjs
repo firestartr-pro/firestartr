@@ -7,6 +7,7 @@ import {
   buildTriage,
   classify,
   dedupeAlerts,
+  isBlocker,
   levelOf,
   nextState,
   parseBumpTitle,
@@ -215,7 +216,7 @@ test("parseSocketScore blocks on malware anywhere in the tree", () => {
   assert.equal(result.alerts[0].example, "npm/evil-dep@2.0.0");
 });
 
-test("parseSocketScore passes CVEs, heuristics and maintenance alerts", () => {
+test("parseSocketScore passes CVEs, heuristics and maintenance alerts but keeps them", () => {
   const stdout = scoreReport({
     self: [
       alert("criticalCVE", "critical", "vulnerability"),
@@ -226,7 +227,26 @@ test("parseSocketScore passes CVEs, heuristics and maintenance alerts", () => {
       alert("unpopularPackage", "low", "maintenance"),
     ],
   });
-  assert.deepEqual(parseSocketScore({ exitCode: 0, stdout }), { verdict: "ok", alerts: [] });
+  const result = parseSocketScore({ exitCode: 0, stdout });
+  assert.equal(result.verdict, "ok");
+  assert.equal(result.alerts.length, 6);
+  assert.ok(result.alerts.every((a) => !isBlocker(a)));
+});
+
+test("an ok score renders its informational findings without stopping", () => {
+  const stdout = scoreReport({ self: [alert("cve", "high", "vulnerability")] });
+  const t = buildTriage({
+    name: "lodash",
+    from: "4.17.21",
+    to: "4.17.22",
+    lock: lock({ "": { dependencies: { lodash: "^4" } }, "node_modules/lodash": {} }),
+    levels,
+    socketResult: parseSocketScore({ exitCode: 0, stdout }),
+  });
+  assert.equal(t.socket, "ok");
+  const body = renderComment(t, { head: "h", step: "triaged", runs: "", replacement: null });
+  assert.ok(body.includes("Informational findings"));
+  assert.ok(body.includes("cve · high · npm/evil-pkg@1.0.0"));
 });
 
 test("parseSocketScore lists one alert once, even when self and transitively repeat it", () => {
@@ -475,5 +495,6 @@ test("#182 does not stop: a new release with no malware alert passes", () => {
     socketResult: parseSocketScore({ exitCode: 0, stdout }),
   });
   assert.equal(t.socket, "ok");
-  assert.deepEqual(t.socketAlerts, []);
+  assert.equal(t.socketAlerts.length, 3);
+  assert.ok(t.socketAlerts.every((a) => !isBlocker(a)));
 });

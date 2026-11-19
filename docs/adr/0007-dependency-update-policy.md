@@ -56,10 +56,10 @@ and `jest` against `ts-jest` 29.
 - **No `socket.yml` and no `groups`.** Locally the CLI only reads
   `projectIgnorePaths`, and grouping changes PR titles, which the triage title
   parser and release-please depend on. Both are separate decisions.
-- **Override** for a legitimate PR the policy blocks: check the diff
-  (`npm diff`), check the advisory and the publisher, add a dashboard Alert
-  Triage rule scoped to that alert on that `package@version`, comment on the PR,
-  retriage. The policy is never weakened as a whole.
+- **A block is a human decision.** Check the diff (`npm diff`), the advisory and
+  the publisher, comment on the PR and stop. There is no per-package override: an
+  accepted malware alert would let the next PR through. If the rule itself is
+  wrong, change `parseSocketScore` in its own PR.
 
 The nine holds in place today, and what lifts each one:
 

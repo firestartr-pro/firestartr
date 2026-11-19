@@ -168,15 +168,18 @@ export function isBlocker(alert) {
 }
 
 // The score puts the package's own alerts under `self` and the whole dependency
-// tree under `transitively`. Both matter, and one finding appears in both. Only
-// an explicit success from a successful exit passes: a missing token, a CLI
-// error, `ok: false` or a version that is not on the registry is unknown.
+// tree under `transitively`. Both are kept, deduplicated, and returned: only
+// `isBlocker` decides the verdict, the rest is context for the reader. Only an
+// explicit success from a successful exit passes: a missing token, a CLI error,
+// `ok: false` or a version that is not on the registry is unknown.
 export function parseSocketScore({ exitCode, stdout }) {
   const payload = jsonPayload(stdout);
   if (exitCode !== 0 || payload?.ok !== true || !payload.data) return { verdict: "unknown", alerts: [] };
-  const alerts = [...(payload.data?.self?.alerts ?? []), ...(payload.data?.transitively?.alerts ?? [])];
-  const blocked = dedupeAlerts(alerts.filter(isBlocker));
-  return { verdict: blocked.length > 0 ? "block" : "ok", alerts: blocked };
+  const alerts = dedupeAlerts([
+    ...(payload.data?.self?.alerts ?? []),
+    ...(payload.data?.transitively?.alerts ?? []),
+  ]);
+  return { verdict: alerts.some(isBlocker) ? "block" : "ok", alerts };
 }
 
 // One finding shows up once per package and again in the tree. The comment
@@ -278,6 +281,10 @@ export function renderComment(t, state) {
       "**Stopped: Socket block.** Socket flags this release as a critical",
       "supply-chain risk. Do not merge.",
     );
+    for (const alert of t.socketAlerts.filter(isBlocker).slice(0, 20)) lines.push(`- ${describeAlert(alert)}`);
+  }
+  if (t.socket === "ok" && t.socketAlerts.length > 0) {
+    lines.push("", "**Informational findings.** Not blocking, listed for context.");
     for (const alert of t.socketAlerts.slice(0, 20)) lines.push(`- ${describeAlert(alert)}`);
   }
   if (t.socket === "unknown") {
