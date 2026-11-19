@@ -1,3 +1,4 @@
+import { randomBytes } from 'crypto';
 import github from 'github';
 import { getStatusCode } from '../errors/status-code';
 import { isNotFound, type GithubError } from '../gh/errors';
@@ -21,7 +22,7 @@ import type {
 const FEATURE_REPO_OWNER = 'prefapp';
 const FEATURE_REPO_NAME = 'features';
 
-const CAPABILITY_PROBE_SECRET_NAME = 'E2E_CAPABILITY_PROBE_DOES_NOT_EXIST';
+const CAPABILITY_PROBE_SECRET_PREFIX = 'E2E_CAPABILITY_PROBE_';
 
 type RateLimitHeaders = Record<string, unknown> | null | undefined;
 
@@ -592,13 +593,17 @@ export function createGhApi(state: E2EState): GhApi {
         // is required to encrypt any declared value.
         await domainRest.listOrgSecrets({ org: state.org, per_page: 1 });
         await domainRest.getOrgPublicKey({ org: state.org });
-        // Reads also succeed for a read-only app. Deleting a secret that
-        // cannot exist is a non-mutating write probe: 404 means the call was
-        // authorized, 403 means the app lacks write access to the domain.
+        // Reads also succeed for a read-only app. Deleting a randomly named
+        // secret that cannot exist is a non-mutating write probe: 404 means
+        // the call was authorized, 403 means the app lacks write access to
+        // the domain. The random suffix keeps the probe from ever matching a
+        // real secret.
         try {
           await domainRest.deleteOrgSecret({
             org: state.org,
-            secret_name: CAPABILITY_PROBE_SECRET_NAME,
+            secret_name: `${CAPABILITY_PROBE_SECRET_PREFIX}${randomBytes(8)
+              .toString('hex')
+              .toUpperCase()}`,
           });
         } catch (err) {
           if (!isNotFound(err as GithubError)) {

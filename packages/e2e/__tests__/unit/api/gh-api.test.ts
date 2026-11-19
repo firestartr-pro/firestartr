@@ -966,7 +966,7 @@ describe('createGhApi org secret helpers', () => {
     await expect(api.orgSecretSectionAvailable('actions')).resolves.toBe(true);
     expect(deleteOrgSecret).toHaveBeenCalledWith({
       org: 'demo-org',
-      secret_name: 'E2E_CAPABILITY_PROBE_DOES_NOT_EXIST',
+      secret_name: expect.stringMatching(/^E2E_CAPABILITY_PROBE_[0-9A-F]{16}$/),
     });
   });
 
