@@ -11,12 +11,11 @@ merges, approves, clicks "Update branch", or pushes to a Dependabot branch.
 
 ## Prerequisites
 
-Run `gh auth status`. Check that `socket` is logged in with `socket login`
-(it shows the setup flow) and that the API key can reach the `firestartr-pro`
-org, with `full-scans:create`, `full-scans:list` and `security-policy:read`.
-The script passes `--org firestartr-pro` itself, so the CLI's default org does
-not matter. If either fails, stop and show the fix. If a Socket call fails
-mid-triage, the script records `socket unknown` and stops.
+Run `gh auth status`. Run `socket login` once: `socket package score` needs a
+token with `packages:list`. No organization, no dashboard policy and nothing to
+configure; the score is per package and nothing is uploaded. If either fails,
+stop and show the fix. If the score fails mid-triage, the script records
+`socket unknown` and stops.
 
 ## Modes
 
@@ -32,36 +31,34 @@ PR and keeps one summary comment up to date. Use `--dry-run` to preview. The
 script prints jump, level, path, Socket verdict, required checks and the squash
 subject. Those are the source of truth; don't recompute them.
 
-The Socket gate runs `socket scan create --report` on a checkout of the PR head
-under our org, so the verdict is our policy's, not the script's:
+The gate scores the package and target version from the PR title with
+`socket package score npm <name>@<version> --json`, so the verdict is about the
+release that would land:
 
 | Verdict | Meaning | Script does | Label |
 |---|---|---|---|
-| `ok` | the scan passes the org policy | continue | `socket/ok` |
-| `block` | the policy blocks at least one alert | `stopped: socket block`, lists the Block alerts | `socket/block` |
-| `unknown` | no report: CLI error, wrong org, failed scan | `stopped: socket unknown` | `socket/unknown` |
+| `ok` | no critical supply-chain alert | continue | `socket/ok` |
+| `block` | `supplyChainRisk` + `critical` (malware) in the package or its dependencies | `stopped: socket block`, lists the alerts | `socket/block` |
+| `unknown` | no score: no token, CLI error, version not on the registry | `stopped: socket unknown` | `socket/unknown` |
 
-**Stop** on `block` and on `unknown`. Report the findings or the missing scan to
-the user and wait. Warn-level alerts stay in the Socket dashboard and never reach
-triage, so they don't stop anything. Each run uploads a full scan to the org; that
-is accepted. Rationale and the `dependabot.yml` holds:
+**Stop** on `block` and on `unknown`. Report the alert or the missing score to
+the user and wait. CVEs, install scripts, network access, obfuscation heuristics
+and licence or maintenance alerts never stop a bump: the bump is usually the fix,
+and the cooldown covers newness. Rationale and the `dependabot.yml` holds:
 `docs/adr/0007-dependency-update-policy.md`.
 
-## Socket override
+## Socket block on a legitimate PR
 
-Only when the org policy blocks a legitimate PR. All four steps, in order:
+Only when the score flags malware on a release you believe is legitimate:
 
 1. `npm diff --diff=<pkg>@<old> --diff=<pkg>@<new>`: no new install scripts,
    network calls, obfuscation or dependencies, and the change matches the advisory.
 2. The advisory is real (GitHub Advisory Database, release notes) and the npm
    publisher is unchanged.
-3. Add a dashboard Alert Triage rule (Settings → Security Policy → Alert Triage)
-   scoped to that alert on `<pkg>@<new>`. Never weaken the policy as a whole.
-   `@SocketSecurity ignore` PR comments need the GitHub App and don't apply.
-4. Leave a PR comment saying it was reviewed, then retriage.
+3. Comment on the PR saying it was reviewed, and stop. A person decides the rest.
 
-If the override would need to cover other alerts or other versions, stop and ask a
-person: that is a policy change, not a triage step.
+Never special-case one package or version to unblock a PR. If the rule is wrong,
+it changes in `parseSocketScore`, in its own PR.
 
 ## Path A: merge the Dependabot PR
 
@@ -114,5 +111,5 @@ replies and resolves the threads. Never resolve a thread without a reply.
 - Never stack a PR on top of the Dependabot PR.
 - Let Dependabot close a superseded PR after the replacement updates the dependency.
 - Never comment `@dependabot ignore this major version`.
-- Never weaken the Socket policy to unblock a PR; use the override instead.
+- Never special-case a package or version to unblock a PR; a rule change is its own PR.
 - Never merge or approve. Only a person does that.

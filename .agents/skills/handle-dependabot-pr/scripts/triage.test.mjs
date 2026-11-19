@@ -11,12 +11,11 @@ import {
   nextState,
   parseBumpTitle,
   parseLevels,
-  parseSocketScan,
+  parseSocketScore,
   parseState,
   pathFor,
   pickSummary,
   renderComment,
-  reportAlerts,
   requiredChecks,
   versionJump,
 } from "./triage.mjs";
@@ -177,93 +176,82 @@ test("levelOf falls back to unclassified for unknown packages", () => {
   assert.equal(levelOf("not-in-lock", l, levels), "unclassified");
 });
 
-// Socket fixtures, shaped like `socket scan create --report --json`: the report
-// arrives inside `{ ok, message?, data }`, `data.alerts` is folded to
-// ecosystem → package → version, and the version node is the alert leaf.
-function scanReport(alerts = {}, healthy = Object.keys(alerts).length === 0) {
-  const payload = {
+// Score fixtures, shaped like `socket package score npm <pkg>@<ver> --json`:
+// `{ ok, data: { self: { alerts }, transitively: { alerts } } }`, where every
+// alert is `{ name, severity, category, example }`.
+function scoreReport({ self = [], transitively = [] } = {}) {
+  return JSON.stringify({
     ok: true,
     data: {
-      includeLicensePolicy: true,
-      healthy,
-      orgSlug: "firestartr-pro",
-      scanId: "scan-1",
-      options: { fold: "version", reportLevel: "error" },
-      alerts,
+      purl: "pkg:npm/lodash@4.17.21",
+      self: { alerts: self },
+      transitively: { alerts: transitively },
     },
-  };
-  if (!healthy) {
-    payload.message = "The report contains at least one alert that violates the policies set by your organization";
-  }
-  return JSON.stringify(payload);
+  });
 }
 
-function leaf(type = "malware") {
-  return {
-    type,
-    policy: "error",
-    url: "https://socket.dev/npm/package/evil-pkg",
-    manifest: ["package.json"],
-  };
+function alert(
+  name = "malware",
+  severity = "critical",
+  category = "supplyChainRisk",
+  example = "npm/evil-pkg@1.0.0",
+) {
+  return { name, severity, category, example };
 }
 
-test("parseSocketScan passes when the org policy reports the scan healthy", () => {
-  assert.deepEqual(parseSocketScan({ exitCode: 0, stdout: scanReport() }), { verdict: "ok", alerts: [] });
-});
-
-test("parseSocketScan blocks when the report is unhealthy and lists the alert", () => {
-  const stdout = scanReport({ npm: { "evil-pkg": { "1.0.0": leaf() } } });
-  const result = parseSocketScan({ exitCode: 1, stdout });
+test("parseSocketScore blocks on a critical supply-chain alert", () => {
+  const result = parseSocketScore({ exitCode: 0, stdout: scoreReport({ self: [alert()] }) });
   assert.equal(result.verdict, "block");
   assert.equal(result.alerts.length, 1);
-  assert.equal(result.alerts[0].type, "malware");
-  assert.equal(result.alerts[0].package, "evil-pkg");
-  assert.equal(result.alerts[0].version, "1.0.0");
+  assert.equal(result.alerts[0].name, "malware");
 });
 
-test("parseSocketScan accepts a report without the command envelope", () => {
-  const stdout = JSON.stringify({ healthy: true, alerts: {} });
-  assert.equal(parseSocketScan({ exitCode: 0, stdout }).verdict, "ok");
+test("parseSocketScore blocks on malware anywhere in the tree", () => {
+  const result = parseSocketScore({
+    exitCode: 0,
+    stdout: scoreReport({ transitively: [alert("malware", "critical", "supplyChainRisk", "npm/evil-dep@2.0.0")] }),
+  });
+  assert.equal(result.verdict, "block");
+  assert.equal(result.alerts[0].example, "npm/evil-dep@2.0.0");
 });
 
-test("parseSocketScan passes only on an explicit healthy report from a successful exit", () => {
-  assert.equal(parseSocketScan({ exitCode: 1, stdout: scanReport() }).verdict, "unknown");
-  assert.equal(parseSocketScan({ exitCode: 0, stdout: '{"ok":true}' }).verdict, "unknown");
-  assert.equal(
-    parseSocketScan({ exitCode: 0, stdout: JSON.stringify({ ok: true, data: { alerts: {} } }) }).verdict,
-    "unknown",
-  );
+test("parseSocketScore passes CVEs, heuristics and maintenance alerts", () => {
+  const stdout = scoreReport({
+    self: [
+      alert("criticalCVE", "critical", "vulnerability"),
+      alert("mediumCVE", "middle", "vulnerability"),
+      alert("installScripts", "middle", "supplyChainRisk"),
+      alert("networkAccess", "middle", "supplyChainRisk"),
+      alert("deprecated", "middle", "maintenance"),
+      alert("unpopularPackage", "low", "maintenance"),
+    ],
+  });
+  assert.deepEqual(parseSocketScore({ exitCode: 0, stdout }), { verdict: "ok", alerts: [] });
 });
 
-test("parseSocketScan treats a missing report or CLI error as unknown", () => {
-  assert.equal(parseSocketScan({ exitCode: 1, stdout: "" }).verdict, "unknown");
-  assert.equal(parseSocketScan({ exitCode: 0, stdout: "OK" }).verdict, "unknown");
+test("parseSocketScore lists one alert once, even when self and transitively repeat it", () => {
+  const result = parseSocketScore({ exitCode: 0, stdout: scoreReport({ self: [alert()], transitively: [alert()] }) });
+  assert.equal(result.verdict, "block");
+  assert.equal(result.alerts.length, 1);
 });
 
-test("parseSocketScan reads a report that also carries CLI noise around the JSON", () => {
-  const stdout = `socket scan\n✔ done\n${scanReport()}\n`;
-  assert.equal(parseSocketScan({ exitCode: 0, stdout }).verdict, "ok");
+test("parseSocketScore passes only on an explicit success from a successful exit", () => {
+  const apiError = JSON.stringify({ ok: false, message: "Socket API error" });
+  assert.equal(parseSocketScore({ exitCode: 1, stdout: apiError }).verdict, "unknown");
+  assert.equal(parseSocketScore({ exitCode: 1, stdout: scoreReport() }).verdict, "unknown");
+  assert.equal(parseSocketScore({ exitCode: 0, stdout: "" }).verdict, "unknown");
+  assert.equal(parseSocketScore({ exitCode: 0, stdout: "OK" }).verdict, "unknown");
+  assert.equal(parseSocketScore({ exitCode: 0, stdout: '{"ok":true}' }).verdict, "unknown");
 });
 
-test("reportAlerts reads the folded, unfolded and flat shapes", () => {
-  const folded = { alerts: { npm: { a: { "1.0.0": leaf() } } } };
-  const unfolded = { alerts: { npm: { a: { "1.0.0": { "package.json": { "1:1": leaf() } } } } } };
-  const flat = { alerts: [{ ...leaf(), package: "b", version: "2.0.0" }] };
-  for (const report of [folded, unfolded, flat]) {
-    assert.equal(reportAlerts(report).length, 1);
-    assert.equal(reportAlerts(report)[0].type, "malware");
-  }
-  assert.deepEqual(reportAlerts(undefined), []);
+test("parseSocketScore reads a report that also carries CLI noise around the JSON", () => {
+  const stdout = `✔ done\n${scoreReport()}\n`;
+  assert.equal(parseSocketScore({ exitCode: 0, stdout }).verdict, "ok");
 });
 
-test("dedupeAlerts lists each type once per package@version", () => {
-  const alerts = [
-    { type: "malware", package: "a", version: "1.0.0" },
-    { type: "malware", package: "a", version: "1.0.0", file: "other.json" },
-    { type: "malware", package: "a", version: "2.0.0" },
-    { type: "typosquat", package: "a", version: "1.0.0" },
-  ];
-  assert.equal(dedupeAlerts(alerts).length, 3);
+test("dedupeAlerts folds the same alert and keeps different packages apart", () => {
+  const alerts = [alert(), alert(), alert("malware", "critical", "supplyChainRisk", "npm/other@1.0.0")];
+  assert.equal(dedupeAlerts(alerts).length, 2);
 });
 
 test("requiredChecks follow the level and path rules", () => {
@@ -297,7 +285,7 @@ test("buildTriage produces labels, squash subject and a stopping socket block", 
     levels,
     socketResult: {
       verdict: "block",
-      alerts: [{ type: "malware", severity: "critical", package: "lodash", version: "4.18.1" }],
+      alerts: [alert("malware", "critical", "supplyChainRisk", "npm/lodash@4.18.1")],
     },
   });
   assert.equal(t.jump, "minor");
@@ -434,7 +422,7 @@ test("pickSummary only trusts summaries from authorized collaborators", () => {
   assert.equal(pickSummary(comments.slice(0, 1), new Set(["teammate"])), null);
 });
 
-test("a Socket block lists each alert once, even when it appears in several files", () => {
+test("a Socket block lists each alert once", () => {
   const t = buildTriage({
     name: "typescript",
     from: "5.4.0",
@@ -443,10 +431,7 @@ test("a Socket block lists each alert once, even when it appears in several file
     levels,
     socketResult: {
       verdict: "block",
-      alerts: [
-        { type: "malware", severity: "critical", package: "a", version: "1.0.0", file: "package.json" },
-        { type: "malware", severity: "critical", package: "a", version: "1.0.0", file: "other.json" },
-      ],
+      alerts: [alert(), alert()],
     },
   });
   assert.equal(t.socket, "block");
@@ -474,17 +459,20 @@ test("a Socket unknown reports the notice and no alerts", () => {
   );
 });
 
-test("a warn-level finding in the org does not stop the flow", () => {
-  // The org policy reports only Block alerts, so a healthy report is a pass
-  // even while `recentlyPublished` warnings stay visible in the dashboard.
-  const result = parseSocketScan({ exitCode: 0, stdout: scanReport({}, true) });
+test("#182 does not stop: a new release with no malware alert passes", () => {
+  // The old gate stopped on `recentlyPublished`, which means "new", not
+  // "malicious". The score path only blocks critical supply-chain alerts.
+  const stdout = scoreReport({
+    self: [alert("unpopularPackage", "low", "maintenance"), alert("newAuthor", "low", "supplyChainRisk")],
+    transitively: [alert("mediumCVE", "middle", "vulnerability")],
+  });
   const t = buildTriage({
     name: "globals",
     from: "17.13.0",
     to: "17.14.0",
     lock: lock({ "": { devDependencies: { globals: "^17" } }, "node_modules/globals": {} }),
     levels,
-    socketResult: result,
+    socketResult: parseSocketScore({ exitCode: 0, stdout }),
   });
   assert.equal(t.socket, "ok");
   assert.deepEqual(t.socketAlerts, []);
