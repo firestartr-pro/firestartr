@@ -8,6 +8,7 @@ import {
 import { FEATURE_REFERENCE_SPECS } from '../../features/dynamicFlags.js';
 import { runFeatureMutation } from '../../features/mutation.js';
 import { auditTrailOptions } from '../../mutations/support.js';
+import { claimSchemasDir } from '../../schema/claimSchemas.js';
 import { buildFeatureReference } from '../../utils/features.js';
 
 export default class FeaturesEdit extends FeatureSchemaCommand {
@@ -53,7 +54,7 @@ export default class FeaturesEdit extends FeatureSchemaCommand {
         feature,
         featureSchema: this.featureSchema,
       },
-      { schemasDir: `${this.config.root}/schemas` },
+      { schemasDir: claimSchemasDir(this.config.root) },
     );
   }
 }

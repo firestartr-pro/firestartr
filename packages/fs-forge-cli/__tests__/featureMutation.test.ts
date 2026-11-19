@@ -6,6 +6,7 @@ import { join } from 'path';
 
 import { claimsRepo } from '../src/claims/claimsRepo';
 import { runFeatureMutation } from '../src/features/mutation';
+import { claimSchemasDir } from '../src/schema/claimSchemas';
 import { MemoryGitHubApi } from './fixtures/memoryGitHubApi';
 
 import type { ClaimsRepo } from '../src/claims/claimsRepo';
@@ -15,7 +16,7 @@ import type {
 } from '../src/features/mutation';
 
 const ROOT = process.cwd();
-const SCHEMAS_DIR = join(ROOT, 'schemas');
+const SCHEMAS_DIR = claimSchemasDir(ROOT);
 const COMPONENT_YAML = readFileSync(
   join(ROOT, '__tests__', 'fixtures', 'valid', 'component.yaml'),
   'utf8',
