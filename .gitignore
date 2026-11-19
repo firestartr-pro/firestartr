@@ -38,7 +38,6 @@ providers.yaml
 .vscode/
 .idea/
 PR.md
-CLAUDE.md
 dagger/etoe/e2e-config.yaml
 .pi-subagents/
 !prepare-suite-matrix.js
