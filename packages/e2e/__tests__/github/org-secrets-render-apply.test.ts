@@ -535,7 +535,7 @@ describe('Claim Render Local Org Secrets E2E', () => {
           'actions',
           names.actionsSelected,
         ),
-      ).toContain(`${org}/${componentName}`);
+      ).toEqual([`${org}/${componentName}`]);
 
       // Scenario 3: more than one secret across the supported domains.
       if (domains.codespaces) {

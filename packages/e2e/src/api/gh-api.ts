@@ -21,6 +21,8 @@ import type {
 const FEATURE_REPO_OWNER = 'prefapp';
 const FEATURE_REPO_NAME = 'features';
 
+const CAPABILITY_PROBE_SECRET_NAME = 'E2E_CAPABILITY_PROBE_DOES_NOT_EXIST';
+
 type RateLimitHeaders = Record<string, unknown> | null | undefined;
 
 function readFeatureRepoRateLimit(
@@ -586,11 +588,23 @@ export function createGhApi(state: E2EState): GhApi {
       try {
         const octokit = await github.getOctokitForOrg(state.org);
         const domainRest = (octokit.rest as any)[section];
-        // Both calls are part of the provisioning path: the list endpoint
-        // proves the domain is readable and the public key is required to
-        // encrypt any declared value.
+        // The list endpoint proves the domain is readable and the public key
+        // is required to encrypt any declared value.
         await domainRest.listOrgSecrets({ org: state.org, per_page: 1 });
         await domainRest.getOrgPublicKey({ org: state.org });
+        // Reads also succeed for a read-only app. Deleting a secret that
+        // cannot exist is a non-mutating write probe: 404 means the call was
+        // authorized, 403 means the app lacks write access to the domain.
+        try {
+          await domainRest.deleteOrgSecret({
+            org: state.org,
+            secret_name: CAPABILITY_PROBE_SECRET_NAME,
+          });
+        } catch (err) {
+          if (!isNotFound(err as GithubError)) {
+            throw err;
+          }
+        }
         return true;
       } catch (err) {
         // Rate limiting and transport errors are environmental, not a missing

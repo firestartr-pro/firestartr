@@ -141,6 +141,26 @@ describe('createTempOpaqueSecret', () => {
     }
   });
 
+  it('ignores inherited object properties when checking manifest keys', async () => {
+    const { client } = createClient();
+    const secret = await createTempOpaqueSecret(client, {
+      name: 'demo-secret',
+      key: 'constructor',
+      value: 'primary-value',
+    });
+
+    try {
+      expect(secret.claimSecretRefForKey('constructor')).toBe(
+        'ref:secretsclaim:demo-secret:constructor',
+      );
+      expect(() => secret.claimSecretRefForKey('toString')).toThrow(
+        "Secret 'demo-secret' has no key 'toString'",
+      );
+    } finally {
+      await secret.cleanup();
+    }
+  });
+
   it('supports a secret declared only through extra values', async () => {
     const { client } = createClient();
     const secret = await createTempOpaqueSecret(client, {

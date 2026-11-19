@@ -68,7 +68,10 @@ export async function createTempOpaqueSecret(
     throw new Error('Secret key is required');
   }
 
-  if (primaryKey && primaryKey in extraValues) {
+  if (
+    primaryKey &&
+    Object.prototype.hasOwnProperty.call(extraValues, primaryKey)
+  ) {
     throw new Error(`Secret '${name}' declares key '${primaryKey}' twice`);
   }
 
@@ -103,7 +106,7 @@ export async function createTempOpaqueSecret(
   );
 
   const claimSecretRefForKey = (secretKey: string): string => {
-    if (!(secretKey in values)) {
+    if (!Object.prototype.hasOwnProperty.call(values, secretKey)) {
       throw new Error(`Secret '${name}' has no key '${secretKey}'`);
     }
 

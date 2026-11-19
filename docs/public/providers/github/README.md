@@ -109,7 +109,7 @@ coverage is entity-specific:
 | Repository | Repository, default branch, OIDC template, declared branch protections, Actions variables, and Pages. Files, teams, and collaborators are **not** imported. |
 | Repository labels | Adopted during `apply` when they already exist (and updated to match the claim). |
 | Organization variables | Adopted during `apply` only; explicit import discovers nothing. |
-| Organization secrets | Adopted during `apply` per domain when they already exist; the fingerprint is dropped so Terraform rewrites the value. Explicit import discovers nothing. |
+| Organization secrets | Adopted during `apply` per domain when they already exist; the fingerprint is dropped so Terraform rewrites the value on a *later* reconciliation, not in the importing apply; trigger it with the `firestartr.dev/reconcile-at` annotation (see [OrgSettingsClaim](org-settings.md#imports-and-adoption)). Explicit import discovers nothing. |
 | Organization webhook | Imported by matching webhook URL. |
 | Repository secrets | No import/adoption. |
 | Repository features | Special migration semantics for user-managed files. |

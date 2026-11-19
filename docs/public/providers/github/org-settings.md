@@ -4,9 +4,16 @@ An `OrgSettingsClaim` provisions GitHub organization settings and, optionally,
 organization Actions variables and organization secrets. It renders three CRs:
 one for settings, one for variables, and one for secrets.
 
-If you only need variables or secrets, omit the optional settings fields — `org`
-and `billing_email` are still required. The three CRs are derived from the same
-claim and reconcile independently.
+`org` and `billing_email` are always required. The three CRs are derived from the
+same claim and reconcile independently.
+
+> **Warning:** the settings CR is always applied, even when you omit the optional
+> settings fields. Omitted fields fall back to the `github-org-settings` module
+> defaults (for example `default_repository_permission: read` and
+> `members_can_create_repositories: true`), which can relax policies the
+> organization currently enforces. When you add variables or secrets to an
+> existing organization, set every settings field to its intended value
+> explicitly.
 
 Rendered resources:
 
@@ -162,6 +169,12 @@ organization permissions; omit those domains when they are not available.
   `dependabot` `selected` secrets — the repository binding is imported too.
   Codespaces keeps the repository list inline on the secret. `401`/`403` and
   unexpected errors are skipped (logged). An explicit `import` discovers nothing.
+  With the pinned module, the importing apply does **not** write the declared
+  value: the external value stays active until a later reconciliation. `PROVISIONED`
+  after an adoption therefore does not confirm that the claim's value is live. To
+  force that reconciliation, set the `firestartr.dev/reconcile-at` annotation on
+  the `FirestartrGithubOrganizationSecretSection` CR to a current timestamp
+  (for example `date -u +%Y-%m-%dT%H:%M:%SZ`).
 
 ## Notes
 

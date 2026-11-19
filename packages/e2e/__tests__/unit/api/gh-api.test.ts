@@ -949,14 +949,45 @@ describe('createGhApi org secret helpers', () => {
     expect(getOrgPublicKey).toHaveBeenCalledWith({ org: 'demo-org' });
   });
 
-  it('reports a domain as available when both probes succeed', async () => {
+  it('reports a domain as available when the read and write probes pass', async () => {
     const listOrgSecrets = jest.fn().mockResolvedValue({ data: {} });
     const getOrgPublicKey = jest.fn().mockResolvedValue({ data: {} });
-    mockSectionRest('actions', { listOrgSecrets, getOrgPublicKey });
+    const deleteOrgSecret = jest
+      .fn()
+      .mockRejectedValue({ status: 404, message: 'not found' });
+    mockSectionRest('actions', {
+      listOrgSecrets,
+      getOrgPublicKey,
+      deleteOrgSecret,
+    });
 
     const api = createGhApi(createState());
 
     await expect(api.orgSecretSectionAvailable('actions')).resolves.toBe(true);
+    expect(deleteOrgSecret).toHaveBeenCalledWith({
+      org: 'demo-org',
+      secret_name: 'E2E_CAPABILITY_PROBE_DOES_NOT_EXIST',
+    });
+  });
+
+  it('reports a domain as unavailable when the app cannot write secrets', async () => {
+    const listOrgSecrets = jest.fn().mockResolvedValue({ data: {} });
+    const getOrgPublicKey = jest.fn().mockResolvedValue({ data: {} });
+    const deleteOrgSecret = jest.fn().mockRejectedValue({
+      status: 403,
+      message: 'Resource not accessible by integration',
+    });
+    mockSectionRest('dependabot', {
+      listOrgSecrets,
+      getOrgPublicKey,
+      deleteOrgSecret,
+    });
+
+    const api = createGhApi(createState());
+
+    await expect(api.orgSecretSectionAvailable('dependabot')).resolves.toBe(
+      false,
+    );
   });
 
   it('propagates transient errors from the capability probe', async () => {
