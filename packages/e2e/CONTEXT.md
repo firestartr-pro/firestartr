@@ -94,6 +94,27 @@ An org-level resource name that embeds the test-run prefix (e.g.
 since GitHub org variables are global to the org.
 _Avoid_: unique name, prefixed name
 
+**Org secret section**:
+The `FirestartrGithubOrganizationSecretSection` CR rendered from an
+`OrgSettingsClaim.providers.github.org_secrets` block. One CR owns the
+`actions`, `codespaces` and `dependabot` domains for an organization and
+reconciles independently of the org-settings CR.
+_Avoid_: org secrets CR, secret section list
+
+**Domain capability probe**:
+The read-only check (`orgSecretSectionAvailable`) that tells whether the current
+org and token expose Codespaces or Dependabot org secrets. Suites skip a domain
+the probe rejects instead of failing on an environment limit; Actions is never
+skipped because it is the product's baseline.
+_Avoid_: feature detection, optional domains
+
+**Secret value verification (org)**:
+Only `actions` organization secrets reach `secrets.*` in a workflow run, so the
+org-secrets suite asserts their exact value through the in-repo workflow; the
+`codespaces` and `dependabot` domains stop at existence and visibility through
+the API.
+_Avoid_: verify all org secrets by value
+
 **Diagnostic file**:
 A YAML snapshot of operator internal state (`/tmp/diagnostic` inside the pod),
 overwritten every 10s. The e2e global collector reads it periodically via

@@ -14,17 +14,29 @@ function buildClaimSecretRef(name: string, key: string): string {
 
 export interface CreateTempOpaqueSecretOptions {
   name: string;
-  key: string;
+  /** Primary key of the Secret. Required unless `extraValues` is provided. */
+  key?: string;
   value?: string;
+  /**
+   * Additional keys written to the same Secret, for scenarios that need one
+   * SecretsClaim to expose several values (for example several org secrets).
+   */
+  extraValues?: Record<string, string>;
   namespace?: string;
 }
 
 export interface TempOpaqueSecret {
   name: string;
+  /** Primary key (first key) of the Secret. */
   key: string;
+  /** Primary value (value of `key`). */
   value: string;
+  /** Every key/value written to the Secret. */
+  values: Record<string, string>;
   namespace: string;
   claimSecretRef: string;
+  /** `ref:secretsclaim:<name>:<key>` for any key of this Secret. */
+  claimSecretRefForKey: (key: string) => string;
   manifestPath: string;
   outputPath: string;
   apply: () => Promise<void>;
@@ -47,12 +59,34 @@ export async function createTempOpaqueSecret(
   options: CreateTempOpaqueSecretOptions,
 ): Promise<TempOpaqueSecret> {
   const name = requireTrimmedValue(options.name, 'Secret name');
-  const key = requireTrimmedValue(options.key, 'Secret key');
+  const primaryKey = options.key
+    ? requireTrimmedValue(options.key, 'Secret key')
+    : undefined;
+  const extraValues = options.extraValues ?? {};
+
+  if (!primaryKey && Object.keys(extraValues).length === 0) {
+    throw new Error('Secret key is required');
+  }
+
+  if (
+    primaryKey &&
+    Object.prototype.hasOwnProperty.call(extraValues, primaryKey)
+  ) {
+    throw new Error(`Secret '${name}' declares key '${primaryKey}' twice`);
+  }
+
   const namespace = requireTrimmedValue(
     options.namespace ?? client.k8s.getNamespace(),
     'Secret namespace',
   );
-  const value = options.value ?? DEFAULT_SECRET_VALUE;
+  const values: Record<string, string> = {
+    ...(primaryKey
+      ? { [primaryKey]: options.value ?? DEFAULT_SECRET_VALUE }
+      : {}),
+    ...extraValues,
+  };
+  const key = primaryKey ?? Object.keys(values)[0]!;
+  const value = values[key]!;
   const outputPath = await fs.mkdtemp(path.join(os.tmpdir(), 'e2e-secret-'));
   const manifestPath = path.join(outputPath, TEMP_SECRET_FILE_NAME);
 
@@ -66,12 +100,18 @@ export async function createTempOpaqueSecret(
         namespace,
       },
       type: 'Opaque',
-      stringData: {
-        [key]: value,
-      },
+      stringData: values,
     }),
     'utf-8',
   );
+
+  const claimSecretRefForKey = (secretKey: string): string => {
+    if (!Object.prototype.hasOwnProperty.call(values, secretKey)) {
+      throw new Error(`Secret '${name}' has no key '${secretKey}'`);
+    }
+
+    return buildClaimSecretRef(name, secretKey);
+  };
 
   const cleanup = async (): Promise<void> => {
     await fs.rm(outputPath, { recursive: true, force: true });
@@ -85,8 +125,10 @@ export async function createTempOpaqueSecret(
     name,
     key,
     value,
+    values,
     namespace,
-    claimSecretRef: buildClaimSecretRef(name, key),
+    claimSecretRef: claimSecretRefForKey(key),
+    claimSecretRefForKey,
     manifestPath,
     outputPath,
     async apply(): Promise<void> {

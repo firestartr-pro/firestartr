@@ -346,6 +346,37 @@ export interface GhApi {
   // List selected repository names (org/repo) for an organization variable.
   getOrgVariableSelectedRepositories: (name: string) => Promise<string[]>;
 
+  // Read organization secret metadata for one domain in current org.
+  // Returns null when the secret does not exist. Values are never returned.
+  getOrgSecret: (
+    section: GhOrgSecretSection,
+    name: string,
+  ) => Promise<GhOrgSecret | null>;
+
+  // Create or overwrite an organization secret with a plaintext value. The
+  // helper encrypts it with the organization public key of that domain.
+  createOrgSecret: (
+    section: GhOrgSecretSection,
+    name: string,
+    value: string,
+    visibility: 'all' | 'private' | 'selected',
+    selectedRepositoryIds?: number[],
+  ) => Promise<void>;
+
+  // Delete an organization secret by name; missing secrets are ignored.
+  deleteOrgSecret: (section: GhOrgSecretSection, name: string) => Promise<void>;
+
+  // List selected repository names (org/repo) for an organization secret.
+  getOrgSecretSelectedRepositories: (
+    section: GhOrgSecretSection,
+    name: string,
+  ) => Promise<string[]>;
+
+  // Whether the current org/token can manage secrets for this domain. Probes
+  // the domain's list endpoint and answers false on 403/404/422 so suites can
+  // skip domains the organization has not enabled.
+  orgSecretSectionAvailable: (section: GhOrgSecretSection) => Promise<boolean>;
+
   // Read primary GitHub rate-limit state for the current installation token.
   getRateLimit: () => Promise<GhRateLimit>;
 
@@ -418,6 +449,19 @@ export interface GhOrgVariable {
   name: string;
   visibility: 'all' | 'private' | 'selected';
   selectedRepositories?: string[];
+}
+
+// Organization secret domains the org-secrets section manages.
+export type GhOrgSecretSection = 'actions' | 'codespaces' | 'dependabot';
+
+// Subset of organization secret metadata that e2e assertions read back.
+// Values are never returned by the GitHub API. `updatedAt` is the readiness
+// signal for fingerprint-triggered rewrites, since the secret value itself
+// cannot be observed through the API.
+export interface GhOrgSecret {
+  name: string;
+  visibility: 'all' | 'private' | 'selected';
+  updatedAt?: string;
 }
 
 // Subset of GitHub organization settings that e2e assertions read back.

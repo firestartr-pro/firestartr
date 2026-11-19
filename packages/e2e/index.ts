@@ -43,6 +43,8 @@ export type {
   E2EApi,
   E2EInitOptions,
   GhApi,
+  GhOrgSecret,
+  GhOrgSecretSection,
   GhOrgSettings,
   GhOrgVariable,
   GhOrgWebhook,

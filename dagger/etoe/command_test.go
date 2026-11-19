@@ -110,6 +110,7 @@ func TestBootOperatorScriptLeavesChartKindListUntouched(t *testing.T) {
 func TestRepoSecretsSuitesEnableProviderSecretEncryption(t *testing.T) {
 	for _, suites := range []string{
 		"component-repo-secrets-render-apply",
+		"org-secrets-render-apply",
 		"github",
 		"all",
 		"unit,component-repo-secrets-render-apply",

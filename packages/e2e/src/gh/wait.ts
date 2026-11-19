@@ -12,10 +12,12 @@ import type { E2EApi } from '../types';
 
 const DEFAULT_GITHUB_POLL_INTERVAL_MS = 5000;
 // 409/423 are GitHub-specific transient codes; 408/429/5xx are covered by
-// isTransientError. 403 with a secondary-rate-limit message is also retried.
+// isTransientError. 403 responses whose message names a rate limit are also
+// retried: the secondary limit and an exhausted primary quota, which GitHub
+// signals as "API rate limit exceeded" — also with 403.
 const EXTRA_RETRYABLE_STATUS_CODES = new Set([409, 423]);
 const RETRYABLE_403_MESSAGE =
-  /(secondary rate limit|please wait a few minutes before you try again|abuse detection)/i;
+  /(secondary rate limit|api rate limit exceeded|please wait a few minutes before you try again|abuse detection)/i;
 
 function getErrorMessage(error: unknown): string {
   if (error instanceof Error) {
