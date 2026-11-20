@@ -66,7 +66,7 @@ Each flavor key can contain:
 
 - `dockerfile`: path to the dockerfile to use when building this image, relative to the repo root (i.e. if the dockerfile is located at `https://www.github.com/firestartr-test/code-repo/docker/Dockerfile`, this keys' value will be `docker/Dockerfile`)
 - `auto`: whether or not to build this flavor when the [`flavors` input](#inputs) equals \*. [Defaults to false](#defaults)
-- `build_args`: key-value pairs that are set as environment variables when building the image. The key is the environment value name, and the value its value, and any number of them can be specified.
+- `build_args`: key-value pairs that are set as environment variables when building the image. The key is the environment value name, and the value its value, and any number of them can be specified. They are passed as Docker build args (`--build-arg`), so the Dockerfile must declare them with `ARG <NAME>`; undeclared build args are silently ignored.
 - `registry`: a [`registry` object](#registry-objects) that overrides the [default registry](#defaults). If this key is specified, **_no image will be uploaded to the [default registry](#defaults)_**
 - `extra_registries`: a list of [`registry` object](#registry-objects) to where the image will be uploaded to, in addition to the [default registry](#defaults). If this key is specified, **_the image will still be uploaded to the [default registry](#defaults)_**
 - `extra_tags`: optional list of strings representing extra tags to publish the image as. While the default tag is constructed as `<flavor>_<version>`, no extra info will be appended to these tags. E.g. if the flavor is `default` and the version is `v1.2.3`, the default tag will be `default_v1.2.3`, and if `latest` is specified as an extra tag, the image will also be tagged as `latest`. For this reason, all values listed as `extra_tags` must be unique across all flavors and types (i.e., two different flavors cannot both have `latest` as an extra tag, even if one is a snapshot and the other a release)
@@ -102,6 +102,14 @@ All build workflows share the following inputs:
 `build_docker_snapshots.yaml` also includes this workflow-dispatch-only input:
 
 - `autodeploy`: boolean input (default: `false`) used by `build_docker_snapshots.yaml` when launched manually (`workflow_dispatch`). When `true`, the downstream `trigger_dispatch_on_snapshot` workflow will continue and trigger `make_dispatches.yaml`; when `false`, the trigger workflow skips the dispatch step.
+
+## Repository Labels
+
+This feature declares the following GitHub repository label, created on the repository when the feature is installed:
+
+| Label | Color | Purpose |
+|---|---|---|
+| `autodeploy` | `B086E6` | Triggers the snapshot build and dispatch workflow when added to a pull request. |
 
 ### Defaults
 
@@ -493,5 +501,10 @@ args:
 ```
 
 Please note that `vars` and `secrets` referenced in both the `build_images_vars` and `build_images_secrets` arguments are subject to the environment set for the `build_images_reusable` workflow by the `build_docker_<type>` workflows, as explained in the [About workflow environments](#about-workflow-environments) section of the documentation.
+
+> [!IMPORTANT]
+> `build_images_vars` and the flavor-level `build_args` are passed to the build as Docker build args (`--build-arg`). To use them, the Dockerfile must declare them with `ARG <NAME>`; an undeclared build arg is accepted by the build but ignored. Treat them as non-sensitive values.
+>
+> `build_images_secrets` and the flavor-level `secrets` are mounted as BuildKit secrets, so they **do not need an `ARG`**. Consume them with `RUN --mount=type=secret,id=<NAME> ...` and read the value from `/run/secrets/<NAME>` (see [How build secrets work](#how-build-secrets-work)).
 
 **NOTE**: `make_dispatches` downloads the `firestartr_config_repo` repository to access the configuration files via the `apps_folder_path`, `platform_folder_path` and `registries_folder_path` feature arguments. However, `firestartr_config_repo` is always downloaded under the `.firestartr` folder, regardless of what the actual name of the repository is, so the paths specified in the `*_folder_path` arguments should all start with `.firestartr/` (unless the folders are located in another repo)
