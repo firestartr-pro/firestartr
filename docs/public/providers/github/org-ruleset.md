@@ -61,6 +61,12 @@ Everything else (rule parameters, which rules fit which target, limits, exactly 
 of `repository_name` or `repository_property`) is validated by the Terraform
 module. A new GitHub rule type needs a renderer release before it can be used.
 
+The Terraform module takes no organization input: it targets the organization
+of the provider config's `owner`. The provisioner rejects a claim whose
+`providers.github.org` differs from that owner instead of creating the ruleset
+in the wrong organization. When the owner is set outside the provider config
+(inline block or env), the check cannot run.
+
 ## Rendering
 
 - `metadata.name`: normalized `providers.github.name` with the state key

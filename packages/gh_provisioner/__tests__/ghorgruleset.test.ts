@@ -44,6 +44,30 @@ describe('EntityGHOrgRuleset entity', () => {
     );
   });
 
+  describe('provider owner', () => {
+    it('rejects a provider whose owner differs from spec.org', async () => {
+      entity.provider.cr.spec.config = '{"owner":"other-org"}';
+
+      await expect(entity.loadResources('apply')).rejects.toThrow(
+        /owner "other-org" does not match spec\.org "firestartr-test"/,
+      );
+
+      mockGetRulesetList.mockResolvedValue([]);
+
+      await expect(entity.loadAddressesToImport()).rejects.toThrow(
+        /owner "other-org" does not match spec\.org "firestartr-test"/,
+      );
+    });
+
+    it('allows a provider without an owner in its config', async () => {
+      entity.provider.cr.spec.config = '{}';
+
+      await expect(entity.loadResources('apply')).resolves.toBeUndefined();
+
+      expect(entity.document.config).toEqual(entity.cr.spec.ruleset);
+    });
+  });
+
   describe('import', () => {
     it('imports the existing ruleset with the same name by id', async () => {
       mockGetRulesetList.mockResolvedValue([

@@ -22,6 +22,8 @@ export class EntityGHOrgRuleset extends Entity {
   async loadResources(tfOp: string): Promise<void> {
     log.info(`[gh-provisioner] running ${tfOp} on ${this.k8sId}`);
 
+    this.assertProviderForOrg();
+
     // spec.ruleset already has the shape of the module's config
     this.patchData({
       path: '/config',
@@ -38,6 +40,8 @@ export class EntityGHOrgRuleset extends Entity {
     const { org, ruleset } = this.cr.spec;
 
     log.info(`[gh-provisioner] loading addresses to import for ${this.k8sId}`);
+
+    this.assertProviderForOrg();
 
     const rulesets = (await this.runWithGithubProvider(async () =>
       github.org.getRulesetList(org),
@@ -61,5 +65,29 @@ export class EntityGHOrgRuleset extends Entity {
         id: `${matches[0].id}`,
       },
     });
+  }
+
+  // The pinned module takes no organization input: Terraform targets the
+  // organization of the provider's owner. A claim whose spec.org disagrees
+  // with that owner would discover imports in one organization while
+  // creating the ruleset in another, so fail fast on the mismatch.
+  private assertProviderForOrg(): void {
+    const { org } = this.cr.spec;
+
+    let owner: any;
+
+    try {
+      owner = JSON.parse(this.provider.cr.spec.config).owner;
+    } catch {
+      // The owner may be set through the provider's inline block or env
+      // instead of its config: it cannot be checked here.
+      return;
+    }
+
+    if (owner && owner !== org) {
+      throw new Error(
+        `[gh-provisioner] ${this.k8sId}: the provider's owner "${owner}" does not match spec.org "${org}": the ruleset would target the wrong organization`,
+      );
+    }
   }
 }
