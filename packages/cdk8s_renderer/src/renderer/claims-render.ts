@@ -65,6 +65,7 @@ export async function renderClaims(
       'ArgoDeployClaim',
       'OrgWebhookClaim',
       'OrgSettingsClaim',
+      'OrgRulesetClaim',
     ],
     renderClaims,
   );
@@ -510,6 +511,27 @@ export async function renderClaim(
       }
       if (loadGithub) {
         firestartrEntity = new charts.default.GithubOrgWebhookChart(
+          firestartrScope,
+          `github-${chartId}`,
+          firestartrId,
+          claim,
+          renderPatches,
+        );
+      }
+      break;
+
+    case 'OrgRulesetClaim':
+      if (loadCatalog) {
+        catalogEntity = new charts.default.CatalogOrgRulesetChart(
+          catalogScope,
+          `catalog-${chartId}`,
+          firestartrId,
+          claim,
+          renderPatches,
+        );
+      }
+      if (loadGithub) {
+        firestartrEntity = new charts.default.GithubOrgRulesetChart(
           firestartrScope,
           `github-${chartId}`,
           firestartrId,

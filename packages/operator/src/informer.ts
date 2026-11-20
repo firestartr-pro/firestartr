@@ -61,6 +61,7 @@ const kindsWithFinalizer = [
   'FirestartrGithubRepository',
   'FirestartrGithubRepositoryFeature',
   'FirestartrGithubOrgWebhook',
+  'FirestartrGithubOrgRuleset',
   'FirestartrGithubOrganizationSettings',
   'FirestartrGithubOrganizationVariableSection',
   'FirestartrGithubOrganizationSecretSection',

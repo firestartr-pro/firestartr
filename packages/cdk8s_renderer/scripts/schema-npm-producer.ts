@@ -69,6 +69,7 @@ const CLAIM_KINDS: Record<string, string> = {
   SecretsClaim: 'firestartr.dev://common/SecretsClaim',
   OrgWebhookClaim: 'firestartr.dev://common/OrgWebhookClaim',
   OrgSettingsClaim: 'firestartr.dev://common/OrgSettingsClaim',
+  OrgRulesetClaim: 'firestartr.dev://common/OrgRulesetClaim',
   ArgoDeployClaim: 'firestartr.dev://common/ArgoDeployClaim',
 };
 
