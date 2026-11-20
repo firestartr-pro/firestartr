@@ -52,5 +52,6 @@ Secret-github-app-credentials:
       GITHUB_APP_ID: MTIzNDU=
       GITHUB_APP_INSTALLATION_ID: Njc4OTA=
       GITHUB_APP_PEM_FILE: c2VjcmV0LXBlbS1maWxl
+      OWNER: ZmlyZXN0YXJ0ci10ZXN0
 self-outputs:
   cr: null

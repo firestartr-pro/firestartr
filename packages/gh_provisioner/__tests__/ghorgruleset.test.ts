@@ -66,6 +66,23 @@ describe('EntityGHOrgRuleset entity', () => {
 
       expect(entity.document.config).toEqual(entity.cr.spec.ruleset);
     });
+
+    it('allows a Secret-backed owner that resolves to spec.org', async () => {
+      entity.provider.cr.spec.config = '{"owner":"${{ secrets.OWNER }}"}';
+      entity.provider.cr.spec.secrets = {
+        OWNER: {
+          secretRef: {
+            name: 'github-app-credentials',
+            namespace: 'default',
+            key: 'OWNER',
+          },
+        },
+      };
+
+      await expect(entity.loadResources('apply')).resolves.toBeUndefined();
+
+      expect(entity.document.config).toEqual(entity.cr.spec.ruleset);
+    });
   });
 
   describe('import', () => {

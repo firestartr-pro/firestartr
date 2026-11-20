@@ -192,6 +192,19 @@ describe('OrgRulesetClaim schema', () => {
     await expect(validate([])).resolves.toBeUndefined();
   });
 
+  it('rejects a name with path separators', async () => {
+    const errors = await validate([
+      {
+        op: 'replace',
+        path: '/providers/github/name',
+        value: 'rules/../../escaped-workspace',
+      },
+    ]).catch((e) => e);
+
+    expect(errors[0].instancePath).toBe('/providers/github/name');
+    expect(errors[0].message).toMatch(/pattern/);
+  });
+
   it('rejects an unknown rule type and lists the known ones', async () => {
     const errors = await validate([
       {

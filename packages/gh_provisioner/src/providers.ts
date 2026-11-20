@@ -16,6 +16,25 @@ export function adaptProviders(entity: Entity) {
   return result;
 }
 
+/**
+ * Resolves a provider's config with its `${{ secrets.* }}` placeholders
+ * substituted, the same way Terraform execution does. Returns the resolved
+ * config together with the secret values, for the inline block.
+ */
+export function getResolvedProviderConfig(
+  entity: Entity,
+  providerFromItem: ResolvedRef,
+): { config: any; secrets: any } {
+  const secrets = getRefContextFromCr(entity, providerFromItem);
+
+  const config = replaceConfigSecrets(
+    JSON.parse(providerFromItem.cr.spec.config),
+    secrets,
+  );
+
+  return { config, secrets };
+}
+
 export function adaptBackend(entity: Entity) {
   const backend: any = {};
 
@@ -49,12 +68,8 @@ function adaptProvider(entity: Entity, providerFromItem: ResolvedRef): any {
 
   const providerDependency = providerFromItem.cr;
 
-  const providerSecrets = getRefContextFromCr(entity, providerFromItem);
-
-  const providerConfigData = replaceConfigSecrets(
-    JSON.parse(providerDependency.spec.config),
-    providerSecrets,
-  );
+  const { config: providerConfigData, secrets: providerSecrets } =
+    getResolvedProviderConfig(entity, providerFromItem);
 
   const providerInlineData = replaceInlineSecrets(
     providerDependency.spec.inline,

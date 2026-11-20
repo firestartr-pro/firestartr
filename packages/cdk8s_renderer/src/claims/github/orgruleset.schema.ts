@@ -18,6 +18,11 @@ export default {
           properties: {
             name: {
               type: 'string',
+              // The display name reaches Terraform workspace paths through
+              // the firestartr.dev/external-name annotation. A path
+              // separator in it could escape /tmp/gh-workspaces and make
+              // the workspace builder delete and write outside it.
+              pattern: '^[^/]+$',
             },
             tfStateKey: {
               $ref: 'firestartr.dev://common/TerraformStateKey',

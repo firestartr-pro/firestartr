@@ -45,7 +45,7 @@ providers:
 | --- | --- | --- |
 | `name` | Yes | Claim identity. |
 | `providers.github.org` | Yes | GitHub organization. |
-| `providers.github.name` | Yes | Ruleset name shown in GitHub. It may contain spaces. |
+| `providers.github.name` | Yes | Ruleset name shown in GitHub. It may contain spaces, but not `/` (it is used in Terraform workspace paths). |
 | `providers.github.target` | Yes | `branch`, `tag` or `push`. |
 | `providers.github.enforcement` | Yes | `active`, `evaluate` (report only) or `disabled`. |
 | `providers.github.conditions` | Yes | `ref_name` (required for `branch` and `tag`) plus `repository_name` or `repository_property`. |
@@ -62,10 +62,11 @@ of `repository_name` or `repository_property`) is validated by the Terraform
 module. A new GitHub rule type needs a renderer release before it can be used.
 
 The Terraform module takes no organization input: it targets the organization
-of the provider config's `owner`. The provisioner rejects a claim whose
-`providers.github.org` differs from that owner instead of creating the ruleset
-in the wrong organization. When the owner is set outside the provider config
-(inline block or env), the check cannot run.
+of the provider config's `owner`. The provisioner resolves the config's
+`${{ secrets.* }}` placeholders and rejects a claim whose `providers.github.org`
+differs from the resolved owner instead of creating the ruleset in the wrong
+organization. When the owner is set outside the provider config (inline block
+or env), the check cannot run.
 
 ## Rendering
 

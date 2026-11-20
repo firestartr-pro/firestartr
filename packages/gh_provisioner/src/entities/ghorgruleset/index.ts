@@ -2,6 +2,8 @@ import { Entity, PatchOperations } from '../base';
 
 import type { Dependencies } from '../../refs';
 
+import { getResolvedProviderConfig } from '../../providers';
+
 import github from 'github';
 
 import log from '../../logger';
@@ -74,19 +76,13 @@ export class EntityGHOrgRuleset extends Entity {
   private assertProviderForOrg(): void {
     const { org } = this.cr.spec;
 
-    let owner: any;
+    // Resolved the same way Terraform execution resolves it, so a
+    // Secret-backed owner ("${{ secrets.OWNER }}") compares by value.
+    const { config } = getResolvedProviderConfig(this, this.provider);
 
-    try {
-      owner = JSON.parse(this.provider.cr.spec.config).owner;
-    } catch {
-      // The owner may be set through the provider's inline block or env
-      // instead of its config: it cannot be checked here.
-      return;
-    }
-
-    if (owner && owner !== org) {
+    if (config.owner && config.owner !== org) {
       throw new Error(
-        `[gh-provisioner] ${this.k8sId}: the provider's owner "${owner}" does not match spec.org "${org}": the ruleset would target the wrong organization`,
+        `[gh-provisioner] ${this.k8sId}: the provider's owner "${config.owner}" does not match spec.org "${org}": the ruleset would target the wrong organization`,
       );
     }
   }
