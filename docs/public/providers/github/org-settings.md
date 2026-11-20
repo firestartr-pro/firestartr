@@ -29,7 +29,7 @@ Default modules: `github-org-settings`, `github-org-variables-section`,
 
 ```yaml
 kind: OrgSettingsClaim
-version: "1.0"
+version: '1.0'
 name: github_org_settings
 providers:
   github:
@@ -80,30 +80,50 @@ providers:
 
 ### `providers.github`
 
-| Field | Required | Description |
-| --- | --- | --- |
-| `name` | Yes | Entity/workspace name (operational/external name). Not the GitHub org name. |
-| `org` | Yes | GitHub organization to configure. |
-| `tfStateKey` | No | Explicit UUID state key. |
-| `billing_email` | Yes | Organization billing email. |
-| `company`, `blog`, `email`, `twitter_username`, `location`, `description` | No | Organization profile fields. |
-| `has_organization_projects`, `has_repository_projects` | No | Projects permissions. |
-| `default_repository_permission` | No | `read`, `write`, `admin`, or `none`. |
-| `members_can_create_*` | No | Repository/page creation controls. |
-| `members_can_fork_private_repositories` | No | Fork permission. |
-| `web_commit_signoff_required` | No | Require sign-off. |
-| `advanced_security_enabled_for_new_repositories` and related Dependabot/secret-scanning flags | No | New-repository security defaults. |
-| `actions_variables[]` | No | Organization Actions variables (below). |
-| `org_secrets` | No | Organization secrets by domain: `actions`, `codespaces`, `dependabot` (below). |
+| Field                                                                                         | Required | Description                                                                    |
+| --------------------------------------------------------------------------------------------- | -------- | ------------------------------------------------------------------------------ |
+| `name`                                                                                        | Yes      | Entity/workspace name (operational/external name). Not the GitHub org name.    |
+| `org`                                                                                         | Yes      | GitHub organization to configure.                                              |
+| `tfStateKey`                                                                                  | No       | Explicit UUID state key.                                                       |
+| `billing_email`                                                                               | Yes      | Organization billing email.                                                    |
+| `company`, `blog`, `email`, `twitter_username`, `location`, `description`                     | No       | Organization profile fields.                                                   |
+| `has_organization_projects`, `has_repository_projects`                                        | No       | Projects permissions.                                                          |
+| `default_repository_permission`                                                               | No       | `read`, `write`, `admin`, or `none`.                                           |
+| `members_can_create_*`                                                                        | No       | Repository/page creation controls.                                             |
+| `members_can_fork_private_repositories`                                                       | No       | Fork permission.                                                               |
+| `web_commit_signoff_required`                                                                 | No       | Require sign-off.                                                              |
+| `advanced_security_enabled_for_new_repositories` and related Dependabot/secret-scanning flags | No       | New-repository security defaults.                                              |
+| `actions_variables[]`                                                                         | No       | Organization Actions variables (below).                                        |
+| `org_secrets`                                                                                 | No       | Organization secrets by domain: `actions`, `codespaces`, `dependabot` (below). |
 
 ### `actions_variables[]`
 
-| Field | Required | Description |
-| --- | --- | --- |
-| `name` | Yes | Variable name (`^[A-Za-z0-9_]+$`). |
-| `value` | Yes | Variable value. |
-| `visibility` | Yes | `all`, `private`, or `selected`. |
-| `selected_repositories` | For `selected` | `component:<name>` references. Resolved to `org/repo` strings. |
+| Field                   | Required       | Description                                                                 |
+| ----------------------- | -------------- | --------------------------------------------------------------------------- |
+| `name`                  | Yes            | Variable name (`^[A-Za-z0-9_]+$`).                                          |
+| `value`                 | Yes            | Variable value, or a `ref:secretsclaim:<name>:<key>` reference (see below). |
+| `visibility`            | Yes            | `all`, `private`, or `selected`.                                            |
+| `selected_repositories` | For `selected` | `component:<name>` references. Resolved to `org/repo` strings.              |
+
+### Secret references in `value`
+
+A `value` of `ref:secretsclaim:<secret-claim>:<key>` reads the key from a
+`SecretsClaim`, the same way repository variables do. The provisioner resolves
+it at apply time, and the rendered CR never contains the secret.
+
+```yaml
+actions_variables:
+  - name: DEPLOY_HOST
+    value: ref:secretsclaim:deploy_secrets:host
+    visibility: all
+```
+
+> **Warning:** GitHub stores the resolved value as plain text, and it is also
+> written to Terraform state. Refs work for every visibility, but real secrets
+> belong in `org_secrets`, which encrypts them before they reach GitHub.
+
+A reference to a missing `SecretsClaim` or to a key it does not declare fails at
+render time, naming `actions_variables.<name>`.
 
 ### `org_secrets`
 
@@ -112,11 +132,11 @@ providers:
 per organization per render pass; duplicate secret names within a domain are
 rejected, and two claims cannot target the same organization.
 
-| Field | Required | Description |
-| --- | --- | --- |
-| `name` | Yes | Secret name (`^[A-Za-z0-9_]+$`), unique within its domain. |
-| `value` | Yes | `ref:secretsclaim:<claim>:<key>` reference to the plaintext secret. |
-| `visibility` | No | `all` (default), `private`, or `selected`. |
+| Field                   | Required       | Description                                                                              |
+| ----------------------- | -------------- | ---------------------------------------------------------------------------------------- |
+| `name`                  | Yes            | Secret name (`^[A-Za-z0-9_]+$`), unique within its domain.                               |
+| `value`                 | Yes            | `ref:secretsclaim:<claim>:<key>` reference to the plaintext secret.                      |
+| `visibility`            | No             | `all` (default), `private`, or `selected`.                                               |
 | `selected_repositories` | For `selected` | `component:<name>` references. Resolved to `org/repo` strings; at least one is required. |
 
 Values are read from the Kubernetes `Secret` the `SecretsClaim` resolves to,
@@ -139,7 +159,9 @@ organization permissions; omit those domains when they are not available.
 - `FirestartrGithubOrganizationVariableSection`: `metadata.name` is the
   normalized `providers.github.name` with the state key appended
   (`<name>-<tfStateKey>`); `spec.actionsVariables` is an array of
-  `{ name, value, visibility, selectedRepositories? }`. A `selected` variable's
+  `{ name, value, visibility, selectedRepositories? }`. A `ref:secretsclaim` value
+  becomes `{ name, ref: { kind: 'Secret', name, key }, visibility }` instead, and the
+  provisioner resolves it. A `selected` variable's
   `selected_repositories` (claim) becomes `selectedRepositories` holding `org/repo`
   strings. The write connection Secret exposes `managed_variables` and
   `variable_ids`.
