@@ -273,7 +273,10 @@ describe('Resolver', () => {
           spec: {
             members: [
               {
-                ref: { kind: 'FirestartrGithubMembership', name: 'missing-user' },
+                ref: {
+                  kind: 'FirestartrGithubMembership',
+                  name: 'missing-user',
+                },
               },
             ],
           },
@@ -290,7 +293,7 @@ describe('Resolver', () => {
     // Production lookups (ctl.getItemByItemPath) reject on 404 instead of
     // returning undefined: the contextual error must cover that path too.
     const lookupError = new Error(
-      "Error on getItemByItemPath: test-namespace/githubrepositories/repo-a: Not Found",
+      'Error on getItemByItemPath: test-namespace/githubrepositories/repo-a: Not Found',
     );
 
     const getItemByItemPath = jest.fn(async () => {
@@ -470,5 +473,45 @@ describe('Resolver', () => {
     );
 
     expect(Object.keys(deps)).toEqual(['FirestartrProviderConfig-github']);
+  });
+
+  it('drops organization variable refs on destroy so their Secrets do not block deletion', async () => {
+    const cr = {
+      kind: 'FirestartrGithubOrganizationVariableSection',
+      metadata: { name: 'vars-a', namespace: 'default' },
+      spec: {
+        org: 'my-org',
+        provider: { ref: { kind: 'FirestartrProviderConfig', name: 'github' } },
+        actionsVariables: [
+          {
+            name: 'DEPLOY_HOST',
+            ref: { kind: 'Secret', name: 'gone', key: 'value' },
+            visibility: 'all',
+          },
+          { name: 'PLAIN', value: 'true', visibility: 'all' },
+        ],
+      },
+    };
+    const getItemByItemPath = jest.fn(async (itemPath: string) =>
+      itemPath.includes('/secrets/')
+        ? undefined
+        : {
+            kind: 'FirestartrProviderConfig',
+            metadata: { name: 'github', namespace: 'default' },
+            spec: {},
+          },
+    );
+    const getSecret = jest.fn(async () => undefined);
+
+    const deps = await resolve(
+      withoutPlaintextSecrets(cr),
+      getItemByItemPath,
+      getSecret,
+    );
+
+    expect(Object.keys(deps)).toEqual(['FirestartrProviderConfig-github']);
+    expect(withoutPlaintextSecrets(cr).spec.actionsVariables).toEqual([
+      { name: 'PLAIN', value: 'true', visibility: 'all' },
+    ]);
   });
 });

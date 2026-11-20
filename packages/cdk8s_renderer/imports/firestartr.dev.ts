@@ -2399,7 +2399,14 @@ export interface FirestartrGithubOrganizationVariableSectionSpecActionsVariables
    *
    * @schema FirestartrGithubOrganizationVariableSectionSpecActionsVariables#value
    */
-  readonly value: string;
+  readonly value?: string;
+
+  /**
+   * Reference to a Kubernetes Secret key whose value is used as the variable value
+   *
+   * @schema FirestartrGithubOrganizationVariableSectionSpecActionsVariables#ref
+   */
+  readonly ref?: FirestartrGithubOrganizationVariableSectionSpecActionsVariablesRef;
 
   /**
    * Visibility of the variable
@@ -2425,6 +2432,7 @@ export function toJson_FirestartrGithubOrganizationVariableSectionSpecActionsVar
   const result = {
     'name': obj.name,
     'value': obj.value,
+    'ref': toJson_FirestartrGithubOrganizationVariableSectionSpecActionsVariablesRef(obj.ref),
     'visibility': obj.visibility,
     'selectedRepositories': obj.selectedRepositories?.map(y => y),
   };
@@ -2511,6 +2519,44 @@ export function toJson_FirestartrGithubOrganizationVariableSectionSpecWriteConne
   const result = {
     'name': obj.name,
     'outputs': obj.outputs?.map(y => toJson_FirestartrGithubOrganizationVariableSectionSpecWriteConnectionSecretToRefOutputs(y)),
+  };
+  // filter undefined values
+  return Object.entries(result).reduce((r, i) => (i[1] === undefined) ? r : ({ ...r, [i[0]]: i[1] }), {});
+}
+/* eslint-enable max-len, @stylistic/max-len, quote-props, @stylistic/quote-props */
+
+/**
+ * Reference to a Kubernetes Secret key whose value is used as the variable value
+ *
+ * @schema FirestartrGithubOrganizationVariableSectionSpecActionsVariablesRef
+ */
+export interface FirestartrGithubOrganizationVariableSectionSpecActionsVariablesRef {
+  /**
+   * @schema FirestartrGithubOrganizationVariableSectionSpecActionsVariablesRef#kind
+   */
+  readonly kind: string;
+
+  /**
+   * @schema FirestartrGithubOrganizationVariableSectionSpecActionsVariablesRef#name
+   */
+  readonly name: string;
+
+  /**
+   * @schema FirestartrGithubOrganizationVariableSectionSpecActionsVariablesRef#key
+   */
+  readonly key: string;
+}
+
+/**
+ * Converts an object of type 'FirestartrGithubOrganizationVariableSectionSpecActionsVariablesRef' to JSON representation.
+ */
+/* eslint-disable max-len, @stylistic/max-len, quote-props, @stylistic/quote-props */
+export function toJson_FirestartrGithubOrganizationVariableSectionSpecActionsVariablesRef(obj: FirestartrGithubOrganizationVariableSectionSpecActionsVariablesRef | undefined): Record<string, any> | undefined {
+  if (obj === undefined) { return undefined; }
+  const result = {
+    'kind': obj.kind,
+    'name': obj.name,
+    'key': obj.key,
   };
   // filter undefined values
   return Object.entries(result).reduce((r, i) => (i[1] === undefined) ? r : ({ ...r, [i[0]]: i[1] }), {});

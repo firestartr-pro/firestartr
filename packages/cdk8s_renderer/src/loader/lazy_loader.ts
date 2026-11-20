@@ -75,6 +75,33 @@ function checkGrep(): Promise<void> {
   });
 }
 
+/**
+ * Dotted location of the first field whose value references `ref`, naming
+ * list entries by their `name` (e.g. `providers.github.actions_variables.DEPLOY_HOST.value`).
+ */
+function findRefLocation(node: any, ref: string, path: string[] = []): string {
+  if (typeof node === 'string') {
+    const [kind, name] = ref.split(/-(.+)/);
+    const needle = `:${kind.toLowerCase()}:${name}:`;
+    return node.includes(ref) || node.toLowerCase().includes(needle)
+      ? path.join('.')
+      : '';
+  }
+
+  if (node && typeof node === 'object') {
+    for (const [key, child] of Object.entries(node)) {
+      const segment =
+        Array.isArray(node) && child && (child as any).name
+          ? (child as any).name
+          : key;
+      const found = findRefLocation(child, ref, [...path, segment]);
+      if (found) return found;
+    }
+  }
+
+  return '';
+}
+
 export async function loadClaim(
   claimRef: string,
   org: string,
@@ -187,19 +214,27 @@ export async function loadClaim(
 
     for (const ref of references) {
       if (!result[ref]) {
-        const [resolvedReferences] = await loadClaim(
-          ref,
-          org,
-          defaults,
-          patchClaim,
-          loadInitializers,
-          loadGlobals,
-          loadOverrides,
-          loadNormalizers,
-          cwd,
-          result,
-          postValidations,
-        );
+        let resolvedReferences;
+        try {
+          [resolvedReferences] = await loadClaim(
+            ref,
+            org,
+            defaults,
+            patchClaim,
+            loadInitializers,
+            loadGlobals,
+            loadOverrides,
+            loadNormalizers,
+            cwd,
+            result,
+            postValidations,
+          );
+        } catch (err) {
+          const where = findRefLocation(claim, ref);
+          throw new Error(
+            `${claimRef} references ${ref}${where ? ` via ${where}` : ''}: ${err instanceof Error ? err.message : String(err)}`,
+          );
+        }
         result = _.merge(result, resolvedReferences);
       }
     }

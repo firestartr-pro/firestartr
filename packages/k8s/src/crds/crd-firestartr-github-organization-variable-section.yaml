@@ -41,7 +41,6 @@ spec:
                     type: object
                     required:
                       - name
-                      - value
                       - visibility
                     properties:
                       name:
@@ -50,6 +49,20 @@ spec:
                       value:
                         type: string
                         description: Variable value
+                      ref:
+                        type: object
+                        description: Reference to a Kubernetes Secret key whose value is used as the variable value
+                        properties:
+                          kind:
+                            type: string
+                          name:
+                            type: string
+                          key:
+                            type: string
+                        required:
+                          - kind
+                          - name
+                          - key
                       visibility:
                         type: string
                         description: Visibility of the variable
@@ -62,6 +75,11 @@ spec:
                         description: Repository names in org/repo format
                         items:
                           type: string
+                    oneOf:
+                      - required:
+                          - value
+                      - required:
+                          - ref
                 context:
                   type: object
                   required:
