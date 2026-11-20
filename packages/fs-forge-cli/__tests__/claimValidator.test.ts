@@ -5,9 +5,10 @@ import { tmpdir } from 'os';
 import { join } from 'path';
 import YAML from 'yaml';
 
+import { claimSchemasDir } from '../src/schema/claimSchemas';
 import { createClaimValidator } from '../src/utils/ajvValidation';
 
-const SCHEMAS_DIR = join(process.cwd(), 'schemas');
+const SCHEMAS_DIR = claimSchemasDir(process.cwd());
 const VALID_COMPONENT = join(
   process.cwd(),
   '__tests__',

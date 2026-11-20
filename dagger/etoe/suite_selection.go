@@ -6,6 +6,7 @@ const crdUpgradeSuite = "crd-upgrade"
 const orgScriptCrdUpgradeSuite = "org-script-crd-upgrade"
 const k8sRateLimitsSuite = "k8s-rate-limits"
 const repoSecretsSuite = "component-repo-secrets-render-apply"
+const orgSecretsSuite = "org-secrets-render-apply"
 
 func suitesWithoutCrdUpgrade(suites string) string {
 	selected := []string{}
@@ -40,6 +41,7 @@ func shouldRunK8sRateLimits(suites string) bool {
 
 func shouldEnableProviderSecretEncryption(suites string) bool {
 	return suiteSelectionIncludes(suites, repoSecretsSuite) ||
+		suiteSelectionIncludes(suites, orgSecretsSuite) ||
 		suiteSelectionIncludes(suites, "github") ||
 		suiteSelectionIncludes(suites, "all")
 }

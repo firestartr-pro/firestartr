@@ -1,10 +1,11 @@
 import { describe, it, expect, beforeAll } from '@jest/globals';
 import { readFileSync } from 'fs';
 import { join } from 'path';
+import { claimSchemasDir } from '../src/schema/claimSchemas';
 import { createClaimValidator } from '../src/utils/ajvValidation';
 import YAML from 'yaml';
 
-const SCHEMAS_DIR = join(process.cwd(), 'schemas');
+const SCHEMAS_DIR = claimSchemasDir(process.cwd());
 
 const SCHEMA_KINDS = [
   'ComponentClaim',

@@ -2,8 +2,8 @@
 # FEATURE_NAME: build_and_dispatch_docker_images
 # FEATURE_VERSION: build_and_dispatch_docker_images-v6
 # FEATURE_URL: https://github.com/prefapp/features/tree/build_and_dispatch_docker_images-v6/packages/build_and_dispatch_docker_images
-# FEATURE_GIT_SHA: "2cf4c2292479e548ab620cf168bbe11567cc62fb"
-# FEATURE_GIT_TAGS: ["build_and_dispatch_docker_images-v6.0.0","build_and_dispatch_docker_images-v6"]
+# FEATURE_GIT_SHA: "f5418107613561e24c811085016dd55b93904fe2"
+# FEATURE_GIT_TAGS: ["build_and_dispatch_docker_images-v6.1.0","build_and_dispatch_docker_images-v6"]
 
 name: Build Docker pre-releases
 run-name: Generating pre-releases images for flavors "${{ inputs.flavors || 'auto-build' }}" at "${{ inputs.from || github.event.release.tag_name }}"

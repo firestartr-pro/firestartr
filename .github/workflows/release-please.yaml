@@ -2,8 +2,8 @@
 # FEATURE_NAME: release_please
 # FEATURE_VERSION: release_please-v2
 # FEATURE_URL: https://github.com/prefapp/features/tree/release_please-v2/packages/release_please
-# FEATURE_GIT_SHA: "74a34b61de0625058600a2cc8cbd78765d983124"
-# FEATURE_GIT_TAGS: ["release_please-v2.0.0","release_please-v2"]
+# FEATURE_GIT_SHA: "b4956bad732ad98e160d43a5f85cb5128634a34b"
+# FEATURE_GIT_TAGS: ["release_please-v2.0.1","release_please-v2"]
 
 name: Run Release Please
 
@@ -38,14 +38,18 @@ jobs:
           config-file: release-please-config.json
           manifest-file: .release-please-manifest.json
 
-      - uses: actions/checkout@v6
+      - uses: actions/checkout@v7
         if: false && steps.release.outputs.releases_created == 'true'
+        with:
+          persist-credentials: false
 
       - name: Get major version num and update tag
         if: false && steps.release.outputs.releases_created == 'true'
         env:
           GH_TOKEN: ${{ steps.generate-token.outputs.token }}
         run: |
+          # Configure git to use fs-state app to push the tag
+          git remote set-url origin "https://x-access-token:${{ steps.generate-token.outputs.token }}@github.com/${{ github.repository }}"
           USER_ID=$(gh api "/users/${{ steps.generate-token.outputs.app-slug }}[bot]" --jq .id)
           git config user.name "${{ steps.generate-token.outputs.app-slug }}[bot]"
           git config user.email "${USER_ID}+${{ steps.generate-token.outputs.app-slug }}[bot]@users.noreply.github.com"

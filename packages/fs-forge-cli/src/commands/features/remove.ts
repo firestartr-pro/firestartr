@@ -7,6 +7,7 @@ import {
 } from '../../utils/featureCommand.js';
 import { runFeatureMutation } from '../../features/mutation.js';
 import { auditTrailOptions } from '../../mutations/support.js';
+import { claimSchemasDir } from '../../schema/claimSchemas.js';
 
 export default class FeaturesRemove extends Command {
   static args = COMPONENT_ARG;
@@ -38,7 +39,7 @@ export default class FeaturesRemove extends Command {
         json: flags.json,
         feature: { name: flags.name },
       },
-      { schemasDir: `${this.config.root}/schemas` },
+      { schemasDir: claimSchemasDir(this.config.root) },
     );
   }
 }

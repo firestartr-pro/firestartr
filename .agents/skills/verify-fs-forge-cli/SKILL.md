@@ -35,8 +35,8 @@ launch opens its own unique run directory and also prints the matching
 `$FSF_HOME/latest`, so when more than one run is live, set `FSF_RUN` to the
 `RUN_DIR` your launch printed: `latest` follows the most recent launch, not
 yours. It records the repo's `git status` as a baseline. `npm run build`
-regenerates tracked files from `schemas/*.json`; a `WARN ... codegen drift`
-means the checkout was out of sync with its schemas. There is no server, so
+regenerates tracked files from the claims schemas package; a
+`WARN ... codegen drift` means the checkout was out of sync with its schemas. There is no server, so
 there is nothing to keep alive. Cleanup tears down.
 
 ## Doctor

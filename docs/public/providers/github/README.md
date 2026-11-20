@@ -16,6 +16,7 @@ provisioner reconciles them through pinned OpenTofu modules from
 | `ComponentClaim` | `providers.github.secrets` | `FirestartrGithubRepositorySecretsSection` | Actions, Codespaces, and Dependabot repository secrets. |
 | `OrgSettingsClaim` | `providers.github` | `FirestartrGithubOrganizationSettings` | Organization settings. |
 | `OrgSettingsClaim` | `providers.github.actions_variables` | `FirestartrGithubOrganizationVariableSection` | Organization Actions variables. |
+| `OrgSettingsClaim` | `providers.github.org_secrets` | `FirestartrGithubOrganizationSecretSection` | Actions, Codespaces, and Dependabot organization secrets. |
 | `OrgWebhookClaim` | `providers.github` | `FirestartrGithubOrgWebhook` | An organization webhook. |
 | `OrgRulesetClaim` | `providers.github` | `FirestartrGithubOrgRuleset` | An organization ruleset (branch, tag or push). |
 
@@ -37,6 +38,7 @@ commits:
 | `FirestartrGithubRepositorySecretsSection` | `github-repo-secrets-section` |
 | `FirestartrGithubOrganizationSettings` | `github-org-settings` |
 | `FirestartrGithubOrganizationVariableSection` | `github-org-variables-section` |
+| `FirestartrGithubOrganizationSecretSection` | `github-org-secrets-section` |
 | `FirestartrGithubOrgWebhook` | `github-org-webhook` |
 | `FirestartrGithubOrgRuleset` | `github-org-ruleset` |
 
@@ -109,6 +111,7 @@ coverage is entity-specific:
 | Repository | Repository, default branch, OIDC template, declared branch protections, Actions variables, and Pages. Files, teams, and collaborators are **not** imported. |
 | Repository labels | Adopted during `apply` when they already exist (and updated to match the claim). |
 | Organization variables | Adopted during `apply` only; explicit import discovers nothing. |
+| Organization secrets | Adopted during `apply` per domain when they already exist; the fingerprint is dropped so Terraform rewrites the value on a *later* reconciliation, not in the importing apply; trigger it with the `firestartr.dev/reconcile-at` annotation (see [OrgSettingsClaim](./org-settings.md#imports-and-adoption)). Explicit import discovers nothing. |
 | Organization webhook | Imported by matching webhook URL. |
 | Organization ruleset | Imported by matching ruleset name. |
 | Repository secrets | No import/adoption. |
@@ -127,6 +130,8 @@ Several fields reference other claims:
 - Component secret values: `ref:secretsclaim:<secrets-claim-name>:<secret-key>`.
 - Org webhook `secretRef`: `ref:secretsclaim:<secrets-claim-name>:<secret-key>`.
 - Organization variable `selected_repositories`: `component:<name>`.
+- Organization secret values: `ref:secretsclaim:<secrets-claim-name>:<secret-key>`.
+- Organization secret `selected_repositories`: `component:<name>`.
 
 ## Per-claim reference
 
