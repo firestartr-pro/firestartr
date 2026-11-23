@@ -7,4 +7,5 @@ export { CatalogTFWorkspaceChart } from './tfWorkspaceChart';
 export { CatalogArgoDeployChart } from './argodeployChart';
 export { CatalogSecretsChart } from './secretsChart';
 export { CatalogOrgWebhookChart } from './orgWebhookChart';
+export { CatalogOrgRulesetChart } from './orgRulesetChart';
 export { CatalogApiChart } from './apiChart';
