@@ -11,9 +11,11 @@ merges, approves, clicks "Update branch", or pushes to a Dependabot branch.
 
 ## Prerequisites
 
-Run `gh auth status`. Check that `socket` is logged in with `socket login`
-(it shows the setup flow). If either fails, stop and show the fix: `gh auth login`
-or `socket login`. If the Socket call fails mid-triage, the script stops with its error.
+Run `gh auth status`. Run `socket login` once: `socket package score` needs a
+token with `packages:list`. No organization, no dashboard policy and nothing to
+configure; the score is per package and nothing is uploaded. If either fails,
+stop and show the fix. If the score fails mid-triage, the script records
+`socket unknown` and stops.
 
 ## Modes
 
@@ -29,9 +31,34 @@ PR and keeps one summary comment up to date. Use `--dry-run` to preview. The
 script prints jump, level, path, Socket verdict, required checks and the squash
 subject. Those are the source of truth; don't recompute them.
 
-If `socket` is `alert`, the script sets `step: stopped: socket alert` and posts
-the findings. **Stop.** Report the findings to the user and wait. Any Socket
-finding stops the flow, whatever its severity.
+The gate scores the package and target version from the PR title with
+`socket package score npm <name>@<version> --json`, so the verdict is about the
+release that would land:
+
+| Verdict | Meaning | Script does | Label |
+|---|---|---|---|
+| `ok` | no critical supply-chain alert | continue | `socket/ok` |
+| `block` | `supplyChainRisk` + `critical` (malware) in the package or its dependencies | `stopped: socket block`, lists the alerts | `socket/block` |
+| `unknown` | no score: no token, CLI error, version not on the registry | `stopped: socket unknown` | `socket/unknown` |
+
+**Stop** on `block` and on `unknown`. Report the alert or the missing score to
+the user and wait. CVEs, install scripts, network access, obfuscation heuristics
+and licence or maintenance alerts never stop a bump: the bump is usually the fix,
+and the cooldown covers newness. Rationale and the `dependabot.yml` holds:
+`docs/adr/0007-dependency-update-policy.md`.
+
+## Socket block on a legitimate PR
+
+Only when the score flags malware on a release you believe is legitimate:
+
+1. `npm diff --diff=<pkg>@<old> --diff=<pkg>@<new>`: no new install scripts,
+   network calls, obfuscation or dependencies, and the change matches the advisory.
+2. The advisory is real (GitHub Advisory Database, release notes) and the npm
+   publisher is unchanged.
+3. Comment on the PR saying it was reviewed, and stop. A person decides the rest.
+
+Never special-case one package or version to unblock a PR. If the rule is wrong,
+it changes in `parseSocketScore`, in its own PR.
 
 ## Path A: merge the Dependabot PR
 
@@ -84,4 +111,5 @@ replies and resolves the threads. Never resolve a thread without a reply.
 - Never stack a PR on top of the Dependabot PR.
 - Let Dependabot close a superseded PR after the replacement updates the dependency.
 - Never comment `@dependabot ignore this major version`.
+- Never special-case a package or version to unblock a PR; a rule change is its own PR.
 - Never merge or approve. Only a person does that.

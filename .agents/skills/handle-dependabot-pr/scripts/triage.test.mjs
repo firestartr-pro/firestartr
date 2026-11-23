@@ -6,16 +6,18 @@ import { fileURLToPath } from "node:url";
 import {
   buildTriage,
   classify,
+  dedupeAlerts,
+  isBlocker,
   levelOf,
   nextState,
   parseBumpTitle,
   parseLevels,
+  parseSocketScore,
   parseState,
   pathFor,
   pickSummary,
   renderComment,
   requiredChecks,
-  socketAlerts,
   versionJump,
 } from "./triage.mjs";
 
@@ -175,9 +177,101 @@ test("levelOf falls back to unclassified for unknown packages", () => {
   assert.equal(levelOf("not-in-lock", l, levels), "unclassified");
 });
 
-test("socketAlerts finds alerts at any depth and ignores empty lists", () => {
-  assert.deepEqual(socketAlerts({ score: 90, alerts: [] }), []);
-  assert.equal(socketAlerts({ a: { b: [{ alerts: [{ type: "malware" }] }] } }).length, 1);
+// Score fixtures, shaped like `socket package score npm <pkg>@<ver> --json`:
+// `{ ok, data: { self: { alerts }, transitively: { alerts } } }`, where every
+// alert is `{ name, severity, category, example }`.
+function scoreReport({ self = [], transitively = [] } = {}) {
+  return JSON.stringify({
+    ok: true,
+    data: {
+      purl: "pkg:npm/lodash@4.17.21",
+      self: { alerts: self },
+      transitively: { alerts: transitively },
+    },
+  });
+}
+
+function alert(
+  name = "malware",
+  severity = "critical",
+  category = "supplyChainRisk",
+  example = "npm/evil-pkg@1.0.0",
+) {
+  return { name, severity, category, example };
+}
+
+test("parseSocketScore blocks on a critical supply-chain alert", () => {
+  const result = parseSocketScore({ exitCode: 0, stdout: scoreReport({ self: [alert()] }) });
+  assert.equal(result.verdict, "block");
+  assert.equal(result.alerts.length, 1);
+  assert.equal(result.alerts[0].name, "malware");
+});
+
+test("parseSocketScore blocks on malware anywhere in the tree", () => {
+  const result = parseSocketScore({
+    exitCode: 0,
+    stdout: scoreReport({ transitively: [alert("malware", "critical", "supplyChainRisk", "npm/evil-dep@2.0.0")] }),
+  });
+  assert.equal(result.verdict, "block");
+  assert.equal(result.alerts[0].example, "npm/evil-dep@2.0.0");
+});
+
+test("parseSocketScore passes CVEs, heuristics and maintenance alerts but keeps them", () => {
+  const stdout = scoreReport({
+    self: [
+      alert("criticalCVE", "critical", "vulnerability"),
+      alert("mediumCVE", "middle", "vulnerability"),
+      alert("installScripts", "middle", "supplyChainRisk"),
+      alert("networkAccess", "middle", "supplyChainRisk"),
+      alert("deprecated", "middle", "maintenance"),
+      alert("unpopularPackage", "low", "maintenance"),
+    ],
+  });
+  const result = parseSocketScore({ exitCode: 0, stdout });
+  assert.equal(result.verdict, "ok");
+  assert.equal(result.alerts.length, 6);
+  assert.ok(result.alerts.every((a) => !isBlocker(a)));
+});
+
+test("an ok score renders its informational findings without stopping", () => {
+  const stdout = scoreReport({ self: [alert("cve", "high", "vulnerability")] });
+  const t = buildTriage({
+    name: "lodash",
+    from: "4.17.21",
+    to: "4.17.22",
+    lock: lock({ "": { dependencies: { lodash: "^4" } }, "node_modules/lodash": {} }),
+    levels,
+    socketResult: parseSocketScore({ exitCode: 0, stdout }),
+  });
+  assert.equal(t.socket, "ok");
+  const body = renderComment(t, { head: "h", step: "triaged", runs: "", replacement: null });
+  assert.ok(body.includes("Informational findings"));
+  assert.ok(body.includes("cve · high · npm/evil-pkg@1.0.0"));
+});
+
+test("parseSocketScore lists one alert once, even when self and transitively repeat it", () => {
+  const result = parseSocketScore({ exitCode: 0, stdout: scoreReport({ self: [alert()], transitively: [alert()] }) });
+  assert.equal(result.verdict, "block");
+  assert.equal(result.alerts.length, 1);
+});
+
+test("parseSocketScore passes only on an explicit success from a successful exit", () => {
+  const apiError = JSON.stringify({ ok: false, message: "Socket API error" });
+  assert.equal(parseSocketScore({ exitCode: 1, stdout: apiError }).verdict, "unknown");
+  assert.equal(parseSocketScore({ exitCode: 1, stdout: scoreReport() }).verdict, "unknown");
+  assert.equal(parseSocketScore({ exitCode: 0, stdout: "" }).verdict, "unknown");
+  assert.equal(parseSocketScore({ exitCode: 0, stdout: "OK" }).verdict, "unknown");
+  assert.equal(parseSocketScore({ exitCode: 0, stdout: '{"ok":true}' }).verdict, "unknown");
+});
+
+test("parseSocketScore reads a report that also carries CLI noise around the JSON", () => {
+  const stdout = `✔ done\n${scoreReport()}\n`;
+  assert.equal(parseSocketScore({ exitCode: 0, stdout }).verdict, "ok");
+});
+
+test("dedupeAlerts folds the same alert and keeps different packages apart", () => {
+  const alerts = [alert(), alert(), alert("malware", "critical", "supplyChainRisk", "npm/other@1.0.0")];
+  assert.equal(dedupeAlerts(alerts).length, 2);
 });
 
 test("requiredChecks follow the level and path rules", () => {
@@ -198,7 +292,7 @@ test("requiredChecks follow the level and path rules", () => {
   assert.deepEqual(requiredChecks("dev", "B", "major"), ["Copilot review", "CI"]);
 });
 
-test("buildTriage produces labels, squash subject and a stopping socket alert", () => {
+test("buildTriage produces labels, squash subject and a stopping socket block", () => {
   const l = lock({
     "": { dependencies: { lodash: "^4" } },
     "node_modules/lodash": {},
@@ -209,13 +303,16 @@ test("buildTriage produces labels, squash subject and a stopping socket alert", 
     to: "4.18.1",
     lock: l,
     levels,
-    socketResult: { alerts: [{ name: "malware", severity: "critical", category: "malware" }] },
+    socketResult: {
+      verdict: "block",
+      alerts: [alert("malware", "critical", "supplyChainRisk", "npm/lodash@4.18.1")],
+    },
   });
   assert.equal(t.jump, "minor");
   assert.equal(t.path, "A");
   assert.equal(t.level, "runtime");
-  assert.equal(t.socket, "alert");
-  assert.deepEqual(t.labels, ["jump/minor", "level/runtime", "path/A", "socket/alert"]);
+  assert.equal(t.socket, "block");
+  assert.deepEqual(t.labels, ["jump/minor", "level/runtime", "path/A", "socket/block"]);
   assert.equal(t.squash, "chore: bump lodash from 4.17.21 to 4.18.1");
 });
 
@@ -226,7 +323,7 @@ test("buildTriage uses chore subjects for all dependency levels", () => {
     to: "5.4.1",
     lock: lock({ "": { devDependencies: { typescript: "^5" } }, "node_modules/typescript": {} }),
     levels,
-    socketResult: { alerts: [] },
+    socketResult: { verdict: "ok", alerts: [] },
   });
   assert.equal(dev.squash, "chore: bump typescript from 5.4.0 to 5.4.1");
   assert.equal(dev.socket, "ok");
@@ -237,7 +334,7 @@ test("buildTriage uses chore subjects for all dependency levels", () => {
     to: "4.17.22",
     lock: lock({ "": { dependencies: { lodash: "^4" } }, "node_modules/lodash": {} }),
     levels,
-    socketResult: { alerts: [] },
+    socketResult: { verdict: "ok", alerts: [] },
   });
   assert.equal(runtime.squash, "chore: bump lodash from 4.17.21 to 4.17.22");
 
@@ -247,7 +344,7 @@ test("buildTriage uses chore subjects for all dependency levels", () => {
     to: "1.0.1",
     lock: lock({ "": { dependencies: { "@kubernetes/client-node": "^1" } }, "node_modules/@kubernetes/client-node": {} }),
     levels,
-    socketResult: { alerts: [] },
+    socketResult: { verdict: "ok", alerts: [] },
   });
   assert.equal(critical.squash, "chore: bump @kubernetes/client-node from 1.0.0 to 1.0.1");
 });
@@ -260,17 +357,32 @@ test("nextState keeps step and runs while the head is unchanged", () => {
   assert.deepEqual(nextState(t, null, "abc"), { head: "abc", step: "triaged", runs: "", replacement: null });
 });
 
-test("nextState always stops on a Socket alert", () => {
+test("nextState always stops on a Socket block", () => {
   const previous = { head: "abc", step: "e2e started", runs: "9", replacement: null };
-  assert.deepEqual(nextState({ socket: "alert" }, previous, "abc"), {
+  assert.deepEqual(nextState({ socket: "block" }, previous, "abc"), {
     head: "abc",
-    step: "stopped: socket alert",
+    step: "stopped: socket block",
     runs: "",
     replacement: null,
   });
 });
 
-test("nextState resumes after a Socket stop once the alert clears", () => {
+test("nextState always stops on an unknown Socket result", () => {
+  const previous = { head: "abc", step: "e2e started", runs: "9", replacement: null };
+  assert.deepEqual(nextState({ socket: "unknown" }, previous, "abc"), {
+    head: "abc",
+    step: "stopped: socket unknown",
+    runs: "",
+    replacement: null,
+  });
+});
+
+test("nextState resumes after a Socket stop once the verdict clears", () => {
+  const previous = { head: "abc", step: "stopped: socket block", runs: "", replacement: null };
+  assert.deepEqual(nextState({ socket: "ok" }, previous, "abc"), { head: "abc", step: "triaged", runs: "", replacement: null });
+});
+
+test("an old stopped: socket alert step resumes to triaged on retriage", () => {
   const previous = { head: "abc", step: "stopped: socket alert", runs: "", replacement: null };
   assert.deepEqual(nextState({ socket: "ok" }, previous, "abc"), { head: "abc", step: "triaged", runs: "", replacement: null });
 });
@@ -313,7 +425,7 @@ test("a recorded replacement PR keeps Path B and its checks on retriage", () => 
     to: "5.4.1",
     lock: lock({ "": { devDependencies: { typescript: "^5" } }, "node_modules/typescript": {} }),
     levels,
-    socketResult: { alerts: [] },
+    socketResult: { verdict: "ok", alerts: [] },
     replacement: 170,
   });
   assert.equal(t.path, "B");
@@ -330,21 +442,80 @@ test("pickSummary only trusts summaries from authorized collaborators", () => {
   assert.equal(pickSummary(comments.slice(0, 1), new Set(["teammate"])), null);
 });
 
-test("any Socket finding, even a low one, stops the flow", () => {
-  const alerts = [
-    { name: "shellAccess", severity: "middle", category: "supplyChainRisk", example: "npm/cdk8s@2.70.114" },
-    { name: "networkAccess", severity: "low", category: "supplyChainRisk", example: "npm/x@1.0.0" },
-  ];
+test("a Socket block lists each alert once", () => {
   const t = buildTriage({
     name: "typescript",
     from: "5.4.0",
     to: "5.4.1",
     lock: lock({ "": { devDependencies: { typescript: "^5" } }, "node_modules/typescript": {} }),
     levels,
-    socketResult: { alerts },
+    socketResult: {
+      verdict: "block",
+      alerts: [alert(), alert()],
+    },
   });
-  assert.equal(t.socket, "alert");
-  assert.equal(t.socketAlerts.length, 2);
-  assert.ok(t.labels.includes("socket/alert"));
-  assert.ok(renderComment(t, { head: "h", step: "stopped: socket alert", runs: "", replacement: null }).includes("Stopped: Socket alert"));
+  assert.equal(t.socket, "block");
+  assert.equal(t.socketAlerts.length, 1);
+  assert.ok(t.labels.includes("socket/block"));
+  const body = renderComment(t, { head: "h", step: "stopped: socket block", runs: "", replacement: null });
+  assert.ok(body.includes("Stopped: Socket block"));
+  assert.equal(body.match(/malware/g).length, 1);
+  assert.ok(!body.includes("Informational findings"));
+});
+
+test("a block review still shows the nonblocking findings", () => {
+  const t = buildTriage({
+    name: "node-ipc",
+    from: "10.1.0",
+    to: "10.1.1",
+    lock: lock({ "": { dependencies: { "node-ipc": "^10" } }, "node_modules/node-ipc": {} }),
+    levels,
+    socketResult: {
+      verdict: "block",
+      alerts: [alert("malware"), alert("criticalCVE", "critical", "vulnerability")],
+    },
+  });
+  const body = renderComment(t, { head: "h", step: "stopped: socket block", runs: "", replacement: null });
+  assert.ok(body.includes("Stopped: Socket block"));
+  assert.ok(body.includes("Informational findings"));
+  assert.ok(body.includes("criticalCVE"));
+  // The blocker is listed above the informational section, once.
+  assert.ok(body.indexOf("- malware") < body.indexOf("Informational findings"));
+});
+
+test("a Socket unknown reports the notice and no alerts", () => {
+  const t = buildTriage({
+    name: "typescript",
+    from: "5.4.0",
+    to: "5.4.1",
+    lock: lock({ "": { devDependencies: { typescript: "^5" } }, "node_modules/typescript": {} }),
+    levels,
+    socketResult: { verdict: "unknown", alerts: [] },
+  });
+  assert.ok(t.labels.includes("socket/unknown"));
+  assert.ok(
+    renderComment(t, { head: "h", step: "stopped: socket unknown", runs: "", replacement: null }).includes(
+      "Stopped: Socket unknown",
+    ),
+  );
+});
+
+test("#182 does not stop: a new release with no malware alert passes", () => {
+  // The old gate stopped on `recentlyPublished`, which means "new", not
+  // "malicious". The score path only blocks critical supply-chain alerts.
+  const stdout = scoreReport({
+    self: [alert("unpopularPackage", "low", "maintenance"), alert("newAuthor", "low", "supplyChainRisk")],
+    transitively: [alert("mediumCVE", "middle", "vulnerability")],
+  });
+  const t = buildTriage({
+    name: "globals",
+    from: "17.13.0",
+    to: "17.14.0",
+    lock: lock({ "": { devDependencies: { globals: "^17" } }, "node_modules/globals": {} }),
+    levels,
+    socketResult: parseSocketScore({ exitCode: 0, stdout }),
+  });
+  assert.equal(t.socket, "ok");
+  assert.equal(t.socketAlerts.length, 3);
+  assert.ok(t.socketAlerts.every((a) => !isBlocker(a)));
 });

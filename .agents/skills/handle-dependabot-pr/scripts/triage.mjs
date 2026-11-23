@@ -148,26 +148,61 @@ export function pickSummary(comments, trusted) {
   return comments.find((c) => c.body?.includes(MARKER) && trusted.has(c.user?.login)) ?? null;
 }
 
-// Socket gate. Any alert found anywhere in the score output stops the flow.
-export function socketAlerts(node, found = []) {
-  if (Array.isArray(node)) {
-    node.forEach((child) => socketAlerts(child, found));
-  } else if (node && typeof node === "object") {
-    for (const [key, value] of Object.entries(node)) {
-      if (key === "alerts" && Array.isArray(value) && value.length > 0) {
-        found.push(...value);
-      } else {
-        socketAlerts(value, found);
-      }
-    }
+// Socket gate. One command answers "is this release malware?": `socket package
+// score` on the package and version from the PR title, with the operator's own
+// token. No organization, no dashboard policy, no scan upload.
+export function jsonPayload(stdout) {
+  for (const payload of [stdout, stdout?.slice(stdout.indexOf("{"), stdout.lastIndexOf("}") + 1)]) {
+    try {
+      return JSON.parse(payload);
+    } catch {}
   }
-  return found;
+  return null;
+}
+
+// `supplyChainRisk` + `critical` is how Socket flags known malware. Every other
+// alert — CVEs, install scripts, network access, licences, maintenance — is
+// information: a bump is usually the fix, and stopping on it stalls the flow.
+export function isBlocker(alert) {
+  return alert?.category === "supplyChainRisk" && alert?.severity === "critical";
+}
+
+// The score puts the package's own alerts under `self` and the whole dependency
+// tree under `transitively`. Both are kept, deduplicated, and returned: only
+// `isBlocker` decides the verdict, the rest is context for the reader. Only an
+// explicit success from a successful exit passes: a missing token, a CLI error,
+// `ok: false` or a version that is not on the registry is unknown.
+export function parseSocketScore({ exitCode, stdout }) {
+  const payload = jsonPayload(stdout);
+  if (exitCode !== 0 || payload?.ok !== true || !payload.data) return { verdict: "unknown", alerts: [] };
+  const alerts = dedupeAlerts([
+    ...(payload.data?.self?.alerts ?? []),
+    ...(payload.data?.transitively?.alerts ?? []),
+  ]);
+  return { verdict: alerts.some(isBlocker) ? "block" : "ok", alerts };
+}
+
+// One finding shows up once per package and again in the tree. The comment
+// lists it once, but two different packages stay separate.
+export function dedupeAlerts(alerts) {
+  const seen = new Set();
+  return alerts.filter((alert) => {
+    const key = [
+      alert.name ?? alert.type ?? "?",
+      alert.severity ?? "",
+      alert.example ?? alert.package ?? "",
+      alert.version ?? "",
+    ].join(" ");
+    if (seen.has(key)) return false;
+    seen.add(key);
+    return true;
+  });
 }
 
 function describeAlert(alert) {
-  if (typeof alert === "string") return alert;
-  const where = alert.example ? ` (${alert.example})` : "";
-  return `${alert.name} · ${alert.severity} · ${alert.category}${where}`;
+  const severity = alert.severity ? ` · ${alert.severity}` : "";
+  const where = alert.example ? ` · ${alert.example}` : "";
+  return `${alert.name ?? alert.type ?? "alert"}${severity}${where}`;
 }
 
 export function squashSubject(name, from, to, level) {
@@ -189,7 +224,7 @@ export function buildTriage({ name, from, to, lock, levels, socketResult, replac
   const jump = versionJump(from, to);
   const path = replacement ? "B" : pathFor(jump);
   const level = levelOf(name, lock, levels);
-  const socket = socketResult.alerts.length > 0 ? "alert" : "ok";
+  const socket = socketResult.verdict;
   return {
     name,
     from,
@@ -201,7 +236,7 @@ export function buildTriage({ name, from, to, lock, levels, socketResult, replac
     labels: [`jump/${jump}`, `level/${level}`, `path/${path}`, `socket/${socket}`],
     checks: requiredChecks(level, path, jump),
     squash: squashSubject(name, from, to, level),
-    socketAlerts: socketResult.alerts,
+    socketAlerts: dedupeAlerts(socketResult.alerts),
   };
 }
 
@@ -216,9 +251,11 @@ export function parseState(body) {
 // Keep the recorded step and run IDs while the head being checked and the
 // replacement PR are unchanged, so resuming never repeats work. The head is the
 // replacement PR's when one is set, otherwise the Dependabot PR's. A Socket
-// alert always stops the flow.
+// block or unknown result always stops the flow, and every old
+// `stopped: socket*` step restarts at triaged so #182-style PRs recover.
 export function nextState(t, previous, head, replacement = previous?.replacement ?? null) {
-  if (t.socket === "alert") return { head, step: "stopped: socket alert", runs: "", replacement };
+  if (t.socket === "block") return { head, step: "stopped: socket block", runs: "", replacement };
+  if (t.socket === "unknown") return { head, step: "stopped: socket unknown", runs: "", replacement };
   const resumable =
     previous &&
     previous.head === head &&
@@ -238,9 +275,28 @@ export function renderComment(t, state) {
     `- Checks still required: ${t.checks.join(", ")}`,
     `- Squash subject: \`${t.squash}\``,
   ];
-  if (t.socket === "alert") {
-    lines.push("", "**Stopped: Socket alert.** Review the findings before going further.");
-    for (const alert of t.socketAlerts.slice(0, 20)) lines.push(`- ${describeAlert(alert)}`);
+  if (t.socket === "block") {
+    lines.push(
+      "",
+      "**Stopped: Socket block.** Socket flags this release as a critical",
+      "supply-chain risk. Do not merge.",
+    );
+    for (const alert of t.socketAlerts.filter(isBlocker).slice(0, 20)) lines.push(`- ${describeAlert(alert)}`);
+  }
+  // A block review needs the rest of the picture too: a CVE does not stop the
+  // bump, but it belongs in front of whoever decides.
+  const contextual = t.socket === "unknown" ? [] : t.socketAlerts.filter((alert) => !isBlocker(alert));
+  if (contextual.length > 0) {
+    lines.push("", "**Informational findings.** Not blocking, listed for context.");
+    for (const alert of contextual.slice(0, 20)) lines.push(`- ${describeAlert(alert)}`);
+  }
+  if (t.socket === "unknown") {
+    lines.push(
+      "",
+      "**Stopped: Socket unknown.** No score for this release: the CLI failed, there",
+      `is no token, or \`${t.name}@${t.to}\` is not on the registry. Run`,
+      `\`socket package score npm ${t.name}@${t.to} --json\` by hand, then retriage.`,
+    );
   }
   lines.push("", `head: ${state.head}`);
   if (state.replacement) lines.push(`replacement: #${state.replacement}`);
@@ -254,24 +310,25 @@ async function gh(args) {
   return stdout;
 }
 
+// Scores one package version, not a tree: the package and its target version
+// come from the PR title, so there is no worktree and no full scan. Anything
+// that prevents the call (missing CLI, no token, an unknown version) is
+// unknown, so triage stops instead of passing silently.
 async function socketScore(name, version) {
-  let stdout;
   try {
-    ({ stdout } = await execFileAsync(
+    const { stdout } = await execFileAsync(
       "socket",
       ["package", "score", "npm", `${name}@${version}`, "--json"],
       { maxBuffer: 64 * 1024 * 1024 },
-    ));
+    );
+    return parseSocketScore({ exitCode: 0, stdout });
   } catch (err) {
-    throw new Error(`socket failed for ${name}@${version}: ${err.stderr || err.message}`);
+    // A missing token or an unknown version exits non-zero and still prints JSON.
+    if (typeof err.stdout === "string" && err.stdout.trim()) {
+      return parseSocketScore({ exitCode: err.code ?? 1, stdout: err.stdout });
+    }
+    return { verdict: "unknown", alerts: [] };
   }
-  let json;
-  try {
-    json = JSON.parse(stdout);
-  } catch {
-    throw new Error(`socket returned non-JSON output for ${name}@${version}`);
-  }
-  return { alerts: socketAlerts(json), raw: json };
 }
 
 async function repoSlug() {
@@ -314,15 +371,18 @@ async function triagePr(number, { dryRun, slug, levels, replacementOverride }) {
   if (!bump) throw new Error(`#${number}: cannot read package and versions from title "${pr.title}"`);
 
   const lock = JSON.parse(await fileAt(slug, pr.headRefName, "package-lock.json"));
-  const socketResult = await socketScore(bump.name, bump.to);
 
   const existing = await findSummary(slug, number);
   const previous = existing ? parseState(existing.body) : null;
   const replacement = replacementOverride ?? previous?.replacement ?? null;
+  // Path B is judged on the replacement PR's tree, which is the one that lands.
+  const source = replacement
+    ? JSON.parse(await gh(["pr", "view", String(replacement), "--json", "headRefOid"]))
+    : pr;
+  const head = source.headRefOid;
+  const socketResult = await socketScore(bump.name, bump.to);
+
   const t = buildTriage({ ...bump, lock, levels, socketResult, replacement });
-  const head = replacement
-    ? (await gh(["pr", "view", String(replacement), "--json", "headRefOid", "-q", ".headRefOid"])).trim()
-    : pr.headRefOid;
   const state = nextState(t, previous, head, replacement);
   const body = renderComment(t, state);
 
