@@ -616,6 +616,68 @@ describe('createGhApi org variable helpers', () => {
     });
   });
 
+  it('keeps string org variable values, including empty ones, when finding by name', async () => {
+    mockOctokit({
+      rest: {
+        actions: {
+          getOrgVariable: jest.fn().mockResolvedValue({
+            data: { name: 'VAR_A', visibility: 'all', value: '' },
+          }),
+        },
+      },
+    });
+
+    const api = createGhApi(createState());
+
+    await expect(api.findOrgVariableByName('VAR_A')).resolves.toEqual({
+      name: 'VAR_A',
+      visibility: 'all',
+      value: '',
+    });
+  });
+
+  it('omits non-string org variable values when finding by name', async () => {
+    mockOctokit({
+      rest: {
+        actions: {
+          getOrgVariable: jest.fn().mockResolvedValue({
+            data: { name: 'VAR_A', visibility: 'all', value: 42 },
+          }),
+        },
+      },
+    });
+
+    const api = createGhApi(createState());
+
+    const variable = await api.findOrgVariableByName('VAR_A');
+    expect(variable).toEqual({ name: 'VAR_A', visibility: 'all' });
+    expect(variable).not.toHaveProperty('value');
+  });
+
+  it('keeps string org variable values when listing', async () => {
+    mockOctokit({
+      rest: {
+        actions: {
+          listOrgVariables: jest.fn().mockResolvedValue({
+            data: {
+              variables: [
+                { name: 'VAR_A', visibility: 'all', value: 'plain' },
+                { name: 'VAR_B', visibility: 'all', value: null },
+              ],
+            },
+          }),
+        },
+      },
+    });
+
+    const api = createGhApi(createState());
+
+    await expect(api.listOrgVariables()).resolves.toEqual([
+      { name: 'VAR_A', visibility: 'all', value: 'plain' },
+      { name: 'VAR_B', visibility: 'all' },
+    ]);
+  });
+
   it('returns null when an org variable is not found', async () => {
     const getOrgVariable = jest
       .fn()
