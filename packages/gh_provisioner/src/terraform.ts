@@ -34,6 +34,13 @@ const MODULES = {
     // github-org-webhook-v0.2.0
     ref: '12d72ba15780647b2f9c2905938913344bfeaa4d',
   },
+  FirestartrGithubOrgRuleset: {
+    module:
+      'git::https://github.com/prefapp/tfm.git//modules/github-org-ruleset',
+    // prefapp/tfm#1476 (repository_property and bypass actor slugs), not
+    // released yet: bump to the github-org-ruleset release that includes it
+    ref: 'dce11d80a2a3cb642abfc53288803d4927e5e6b7',
+  },
   FirestartrGithubOrganizationSettings: {
     module:
       'git::https://github.com/prefapp/tfm.git//modules/github-org-settings',

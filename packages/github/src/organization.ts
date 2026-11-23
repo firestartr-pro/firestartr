@@ -133,6 +133,21 @@ export async function getWebhookList(org: string, octokit?: any): Promise<any> {
   return webhooks;
 }
 
+export async function getRulesetList(org: string, octokit?: any): Promise<any> {
+  log.info(`Getting rulesets for org ${org}`);
+
+  if (!octokit) {
+    octokit = await getOctokitForOrg(org);
+  }
+
+  return await octokit.paginate(
+    octokit.repos.getOrgRulesets.endpoint.merge({
+      org: org,
+      per_page: defaultPerPage,
+    }),
+  );
+}
+
 export async function getOrgTeamsDirectAccess(org: string, octokit?: any) {
   log.info(`Getting teams for org ${org}`);
 
@@ -269,5 +284,6 @@ export default {
   getOrgTeamsDirectAccess,
   getOrgPlanName,
   getWebhookList,
+  getRulesetList,
   getOrgVariable,
 };

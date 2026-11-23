@@ -28,6 +28,7 @@ const DELETION_WEIGHTS: any = {
   FirestartrGithubMembership: 1,
   FirestartrTerraformWorkspace: 1,
   FirestartrGithubOrgWebhook: 1,
+  FirestartrGithubOrgRuleset: 1,
 };
 
 const CREATION_WEIGHTS: any = {
