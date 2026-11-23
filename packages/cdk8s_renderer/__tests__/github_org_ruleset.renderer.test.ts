@@ -155,6 +155,28 @@ describe('GitHub organization ruleset rendering', () => {
     expect(cr.spec.ruleset.conditions.ref_name).toBeUndefined();
   });
 
+  it('bounds the connection secret name for long ruleset names', async () => {
+    // 185 characters keeps the CR file name under the filesystem limit while
+    // still overflowing the 253-character Secret name.
+    const longName = 'a'.repeat(185);
+
+    await context.applyPatches('orgruleset_a', [
+      { op: 'replace', path: '/providers/github/name', value: longName },
+    ]);
+
+    const { renderedMap } = await render();
+
+    const cr = findRulesetCr(renderedMap, longName);
+
+    expect(cr.metadata.name).toHaveLength(222);
+    expect(cr.spec.writeConnectionSecretToRef.name).toHaveLength(253);
+    expect(cr.spec.writeConnectionSecretToRef.name).toMatch(
+      new RegExp(
+        `^firestartrgithuborgruleset-a{181}-${cr.spec.firestartr.tfStateKey}-outputs$`,
+      ),
+    );
+  });
+
   it('renders a catalog Resource of type ruleset', async () => {
     const { renderedMap } = await render();
 
