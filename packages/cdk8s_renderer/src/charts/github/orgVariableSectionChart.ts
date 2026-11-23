@@ -1,3 +1,4 @@
+import common from 'catalog_common';
 import {
   FirestartrGithubOrganizationVariableSection,
   FirestartrGithubOrganizationVariableSectionProps,
@@ -7,6 +8,10 @@ import { IUnitializedStateKey } from '../../claims/base';
 import { IGithubOrgSettingsClaim } from '../../claims/github/orgSettings';
 import { BaseGithubChart } from './base';
 import { ChartRenderError } from '../base';
+import {
+  extractRepoSecretRef,
+  isRepoSecretRef,
+} from '../../utils/repositoryClaimUtils';
 
 export class GithubOrgVariableSectionChart extends BaseGithubChart {
   public template():
@@ -19,10 +24,20 @@ export class GithubOrgVariableSectionChart extends BaseGithubChart {
       (v) => {
         const entry: any = {
           name: v.name,
-          value: v.value,
           visibility:
             v.visibility as FirestartrGithubOrganizationVariableSectionSpecActionsVariablesVisibility,
         };
+
+        if (isRepoSecretRef(v.value)) {
+          const { name, key } = extractRepoSecretRef(v.value);
+          entry.ref = {
+            kind: 'Secret',
+            name: common.generic.normalizeName(name),
+            key,
+          };
+        } else {
+          entry.value = v.value;
+        }
 
         if (v.selected_repositories && v.selected_repositories.length > 0) {
           entry.selectedRepositories = v.selected_repositories.map((ref) => {
