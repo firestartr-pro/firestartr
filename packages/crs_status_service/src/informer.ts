@@ -52,6 +52,7 @@ function pluralToKind(plural: string): string {
     githubrepositoryfeatures: 'FirestartrGithubRepositoryFeature',
     githubmemberships: 'FirestartrGithubMembership',
     githuborgwebhooks: 'FirestartrGithubOrgWebhook',
+    githuborgrulesets: 'FirestartrGithubOrgRuleset',
     githuborganizationsettings: 'FirestartrGithubOrganizationSettings',
   };
   return map[plural] || plural;
