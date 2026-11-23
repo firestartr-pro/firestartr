@@ -33,7 +33,7 @@
   },
   "dependencies": {
     "@octokit/plugin-paginate-graphql": "^6.0.0",
-    "@octokit/request": "^10.0.9",
+    "@octokit/request": "^10.0.16",
     "@types/jest": "^30.0.0",
     "libsodium-wrappers": "^0.8.4",
     "ts-jest": "^29.4.15"
