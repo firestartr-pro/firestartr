@@ -71,16 +71,32 @@ export class EntityGHOrgRuleset extends Entity {
 
   // The pinned module takes no organization input: Terraform targets the
   // organization of the provider's owner. A claim whose spec.org disagrees
-  // with that owner would discover imports in one organization while
-  // creating the ruleset in another, so fail fast on the mismatch.
+  // with that owner, or whose owner cannot be verified, would discover
+  // imports in one organization while creating the ruleset in another, so
+  // fail fast instead of guessing.
   private assertProviderForOrg(): void {
     const { org } = this.cr.spec;
+
+    // The Terraform writer uses the inline block instead of the config, so
+    // the config owner (and this check) says nothing about what Terraform
+    // will use.
+    if (this.provider.cr.spec.inline) {
+      throw new Error(
+        `[gh-provisioner] ${this.k8sId}: the provider uses inline configuration, so its owner cannot be verified against spec.org "${org}"; define the owner in the provider config instead`,
+      );
+    }
 
     // Resolved the same way Terraform execution resolves it, so a
     // Secret-backed owner ("${{ secrets.OWNER }}") compares by value.
     const { config } = getResolvedProviderConfig(this, this.provider);
 
-    if (config.owner && config.owner !== org) {
+    if (!config.owner) {
+      throw new Error(
+        `[gh-provisioner] ${this.k8sId}: the provider config does not define owner, so the ruleset organization cannot be verified against spec.org "${org}"`,
+      );
+    }
+
+    if (config.owner !== org) {
       throw new Error(
         `[gh-provisioner] ${this.k8sId}: the provider's owner "${config.owner}" does not match spec.org "${org}": the ruleset would target the wrong organization`,
       );

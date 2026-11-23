@@ -59,12 +59,36 @@ describe('EntityGHOrgRuleset entity', () => {
       );
     });
 
-    it('allows a provider without an owner in its config', async () => {
+    it('rejects a provider without an owner in its config', async () => {
       entity.provider.cr.spec.config = '{}';
 
-      await expect(entity.loadResources('apply')).resolves.toBeUndefined();
+      await expect(entity.loadResources('apply')).rejects.toThrow(
+        /provider config does not define owner/,
+      );
 
-      expect(entity.document.config).toEqual(entity.cr.spec.ruleset);
+      mockGetRulesetList.mockResolvedValue([]);
+
+      await expect(entity.loadAddressesToImport()).rejects.toThrow(
+        /provider config does not define owner/,
+      );
+    });
+
+    it('rejects a provider with inline configuration', async () => {
+      // WriterProvider uses the inline block instead of the config, so a
+      // matching config owner does not prove which organization Terraform
+      // will target.
+      entity.provider.cr.spec.inline =
+        'provider "github" { owner = "other-org" }';
+
+      await expect(entity.loadResources('apply')).rejects.toThrow(
+        /provider uses inline configuration/,
+      );
+
+      mockGetRulesetList.mockResolvedValue([]);
+
+      await expect(entity.loadAddressesToImport()).rejects.toThrow(
+        /provider uses inline configuration/,
+      );
     });
 
     it('allows a Secret-backed owner that resolves to spec.org', async () => {

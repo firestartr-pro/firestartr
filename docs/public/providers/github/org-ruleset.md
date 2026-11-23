@@ -114,8 +114,9 @@ The Terraform module takes no organization input: it targets the organization
 of the provider config's `owner`. The provisioner resolves the config's
 `${{ secrets.* }}` placeholders and rejects a claim whose `providers.github.org`
 differs from the resolved owner instead of creating the ruleset in the wrong
-organization. When the owner is set outside the provider config (inline block
-or env), the check cannot run.
+organization. It also fails closed when the owner cannot be verified: the
+provider config must define `owner`, and a provider that uses an inline block
+is rejected because Terraform would use that block instead of the config.
 
 ## Rendering
 
