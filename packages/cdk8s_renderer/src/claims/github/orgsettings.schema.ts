@@ -97,6 +97,8 @@ const organizationSettingsProperties = {
         },
         value: {
           type: 'string',
+          description:
+            'Variable value, or a ref:secretsclaim:<name>:<key> reference to a SecretsClaim key. The value is stored as plain text in GitHub and Terraform state; use org_secrets for real secrets',
         },
         visibility: {
           type: 'string',
@@ -112,6 +114,22 @@ const organizationSettingsProperties = {
       required: ['name', 'value', 'visibility'],
       additionalProperties: false,
       allOf: [
+        {
+          if: {
+            properties: {
+              value: { type: 'string', pattern: '^ref:secretsclaim:' },
+            },
+            required: ['value'],
+          },
+          then: {
+            properties: {
+              value: {
+                type: 'string',
+                pattern: '^ref:secretsclaim:([a-zA-Z0-9_-]+):([a-zA-Z0-9_-]+)$',
+              },
+            },
+          },
+        },
         {
           if: {
             properties: {

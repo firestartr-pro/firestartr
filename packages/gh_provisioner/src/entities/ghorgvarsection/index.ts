@@ -27,10 +27,19 @@ export class EntityGHOrgVarsSection extends Entity {
       const actionsVariables = cr.spec.actionsVariables || [];
 
       const variables: Record<string, any> = {};
+      const destroying = tfOp === 'destroy' || tfOp === 'plan-destroy';
 
       for (const v of actionsVariables) {
+        // Destroy never reads values, and the source Secret may already be gone
+        if (destroying && v.ref) continue;
+
         const entry: Record<string, any> = {
-          value: v.value,
+          value: v.ref
+            ? this.requireOutput(
+                { name: v.ref.name, kind: 'Secret' },
+                v.ref.key,
+              )
+            : v.value,
           visibility: v.visibility,
         };
 

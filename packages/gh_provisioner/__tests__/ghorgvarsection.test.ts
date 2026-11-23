@@ -225,6 +225,44 @@ describe('EntityGHOrgVarsSection entity', () => {
     });
   });
 
+  describe('ref-backed variables', () => {
+    let refEntity: EntityGHOrgVarsSection;
+
+    beforeEach(async () => {
+      refEntity = (await initSystemFS(
+        path.join(__dirname, 'fixtures/ghorgvarsection-ref/cr.yaml'),
+        path.join(__dirname, 'fixtures/ghorgvarsection-ref/deps.yaml'),
+      )) as EntityGHOrgVarsSection;
+    });
+
+    it('resolves a ref to the secret value and keeps plain values', async () => {
+      await refEntity.loadResources('plan');
+
+      expect(refEntity.document).toStrictEqual({
+        config: {
+          variables: {
+            DEPLOY_HOST: {
+              value: 'deploy.example.com',
+              visibility: 'all',
+            },
+            INTERNAL_FLAG: {
+              value: 'true',
+              visibility: 'private',
+            },
+          },
+        },
+      });
+    });
+
+    it('fails when the referenced secret key is missing', async () => {
+      refEntity.cr.spec.actionsVariables[0].ref.key = 'missing';
+
+      await expect(refEntity.loadResources('plan')).rejects.toThrow(
+        /could not resolve output 'missing'/,
+      );
+    });
+  });
+
   describe('postProvision and loadAddressesToImport', () => {
     it('postProvision is a no-op', async () => {
       await expect(entity.postProvision('apply')).resolves.toBeUndefined();

@@ -106,6 +106,11 @@ export function extractAllRefs(claimData: string) {
       const actionsVariables = parsedClaim.providers?.github?.actions_variables;
       if (Array.isArray(actionsVariables)) {
         for (const variable of actionsVariables) {
+          if (isRepoSecretRef(variable.value)) {
+            refs.push(
+              `SecretsClaim-${extractRepoSecretRef(variable.value).name}`,
+            );
+          }
           if (variable.visibility !== 'selected') continue;
           const selectedRepos = variable.selected_repositories;
           if (!Array.isArray(selectedRepos)) continue;

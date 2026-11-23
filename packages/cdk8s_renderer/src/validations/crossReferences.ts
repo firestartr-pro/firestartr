@@ -1,6 +1,9 @@
 import { RenderClaims } from '../renderer/types';
 
-import { isRepoSecretRef } from '../utils/repositoryClaimUtils';
+import {
+  extractRepoSecretRef,
+  isRepoSecretRef,
+} from '../utils/repositoryClaimUtils';
 
 const IS_COMPONENT_CLAIM_REF = new RegExp(/^ComponentClaim-/);
 const IS_TF_WORKSPACE = new RegExp(/^TFWorkspaceClaim-/);
@@ -105,6 +108,17 @@ function searchSecretKey(secretClaim: any, key: string): boolean {
   return found;
 }
 
+/** Only externalSecrets populate the Kubernetes Secret; pushSecrets do not. */
+function searchPopulatedSecretKey(secretClaim: any, key: string): boolean {
+  const externalSecrets =
+    secretClaim?.providers?.external_secrets?.externalSecrets?.secrets;
+
+  return (
+    Array.isArray(externalSecrets) &&
+    externalSecrets.some((secret: any) => secret.secretName === key)
+  );
+}
+
 function validateOrgSettingsComponentRefs(
   ref: string,
   renderClaims: RenderClaims,
@@ -113,6 +127,39 @@ function validateOrgSettingsComponentRefs(
 
   validateOrgSecretsSelectedRepositories(claim, renderClaims);
   validateActionsVariablesSelectedRepositories(claim, renderClaims);
+  validateActionsVariablesSecretRefs(claim, renderClaims);
+}
+
+function validateActionsVariablesSecretRefs(
+  claim: any,
+  renderClaims: RenderClaims,
+): void {
+  const actionsVariables = claim?.providers?.github?.actions_variables;
+  if (!Array.isArray(actionsVariables)) return;
+
+  for (const variable of actionsVariables) {
+    if (!isRepoSecretRef(variable.value)) continue;
+
+    const { name: secretClaimName, key } = extractRepoSecretRef(variable.value);
+    const secretClaimKey = `SecretsClaim-${secretClaimName}`;
+
+    if (!renderClaims[secretClaimKey]) {
+      throw new Error(
+        `CrossReference error: OrgSettingsClaim/${claim.name} references a non-existent SecretsClaim "${secretClaimName}" via actions_variables.${variable.name}`,
+      );
+    }
+
+    const keyFound = searchPopulatedSecretKey(
+      renderClaims[secretClaimKey].claim,
+      key,
+    );
+
+    if (!keyFound) {
+      throw new Error(
+        `CrossReference error: OrgSettingsClaim/${claim.name} references a non-existent secret key "${key}" in SecretsClaim/${secretClaimName} via actions_variables.${variable.name}`,
+      );
+    }
+  }
 }
 
 function validateOrgSecretsSelectedRepositories(
