@@ -361,7 +361,8 @@ tests as the source of truth for end-to-end patterns:
   `packages/e2e/__tests__/github/org-script-render-apply.test.ts`
 - orgScript CRD upgrade path:
   `packages/e2e/__tests__/github/org-script-crd-upgrade.test.ts`
-- org variables with adoption and value verification:
+- org variables with adoption, value verification, and a secretsclaim ref
+  that follows secret rotation:
   `packages/e2e/__tests__/github/org-variables-render-apply.test.ts`
 - org secrets with per-domain capability gating, value verification, adoption
   and cleanup: `packages/e2e/__tests__/github/org-secrets-render-apply.test.ts`

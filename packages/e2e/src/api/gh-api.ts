@@ -99,6 +99,7 @@ type RawRepoSecret = {
 
 type RawOrgVariable = {
   name?: unknown;
+  value?: unknown;
   visibility?: unknown;
 };
 
@@ -133,6 +134,7 @@ function normalizeOrgVariable(raw: RawOrgVariable): GhOrgVariable | null {
   return {
     name: raw.name,
     visibility,
+    ...(typeof raw.value === 'string' ? { value: raw.value } : {}),
   };
 }
 

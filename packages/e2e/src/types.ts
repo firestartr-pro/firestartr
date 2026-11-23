@@ -444,10 +444,11 @@ export interface GhOrgWebhook {
 }
 
 // Subset of GitHub Actions organization variable metadata that e2e assertions
-// read back. Values are never returned by the GitHub API.
+// read back. Unlike secrets, variable values are returned by the GitHub API.
 export interface GhOrgVariable {
   name: string;
   visibility: 'all' | 'private' | 'selected';
+  value?: string;
   selectedRepositories?: string[];
 }
 
