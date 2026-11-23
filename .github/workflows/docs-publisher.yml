@@ -2,8 +2,8 @@
 # FEATURE_NAME: docs_publisher
 # FEATURE_VERSION: docs_publisher-v1
 # FEATURE_URL: https://github.com/prefapp/features/tree/docs_publisher-v1/packages/docs_publisher
-# FEATURE_GIT_SHA: "88734cf3ef613ce032d466c299d41ff078523945"
-# FEATURE_GIT_TAGS: ["docs_publisher-v1.1.0","docs_publisher-v1"]
+# FEATURE_GIT_SHA: "0c940212d3ec622c546692850b23aa44599086f5"
+# FEATURE_GIT_TAGS: ["docs_publisher-v1.1.1","docs_publisher-v1"]
 
 name: Docs publisher
 
@@ -89,7 +89,7 @@ jobs:
       # .github/docs_publisher.yaml, clones and pushes the docs repo, and posts the plan comment.
       - name: Publish docs
         id: publish
-        uses: prefapp/action-docs-publisher@v1.0.0
+        uses: prefapp/action-docs-publisher@v1
         with:
           docs-repository: firestartr-pro/docs
           # Block scalars pass names such as `null`, `on` or `#published` to the action as
