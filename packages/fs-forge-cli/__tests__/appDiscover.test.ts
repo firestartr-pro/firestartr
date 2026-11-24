@@ -1,7 +1,32 @@
+import { readFileSync } from 'fs';
+import { dirname, join } from 'path';
+import { fileURLToPath } from 'url';
+
 import { discoverApp, formatDiscoverSummary } from '../src/app/discover.js';
 import { MemoryGitHubApi } from './fixtures/memoryGitHubApi.js';
 
 import type { FeatureSource } from '../src/utils/featureSource.js';
+
+const __dirname = dirname(fileURLToPath(import.meta.url));
+const DOT_FIRESTARTR_FIXTURES = join(__dirname, 'fixtures', 'dot-firestartr');
+const VALID_CLAIM_FIXTURES = join(__dirname, 'fixtures', 'valid');
+
+const APPS_YAML = readFileSync(
+  join(DOT_FIRESTARTR_FIXTURES, 'apps.yaml'),
+  'utf8',
+);
+const PLATFORMS_YAML = readFileSync(
+  join(DOT_FIRESTARTR_FIXTURES, 'platforms.yaml'),
+  'utf8',
+);
+const REGISTRIES_YAML = readFileSync(
+  join(DOT_FIRESTARTR_FIXTURES, 'docker_registries.yaml'),
+  'utf8',
+);
+const COMPONENT_WITH_FEATURES_YAML = readFileSync(
+  join(VALID_CLAIM_FIXTURES, 'component-with-features.yaml'),
+  'utf8',
+);
 
 const ORG = 'acme';
 const CLAIMS_REPO = 'claims';
@@ -22,7 +47,9 @@ function seedClaimsMap(
   api.setFile(ref, 'claims-map.json', JSON.stringify(mapObj));
 }
 
-function makeFeatureSource(schemas: Record<string, Record<string, unknown>>): FeatureSource {
+function makeFeatureSource(
+  schemas: Record<string, Record<string, unknown>>,
+): FeatureSource {
   return {
     async readFeatureIndex() {
       return {
@@ -48,77 +75,27 @@ function makeFeatureSource(schemas: Record<string, Record<string, unknown>>): Fe
 }
 
 describe('discoverApp', () => {
-  it('reads .firestartr platforms, registries, appConfig, argocd clusters/slack, service claim, release_type, and tracks', async () => {
+  it('reads canonical .firestartr fixtures, ApplicationSet values map, real ComponentClaim features, release_type, and tracks', async () => {
     const api = new MemoryGitHubApi();
 
-    // 1. .firestartr
+    // 1. .firestartr using real fixtures copied from cdk8s_renderer
     const dotRef = { owner: ORG, repo: '.firestartr' };
     api.addRepo(dotRef);
     api.setDefaultBranch(dotRef, 'main');
     api.setBlobPaths(dotRef, [
-      'platforms/aws.yaml',
-      'platforms/gcp.yml',
-      'docker_registries/ecr.yaml',
-      'apps/billing.yaml',
+      'platforms/example-dev.yaml',
+      'docker_registries/example-aws.yaml',
+      'apps/example-store.yaml',
     ]);
-    api.setFile(
-      dotRef,
-      'platforms/aws.yaml',
-      [
-        'name: aws-eu',
-        'type: eks',
-        'tenants:',
-        '  - core',
-        'envs:',
-        '  - dev',
-        '  - pre',
-        '  - pro',
-      ].join('\n'),
-    );
-    api.setFile(
-      dotRef,
-      'platforms/gcp.yml',
-      [
-        'type: gke',
-        'tenants:',
-        '  - data',
-        'envs:',
-        '  - pro',
-        '  - sandbox',
-      ].join('\n'),
-    );
-    api.setFile(
-      dotRef,
-      'docker_registries/ecr.yaml',
-      [
-        'name: ecr-main',
-        'default: true',
-        'image_types:',
-        '  - snapshots',
-        '  - releases',
-        'auth_strategy: aws-oidc',
-        'base_paths:',
-        '  snapshots: 123.dkr.ecr.eu-west-1.amazonaws.com/snap',
-        '  releases: 123.dkr.ecr.eu-west-1.amazonaws.com/rel',
-      ].join('\n'),
-    );
-    api.setFile(
-      dotRef,
-      'apps/billing.yaml',
-      [
-        'state_repo: app-billing',
-        'services:',
-        '  - name: billing-api',
-        '    service_names:',
-        '      - api',
-      ].join('\n'),
-    );
+    api.setFile(dotRef, 'platforms/example-dev.yaml', PLATFORMS_YAML);
+    api.setFile(dotRef, 'docker_registries/example-aws.yaml', REGISTRIES_YAML);
+    api.setFile(dotRef, 'apps/example-store.yaml', APPS_YAML);
 
-    // 2. state-argocd
+    // 2. state-argocd with canonical git-generator values: {<cluster>: <URL>}
     const argoRef = { owner: ORG, repo: 'state-argocd' };
     api.addRepo(argoRef);
     api.setDefaultBranch(argoRef, 'main');
-    api.setBlobPaths(argoRef, ['projects/core.yaml', 'appsets/billing.yaml']);
+    api.setBlobPaths(argoRef, ['projects/core.yaml', 'appsets/store.yaml']);
     api.setFile(
       argoRef,
       'projects/core.yaml',
@@ -138,7 +115,7 @@ describe('discoverApp', () => {
     );
     api.setFile(
       argoRef,
-      'appsets/billing.yaml',
+      'appsets/store.yaml',
       [
         'apiVersion: argoproj.io/v1alpha1',
         'kind: ApplicationSet',
@@ -146,32 +123,51 @@ describe('discoverApp', () => {
         '  generators:',
         '    - git:',
         '        values:',
-        '          cluster: eks-pro',
-        '          server: https://eks-pro.example.com',
+        '          eks-pro: https://eks-pro.example.com',
+        '          eks-pre: https://eks-pre.example.com',
       ].join('\n'),
     );
 
-    // 3. Claims
-    seedClaimsMap(api, { 'component-billing-api': 'components/billing-api.yaml' });
+    // 3. Real ComponentClaims (no spec: wrapper; features under providers.github.features)
+    seedClaimsMap(api, {
+      'component-store': 'components/store.yaml',
+      'component-worker': 'components/worker.yaml',
+    });
     api.setFile(
       { owner: ORG, repo: CLAIMS_REPO },
-      'claims/components/billing-api.yaml',
+      'claims/components/store.yaml',
       [
-        'spec:',
-        '  owner: group:payments',
-        '  system: billing',
-        '  features:',
-        '    - name: build_and_dispatch_docker_images',
-        '      args:',
-        '        trigger_filter_by_env_snapshot: dev,sandbox',
-        '        trigger_filter_by_env_pre_releases: pre',
-        '        trigger_filter_by_env_releases: pro',
+        'name: store',
+        'kind: ComponentClaim',
+        'owner: group:payments',
+        'system: commerce',
+        'providers:',
+        '  github:',
+        '    name: store',
+        '    org: example-org',
+        '    features:',
+        '      - name: build_and_dispatch_docker_images',
+        '        version: 1.0.0',
+        '        args:',
+        '          trigger_filter_by_env_snapshot: dev',
+        '          trigger_filter_by_env_pre_releases: test',
+        '          trigger_filter_by_env_releases: pro',
+      ].join('\n'),
+    );
+    api.setFile(
+      { owner: ORG, repo: CLAIMS_REPO },
+      'claims/components/worker.yaml',
+      [
+        'name: worker',
+        'kind: ComponentClaim',
+        'owner: group:payments',
+        'system: commerce',
       ].join('\n'),
     );
 
-    // 4. Service repo release-please-config.json
+    // 4. Service repo release-please-config.json uses repo's owner (example-org) and basename (store)
     api.setFile(
-      { owner: ORG, repo: 'billing-api' },
+      { owner: 'example-org', repo: 'store' },
       'release-please-config.json',
       JSON.stringify({ 'release-type': 'node' }),
     );
@@ -180,60 +176,128 @@ describe('discoverApp', () => {
       api,
       org: ORG,
       claimsRepoName: CLAIMS_REPO,
-      app: 'billing',
+      app: 'example-store',
+      service: 'store',
     });
 
-    expect(result.service).toBe('billing-api');
+    expect(result.service).toBe('store');
     expect(result.dotFirestartr.present).toBe(true);
+    expect(result.dotFirestartr.errors).toEqual([]);
     expect(result.dotFirestartr.platforms).toEqual([
-      { name: 'aws-eu', type: 'eks', tenants: ['core'], envs: ['dev', 'pre', 'pro'] },
-      { name: 'gcp', type: 'gke', tenants: ['data'], envs: ['pro', 'sandbox'] },
+      {
+        name: 'example-dev',
+        type: 'kubernetes',
+        tenants: ['example-team'],
+        envs: ['dev', 'test'],
+      },
     ]);
     expect(result.dotFirestartr.registries).toEqual([
       {
-        name: 'ecr-main',
+        name: 'example-aws',
         default: true,
-        image_types: ['snapshots', 'releases'],
-        auth_strategy: 'aws-oidc',
+        image_types: ['services', 'charts'],
+        auth_strategy: 'aws_oidc',
         base_paths: {
-          snapshots: '123.dkr.ecr.eu-west-1.amazonaws.com/snap',
-          releases: '123.dkr.ecr.eu-west-1.amazonaws.com/rel',
+          services: 'example/services',
+          charts: 'example/charts',
         },
       },
     ]);
     expect(result.dotFirestartr.appConfig).toEqual({
       present: true,
-      state_repo: 'app-billing',
-      services: [{ name: 'billing-api', service_names: ['api'] }],
+      state_repo: 'example-org/store-state',
+      services: [
+        {
+          name: 'store',
+          repo: 'example-org/store',
+          service_names: ['frontend', 'api'],
+          platforms: ['example-dev'],
+        },
+        {
+          name: 'worker',
+          repo: 'example-org/worker',
+          service_names: ['worker'],
+        },
+      ],
     });
 
     expect(result.argocd).toEqual({
       present: true,
       clusters: [
         { name: 'eks-dev', url: 'https://eks-dev.example.com' },
+        { name: 'eks-pre', url: 'https://eks-pre.example.com' },
         { name: 'eks-pro', url: 'https://eks-pro.example.com' },
       ],
       slackChannel: 'alerts-core',
     });
 
     expect(result.serviceFacts.owner).toBe('group:payments');
-    expect(result.serviceFacts.system).toBe('billing');
+    expect(result.serviceFacts.system).toBe('commerce');
     expect(result.serviceFacts.ownerSystemDisagreement).toBe(false);
+    expect(result.serviceFacts.otherServices).toEqual([
+      {
+        name: 'worker',
+        present: true,
+        owner: 'group:payments',
+        system: 'commerce',
+      },
+    ]);
     expect(result.serviceFacts.releaseType).toEqual({
       value: 'node',
       source: 'release-please-config',
     });
     expect(result.serviceFacts.tracks).toEqual({
       dev: 'snapshots',
-      pre: 'pre-releases',
-      pro: 'releases',
-      sandbox: 'snapshots',
+      test: 'pre-releases',
     });
 
     const summary = formatDiscoverSummary(result);
-    expect(summary).toContain('App: billing (org: acme, service: billing-api)');
+    expect(summary).toContain('App: example-store (org: acme, service: store)');
     expect(summary).toContain('Slack channel: alerts-core');
     expect(summary).toContain('Release type: node (release-please-config)');
+  });
+
+  it('infers --service as repo basename when apps/<app>.yaml has one repo entry even with multiple service_names', async () => {
+    const api = new MemoryGitHubApi();
+    const dotRef = { owner: ORG, repo: '.firestartr' };
+    api.addRepo(dotRef);
+    api.setDefaultBranch(dotRef, 'main');
+    api.setBlobPaths(dotRef, ['platforms/p.yaml', 'apps/store.yaml']);
+    api.setFile(dotRef, 'platforms/p.yaml', PLATFORMS_YAML);
+    api.setFile(
+      dotRef,
+      'apps/store.yaml',
+      [
+        'name: store',
+        'state_repo: example-org/store-state',
+        'services:',
+        '  - repo: example-org/store',
+        '    service_names: [frontend, api]',
+      ].join('\n'),
+    );
+
+    seedClaimsMap(api, { 'component-store': 'components/store.yaml' });
+    api.setFile(
+      { owner: ORG, repo: CLAIMS_REPO },
+      'claims/components/store.yaml',
+      COMPONENT_WITH_FEATURES_YAML,
+    );
+    api.setPrimaryLanguage({ owner: 'example-org', repo: 'store' }, 'Go');
+
+    const result = await discoverApp({
+      api,
+      org: ORG,
+      claimsRepoName: CLAIMS_REPO,
+      app: 'store',
+    });
+
+    expect(result.service).toBe('store');
+    expect(result.serviceFacts.owner).toBe('group:my-team');
+    expect(result.serviceFacts.releaseType).toEqual({
+      value: 'go',
+      source: 'proposed',
+      language: 'Go',
+    });
   });
 
   it('reports absent .firestartr and state-argocd without throwing when --service is provided', async () => {
@@ -242,7 +306,7 @@ describe('discoverApp', () => {
     api.setFile(
       { owner: ORG, repo: CLAIMS_REPO },
       'claims/components/svc-a.yaml',
-      'spec:\n  owner: team-a\n  system: sys-a\n',
+      'name: svc-a\nkind: ComponentClaim\nowner: team-a\nsystem: sys-a\n',
     );
     api.setPrimaryLanguage({ owner: ORG, repo: 'svc-a' }, 'TypeScript');
 
@@ -259,6 +323,7 @@ describe('discoverApp', () => {
       platforms: [],
       registries: [],
       appConfig: { present: false },
+      errors: [],
     });
     expect(result.argocd).toEqual({ present: false, clusters: [] });
     expect('slackChannel' in result.argocd).toBe(false);
@@ -294,40 +359,36 @@ describe('discoverApp', () => {
     ).rejects.toThrow(/Service claim not found: component-ghost-svc/);
   });
 
-  it('detects owner/system disagreement across other services of the App', async () => {
+  it('detects owner/system disagreement across other repo entries of the App', async () => {
     const api = new MemoryGitHubApi();
     const dotRef = { owner: ORG, repo: '.firestartr' };
     api.addRepo(dotRef);
     api.setDefaultBranch(dotRef, 'main');
-    api.setBlobPaths(dotRef, ['apps/multi.yaml']);
-    api.setFile(
-      dotRef,
-      'apps/multi.yaml',
-      'services:\n  - name: svc-a\n  - name: svc-b\n',
-    );
+    api.setBlobPaths(dotRef, ['apps/example-store.yaml']);
+    api.setFile(dotRef, 'apps/example-store.yaml', APPS_YAML);
 
     seedClaimsMap(api, {
-      'component-svc-a': 'components/svc-a.yaml',
-      'component-svc-b': 'components/svc-b.yaml',
+      'component-store': 'components/store.yaml',
+      'component-worker': 'components/worker.yaml',
     });
     api.setFile(
       { owner: ORG, repo: CLAIMS_REPO },
-      'claims/components/svc-a.yaml',
-      'spec:\n  owner: team-a\n  system: sys-1\n',
+      'claims/components/store.yaml',
+      'name: store\nkind: ComponentClaim\nowner: team-a\nsystem: sys-1\n',
     );
     api.setFile(
       { owner: ORG, repo: CLAIMS_REPO },
-      'claims/components/svc-b.yaml',
-      'spec:\n  owner: team-b\n  system: sys-1\n',
+      'claims/components/worker.yaml',
+      'name: worker\nkind: ComponentClaim\nowner: team-b\nsystem: sys-1\n',
     );
 
-    // Without --service, multiple services in apps/<app>.yaml must error clearly
+    // Without --service, multiple repo entries in apps/<app>.yaml must error clearly
     await expect(
       discoverApp({
         api,
         org: ORG,
         claimsRepoName: CLAIMS_REPO,
-        app: 'multi',
+        app: 'example-store',
       }),
     ).rejects.toThrow(/lists multiple services/);
 
@@ -335,14 +396,118 @@ describe('discoverApp', () => {
       api,
       org: ORG,
       claimsRepoName: CLAIMS_REPO,
-      app: 'multi',
-      service: 'svc-a',
+      app: 'example-store',
+      service: 'store',
     });
 
     expect(result.serviceFacts.ownerSystemDisagreement).toBe(true);
     expect(result.serviceFacts.otherServices).toEqual([
-      { name: 'svc-b', present: true, owner: 'team-b', system: 'sys-1' },
+      { name: 'worker', present: true, owner: 'team-b', system: 'sys-1' },
     ]);
+  });
+
+  it('skips malformed platform, registry, and app YAML files and reports them in JSON and human summary', async () => {
+    const api = new MemoryGitHubApi();
+    const dotRef = { owner: ORG, repo: '.firestartr' };
+    api.addRepo(dotRef);
+    api.setDefaultBranch(dotRef, 'main');
+    api.setBlobPaths(dotRef, [
+      'platforms/good.yaml',
+      'platforms/bad.yaml',
+      'docker_registries/bad-reg.yaml',
+      'apps/broken.yaml',
+    ]);
+    api.setFile(dotRef, 'platforms/good.yaml', PLATFORMS_YAML);
+    api.setFile(dotRef, 'platforms/bad.yaml', 'name: [unclosed\n  bad: {{{\n');
+    api.setFile(
+      dotRef,
+      'docker_registries/bad-reg.yaml',
+      'a: 1\n---\nb: 2\n',
+    );
+    api.setFile(dotRef, 'apps/broken.yaml', 'services: [unclosed\n');
+
+    seedClaimsMap(api, { 'component-store': 'components/store.yaml' });
+    api.setFile(
+      { owner: ORG, repo: CLAIMS_REPO },
+      'claims/components/store.yaml',
+      'name: store\nkind: ComponentClaim\nowner: team-a\nsystem: sys-1\n',
+    );
+
+    const result = await discoverApp({
+      api,
+      org: ORG,
+      claimsRepoName: CLAIMS_REPO,
+      app: 'broken',
+      service: 'store',
+    });
+
+    expect(result.dotFirestartr.platforms).toEqual([
+      {
+        name: 'example-dev',
+        type: 'kubernetes',
+        tenants: ['example-team'],
+        envs: ['dev', 'test'],
+      },
+    ]);
+    expect(result.dotFirestartr.registries).toEqual([]);
+    expect(result.dotFirestartr.appConfig).toEqual({ present: false });
+    expect(result.dotFirestartr.errors.map((e) => e.path)).toEqual([
+      'platforms/bad.yaml',
+      'docker_registries/bad-reg.yaml',
+      'apps/broken.yaml',
+    ]);
+
+    const summary = formatDiscoverSummary(result);
+    expect(summary).toContain('platforms/bad.yaml');
+    expect(summary).toContain('docker_registries/bad-reg.yaml');
+    expect(summary).toContain('apps/broken.yaml');
+  });
+
+  it('honors wildcard "*" in trigger_filter_by_env_* with releases > pre-releases > snapshots precedence', async () => {
+    const api = new MemoryGitHubApi();
+    const dotRef = { owner: ORG, repo: '.firestartr' };
+    api.addRepo(dotRef);
+    api.setDefaultBranch(dotRef, 'main');
+    api.setBlobPaths(dotRef, ['platforms/p.yaml']);
+    api.setFile(
+      dotRef,
+      'platforms/p.yaml',
+      'name: p\ntype: eks\ntenants: [core]\nenvs: [dev, pre, pro]\n',
+    );
+
+    seedClaimsMap(api, { 'component-store': 'components/store.yaml' });
+    api.setFile(
+      { owner: ORG, repo: CLAIMS_REPO },
+      'claims/components/store.yaml',
+      [
+        'name: store',
+        'kind: ComponentClaim',
+        'owner: team',
+        'system: sys',
+        'providers:',
+        '  github:',
+        '    features:',
+        '      - name: build_and_dispatch_docker_images',
+        '        args:',
+        "          trigger_filter_by_env_snapshot: 'dev'",
+        "          trigger_filter_by_env_pre_releases: 'pre'",
+        "          trigger_filter_by_env_releases: '*'",
+      ].join('\n'),
+    );
+
+    const result = await discoverApp({
+      api,
+      org: ORG,
+      claimsRepoName: CLAIMS_REPO,
+      app: 'store',
+      service: 'store',
+    });
+
+    expect(result.serviceFacts.tracks).toEqual({
+      dev: 'releases',
+      pre: 'releases',
+      pro: 'releases',
+    });
   });
 
   it('reads packages["."]["release-type"] and constrains proposed language mapping to release_please enum', async () => {
@@ -356,7 +521,7 @@ describe('discoverApp', () => {
       api.setFile(
         { owner: ORG, repo: CLAIMS_REPO },
         `claims/components/${name}.yaml`,
-        'spec:\n  owner: team\n  system: sys\n',
+        `name: ${name}\nkind: ComponentClaim\nowner: team\nsystem: sys\n`,
       );
     }
 
@@ -389,7 +554,6 @@ describe('discoverApp', () => {
       source: 'release-please-config',
     });
 
-    // Elixir maps to 'elixir', which is outside the feature enum -> constrained to 'simple'
     const elixirResult = await discoverApp({
       api,
       org: ORG,
@@ -404,7 +568,6 @@ describe('discoverApp', () => {
       language: 'Elixir',
     });
 
-    // C# maps directly to 'simple'
     const csharpResult = await discoverApp({
       api,
       org: ORG,
@@ -440,21 +603,24 @@ describe('discoverApp', () => {
       { owner: ORG, repo: CLAIMS_REPO },
       'claims/components/precedence.yaml',
       [
-        'spec:',
-        '  owner: team',
-        '  system: sys',
-        '  features:',
-        '    - name: build_and_dispatch_docker_images',
-        '      args:',
-        '        trigger_filter_by_env_snapshot: dev,pre,overlap',
-        '        trigger_filter_by_env_pre_releases: pre,overlap',
-        '        trigger_filter_by_env_releases: pro,overlap',
+        'name: precedence',
+        'kind: ComponentClaim',
+        'owner: team',
+        'system: sys',
+        'providers:',
+        '  github:',
+        '    features:',
+        '      - name: build_and_dispatch_docker_images',
+        '        args:',
+        '          trigger_filter_by_env_snapshot: dev, pre, overlap',
+        '          trigger_filter_by_env_pre_releases: pre, overlap',
+        '          trigger_filter_by_env_releases: pro, overlap',
       ].join('\n'),
     );
     api.setFile(
       { owner: ORG, repo: CLAIMS_REPO },
       'claims/components/defaults.yaml',
-      'spec:\n  owner: team\n  system: sys\n',
+      'name: defaults\nkind: ComponentClaim\nowner: team\nsystem: sys\n',
     );
 
     const featureSource = makeFeatureSource({

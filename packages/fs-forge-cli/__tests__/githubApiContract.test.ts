@@ -673,4 +673,24 @@ describe('octokit adapter request shapes', () => {
       ]),
     );
   });
+
+  it('throws naming the repo when listBlobPaths receives a truncated git tree', async () => {
+    const octokit = {
+      rest: {
+        git: {
+          getTree: jest.fn(async () => ({
+            data: {
+              truncated: true,
+              tree: [{ type: 'blob', path: 'platforms/a.yaml' }],
+            },
+          })),
+        },
+      },
+    } as unknown as Octokit;
+    const api = createOctokitApi(octokit);
+
+    await expect(
+      api.listBlobPaths({ owner: 'acme', repo: '.firestartr' }, 'main'),
+    ).rejects.toThrow(/truncated.*acme\/\.firestartr/);
+  });
 });

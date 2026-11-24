@@ -1,0 +1,9 @@
+name: example-store
+state_repo: example-org/store-state
+platforms: [example-dev]
+services:
+  - repo: example-org/store
+    platforms: [example-dev]
+    service_names: [frontend, api]
+  - repo: example-org/worker
+    service_names: [worker]
