@@ -1,7 +1,7 @@
 import { readFile, writeFile } from 'fs/promises';
 import { dirname, join } from 'path';
 import { fileURLToPath } from 'url';
-import { parse as parseYaml } from 'yaml';
+import YAML from 'yaml';
 
 interface VendorSchemaEntry {
   name: string;
@@ -29,6 +29,7 @@ interface CrdDocument {
   };
 }
 
+// Safe because this script is only executed directly via tsx, never imported by Jest's CJS transform.
 const PACKAGE_ROOT = join(dirname(fileURLToPath(import.meta.url)), '..', '..');
 const VENDOR_DIR = join(PACKAGE_ROOT, 'schemas', 'vendor');
 const MANIFEST_PATH = join(VENDOR_DIR, 'manifest.json');
@@ -37,7 +38,7 @@ function extractCrdOpenApiSchema(
   yamlText: string,
   name: string,
 ): Record<string, unknown> {
-  const doc = parseYaml(yamlText) as CrdDocument | null;
+  const doc = YAML.parse(yamlText) as CrdDocument | null;
   const versions = doc?.spec?.versions;
   if (!Array.isArray(versions) || versions.length === 0) {
     throw new Error(`CRD ${name} has no spec.versions`);

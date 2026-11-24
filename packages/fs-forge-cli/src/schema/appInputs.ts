@@ -2,7 +2,7 @@ import Ajv2020 from 'ajv/dist/2020.js';
 import { readFileSync } from 'fs';
 import { readFile } from 'fs/promises';
 import { join } from 'path';
-import { parse } from 'yaml';
+import YAML from 'yaml';
 
 import { formatAjvErrors } from '../utils/ajvValidation.js';
 
@@ -84,7 +84,7 @@ export function parseAppInputsYaml(
 ): AppInputsValidationResult {
   let parsed: unknown;
   try {
-    parsed = parse(yamlContent);
+    parsed = YAML.parse(yamlContent);
   } catch (err) {
     return {
       valid: false,

@@ -23,30 +23,49 @@ describe('vendored schema validators', () => {
         },
         spec: {
           goTemplate: true,
+          goTemplateOptions: ['missingkey=error'],
           generators: [
             {
               git: {
                 repoURL: 'https://github.com/acme/app-billing.git',
                 revision: 'deployment',
-                directories: [{ path: 'kubernetes/*/*/*' }],
+                directories: [{ path: 'kubernetes/eks-prod/*/*' }],
+                values: {
+                  cluster: 'eks-prod',
+                  server: 'https://eks.example.com',
+                },
               },
             },
           ],
           template: {
             metadata: {
-              name: 'app-billing-dev',
+              name: 'app-billing-{{ .path.basename }}',
             },
             spec: {
               project: 'app-billing',
               source: {
                 repoURL: 'https://github.com/acme/app-billing.git',
                 targetRevision: 'deployment',
-                path: 'kubernetes/eks/core/dev',
+                path: '{{ .path.path }}',
               },
               destination: {
-                server: 'https://eks.example.com',
-                namespace: 'core-billing-dev',
+                server: '{{ .values.server }}',
+                namespace: 'core-billing-{{ .path.basename }}',
               },
+              syncPolicy: {
+                automated: {
+                  prune: true,
+                  selfHeal: true,
+                },
+                syncOptions: ['CreateNamespace=true', 'ServerSideApply=true'],
+              },
+              ignoreDifferences: [
+                {
+                  group: 'apps',
+                  kind: 'Deployment',
+                  jsonPointers: ['/spec/replicas'],
+                },
+              ],
             },
           },
         },
@@ -85,6 +104,12 @@ describe('vendored schema validators', () => {
         metadata: {
           name: 'app-billing',
           namespace: 'argocd',
+          annotations: {
+            'notifications.argoproj.io/subscribe.on-sync-failed.slack':
+              '#alerts',
+            'notifications.argoproj.io/subscribe.on-health-degraded.slack':
+              '#alerts',
+          },
         },
         spec: {
           description: 'billing State Project',
@@ -93,6 +118,12 @@ describe('vendored schema validators', () => {
             {
               namespace: 'core-billing-dev',
               server: 'https://eks.example.com',
+            },
+          ],
+          clusterResourceWhitelist: [
+            {
+              group: '',
+              kind: 'Namespace',
             },
           ],
         },

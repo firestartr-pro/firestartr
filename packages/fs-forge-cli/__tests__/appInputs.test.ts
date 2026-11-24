@@ -1,5 +1,5 @@
 import { describe, expect, it } from '@jest/globals';
-import { mkdtempSync, rmSync, writeFileSync } from 'fs';
+import { mkdtemp, rm, writeFile } from 'fs/promises';
 import { tmpdir } from 'os';
 import { join } from 'path';
 
@@ -137,10 +137,10 @@ chart:
   });
 
   it('loads and validates an inputs file from disk', async () => {
-    const dir = mkdtempSync(join(tmpdir(), 'app-inputs-test-'));
+    const dir = await mkdtemp(join(tmpdir(), 'app-inputs-test-'));
     try {
       const filePath = join(dir, 'inputs.yaml');
-      writeFileSync(filePath, VALID_YAML, 'utf8');
+      await writeFile(filePath, VALID_YAML, 'utf8');
 
       const result = await loadAppInputsFile(filePath, SCHEMAS_DIR);
       expect(result.valid).toBe(true);
@@ -148,7 +148,7 @@ chart:
         expect(result.data.app).toBe('billing');
       }
     } finally {
-      rmSync(dir, { recursive: true, force: true });
+      await rm(dir, { recursive: true, force: true });
     }
   });
 
