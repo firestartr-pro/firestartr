@@ -1,10 +1,17 @@
 import { describe, expect, it } from '@jest/globals';
+import { tmpdir } from 'os';
 
-import { loadVendorValidator } from '../src/schema/vendorSchemas';
+import {
+  loadVendorValidator,
+  vendorSchemasDir,
+} from '../src/schema/vendorSchemas';
+
+const PACKAGE_ROOT = process.cwd();
+const VENDOR_DIR = vendorSchemasDir(PACKAGE_ROOT);
 
 describe('vendored schema validators', () => {
   describe('argocd-applicationset', () => {
-    const validate = loadVendorValidator('argocd-applicationset');
+    const validate = loadVendorValidator('argocd-applicationset', VENDOR_DIR);
 
     it('accepts a valid ApplicationSet document', () => {
       const validDoc = {
@@ -69,7 +76,7 @@ describe('vendored schema validators', () => {
   });
 
   describe('argocd-appproject', () => {
-    const validate = loadVendorValidator('argocd-appproject');
+    const validate = loadVendorValidator('argocd-appproject', VENDOR_DIR);
 
     it('accepts a valid AppProject document', () => {
       const validDoc = {
@@ -109,7 +116,7 @@ describe('vendored schema validators', () => {
   });
 
   describe('build-images', () => {
-    const validate = loadVendorValidator('build-images');
+    const validate = loadVendorValidator('build-images', VENDOR_DIR);
 
     it('accepts a valid build_images.yaml document', () => {
       const validDoc = {
@@ -139,5 +146,25 @@ describe('vendored schema validators', () => {
 
       expect(validate(invalidDoc)).toBe(false);
     });
+  });
+
+  it('loads vendored schemas from package root even when cwd is outside the package', () => {
+    const prevCwd = process.cwd();
+    try {
+      process.chdir(tmpdir());
+      const validate = loadVendorValidator(
+        'build-images',
+        vendorSchemasDir(PACKAGE_ROOT),
+      );
+      expect(
+        validate({
+          snapshots: {
+            default: { dockerfile: './Dockerfile', auto: true },
+          },
+        }),
+      ).toBe(true);
+    } finally {
+      process.chdir(prevCwd);
+    }
   });
 });

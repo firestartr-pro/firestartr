@@ -18,9 +18,13 @@ const ajv = new Ajv({ allErrors: true, strict: false });
 
 const compiledByDir = new Map<string, Map<VendorSchemaName, VendorValidator>>();
 
+export function vendorSchemasDir(root: string): string {
+  return join(root, 'schemas', 'vendor');
+}
+
 export function loadVendorValidator(
   name: VendorSchemaName,
-  vendorDir: string = join(process.cwd(), 'schemas', 'vendor'),
+  vendorDir: string,
 ): VendorValidator {
   let dirCache = compiledByDir.get(vendorDir);
   if (!dirCache) {

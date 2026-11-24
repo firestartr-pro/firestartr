@@ -4,9 +4,13 @@ import { tmpdir } from 'os';
 import { join } from 'path';
 
 import {
+  appInputsSchemaDir,
   loadAppInputsFile,
   parseAppInputsYaml,
 } from '../src/schema/appInputs';
+
+const PACKAGE_ROOT = process.cwd();
+const SCHEMAS_DIR = appInputsSchemaDir(PACKAGE_ROOT);
 
 const VALID_YAML = `
 org: acme
@@ -34,7 +38,7 @@ system: payments
 
 describe('AppInputs loader and validator', () => {
   it('accepts a valid YAML document with all optional fields', () => {
-    const result = parseAppInputsYaml(VALID_YAML);
+    const result = parseAppInputsYaml(VALID_YAML, SCHEMAS_DIR);
 
     expect(result.valid).toBe(true);
     if (result.valid) {
@@ -61,7 +65,7 @@ chart:
   version: 1.2.3
   registry: ghcr
 `;
-    const result = parseAppInputsYaml(minimal);
+    const result = parseAppInputsYaml(minimal, SCHEMAS_DIR);
 
     expect(result.valid).toBe(true);
   });
@@ -84,7 +88,7 @@ chart:
   version: 1.2.3
   registry: ghcr
 `;
-    const result = parseAppInputsYaml(withUnknown);
+    const result = parseAppInputsYaml(withUnknown, SCHEMAS_DIR);
 
     expect(result.valid).toBe(false);
     if (!result.valid) {
@@ -110,7 +114,7 @@ chart:
   version: 1.2.3
   registry: ghcr
 `;
-    const result = parseAppInputsYaml(invalid);
+    const result = parseAppInputsYaml(invalid, SCHEMAS_DIR);
 
     expect(result.valid).toBe(false);
     if (!result.valid) {
@@ -124,7 +128,7 @@ chart:
   });
 
   it('reports YAML syntax errors', () => {
-    const result = parseAppInputsYaml('app: [unclosed');
+    const result = parseAppInputsYaml('app: [unclosed', SCHEMAS_DIR);
 
     expect(result.valid).toBe(false);
     if (!result.valid) {
@@ -138,13 +142,27 @@ chart:
       const filePath = join(dir, 'inputs.yaml');
       writeFileSync(filePath, VALID_YAML, 'utf8');
 
-      const result = await loadAppInputsFile(filePath);
+      const result = await loadAppInputsFile(filePath, SCHEMAS_DIR);
       expect(result.valid).toBe(true);
       if (result.valid) {
         expect(result.data.app).toBe('billing');
       }
     } finally {
       rmSync(dir, { recursive: true, force: true });
+    }
+  });
+
+  it('loads schema from package root even when cwd is outside the package', () => {
+    const prevCwd = process.cwd();
+    try {
+      process.chdir(tmpdir());
+      const result = parseAppInputsYaml(
+        VALID_YAML,
+        appInputsSchemaDir(PACKAGE_ROOT),
+      );
+      expect(result.valid).toBe(true);
+    } finally {
+      process.chdir(prevCwd);
     }
   });
 });

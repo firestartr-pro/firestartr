@@ -46,9 +46,11 @@ const ajv = new Ajv2020({ allErrors: true });
 type CompiledAppInputsValidator = ReturnType<Ajv2020['compile']>;
 const validatorCache = new Map<string, CompiledAppInputsValidator>();
 
-function getAppInputsValidator(
-  schemasDir: string = join(process.cwd(), 'schemas'),
-): CompiledAppInputsValidator {
+export function appInputsSchemaDir(root: string): string {
+  return join(root, 'schemas');
+}
+
+function getAppInputsValidator(schemasDir: string): CompiledAppInputsValidator {
   const cached = validatorCache.get(schemasDir);
   if (cached) return cached;
 
@@ -78,7 +80,7 @@ function formatAjvErrors(
 
 export function validateAppInputs(
   data: unknown,
-  schemasDir?: string,
+  schemasDir: string,
 ): AppInputsValidationResult {
   const validate = getAppInputsValidator(schemasDir);
   if (validate(data)) {
@@ -89,7 +91,7 @@ export function validateAppInputs(
 
 export function parseAppInputsYaml(
   yamlContent: string,
-  schemasDir?: string,
+  schemasDir: string,
 ): AppInputsValidationResult {
   let parsed: unknown;
   try {
@@ -105,7 +107,7 @@ export function parseAppInputsYaml(
 
 export async function loadAppInputsFile(
   filePath: string,
-  schemasDir?: string,
+  schemasDir: string,
 ): Promise<AppInputsValidationResult> {
   let content: string;
   try {
