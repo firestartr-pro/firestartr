@@ -8,8 +8,6 @@
   flag descriptions, hidden flags, extra keywords) lives in
   `src/schema/claimOverlay.ts`; a patch whose path no longer exists throws.
   Load claim schemas only through `src/schema/claimSchemas.ts`.
-- `schemas/` holds only the CLI's own contracts (`CommandHelpJson`,
-  `MutationDiff`, `RelationGraph`).
 - After a build or codegen change, regenerate and commit `oclif.manifest.json`
   (`npx oclif manifest`); CI checks it is in sync.
 - Tests load claim schemas with `loadClaimSchema(claimSchemasDir(root), kind)` (or
