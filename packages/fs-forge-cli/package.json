@@ -20,6 +20,7 @@
     "build": "tsc",
     "prebuild": "tsx src/codegen/generateCommands.ts",
     "generate": "tsx src/codegen/generateCommands.ts",
+    "refresh-vendor-schemas": "tsx src/codegen/refreshVendorSchemas.ts",
     "test": "jest",
     "lint": "gts lint",
     "lint-fix": "gts fix"
