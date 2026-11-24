@@ -7,7 +7,12 @@ import SchemaList from '../src/commands/schema/list';
 import SchemaShow from '../src/commands/schema/show';
 
 const ROOT = process.cwd();
-const CONTRACTS = ['CommandHelpJson', 'RelationGraph', 'MutationDiff'];
+const CONTRACTS = [
+  'CommandHelpJson',
+  'RelationGraph',
+  'MutationDiff',
+  'AppInputs',
+];
 
 async function runList(...args: string[]) {
   return captureOutput(async () => {
