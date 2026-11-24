@@ -125,7 +125,12 @@ export async function destroyOrgResources(
 ): Promise<void> {
   const baseNames = normalizeResourceNames(resourceNames);
   const orgWebhookUrls = normalizeResourceNames(options.orgWebhookUrls ?? []);
-  if (baseNames.length < 1 && orgWebhookUrls.length < 1) {
+  const orgRulesetNames = normalizeResourceNames(options.orgRulesetNames ?? []);
+  if (
+    baseNames.length < 1 &&
+    orgWebhookUrls.length < 1 &&
+    orgRulesetNames.length < 1
+  ) {
     return;
   }
 
@@ -148,11 +153,21 @@ export async function destroyOrgResources(
   const destroyedGroups = new Set<string>();
   const destroyedRepos = new Set<string>();
   const destroyedOrgWebhooks = new Set<string>();
+  const destroyedOrgRulesets = new Set<string>();
 
   for (const url of getDeletionOrder(orgWebhookUrls)) {
     if (destroyedOrgWebhooks.has(url)) continue;
     await tryDestroyDirect(() => client.gh.destroyOrgWebhookByUrl(url), strict);
     destroyedOrgWebhooks.add(url);
+  }
+
+  for (const name of getDeletionOrder(orgRulesetNames)) {
+    if (destroyedOrgRulesets.has(name)) continue;
+    await tryDestroyDirect(
+      () => client.gh.destroyOrgRulesetByName(name),
+      strict,
+    );
+    destroyedOrgRulesets.add(name);
   }
 
   // Delete in reverse declaration order so dependent resources are removed

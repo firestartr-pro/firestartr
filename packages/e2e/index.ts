@@ -28,7 +28,7 @@ export {
   E2E_DIAGNOSTIC_END,
 } from './src/k8s/diagnostics';
 export { ensureDefaultGroup } from './src/default-group';
-export { waitForOrgWebhookState } from './src/gh/wait';
+export { waitForOrgRulesetState, waitForOrgWebhookState } from './src/gh/wait';
 export { createTempOpaqueSecret } from './src/temp-secret';
 
 export { orgScript } from './src/org-script';
@@ -44,6 +44,7 @@ export type {
   E2EInitOptions,
   GhApi,
   GhOrgSecret,
+  GhOrgRuleset,
   GhOrgSecretSection,
   GhOrgSettings,
   GhOrgVariable,

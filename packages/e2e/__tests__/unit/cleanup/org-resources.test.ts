@@ -94,4 +94,27 @@ describe('destroyOrgResources', () => {
     expect(destroyGroup).not.toHaveBeenCalled();
     expect(destroyRepo).not.toHaveBeenCalled();
   });
+
+  it('deletes explicit org ruleset names without touching groups or repos', async () => {
+    const destroyGroup = jest.fn().mockResolvedValue(undefined);
+    const destroyRepo = jest.fn().mockResolvedValue(undefined);
+    const destroyOrgRulesetByName = jest.fn().mockResolvedValue(undefined);
+    const client = {
+      gh: {
+        destroyGroup,
+        destroyRepo,
+        destroyOrgRulesetByName,
+      },
+    } as unknown as E2EApi;
+
+    await destroyOrgResources(client, [], {
+      orgRulesetNames: ['ruleset a', 'ruleset a', 'ruleset-b'],
+    });
+
+    expect(destroyOrgRulesetByName).toHaveBeenCalledTimes(2);
+    expect(destroyOrgRulesetByName).toHaveBeenNthCalledWith(1, 'ruleset-b');
+    expect(destroyOrgRulesetByName).toHaveBeenNthCalledWith(2, 'ruleset a');
+    expect(destroyGroup).not.toHaveBeenCalled();
+    expect(destroyRepo).not.toHaveBeenCalled();
+  });
 });
