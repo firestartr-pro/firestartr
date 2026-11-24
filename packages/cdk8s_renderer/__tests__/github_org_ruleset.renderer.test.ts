@@ -1,4 +1,8 @@
+import fs from 'fs';
+import os from 'os';
+import path from 'path';
 import common from 'catalog_common';
+import YAML from 'yaml';
 
 import { ClaimValidation } from '../src/claims';
 import {
@@ -118,6 +122,64 @@ describe('GitHub organization ruleset rendering', () => {
       ],
       exclude: [],
     });
+  });
+
+  it('does not bring back list entries removed from the claim when a previous CR exists', async () => {
+    const { renderedMap: first } = await render();
+
+    const previous = findRulesetCr(
+      first,
+      'Standard - Default Branch Protection',
+    );
+    const previousCrsDir = fs.mkdtempSync(
+      path.join(os.tmpdir(), 'previous-ruleset-crs-'),
+    );
+    fs.writeFileSync(
+      path.join(
+        previousCrsDir,
+        `FirestartrGithubOrgRuleset.${previous.metadata.name}.yaml`,
+      ),
+      YAML.stringify(previous),
+    );
+
+    try {
+      await context.applyPatches('orgruleset_a', [
+        {
+          op: 'replace',
+          path: '/providers/github/conditions/repository_name',
+          value: { include: [], exclude: [] },
+        },
+        { op: 'remove', path: '/providers/github/rules/0' },
+        { op: 'replace', path: '/providers/github/bypass_actors', value: [] },
+      ]);
+
+      const { renderedMap } = await context.renderClaims(undefined, {
+        crsPath: previousCrsDir,
+      });
+
+      const cr = findRulesetCr(
+        renderedMap,
+        'Standard - Default Branch Protection',
+      );
+
+      expect(cr.metadata.name).toBe(previous.metadata.name);
+      expect(cr.spec.ruleset.conditions.repository_name).toEqual({
+        include: [],
+        exclude: [],
+      });
+      expect(cr.spec.ruleset.rules).toEqual([
+        {
+          type: 'pull_request',
+          parameters: {
+            required_approving_review_count: 1,
+            dismiss_stale_reviews_on_push: true,
+          },
+        },
+      ]);
+      expect(cr.spec.ruleset.bypass_actors).toEqual([]);
+    } finally {
+      fs.rmSync(previousCrsDir, { recursive: true, force: true });
+    }
   });
 
   it('renders a tag ruleset', async () => {
