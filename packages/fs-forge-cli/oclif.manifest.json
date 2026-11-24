@@ -1609,6 +1609,69 @@
         "watch-checks.js"
       ]
     },
+    "app:discover": {
+      "aliases": [],
+      "args": {},
+      "description": "Discover platform, ArgoCD, and service facts for an app (read-only)",
+      "examples": [
+        "<%= config.bin %> <%= command.id %> --app my-app --json",
+        "<%= config.bin %> <%= command.id %> --app my-app --service my-svc --org my-org"
+      ],
+      "flags": {
+        "app": {
+          "description": "Application name",
+          "name": "app",
+          "required": true,
+          "hasDynamicHelp": false,
+          "multiple": false,
+          "type": "option"
+        },
+        "service": {
+          "description": "Service (component) name; defaults to the only service in apps/<app>.yaml",
+          "name": "service",
+          "hasDynamicHelp": false,
+          "multiple": false,
+          "type": "option"
+        },
+        "org": {
+          "description": "GitHub organization",
+          "env": "FSCRT_ORG",
+          "name": "org",
+          "noCacheDefault": true,
+          "hasDynamicHelp": false,
+          "multiple": false,
+          "type": "option"
+        },
+        "claims-repo": {
+          "description": "Repository name for the claims repo (default: config, then claims)",
+          "name": "claims-repo",
+          "hasDynamicHelp": false,
+          "multiple": false,
+          "type": "option"
+        },
+        "json": {
+          "description": "Output as JSON",
+          "name": "json",
+          "allowNo": false,
+          "type": "boolean"
+        }
+      },
+      "hasDynamicHelp": false,
+      "hiddenAliases": [],
+      "id": "app:discover",
+      "pluginAlias": "@firestartr/fs-forge-cli",
+      "pluginName": "@firestartr/fs-forge-cli",
+      "pluginType": "core",
+      "strict": true,
+      "enableJsonFlag": false,
+      "isESM": true,
+      "relativePath": [
+        "dist",
+        "commands",
+        "app",
+        "discover.js"
+      ]
+    },
     "create:argodeploy": {
       "aliases": [],
       "args": {},
@@ -6152,6 +6215,47 @@
         "show.js"
       ]
     },
+    "diagram:print": {
+      "aliases": [],
+      "args": {},
+      "description": "Render an arbitrary relation graph (nodes/edges JSON) as a tree, using the same graphics as `discovery map`",
+      "examples": [
+        "<%= config.bin %> <%= command.id %> --file graph.json",
+        "cat graph.json | <%= config.bin %> <%= command.id %>",
+        "<%= config.bin %> <%= command.id %> --file graph.json --ascii"
+      ],
+      "flags": {
+        "file": {
+          "char": "f",
+          "description": "Path to a JSON file with a relation graph ({ nodes, edges }); reads stdin if omitted",
+          "name": "file",
+          "hasDynamicHelp": false,
+          "multiple": false,
+          "type": "option"
+        },
+        "ascii": {
+          "description": "Use ASCII icons instead of emoji",
+          "name": "ascii",
+          "allowNo": false,
+          "type": "boolean"
+        }
+      },
+      "hasDynamicHelp": false,
+      "hiddenAliases": [],
+      "id": "diagram:print",
+      "pluginAlias": "@firestartr/fs-forge-cli",
+      "pluginName": "@firestartr/fs-forge-cli",
+      "pluginType": "core",
+      "strict": true,
+      "enableJsonFlag": false,
+      "isESM": true,
+      "relativePath": [
+        "dist",
+        "commands",
+        "diagram",
+        "print.js"
+      ]
+    },
     "discovery:map": {
       "aliases": [],
       "args": {},
@@ -6312,107 +6416,6 @@
         "commands",
         "discovery",
         "org-elements.js"
-      ]
-    },
-    "diagram:print": {
-      "aliases": [],
-      "args": {},
-      "description": "Render an arbitrary relation graph (nodes/edges JSON) as a tree, using the same graphics as `discovery map`",
-      "examples": [
-        "<%= config.bin %> <%= command.id %> --file graph.json",
-        "cat graph.json | <%= config.bin %> <%= command.id %>",
-        "<%= config.bin %> <%= command.id %> --file graph.json --ascii"
-      ],
-      "flags": {
-        "file": {
-          "char": "f",
-          "description": "Path to a JSON file with a relation graph ({ nodes, edges }); reads stdin if omitted",
-          "name": "file",
-          "hasDynamicHelp": false,
-          "multiple": false,
-          "type": "option"
-        },
-        "ascii": {
-          "description": "Use ASCII icons instead of emoji",
-          "name": "ascii",
-          "allowNo": false,
-          "type": "boolean"
-        }
-      },
-      "hasDynamicHelp": false,
-      "hiddenAliases": [],
-      "id": "diagram:print",
-      "pluginAlias": "@firestartr/fs-forge-cli",
-      "pluginName": "@firestartr/fs-forge-cli",
-      "pluginType": "core",
-      "strict": true,
-      "enableJsonFlag": false,
-      "isESM": true,
-      "relativePath": [
-        "dist",
-        "commands",
-        "diagram",
-        "print.js"
-      ]
-    },
-    "kinds:show": {
-      "aliases": [],
-      "args": {
-        "kind": {
-          "description": "Claim kind (short ID; full *Claim names remain supported)",
-          "name": "kind",
-          "options": [
-            "argodeploy",
-            "ArgoDeployClaim",
-            "component",
-            "ComponentClaim",
-            "domain",
-            "DomainClaim",
-            "group",
-            "GroupClaim",
-            "orgsettings",
-            "OrgSettingsClaim",
-            "orgwebhook",
-            "OrgWebhookClaim",
-            "secrets",
-            "SecretsClaim",
-            "system",
-            "SystemClaim",
-            "tfworkspace",
-            "TFWorkspaceClaim",
-            "user",
-            "UserClaim"
-          ],
-          "required": true
-        }
-      },
-      "description": "Show what one claim kind supports",
-      "examples": [
-        "<%= config.bin %> <%= command.id %> component",
-        "<%= config.bin %> <%= command.id %> ComponentClaim --json"
-      ],
-      "flags": {
-        "json": {
-          "description": "Output as JSON",
-          "name": "json",
-          "allowNo": false,
-          "type": "boolean"
-        }
-      },
-      "hasDynamicHelp": false,
-      "hiddenAliases": [],
-      "id": "kinds:show",
-      "pluginAlias": "@firestartr/fs-forge-cli",
-      "pluginName": "@firestartr/fs-forge-cli",
-      "pluginType": "core",
-      "strict": true,
-      "enableJsonFlag": false,
-      "isESM": true,
-      "relativePath": [
-        "dist",
-        "commands",
-        "kinds",
-        "show.js"
       ]
     },
     "features:add": {
@@ -7081,6 +7084,66 @@
         "commands",
         "features",
         "remove.js"
+      ]
+    },
+    "kinds:show": {
+      "aliases": [],
+      "args": {
+        "kind": {
+          "description": "Claim kind (short ID; full *Claim names remain supported)",
+          "name": "kind",
+          "options": [
+            "argodeploy",
+            "ArgoDeployClaim",
+            "component",
+            "ComponentClaim",
+            "domain",
+            "DomainClaim",
+            "group",
+            "GroupClaim",
+            "orgsettings",
+            "OrgSettingsClaim",
+            "orgwebhook",
+            "OrgWebhookClaim",
+            "secrets",
+            "SecretsClaim",
+            "system",
+            "SystemClaim",
+            "tfworkspace",
+            "TFWorkspaceClaim",
+            "user",
+            "UserClaim"
+          ],
+          "required": true
+        }
+      },
+      "description": "Show what one claim kind supports",
+      "examples": [
+        "<%= config.bin %> <%= command.id %> component",
+        "<%= config.bin %> <%= command.id %> ComponentClaim --json"
+      ],
+      "flags": {
+        "json": {
+          "description": "Output as JSON",
+          "name": "json",
+          "allowNo": false,
+          "type": "boolean"
+        }
+      },
+      "hasDynamicHelp": false,
+      "hiddenAliases": [],
+      "id": "kinds:show",
+      "pluginAlias": "@firestartr/fs-forge-cli",
+      "pluginName": "@firestartr/fs-forge-cli",
+      "pluginType": "core",
+      "strict": true,
+      "enableJsonFlag": false,
+      "isESM": true,
+      "relativePath": [
+        "dist",
+        "commands",
+        "kinds",
+        "show.js"
       ]
     },
     "schema:list": {

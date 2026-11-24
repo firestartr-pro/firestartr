@@ -67,6 +67,7 @@ export class MemoryGitHubApi implements GitHubApi {
   readonly pullBodyUpdates: Array<{ ref: RepoRef; pr: number; body: string }> =
     [];
   readonly defaultBranches = new Map<string, string>();
+  readonly primaryLanguages = new Map<string, string | null>();
   readonly existingRepos = new Set<string>();
   readonly existingTeams = new Set<string>();
   readonly members = new Set<string>();
@@ -107,6 +108,10 @@ export class MemoryGitHubApi implements GitHubApi {
 
   setDefaultBranch(ref: RepoRef, branch = 'main'): void {
     this.defaultBranches.set(this.key(ref), branch);
+  }
+
+  setPrimaryLanguage(ref: RepoRef, language: string | null): void {
+    this.primaryLanguages.set(this.key(ref), language);
   }
 
   setWorkflowRuns(
@@ -197,6 +202,11 @@ export class MemoryGitHubApi implements GitHubApi {
   async getDefaultBranch(ref: RepoRef): Promise<string> {
     this.calls.push(`getDefaultBranch ${this.key(ref)}`);
     return this.defaultBranches.get(this.key(ref)) ?? 'main';
+  }
+
+  async getPrimaryLanguage(ref: RepoRef): Promise<string | null> {
+    this.calls.push(`getPrimaryLanguage ${this.key(ref)}`);
+    return this.primaryLanguages.get(this.key(ref)) ?? null;
   }
 
   async branchHeadSha(ref: RepoRef, branch: string): Promise<string> {

@@ -73,6 +73,7 @@ export interface GitHubApi {
   listBlobPaths(ref: RepoRef, gitRef: string): Promise<string[]>;
   downloadTarball(ref: RepoRef, gitRef?: string): Promise<Buffer>;
   getDefaultBranch(ref: RepoRef): Promise<string>;
+  getPrimaryLanguage(ref: RepoRef): Promise<string | null>;
 
   branchHeadSha(ref: RepoRef, branch: string): Promise<string>;
   createBranch(ref: RepoRef, branch: string, sha: string): Promise<void>;

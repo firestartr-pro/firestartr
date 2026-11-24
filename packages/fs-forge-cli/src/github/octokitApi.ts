@@ -82,6 +82,19 @@ export function createOctokitApi(octokit: Octokit): GitHubApi {
       return data.default_branch;
     },
 
+    async getPrimaryLanguage(ref) {
+      try {
+        const { data } = await octokit.rest.repos.get({
+          owner: ref.owner,
+          repo: ref.repo,
+        });
+        return data.language ?? null;
+      } catch (error) {
+        if (isNotFoundError(error)) return null;
+        throw error;
+      }
+    },
+
     async branchHeadSha(ref, branch) {
       const { data } = await octokit.rest.git.getRef({
         owner: ref.owner,
