@@ -2,7 +2,7 @@ import { readFileSync } from 'node:fs';
 import { join } from 'node:path';
 import Ajv from 'ajv/dist/2020';
 import { parse } from 'yaml';
-import { schemas } from '../src/schemas/dot-firestartr';
+import { schemas, stateAppsEnv } from '../src/schemas/dot-firestartr';
 
 type Directory = keyof typeof schemas;
 type Config = Record<string, unknown>;
@@ -273,4 +273,87 @@ test('application and service platform references resolve', () => {
   expect(references.length).toBeGreaterThan(0);
   for (const reference of references)
     expect(reference).toBe(fixtures.platforms.name);
+});
+
+describe('state_apps_env contract', () => {
+  const validate = ajv.compile(stateAppsEnv);
+
+  const minimalValid = {
+    chart: 'my-registry/charts/my-app',
+    version: '1.2.3',
+  };
+
+  const fullValid = {
+    chart: 'my-registry/charts/my-app',
+    version: '1.2.3',
+    releaseName: 'custom-release',
+    namespace: 'tenant-app-dev',
+    hooks: [{ events: ['presync'], command: 'echo', args: ['hi'] }],
+    patches: ['add-labels'],
+    extraPatches: [
+      { target: { kind: 'Deployment' }, patch: '- op: add\n  path: /a' },
+    ],
+    remoteArtifacts: [
+      { filename: 'values.yaml', url: 'https://example.com/values.yaml' },
+    ],
+    execs: [{ command: 'echo', args: ['foo: bar'] }],
+    set: [
+      { name: 'replicaCount', value: 2 },
+      { name: 'image.tag', value: 'v1.2.3' },
+    ],
+  };
+
+  test('is exported by name and omitted from the .firestartr directory map', () => {
+    expect('state_apps_env' in schemas).toBe(false);
+    expect('stateAppsEnv' in schemas).toBe(false);
+  });
+
+  test('accepts minimal chart and version', () => {
+    expect(validate(minimalValid)).toBe(true);
+    expect(validate.errors).toBeNull();
+  });
+
+  test('accepts every optional key', () => {
+    expect(validate(fullValid)).toBe(true);
+    expect(validate.errors).toBeNull();
+  });
+
+  test.each<[string, Record<string, unknown>, string, string]>([
+    ['missing chart', { version: '1.2.3' }, 'required', ''],
+    ['missing version', { chart: 'reg/path/chart' }, 'required', ''],
+    [
+      'unknown key',
+      { ...minimalValid, unknown: true },
+      'additionalProperties',
+      '',
+    ],
+    [
+      'app present',
+      { ...minimalValid, app: 'my-app' },
+      'additionalProperties',
+      '',
+    ],
+    [
+      'remoteArtifacts item without url',
+      { ...minimalValid, remoteArtifacts: [{ filename: 'values.yaml' }] },
+      'required',
+      '/remoteArtifacts/0',
+    ],
+    [
+      'execs item without command',
+      { ...minimalValid, execs: [{ args: ['--flag'] }] },
+      'required',
+      '/execs/0',
+    ],
+    [
+      'set item without value',
+      { ...minimalValid, set: [{ name: 'replicaCount' }] },
+      'required',
+      '/set/0',
+    ],
+  ])('rejects %s', (_label, input, keyword, instancePath) => {
+    expect(validate(input)).toBe(false);
+    expect(validate.errors).toHaveLength(1);
+    expect(validate.errors?.[0]).toMatchObject({ keyword, instancePath });
+  });
 });
