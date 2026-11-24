@@ -298,7 +298,7 @@ describe('state_apps_env contract', () => {
     ],
     execs: [{ command: 'echo', args: ['foo: bar'] }],
     set: [
-      { name: 'replicaCount', value: 2 },
+      { name: 'replicaCount', value: '2' },
       { name: 'image.tag', value: 'v1.2.3' },
     ],
   };
@@ -350,6 +350,12 @@ describe('state_apps_env contract', () => {
       { ...minimalValid, set: [{ name: 'replicaCount' }] },
       'required',
       '/set/0',
+    ],
+    [
+      'set item with non-string value',
+      { ...minimalValid, set: [{ name: 'replicaCount', value: 2 }] },
+      'type',
+      '/set/0/value',
     ],
   ])('rejects %s', (_label, input, keyword, instancePath) => {
     expect(validate(input)).toBe(false);

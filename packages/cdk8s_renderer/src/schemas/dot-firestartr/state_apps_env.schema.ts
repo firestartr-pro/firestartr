@@ -131,7 +131,9 @@ export default {
           },
           value: {
             title: 'Value',
-            description: 'Override value assigned to the Helm value path.',
+            description:
+              'Override value assigned to the Helm value path. A string: the hydrator renders it with tpl.',
+            type: 'string',
           },
         },
         required: ['name', 'value'],
