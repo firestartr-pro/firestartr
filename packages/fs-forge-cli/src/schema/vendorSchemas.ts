@@ -12,8 +12,7 @@ export type VendorSchemaName = keyof typeof VENDOR_SCHEMA_FILES;
 
 export type VendorValidator = ReturnType<Ajv['compile']>;
 
-// OpenAPI v3 CRD schemas include Kubernetes extension keywords (x-kubernetes-*)
-// and nullable, so strict mode is disabled.
+// Draft-07 Ajv with strict: false for CRD x-kubernetes-*/nullable keywords; kept separate from schema/appInputs.ts (plain Draft 2020-12) and utils/ajvValidation.ts (custom claim keyword).
 const ajv = new Ajv({ allErrors: true, strict: false });
 
 const compiledByDir = new Map<string, Map<VendorSchemaName, VendorValidator>>();

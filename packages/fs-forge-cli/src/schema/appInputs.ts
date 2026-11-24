@@ -4,6 +4,8 @@ import { readFile } from 'fs/promises';
 import { join } from 'path';
 import { parse } from 'yaml';
 
+import { formatAjvErrors } from '../utils/ajvValidation.js';
+
 export type AppTrack = 'snapshots' | 'pre-releases' | 'releases';
 
 export interface AppServiceInput {
@@ -42,6 +44,7 @@ export type AppInputsValidationResult =
   | { valid: true; data: AppInputs; errors: [] }
   | { valid: false; errors: string[] };
 
+// Plain Draft 2020-12 Ajv instance; kept separate from utils/ajvValidation.ts (custom claim keyword) and schema/vendorSchemas.ts (Draft-07 + strict: false for CRD schemas).
 const ajv = new Ajv2020({ allErrors: true });
 type CompiledAppInputsValidator = ReturnType<Ajv2020['compile']>;
 const validatorCache = new Map<string, CompiledAppInputsValidator>();
@@ -62,20 +65,6 @@ function getAppInputsValidator(schemasDir: string): CompiledAppInputsValidator {
   const compiled = ajv.compile<AppInputs>(schema);
   validatorCache.set(schemasDir, compiled);
   return compiled;
-}
-
-function formatAjvErrors(
-  errors: CompiledAppInputsValidator['errors'],
-): string[] {
-  return (errors ?? []).map((err) => {
-    const path = err.instancePath || '/';
-    const extra =
-      err.keyword === 'additionalProperties' &&
-      typeof err.params?.additionalProperty === 'string'
-        ? ` (${err.params.additionalProperty})`
-        : '';
-    return `${path} ${err.message ?? 'is invalid'}${extra}`.trim();
-  });
 }
 
 export function validateAppInputs(
