@@ -5,10 +5,12 @@ import {
   loadClaimsMap,
   resolveClaim,
 } from '../claims/claimsRepo.js';
+import { getFeatureReferences } from '../utils/features.js';
 import { isRecord } from '../utils/isRecord.js';
 
 import type { GitHubApi } from '../github/api.js';
 import type { AppTrack } from '../schema/appInputs.js';
+import type { FeatureReference } from '../utils/features.js';
 import type { FeatureSource } from '../utils/featureSource.js';
 
 export interface OtherServiceClaimSummary {
@@ -63,33 +65,29 @@ const FALLBACK_TRACK_FILTERS = {
 function parseClaimOwnerSystem(content: string): {
   owner?: string;
   system?: string;
-  features?: unknown;
+  features: FeatureReference[];
 } {
   const parsed: unknown = YAML.parse(content);
-  if (!isRecord(parsed)) return {};
-  const spec = isRecord(parsed.spec) ? parsed.spec : parsed;
+  if (!isRecord(parsed)) return { features: [] };
+  let features: FeatureReference[] = [];
+  try {
+    features = getFeatureReferences(parsed);
+  } catch {
+    features = [];
+  }
   return {
-    ...(typeof spec.owner === 'string' ? { owner: spec.owner } : {}),
-    ...(typeof spec.system === 'string' ? { system: spec.system } : {}),
-    features: spec.features,
+    ...(typeof parsed.owner === 'string' ? { owner: parsed.owner } : {}),
+    ...(typeof parsed.system === 'string' ? { system: parsed.system } : {}),
+    features,
   };
 }
 
 function findFeatureArgs(
-  features: unknown,
+  features: FeatureReference[],
   featureName: string,
 ): Record<string, unknown> | undefined {
-  if (Array.isArray(features)) {
-    for (const item of features) {
-      if (isRecord(item) && item.name === featureName) {
-        return isRecord(item.args) ? item.args : undefined;
-      }
-    }
-  } else if (isRecord(features)) {
-    const entry = features[featureName];
-    if (isRecord(entry) && isRecord(entry.args)) return entry.args;
-  }
-  return undefined;
+  const entry = features.find((item) => item.name === featureName);
+  return entry && isRecord(entry.args) ? entry.args : undefined;
 }
 
 function parseEnvList(raw: unknown): Set<string> {
@@ -100,6 +98,10 @@ function parseEnvList(raw: unknown): Set<string> {
       .map((item) => item.trim())
       .filter((item) => item.length > 0),
   );
+}
+
+function matchesEnv(filter: Set<string>, env: string): boolean {
+  return filter.has('*') || filter.has(env);
 }
 
 async function readLatestFeatureSchema(
@@ -210,7 +212,7 @@ async function resolveReleaseType(
 }
 
 async function resolveTracks(
-  features: unknown,
+  features: FeatureReference[],
   candidateEnvs: string[],
   featureSource?: FeatureSource,
 ): Promise<Record<string, AppTrack>> {
@@ -257,9 +259,9 @@ async function resolveTracks(
 
   const tracks: Record<string, AppTrack> = {};
   for (const env of candidateEnvs) {
-    if (releasesEnvs.has(env)) {
+    if (matchesEnv(releasesEnvs, env)) {
       tracks[env] = 'releases';
-    } else if (preReleasesEnvs.has(env)) {
+    } else if (matchesEnv(preReleasesEnvs, env)) {
       tracks[env] = 'pre-releases';
     } else {
       tracks[env] = 'snapshots';
@@ -274,6 +276,7 @@ export async function readServiceFacts(
     org: string;
     claimsRepoName: string;
     service: string;
+    serviceRepoOwner?: string;
     appServices: string[];
     candidateEnvs: string[];
     featureSource?: FeatureSource;
@@ -283,6 +286,7 @@ export async function readServiceFacts(
     org,
     claimsRepoName,
     service,
+    serviceRepoOwner,
     appServices,
     candidateEnvs,
     featureSource,
@@ -323,7 +327,7 @@ export async function readServiceFacts(
   );
 
   const [releaseType, tracks] = await Promise.all([
-    resolveReleaseType(api, org, service, featureSource),
+    resolveReleaseType(api, serviceRepoOwner ?? org, service, featureSource),
     resolveTracks(primary.features, candidateEnvs, featureSource),
   ]);
 

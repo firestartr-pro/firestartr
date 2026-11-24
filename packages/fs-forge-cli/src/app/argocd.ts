@@ -52,8 +52,11 @@ function collectGeneratorClusters(
     if (!isRecord(gen)) continue;
 
     if (isRecord(gen.git) && isRecord(gen.git.values)) {
-      const pair = extractClusterPair(gen.git.values);
-      if (pair) out.push(pair);
+      for (const [name, url] of Object.entries(gen.git.values)) {
+        if (typeof url === 'string' && url.length > 0) {
+          out.push({ name, url });
+        }
+      }
     }
     if (isRecord(gen.list) && Array.isArray(gen.list.elements)) {
       for (const element of gen.list.elements) {

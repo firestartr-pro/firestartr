@@ -23,7 +23,14 @@ export interface DiscoveredRegistry {
 
 export interface DiscoveredAppService {
   name: string;
-  service_names?: string[];
+  repo: string;
+  service_names: string[];
+  platforms?: string[];
+}
+
+export interface YamlParseError {
+  path: string;
+  error: string;
 }
 
 export type DiscoveredAppConfig =
@@ -41,6 +48,21 @@ export interface DotFirestartrFacts {
   platforms: DiscoveredPlatform[];
   registries: DiscoveredRegistry[];
   appConfig: DiscoveredAppConfig;
+  errors: YamlParseError[];
+}
+
+export function parseRepoSlug(
+  repo: string,
+  defaultOrg: string,
+): { owner: string; name: string } {
+  const slash = repo.lastIndexOf('/');
+  if (slash > 0 && slash < repo.length - 1) {
+    return {
+      owner: repo.slice(0, slash),
+      name: repo.slice(slash + 1),
+    };
+  }
+  return { owner: defaultOrg, name: repo };
 }
 
 function isYamlPath(path: string): boolean {
@@ -56,12 +78,33 @@ function asStringArray(value: unknown): string[] {
   return value.filter((item): item is string => typeof item === 'string');
 }
 
+function formatParseError(error: unknown): string {
+  const message = error instanceof Error ? error.message : String(error);
+  return message.split('\n')[0] ?? message;
+}
+
+function parseYamlRecord(
+  filePath: string,
+  content: string,
+  errors: YamlParseError[],
+): Record<string, unknown> | null {
+  let parsed: unknown;
+  try {
+    parsed = YAML.parse(content);
+  } catch (error) {
+    errors.push({ path: filePath, error: formatParseError(error) });
+    return null;
+  }
+  return isRecord(parsed) ? parsed : null;
+}
+
 function parsePlatform(
   filePath: string,
   content: string,
+  errors: YamlParseError[],
 ): DiscoveredPlatform | null {
-  const parsed: unknown = YAML.parse(content);
-  if (!isRecord(parsed)) return null;
+  const parsed = parseYamlRecord(filePath, content, errors);
+  if (!parsed) return null;
   return {
     name: typeof parsed.name === 'string' ? parsed.name : stemName(filePath),
     type: typeof parsed.type === 'string' ? parsed.type : '',
@@ -87,9 +130,10 @@ function parseBasePaths(value: unknown): Record<string, string> | string[] {
 function parseRegistry(
   filePath: string,
   content: string,
+  errors: YamlParseError[],
 ): DiscoveredRegistry | null {
-  const parsed: unknown = YAML.parse(content);
-  if (!isRecord(parsed)) return null;
+  const parsed = parseYamlRecord(filePath, content, errors);
+  if (!parsed) return null;
   return {
     name: typeof parsed.name === 'string' ? parsed.name : stemName(filePath),
     default: parsed.default === true,
@@ -100,31 +144,44 @@ function parseRegistry(
   };
 }
 
-function parseAppService(entry: unknown): DiscoveredAppService | null {
-  if (typeof entry === 'string') {
-    return { name: entry };
+function parseAppService(
+  entry: unknown,
+  defaultOrg: string,
+): DiscoveredAppService | null {
+  if (!isRecord(entry) || typeof entry.repo !== 'string' || !entry.repo) {
+    return null;
   }
-  if (!isRecord(entry)) return null;
-  const name =
-    (typeof entry.name === 'string' && entry.name) ||
-    (typeof entry.repo === 'string' && entry.repo) ||
-    (typeof entry.component === 'string' && entry.component) ||
-    '';
+  const { name } = parseRepoSlug(entry.repo, defaultOrg);
   if (!name) return null;
   const serviceNames = asStringArray(entry.service_names);
-  return serviceNames.length > 0
-    ? { name, service_names: serviceNames }
-    : { name };
+  const platforms = asStringArray(entry.platforms);
+  return {
+    name,
+    repo: entry.repo,
+    service_names: serviceNames,
+    ...(platforms.length > 0 ? { platforms } : {}),
+  };
 }
 
-function parseAppConfig(content: string): DiscoveredAppConfig {
-  const parsed: unknown = YAML.parse(content);
+function parseAppConfig(
+  filePath: string,
+  content: string,
+  defaultOrg: string,
+  errors: YamlParseError[],
+): DiscoveredAppConfig {
+  let parsed: unknown;
+  try {
+    parsed = YAML.parse(content);
+  } catch (error) {
+    errors.push({ path: filePath, error: formatParseError(error) });
+    return { present: false };
+  }
   if (!isRecord(parsed)) {
     return { present: true, services: [] };
   }
   const services = Array.isArray(parsed.services)
     ? parsed.services
-        .map(parseAppService)
+        .map((entry) => parseAppService(entry, defaultOrg))
         .filter((item): item is DiscoveredAppService => item !== null)
     : [];
   const config: DiscoveredAppConfig = { present: true, services };
@@ -147,6 +204,7 @@ export async function readDotFirestartr(
       platforms: [],
       registries: [],
       appConfig: { present: false },
+      errors: [],
     };
   }
 
@@ -162,6 +220,7 @@ export async function readDotFirestartr(
         platforms: [],
         registries: [],
         appConfig: { present: false },
+        errors: [],
       };
     }
     throw error;
@@ -182,19 +241,21 @@ export async function readDotFirestartr(
       api.readFile(ref, `apps/${app}.yml`, branch),
     ]);
 
+  const errors: YamlParseError[] = [];
+
   const platforms = platformFiles
     .filter((f): f is NonNullable<typeof f> => f !== null)
-    .map((f) => parsePlatform(f.path, f.content))
+    .map((f) => parsePlatform(f.path, f.content, errors))
     .filter((p): p is DiscoveredPlatform => p !== null);
 
   const registries = registryFiles
     .filter((f): f is NonNullable<typeof f> => f !== null)
-    .map((f) => parseRegistry(f.path, f.content))
+    .map((f) => parseRegistry(f.path, f.content, errors))
     .filter((r): r is DiscoveredRegistry => r !== null);
 
   const appFile = appFileYaml ?? appFileYml;
   const appConfig: DiscoveredAppConfig = appFile
-    ? parseAppConfig(appFile.content)
+    ? parseAppConfig(appFile.path, appFile.content, org, errors)
     : { present: false };
 
   return {
@@ -202,5 +263,6 @@ export async function readDotFirestartr(
     platforms,
     registries,
     appConfig,
+    errors,
   };
 }

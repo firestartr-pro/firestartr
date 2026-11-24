@@ -1,13 +1,11 @@
 import { readFileSync } from 'fs';
-import { dirname, join } from 'path';
-import { fileURLToPath } from 'url';
+import { join } from 'path';
 
 import { discoverApp, formatDiscoverSummary } from '../src/app/discover.js';
 import { MemoryGitHubApi } from './fixtures/memoryGitHubApi.js';
 
 import type { FeatureSource } from '../src/utils/featureSource.js';
 
-const __dirname = dirname(fileURLToPath(import.meta.url));
 const DOT_FIRESTARTR_FIXTURES = join(__dirname, 'fixtures', 'dot-firestartr');
 const VALID_CLAIM_FIXTURES = join(__dirname, 'fixtures', 'valid');
 

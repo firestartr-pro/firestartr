@@ -1,5 +1,5 @@
 import { readArgoCdFacts } from './argocd.js';
-import { readDotFirestartr } from './dotFirestartr.js';
+import { parseRepoSlug, readDotFirestartr } from './dotFirestartr.js';
 import { readServiceFacts } from './serviceFacts.js';
 
 import type { ArgoCdFacts } from './argocd.js';
@@ -80,12 +80,19 @@ export async function discoverApp(
   const appServices = dotFirestartr.appConfig.present
     ? dotFirestartr.appConfig.services.map((s) => s.name)
     : [];
+  const matchingEntry = dotFirestartr.appConfig.present
+    ? dotFirestartr.appConfig.services.find((s) => s.name === service)
+    : undefined;
+  const serviceRepoOwner = matchingEntry
+    ? parseRepoSlug(matchingEntry.repo, org).owner
+    : org;
   const candidateEnvs = collectCandidateEnvs(dotFirestartr);
 
   const serviceFacts = await readServiceFacts(api, {
     org,
     claimsRepoName,
     service,
+    serviceRepoOwner,
     appServices,
     candidateEnvs,
     featureSource,
@@ -121,6 +128,12 @@ export function formatDiscoverSummary(result: AppDiscoverResult): string {
     lines.push(
       `App config: ${result.dotFirestartr.appConfig.present ? 'present' : 'absent'}`,
     );
+    if (result.dotFirestartr.errors.length > 0) {
+      lines.push('Skipped malformed YAML:');
+      for (const err of result.dotFirestartr.errors) {
+        lines.push(`  - ${err.path}: ${err.error}`);
+      }
+    }
   }
 
   if (!result.argocd.present) {

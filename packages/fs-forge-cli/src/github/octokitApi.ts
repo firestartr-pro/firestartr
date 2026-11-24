@@ -60,6 +60,11 @@ export function createOctokitApi(octokit: Octokit): GitHubApi {
         tree_sha: gitRef,
         recursive: '1',
       });
+      if (data.truncated) {
+        throw new Error(
+          `Git tree response truncated for ${ref.owner}/${ref.repo}@${gitRef}`,
+        );
+      }
       return (data.tree ?? [])
         .filter((entry) => entry.type === 'blob')
         .map((entry) => entry.path ?? '');
