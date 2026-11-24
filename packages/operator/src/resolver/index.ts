@@ -29,16 +29,33 @@ export class ResolverError extends Error {
   }
 }
 
+// Kubernetes object names are DNS subdomains capped at 253 characters.
+const MAX_SECRET_NAME_LENGTH = 253;
+
 /**
- * Name of the secret holding another CR's outputs (its terraform state
- * outputs, published through writeConnectionSecretToRef).
+ * Name of the secret holding a CR's outputs (its terraform state outputs,
+ * published through writeConnectionSecretToRef).
+ *
+ * The name is derived from kind and metadata.name. When that name is too
+ * long for Kubernetes, the renderer records a shortened one in
+ * spec.writeConnectionSecretToRef.name and that one is used instead. Valid
+ * names keep the derived form, as some kinds record a different one.
  */
 export function outputsSecretName(crDependency: any): string {
   if (crDependency.kind === 'ExternalSecret') {
     return crDependency.metadata.name;
   }
 
-  return `${crDependency['kind']}-${crDependency['metadata']['name']}-outputs`.toLowerCase();
+  const derived =
+    `${crDependency['kind']}-${crDependency['metadata']['name']}-outputs`.toLowerCase();
+
+  const recorded = crDependency.spec?.writeConnectionSecretToRef?.name;
+
+  if (derived.length > MAX_SECRET_NAME_LENGTH && recorded) {
+    return recorded.toLowerCase();
+  }
+
+  return derived;
 }
 
 export async function resolve(

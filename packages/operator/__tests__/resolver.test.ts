@@ -1,5 +1,6 @@
 import {
   ResolverError,
+  outputsSecretName,
   resolve,
   withoutPlaintextSecrets,
 } from '../src/resolver';
@@ -513,5 +514,57 @@ describe('Resolver', () => {
     expect(withoutPlaintextSecrets(cr).spec.actionsVariables).toEqual([
       { name: 'PLAIN', value: 'true', visibility: 'all' },
     ]);
+  });
+});
+
+describe('outputsSecretName', () => {
+  const longName = 'a'.repeat(240);
+
+  it('derives the name from kind and metadata.name', () => {
+    expect(
+      outputsSecretName({
+        kind: 'FirestartrGithubOrgRuleset',
+        metadata: { name: 'ruleset-a-uuid' },
+        spec: {
+          writeConnectionSecretToRef: { name: 'recorded-name-outputs' },
+        },
+      }),
+    ).toBe('firestartrgithuborgruleset-ruleset-a-uuid-outputs');
+  });
+
+  it('keeps the derived name for kinds that record a different one', () => {
+    expect(
+      outputsSecretName({
+        kind: 'FirestartrGithubOrganizationSecretSection',
+        metadata: { name: 'section-uuid' },
+        spec: {
+          writeConnectionSecretToRef: {
+            name: 'firestartrgithuborganizationsecretsection-section-secrets-outputs',
+          },
+        },
+      }),
+    ).toBe('firestartrgithuborganizationsecretsection-section-uuid-outputs');
+  });
+
+  it('uses the recorded name when the derived one exceeds 253 characters', () => {
+    const recorded = `firestartrgithuborgruleset-${'a'.repeat(100)}-uuid-outputs`;
+
+    const name = outputsSecretName({
+      kind: 'FirestartrGithubOrgRuleset',
+      metadata: { name: longName },
+      spec: { writeConnectionSecretToRef: { name: recorded } },
+    });
+
+    expect(name).toBe(recorded);
+  });
+
+  it('falls back to the derived name when a long one has no recorded name', () => {
+    expect(
+      outputsSecretName({
+        kind: 'FirestartrGithubOrgRuleset',
+        metadata: { name: longName },
+        spec: {},
+      }),
+    ).toBe(`firestartrgithuborgruleset-${longName}-outputs`);
   });
 });
