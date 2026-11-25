@@ -14,6 +14,21 @@ export type VendorValidator = ReturnType<Ajv['compile']>;
 // Draft-07 Ajv with strict: false for CRD x-kubernetes-*/nullable keywords; kept separate from schema/appInputs.ts (plain Draft 2020-12) and utils/ajvValidation.ts (custom claim keyword).
 const ajv = new Ajv({ allErrors: true, strict: false });
 
+// Register formats used by the vendored Kubernetes/ArgoCD CRD schemas so Ajv
+// does not emit `unknown format "..." ignored` warnings to stderr while
+// preserving full type validation (e.g. integer fields still reject strings).
+ajv.addFormat('int32', {
+  type: 'number',
+  validate: (n: number) =>
+    Number.isInteger(n) && n >= -2147483648 && n <= 2147483647,
+});
+ajv.addFormat('int64', {
+  type: 'number',
+  validate: (n: number) => Number.isInteger(n),
+});
+ajv.addFormat('date-time', true);
+ajv.addFormat('crd-openapi', true);
+
 const compiledByDir = new Map<string, Map<VendorSchemaName, VendorValidator>>();
 
 export function vendorSchemasDir(root: string): string {
