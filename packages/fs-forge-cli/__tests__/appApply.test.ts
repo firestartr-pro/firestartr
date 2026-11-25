@@ -84,6 +84,11 @@ function makeContext(
     claimsMap: { headers: { sha: 'test' }, claims: {} },
     serviceRepoOwner: 'acme',
     serviceRepoName: 'payments-api',
+    repoExists: {
+      dotFirestartr: true,
+      stateArgocd: true,
+      service: true,
+    },
     defaultBranches: {
       claims: 'main',
       dotFirestartr: 'main',
