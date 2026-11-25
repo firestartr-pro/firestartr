@@ -74,9 +74,19 @@ export default {
                       'DeployKey',
                     ],
                   },
+                  // Team actors point at a GroupClaim. The renderer resolves
+                  // the claim to its FirestartrGithubGroup CR and the
+                  // provisioner turns that ref into the numeric team id, so
+                  // the claim never carries an org-specific slug or id.
+                  group: {
+                    $ref: 'firestartr.dev://common/FirestartrGroupRef',
+                  },
                   actor_id: { type: 'integer' },
                   actor_slug: { type: 'string' },
-                  actor_role: { type: 'string' },
+                  actor_role: {
+                    type: 'string',
+                    enum: ['maintain', 'write', 'admin'],
+                  },
                   bypass_mode: {
                     type: 'string',
                     enum: ['always', 'pull_request'],
@@ -84,6 +94,47 @@ export default {
                 },
                 required: ['actor_type', 'bypass_mode'],
                 additionalProperties: false,
+                allOf: [
+                  {
+                    if: { properties: { actor_type: { const: 'Team' } } },
+                    then: {
+                      required: ['group'],
+                      not: {
+                        anyOf: [
+                          { required: ['actor_id'] },
+                          { required: ['actor_slug'] },
+                          { required: ['actor_role'] },
+                        ],
+                      },
+                    },
+                    else: { not: { required: ['group'] } },
+                  },
+                  {
+                    if: {
+                      properties: { actor_type: { const: 'Integration' } },
+                    },
+                    then: {
+                      anyOf: [
+                        { required: ['actor_id'] },
+                        { required: ['actor_slug'] },
+                      ],
+                      not: { required: ['actor_role'] },
+                    },
+                    else: { not: { required: ['actor_slug'] } },
+                  },
+                  {
+                    if: {
+                      properties: { actor_type: { const: 'RepositoryRole' } },
+                    },
+                    then: {
+                      anyOf: [
+                        { required: ['actor_id'] },
+                        { required: ['actor_role'] },
+                      ],
+                    },
+                    else: { not: { required: ['actor_role'] } },
+                  },
+                ],
               },
             },
           },

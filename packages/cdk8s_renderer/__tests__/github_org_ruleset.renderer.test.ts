@@ -34,6 +34,7 @@ describe('GitHub organization ruleset rendering', () => {
         'orgruleset_property_a',
         'system_a',
         'group_a',
+        'group_b',
         'user_a',
         'domain_a',
       ],
@@ -67,6 +68,15 @@ describe('GitHub organization ruleset rendering', () => {
       'OrgRulesetClaim/orgruleset_a',
     );
     expect(cr.spec.org).toBe('firestartr-test');
+
+    const groupCr: any = Object.values(renderedMap).find(
+      (entry: any) =>
+        entry.kind === 'FirestartrGithubGroup' &&
+        entry.metadata.annotations['firestartr.dev/external-name'] ===
+          'group-b',
+    );
+
+    expect(groupCr).toBeDefined();
     expect(cr.spec.ruleset).toEqual({
       name: 'Standard - Default Branch Protection',
       target: 'branch',
@@ -88,8 +98,12 @@ describe('GitHub organization ruleset rendering', () => {
       bypass_actors: [
         {
           actor_type: 'Team',
-          actor_slug: 'platform-team',
           bypass_mode: 'always',
+          ref: {
+            kind: 'FirestartrGithubGroup',
+            name: groupCr.metadata.name,
+            needsSecret: true,
+          },
         },
         { actor_type: 'OrganizationAdmin', bypass_mode: 'pull_request' },
       ],
@@ -180,6 +194,38 @@ describe('GitHub organization ruleset rendering', () => {
     } finally {
       fs.rmSync(previousCrsDir, { recursive: true, force: true });
     }
+  });
+
+  it('loads the referenced group claim when only the ruleset claim is selected', async () => {
+    const { renderedMap } = await context.renderClaims(
+      { claimRefs: ['OrgRulesetClaim-orgruleset_a'] },
+      { crsPath: rendererTestFixtures.noCrs },
+    );
+
+    const cr = findRulesetCr(
+      renderedMap,
+      'Standard - Default Branch Protection',
+    );
+    const groupRef = cr.spec.ruleset.bypass_actors[0].ref;
+
+    expect(groupRef.kind).toBe('FirestartrGithubGroup');
+    expect(
+      Object.values(renderedMap).some(
+        (entry: any) =>
+          entry.kind === 'FirestartrGithubGroup' &&
+          entry.metadata.name === groupRef.name,
+      ),
+    ).toBe(true);
+  });
+
+  it('rejects a Team bypass actor from another organization', async () => {
+    await context.applyPatches('orgruleset_a', [
+      { op: 'replace', path: '/providers/github/org', value: 'other-org' },
+    ]);
+
+    await expect(render()).rejects.toThrow(
+      /belongs to organization "firestartr-test" but the ruleset targets "other-org"/,
+    );
   });
 
   it('renders a tag ruleset', async () => {
@@ -328,8 +374,106 @@ describe('OrgRulesetClaim schema', () => {
       },
     ]).catch((e) => e);
 
-    expect(errors[0].instancePath).toBe(
-      '/providers/github/bypass_actors/0/actor_type',
-    );
+    expect(
+      errors.some((error: any) =>
+        error.instancePath.startsWith('/providers/github/bypass_actors/0'),
+      ),
+    ).toBe(true);
+  });
+
+  it('rejects a Team bypass actor without a group reference', async () => {
+    const errors = await validate([
+      {
+        op: 'replace',
+        path: '/providers/github/bypass_actors/0',
+        value: { actor_type: 'Team', bypass_mode: 'always' },
+      },
+    ]).catch((e) => e);
+
+    expect(errors.length).toBeGreaterThan(0);
+    expect(
+      errors.some(
+        (error: any) =>
+          /group/.test(error.message) ||
+          error.params?.missingProperty === 'group',
+      ),
+    ).toBe(true);
+  });
+
+  it('rejects a Team bypass actor that also carries a slug', async () => {
+    const errors = await validate([
+      {
+        op: 'replace',
+        path: '/providers/github/bypass_actors/0',
+        value: {
+          actor_type: 'Team',
+          group: 'group:group_b',
+          actor_slug: 'platform-team',
+          bypass_mode: 'always',
+        },
+      },
+    ]).catch((e) => e);
+
+    expect(errors.length).toBeGreaterThan(0);
+  });
+
+  it('accepts a RepositoryRole bypass actor by role', async () => {
+    await expect(
+      validate([
+        {
+          op: 'add',
+          path: '/providers/github/bypass_actors/-',
+          value: {
+            actor_type: 'RepositoryRole',
+            actor_role: 'admin',
+            bypass_mode: 'always',
+          },
+        },
+      ]),
+    ).resolves.toBeUndefined();
+  });
+
+  it('accepts an Integration bypass actor by slug', async () => {
+    await expect(
+      validate([
+        {
+          op: 'add',
+          path: '/providers/github/bypass_actors/-',
+          value: {
+            actor_type: 'Integration',
+            actor_slug: 'release-bot',
+            bypass_mode: 'always',
+          },
+        },
+      ]),
+    ).resolves.toBeUndefined();
+  });
+
+  it('rejects an Integration bypass actor without a slug or id', async () => {
+    const errors = await validate([
+      {
+        op: 'add',
+        path: '/providers/github/bypass_actors/-',
+        value: { actor_type: 'Integration', bypass_mode: 'always' },
+      },
+    ]).catch((e) => e);
+
+    expect(errors.length).toBeGreaterThan(0);
+  });
+
+  it('rejects a group reference on a non-Team bypass actor', async () => {
+    const errors = await validate([
+      {
+        op: 'add',
+        path: '/providers/github/bypass_actors/-',
+        value: {
+          actor_type: 'OrganizationAdmin',
+          group: 'group:group_b',
+          bypass_mode: 'always',
+        },
+      },
+    ]).catch((e) => e);
+
+    expect(errors.length).toBeGreaterThan(0);
   });
 });

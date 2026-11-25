@@ -25,7 +25,7 @@ providers:
           dismiss_stale_reviews_on_push: true
     bypass_actors:
       - actor_type: Team
-        actor_slug: platform-team
+        group: "group:group_b"
         bypass_mode: always
       - actor_type: OrganizationAdmin
         bypass_mode: pull_request

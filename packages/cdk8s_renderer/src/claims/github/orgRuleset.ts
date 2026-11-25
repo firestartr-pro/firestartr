@@ -19,9 +19,10 @@ export interface IGithubOrgRulesetClaim extends IOrgRulesetClaim {
       rules?: { type: string; parameters?: object }[];
       bypass_actors?: {
         actor_type: string;
+        group?: string;
         actor_id?: number;
         actor_slug?: string;
-        actor_role?: string;
+        actor_role?: 'maintain' | 'write' | 'admin';
         bypass_mode: string;
       }[];
     };

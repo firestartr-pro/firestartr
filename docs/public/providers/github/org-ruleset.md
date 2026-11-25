@@ -35,7 +35,7 @@ providers:
           required_approving_review_count: 1
     bypass_actors:
       - actor_type: Team
-        actor_slug: platform-team
+        group: "group:platform-team"
         bypass_mode: always
 ```
 
@@ -50,8 +50,29 @@ providers:
 | `providers.github.enforcement` | Yes | `active`, `evaluate` (report only) or `disabled`. |
 | `providers.github.conditions` | Yes | `ref_name` (required for `branch` and `tag`) plus `repository_name` or `repository_property`. |
 | `providers.github.rules` | No | `{type, parameters}` entries. `type` must be one of the known rule types. |
-| `providers.github.bypass_actors` | No | `actor_type`, `bypass_mode` and one of `actor_id`, `actor_slug` or `actor_role`. |
+| `providers.github.bypass_actors` | No | `actor_type`, `bypass_mode` and the reference required by that type: `group` for `Team`, `actor_slug` or `actor_id` for `Integration`, `actor_role` or `actor_id` for `RepositoryRole`; `OrganizationAdmin` and `DeployKey` take neither. |
 | `providers.github.tfStateKey` | No | Explicit UUID state key. |
+
+## Bypass actors
+
+Team bypass actors reference a `GroupClaim`, not a GitHub slug:
+
+```yaml
+bypass_actors:
+  - actor_type: Team
+    group: "group:platform-team"
+    bypass_mode: always
+```
+
+The renderer resolves the claim to its `FirestartrGithubGroup` CR, checks that
+the team belongs to the ruleset's organization and stores a `ref` in the CR. The
+provisioner then resolves that ref to the numeric team id from the group's
+Terraform outputs, so a missing group or output fails before the plan instead of
+inside a Terraform data lookup.
+
+`Integration` actors still use `actor_slug` (or `actor_id`), and
+`RepositoryRole` uses `actor_role` (`maintain`, `write` or `admin`). Neither has
+a claim kind to reference; the module resolves those values inside Terraform.
 
 ## Validation
 
@@ -73,9 +94,10 @@ or env), the check cannot run.
 - `metadata.name`: normalized `providers.github.name` with the state key
   appended.
 - `spec.org` and `spec.ruleset`. `spec.ruleset` has the shape of the module
-  `config` and is passed to it unchanged.
-- Bypass actors given by `actor_slug` or `actor_role` are resolved to IDs by the
-  module.
+  `config`, except Team bypass actors, which are rendered as a
+  `FirestartrGithubGroup` ref.
+- Team bypass actor refs are resolved to the numeric team id by the provisioner;
+  `actor_slug` and `actor_role` (for non-Team actors) are resolved by the module.
 
 ## Import
 

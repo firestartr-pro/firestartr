@@ -151,6 +151,22 @@ export function extractAllRefs(claimData: string) {
 
       break;
     }
+    case 'OrgRulesetClaim': {
+      const bypassActors = parsedClaim.providers?.github?.bypass_actors;
+      if (Array.isArray(bypassActors)) {
+        for (const actor of bypassActors) {
+          if (actor?.actor_type !== 'Team' || typeof actor.group !== 'string') {
+            continue;
+          }
+          const match = actor.group.match(/^group:(.+)$/);
+          if (match) {
+            refs.push(`GroupClaim-${match[1]}`);
+          }
+        }
+      }
+
+      break;
+    }
   }
 
   log.info(

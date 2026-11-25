@@ -118,6 +118,12 @@ describe('The reference extractor', () => {
     expect(componentRefs).toContain('ComponentClaim-component_a');
   });
 
+  it('can extract group refs from OrgRulesetClaim team bypass actors', async () => {
+    const refs = extractAllRefs(await context.getFile('orgruleset_a'));
+
+    expect(refs).toContain('GroupClaim-group_b');
+  });
+
   it('can extract secret refs from OrgSettingsClaim org_secrets', async () => {
     const refs = extractAllRefs(
       await context.getFile('orgsettings_selected_repos'),
