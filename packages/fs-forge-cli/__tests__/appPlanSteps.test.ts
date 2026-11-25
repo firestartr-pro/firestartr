@@ -189,6 +189,30 @@ describe('buildPlanSteps', () => {
     expect(steps[2].repos[0].headBranch).toBe(head);
   });
 
+  it('identifies step-1 claims by path rather than array position', () => {
+    const steps = buildPlanSteps(
+      makePlanResult({
+        claims: [
+          mergeFile('components/payments-api.yaml', ['release_please']),
+          createFile('components/app-payments.yaml'),
+        ],
+        dotFirestartr: [noopFile('apps/payments.yaml')],
+        stateApp: [noopFile('kubernetes/eks-main/core/dev.yaml')],
+        stateArgocd: [noopFile('apps/payments/argo-payments.Project.yaml')],
+        service: [noopFile('.github/make_dispatches.yaml')],
+      }),
+    );
+
+    expect(steps[0].repos[0].claim?.name).toBe('payments-api');
+    expect(steps[0].repos[0].headBranch).toBe(
+      claimBranchName('ComponentClaim', 'payments-api'),
+    );
+    expect(steps[0].repos[1].claim?.name).toBe('app-payments');
+    expect(steps[0].repos[1].headBranch).toBe(
+      claimBranchName('ComponentClaim', 'app-payments'),
+    );
+  });
+
   it('handles adding a target where .firestartr is noop and other repos change', () => {
     const steps = buildPlanSteps(
       makePlanResult({

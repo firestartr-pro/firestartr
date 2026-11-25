@@ -308,6 +308,10 @@ describe('applyApp', () => {
     expect(api1.committed).toHaveLength(0);
     expect(api1.createdPulls).toHaveLength(0);
     expect(api1.dispatched).toHaveLength(0);
+    expect(api1.issues).toHaveLength(0);
+    expect(
+      api1.calls.filter((c) => c.startsWith('createBranch ')),
+    ).toHaveLength(0);
 
     const api2 = makeApi();
     const res2 = await applyApp(
@@ -320,6 +324,10 @@ describe('applyApp', () => {
     expect(api2.committed).toHaveLength(0);
     expect(api2.createdPulls).toHaveLength(0);
     expect(api2.dispatched).toHaveLength(0);
+    expect(api2.issues).toHaveLength(0);
+    expect(
+      api2.calls.filter((c) => c.startsWith('createBranch ')),
+    ).toHaveLength(0);
   });
 
   it('with noWait lands only the first unsatisfied step and stops with pending', async () => {
@@ -566,5 +574,215 @@ describe('applyApp', () => {
     });
     // Both workflow runs commented on the single issue
     expect(api.issueComments.filter((c) => c.issue === 1)).toHaveLength(2);
+  });
+
+  it('enforces per-step timeoutMs in step 1 and returns pending with the in-progress claim open', async () => {
+    const api = makeApi();
+    api.autoCompleteDispatches = false;
+    const clock = makeFakeClock();
+
+    // Workflow run stays in_progress forever so dispatch polling hits timeoutMs
+    api.setWorkflowRuns(
+      { owner: 'acme', repo: 'claims' },
+      'provision-claim.yaml',
+      'fs-forge/ComponentClaim-app-payments',
+      [],
+    );
+    const origListRuns = api.listWorkflowRuns.bind(api);
+    api.listWorkflowRuns = async (ref, input) => {
+      const dispatch = api.dispatched.find(
+        (d) => d.gitRef === input.branch && d.workflowId === input.workflowId,
+      );
+      if (dispatch) {
+        return [
+          {
+            id: 99,
+            htmlUrl: 'https://github.com/acme/claims/actions/runs/99',
+            status: 'in_progress',
+            conclusion: null,
+            displayTitle: String(dispatch.inputs.correlationId),
+          },
+        ];
+      }
+      return origListRuns(ref, input);
+    };
+
+    const result = await applyApp(api, makeFullPlan(), {
+      timeoutMs: 10_000,
+      pollIntervalMs: 5_000,
+      now: clock.now,
+      sleep: clock.sleep,
+    });
+
+    expect(result.outcome).toBe('pending');
+    expect(result.steps).toHaveLength(1);
+    expect(result.steps[0].repos[0].state).toBe('open');
+    expect(result.steps[0].repos[0].reason).toContain(
+      'https://github.com/acme/claims/actions/runs/99',
+    );
+  });
+
+  it('returns failed (without throwing) when createPullRequest or commitFile throws mid-step in step 2', async () => {
+    // Case A: createPullRequest throws on 3rd repo
+    const api1 = makeApi();
+    const clock1 = makeFakeClock();
+    const origCreatePr = api1.createPullRequest.bind(api1);
+    api1.createPullRequest = async (ref, input) => {
+      if (ref.repo === 'state-argocd') {
+        throw new Error('boom: createPullRequest 500');
+      }
+      return origCreatePr(ref, input);
+    };
+
+    const plan = makeFullPlan({
+      claims: [
+        noopFile('claims/components/app-payments.yaml'),
+        noopFile('claims/components/payments-api.yaml'),
+      ],
+    });
+
+    const res1 = await applyApp(api1, plan, {
+      now: clock1.now,
+      sleep: clock1.sleep,
+    });
+
+    expect(res1.outcome).toBe('failed');
+    expect(res1.reason).toContain('boom: createPullRequest 500');
+    expect(res1.steps[1].repos).toHaveLength(3);
+    expect(res1.steps[1].repos[0]).toMatchObject({
+      repo: 'acme/.firestartr',
+      state: 'open',
+      pr: { number: 1 },
+    });
+    expect(res1.steps[1].repos[1]).toMatchObject({
+      repo: 'acme/app-payments',
+      state: 'open',
+      pr: { number: 2 },
+    });
+    expect(res1.steps[1].repos[2]).toMatchObject({
+      repo: 'acme/state-argocd',
+      state: 'failed',
+      reason: 'boom: createPullRequest 500',
+    });
+
+    // Case B: commitFile throws on 2nd repo
+    const api2 = makeApi();
+    const clock2 = makeFakeClock();
+    const origCommit = api2.commitFile.bind(api2);
+    api2.commitFile = async (ref, input) => {
+      if (ref.repo === 'app-payments') {
+        throw new Error('boom: commitFile 500');
+      }
+      return origCommit(ref, input);
+    };
+
+    const res2 = await applyApp(api2, plan, {
+      now: clock2.now,
+      sleep: clock2.sleep,
+    });
+
+    expect(res2.outcome).toBe('failed');
+    expect(res2.reason).toContain('boom: commitFile 500');
+    expect(res2.steps[1].repos[0]).toMatchObject({
+      repo: 'acme/.firestartr',
+      state: 'open',
+      pr: { number: 1 },
+    });
+    expect(res2.steps[1].repos[1]).toMatchObject({
+      repo: 'acme/app-payments',
+      state: 'failed',
+      reason: 'boom: commitFile 500',
+    });
+  });
+
+  it('fails without overwriting when a reused open PR does not match the current plan', async () => {
+    const api = makeApi();
+    const clock = makeFakeClock();
+    const dotRef = { owner: 'acme', repo: '.firestartr' };
+    api.setPullRequests(dotRef, [
+      {
+        number: 42,
+        htmlUrl: 'https://github.com/acme/.firestartr/pull/42',
+        state: 'open',
+        headRef: 'fs-forge/app-payments',
+        baseRef: 'main',
+        baseSha: 'base-sha',
+        updatedAt: '',
+      },
+    ]);
+    api.setFile(dotRef, 'apps/payments.yaml', 'stale-content\n');
+
+    const plan = makeFullPlan({
+      claims: [
+        noopFile('claims/components/app-payments.yaml'),
+        noopFile('claims/components/payments-api.yaml'),
+      ],
+      stateApp: [noopFile('kubernetes/eks-main/core/dev.yaml')],
+      stateArgocd: [
+        noopFile('apps/payments/argo-payments.ApplicationSet.yaml'),
+      ],
+      service: [noopFile('.github/make_dispatches.yaml')],
+    });
+
+    const result = await applyApp(api, plan, {
+      now: clock.now,
+      sleep: clock.sleep,
+    });
+
+    expect(result.outcome).toBe('failed');
+    expect(result.steps[1].repos[0].state).toBe('failed');
+    expect(result.steps[1].repos[0].reason).toContain('acme/.firestartr#42');
+    expect(result.steps[1].repos[0].reason).toContain('apps/payments.yaml');
+    expect(api.committed).toHaveLength(0);
+    expect(api.createdPulls).toHaveLength(0);
+  });
+
+  it('fails naming both PRs when two open PRs exist on the same head branch', async () => {
+    const api = makeApi();
+    const clock = makeFakeClock();
+    const dotRef = { owner: 'acme', repo: '.firestartr' };
+    api.setPullRequests(dotRef, [
+      {
+        number: 7,
+        htmlUrl: 'https://github.com/acme/.firestartr/pull/7',
+        state: 'open',
+        headRef: 'fs-forge/app-payments',
+        baseRef: 'main',
+        baseSha: 'base-sha',
+        updatedAt: '',
+      },
+      {
+        number: 8,
+        htmlUrl: 'https://github.com/acme/.firestartr/pull/8',
+        state: 'open',
+        headRef: 'fs-forge/app-payments',
+        baseRef: 'main',
+        baseSha: 'base-sha',
+        updatedAt: '',
+      },
+    ]);
+
+    const plan = makeFullPlan({
+      claims: [
+        noopFile('claims/components/app-payments.yaml'),
+        noopFile('claims/components/payments-api.yaml'),
+      ],
+      stateApp: [noopFile('kubernetes/eks-main/core/dev.yaml')],
+      stateArgocd: [
+        noopFile('apps/payments/argo-payments.ApplicationSet.yaml'),
+      ],
+      service: [noopFile('.github/make_dispatches.yaml')],
+    });
+
+    const result = await applyApp(api, plan, {
+      now: clock.now,
+      sleep: clock.sleep,
+    });
+
+    expect(result.outcome).toBe('failed');
+    expect(result.steps[1].repos[0].state).toBe('failed');
+    expect(result.steps[1].repos[0].reason).toContain('acme/.firestartr#7');
+    expect(result.steps[1].repos[0].reason).toContain('acme/.firestartr#8');
+    expect(api.createdPulls).toHaveLength(0);
   });
 });
