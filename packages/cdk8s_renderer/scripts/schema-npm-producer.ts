@@ -88,6 +88,7 @@ async function writeSchemaSet(
   schemas: Record<string, any>,
   directory: string,
   transform: (schema: any, filename: string) => any,
+  extras: Array<{ identifier: string; name: string; schema: any }> = [],
 ): Promise<void> {
   await fs.mkdir(directory, { recursive: true });
   const imports: string[] = [];
@@ -107,6 +108,19 @@ async function writeSchemaSet(
     );
     exports.push(identifier);
     entries.push(`  ${JSON.stringify(name)}: ${identifier},`);
+  }
+
+  for (const { identifier, name, schema } of extras) {
+    const filename = `${name}.schema.json`;
+    await fs.writeFile(
+      path.join(directory, filename),
+      JSON.stringify(transform(schema, filename), null, 2),
+      'utf8',
+    );
+    imports.push(
+      `import ${identifier} from './${filename}' with { type: 'json' };`,
+    );
+    exports.push(identifier);
   }
 
   await fs.writeFile(
@@ -275,6 +289,13 @@ void (async () => {
     dotFirestartr.schemas,
     path.join(pkgdir, 'dot-firestartr'),
     (schema) => schema,
+    [
+      {
+        identifier: 'stateAppsEnv',
+        name: 'state_apps_env',
+        schema: dotFirestartr.stateAppsEnv,
+      },
+    ],
   );
 
   // Step 3c: Write action schemas without IDs so both views remain safe to
@@ -370,6 +391,7 @@ void (async () => {
     `import { readdirSync, readFileSync } from 'fs';
 import Ajv2020 from 'ajv/dist/2020.js';
 import apps from './dot-firestartr/apps.schema.json' with { type: 'json' };
+import { stateAppsEnv } from './dot-firestartr/index.mjs';
 import { schemas as actions } from './actions/index.mjs';
 const actionApps = actions['firestartr-apps'];
 const actionConfig = actions.config;
@@ -398,6 +420,11 @@ const validateApps = dotFirestartrAjv.compile(apps);
 const app = { name: 'app', state_repo: 'org/state', services: [] };
 if (!validateApps(app)) {
   console.error(validateApps.errors);
+  process.exit(1);
+}
+const validateStateAppsEnv = dotFirestartrAjv.compile(stateAppsEnv);
+if (!validateStateAppsEnv({ chart: 'oci/org/app', version: '1.0.0' })) {
+  console.error(validateStateAppsEnv.errors);
   process.exit(1);
 }
 
