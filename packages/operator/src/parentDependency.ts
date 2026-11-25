@@ -9,6 +9,7 @@ import { isPlanMode } from './plan-mode/config';
 const PARENT_KIND_MAP: Record<string, string> = {
   FirestartrGithubRepositoryFeature: 'FirestartrGithubRepository',
   FirestartrGithubRepositorySecretsSection: 'FirestartrGithubRepository',
+  FirestartrGithubOrgRuleset: 'FirestartrGithubGroup',
   FirestartrDummyB: 'FirestartrDummyA',
   FirestartrDummyC: 'FirestartrDummyB',
 };
@@ -44,6 +45,17 @@ export function getParentRef(
   const needs = workItem.item.spec?.needs;
   if (needs?.kind && needs?.name) {
     return { kind: needs.kind, name: needs.name };
+  }
+
+  // Org rulesets can reference a group for a Team bypass actor. Defer them
+  // until that group is provisioned so the provisioner can read its id from
+  // the outputs secret on the first attempt.
+  const bypassRef = workItem.item.spec?.ruleset?.bypass_actors?.find(
+    (actor: any) =>
+      actor?.ref?.kind === 'FirestartrGithubGroup' && actor.ref.name,
+  )?.ref;
+  if (bypassRef?.kind && bypassRef?.name) {
+    return { kind: bypassRef.kind, name: bypassRef.name };
   }
 
   return null;

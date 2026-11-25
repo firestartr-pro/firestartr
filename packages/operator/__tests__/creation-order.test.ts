@@ -53,6 +53,38 @@ function makeWorkItem(
   } as any as WorkItem;
 }
 
+function makeRulesetWorkItem(
+  groupName?: string,
+  groupKind: string = KIND_GROUP,
+): WorkItem {
+  const item: any = {
+    metadata: { name: 'ruleset', namespace: 'default' },
+    kind: KIND_ORG_RULESET,
+  };
+
+  if (groupName) {
+    item.spec = {
+      ruleset: {
+        bypass_actors: [
+          {
+            actor_type: 'Team',
+            bypass_mode: 'always',
+            ref: { kind: groupKind, name: groupName, needsSecret: true },
+          },
+        ],
+      },
+    };
+  }
+
+  return {
+    item,
+    operation: OperationType.CREATED,
+    workStatus: WorkStatus.PENDING,
+    onDelete: () => {},
+    upsertTime: 0,
+  } as any as WorkItem;
+}
+
 describe('sortQueue — creation ordering', () => {
   it('sorts GHRepo before GHRepoFeat when both are CREATED', () => {
     const child = makeWorkItem(
@@ -643,6 +675,19 @@ describe('hasActiveParent — parent-identity dependency check', () => {
     const deferredKeys = new Set<string>();
     expect(hasActiveParent(child, activeKeys, deferredKeys)).toBe(false);
   });
+
+  it('blocks an org ruleset while its bypass group is PENDING', () => {
+    const group = makeWorkItem(KIND_GROUP, OperationType.CREATED, 0, 'mygroup');
+    const ruleset = makeRulesetWorkItem('mygroup');
+
+    expect(hasActiveParent(ruleset, [group, ruleset])).toBe(true);
+  });
+
+  it('does NOT block an org ruleset without a group bypass actor', () => {
+    const ruleset = makeRulesetWorkItem();
+
+    expect(hasActiveParent(ruleset, [ruleset])).toBe(false);
+  });
 });
 
 describe('buildDeferredParentKeys — cluster existence and provisioning check', () => {
@@ -881,5 +926,18 @@ describe('buildDeferredParentKeys — cluster existence and provisioning check',
       mockGetItemProvisioned,
     );
     expect(result.size).toBe(0);
+  });
+
+  it('defers an org ruleset whose bypass group is not provisioned', async () => {
+    const ruleset = makeRulesetWorkItem('unprovisioned-group');
+    const activeKeys = new Set<string>();
+
+    const result = await buildDeferredParentKeys(
+      [ruleset],
+      activeKeys,
+      mockGetItemNotProvisioned,
+    );
+
+    expect(result.has('FirestartrGithubGroup/unprovisioned-group')).toBe(true);
   });
 });
