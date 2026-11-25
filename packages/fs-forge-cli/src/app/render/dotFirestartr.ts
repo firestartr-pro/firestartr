@@ -5,6 +5,7 @@ import { formatAjvErrors } from '../../utils/ajvValidation.js';
 import { isRecord } from '../../utils/isRecord.js';
 import { parseRepoSlug } from '../dotFirestartr.js';
 
+import { preserveEol, resolveServiceNames } from './shared.js';
 import type { RenderedFile } from './types.js';
 import type { AppInputs } from '../../schema/appInputs.js';
 
@@ -35,13 +36,6 @@ function validateAppsDoc(data: unknown, schemasDir: string): void {
   }
 }
 
-function preserveEol(rendered: string, existingContent: string): string {
-  if (existingContent.includes('\r\n') && !/(?<!\r)\n/.test(existingContent)) {
-    return rendered.replace(/\r?\n/g, '\r\n');
-  }
-  return rendered;
-}
-
 export function renderDotFirestartrApp(
   options: RenderDotFirestartrOptions,
 ): RenderedFile {
@@ -53,10 +47,7 @@ export function renderDotFirestartrApp(
     org,
   );
   const serviceRepoSlug = `${serviceOwner}/${serviceRepoName}`;
-  const desiredServiceNames =
-    inputs.service.service_names && inputs.service.service_names.length > 0
-      ? inputs.service.service_names
-      : [serviceRepoName];
+  const desiredServiceNames = resolveServiceNames(inputs.service, org);
 
   if (existingContent === undefined) {
     const obj = {

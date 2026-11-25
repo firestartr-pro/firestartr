@@ -12,9 +12,11 @@ export type RenderedFile =
         | { kind: 'create' }
         | { kind: 'merge'; added: string[] }
         | { kind: 'noop' };
+      notes?: string[];
     }
   | {
       path: string;
       content?: never;
       outcome: { kind: 'conflict'; reason: string };
+      notes?: string[];
     };
