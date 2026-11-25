@@ -105,8 +105,7 @@ redaction fails, the drive stops without printing the transcript). Read the
 final `DRIVE <NN>-<label> verdict=...` line; exit 4 means the proof is void even
 when the CLI behaved.
 
-Org-bound modes were exercised against a stand-in `gh` only, never a live org.
-Treat the first live drive as unproven and report anything surprising.
+`read` mode was exercised live against `pre-vieitesss`. `write` mode was exercised against a stand-in `gh` only, never a live org; treat the first live `write` drive as unproven and report anything surprising.
 
 ## Evidence
 
