@@ -434,6 +434,7 @@ describe('applyApp', () => {
         updatedAt: '',
       },
     ]);
+    api.setFile(dotRef, 'apps/payments.yaml', 'dot-app\n');
 
     api.onGetPullRequest = (ref, pr) => {
       api.setPrState(ref, pr, 'closed', true);

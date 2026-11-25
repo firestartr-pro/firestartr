@@ -116,12 +116,9 @@ export function buildPlanSteps(result: AppPlanResult): PlanStep[] {
   const headBranch = appPlanHeadBranch(app);
   const { defaultBranches } = context;
 
-  const claimsEntries: PlanRepoEntry[] = files.claims.map((file, index) => {
+  const claimsEntries: PlanRepoEntry[] = files.claims.map((file) => {
     const kind: ClaimKindName = 'ComponentClaim';
-    const isServiceClaim =
-      files.claims.length === 1
-        ? file.path === context.serviceClaimPath
-        : index === 1;
+    const isServiceClaim = file.path === context.serviceClaimPath;
     const name = isServiceClaim ? context.serviceRepoName : `app-${app}`;
     const hydrate = KIND_REGISTRY[kind]?.catalogOnly !== true;
     return buildRepoEntry({

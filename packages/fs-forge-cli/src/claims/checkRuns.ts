@@ -40,6 +40,8 @@ export interface WatchCheckOptions {
   timeoutMs?: number;
   pollIntervalMs?: number;
   waitForRegistration?: boolean;
+  now?: () => number;
+  sleep?: (ms: number) => Promise<void>;
 }
 
 const DEFAULT_TIMEOUT_MS = 30 * 60 * 1000;
@@ -53,9 +55,11 @@ export async function watchCheckRuns(
 ): Promise<AggregatedCheckResult> {
   const timeoutMs = options.timeoutMs ?? DEFAULT_TIMEOUT_MS;
   const pollIntervalMs = options.pollIntervalMs ?? DEFAULT_POLL_INTERVAL_MS;
-  const deadline = Date.now() + timeoutMs;
+  const now = options.now ?? Date.now;
+  const sleepFn = options.sleep ?? sleep;
+  const deadline = now() + timeoutMs;
 
-  while (Date.now() < deadline) {
+  while (now() < deadline) {
     const checkRuns = await api.listCheckRunsForPullRequest(ref, prNumber);
     const allCompleted =
       (!options.waitForRegistration || checkRuns.length > 0) &&
@@ -65,7 +69,7 @@ export async function watchCheckRuns(
       return aggregateResults(checkRuns);
     }
 
-    await sleep(pollIntervalMs);
+    await sleepFn(pollIntervalMs);
   }
 
   const checkRuns = await api.listCheckRunsForPullRequest(ref, prNumber);

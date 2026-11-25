@@ -21,6 +21,14 @@ export interface ClaimPublishRequest {
   audit?: AuditTrail;
   /** Create only: reject a claim that already exists in the claims map. */
   rejectExistingClaim?: boolean;
+  /** Optional overall timeout in ms for dispatch polling and wet PR check watch. */
+  timeoutMs?: number;
+  /** Optional poll interval in ms for dispatch polling and wet PR check watch. */
+  pollIntervalMs?: number;
+  /** Optional clock for deterministic timeout testing. */
+  now?: () => number;
+  /** Optional sleeper for deterministic timeout testing. */
+  sleep?: (ms: number) => Promise<void>;
 }
 
 export interface Pulse {
@@ -53,7 +61,14 @@ export async function publishClaimAndWait(
     stateRepos,
     audit,
     rejectExistingClaim,
+    timeoutMs,
+    pollIntervalMs,
+    now,
+    sleep,
   } = request;
+
+  const clock = now ?? Date.now;
+  const deadline = timeoutMs !== undefined ? clock() + timeoutMs : undefined;
 
   pulse.output(output);
 
@@ -81,12 +96,28 @@ export async function publishClaimAndWait(
     audit,
   );
 
+  const hasPollOverrides =
+    timeoutMs !== undefined ||
+    pollIntervalMs !== undefined ||
+    now !== undefined ||
+    sleep !== undefined;
+
   const publishUrl = await waitForDispatch(repo.api, repo.ref, dispatch, {
     noWait,
     claimType: kind,
     claimName: name,
     label: 'Provisioning',
     extra: audit?.result(),
+    ...(hasPollOverrides
+      ? {
+          pollOptions: {
+            ...(timeoutMs !== undefined ? { timeoutMs } : {}),
+            ...(pollIntervalMs !== undefined ? { pollIntervalMs } : {}),
+            ...(now ? { now } : {}),
+            ...(sleep ? { sleep } : {}),
+          },
+        }
+      : {}),
   });
 
   // Only a successful publish has a run to record; failures are reported by
@@ -94,10 +125,20 @@ export async function publishClaimAndWait(
   await audit?.commentRunUrl(publishUrl);
 
   if (waitForChecks && !noWait) {
+    const remainingMs =
+      deadline !== undefined ? Math.max(0, deadline - clock()) : undefined;
     await watchWetPrChecks(
       repo.api,
       repo.ref,
-      { claimType: kind, claimName: name, stateRepos },
+      {
+        claimType: kind,
+        claimName: name,
+        stateRepos,
+        ...(remainingMs !== undefined ? { timeoutMs: remainingMs } : {}),
+        ...(pollIntervalMs !== undefined ? { pollIntervalMs } : {}),
+        ...(now ? { now } : {}),
+        ...(sleep ? { sleep } : {}),
+      },
       pulse.diagnostic,
     );
   }
