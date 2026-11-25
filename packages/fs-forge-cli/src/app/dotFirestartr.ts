@@ -36,8 +36,15 @@ export interface YamlParseError {
 export type DiscoveredAppConfig =
   | {
       present: true;
+      malformed?: false;
       state_repo?: string;
       services: DiscoveredAppService[];
+    }
+  | {
+      present: true;
+      malformed: true;
+      error: string;
+      services: [];
     }
   | {
       present: false;
@@ -173,8 +180,9 @@ function parseAppConfig(
   try {
     parsed = YAML.parse(content);
   } catch (error) {
-    errors.push({ path: filePath, error: formatParseError(error) });
-    return { present: false };
+    const formatted = formatParseError(error);
+    errors.push({ path: filePath, error: formatted });
+    return { present: true, malformed: true, error: formatted, services: [] };
   }
   if (!isRecord(parsed)) {
     return { present: true, services: [] };

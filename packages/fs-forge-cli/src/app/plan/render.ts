@@ -221,7 +221,7 @@ export async function renderPlanFiles(
   const makeDispatchesFile = renderMakeDispatches({
     org: context.org,
     inputs,
-    defaultBranch: context.serviceDefaultBranch,
+    defaultBranch: context.defaultBranches.service,
     actionsSchemasDir: schemaDirs.actionsSchemasDir,
     existingContent: context.existingMakeDispatches,
   });

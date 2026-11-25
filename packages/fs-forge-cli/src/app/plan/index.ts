@@ -18,12 +18,28 @@ export {
 export type { NameValueEntry, RequiredVarsAndSecrets } from './requiredVars.js';
 export { resolvePlanContext } from './resolve.js';
 export type { ResolvePlanOptions } from './resolve.js';
+export {
+  appPlanHeadBranch,
+  buildPlanJsonOutput,
+  buildPlanSteps,
+  collectPlanConflicts,
+  formatPlanText,
+  writePlanOutputFiles,
+} from './steps.js';
+export type {
+  AppPlanJsonOutput,
+  PlanConflict,
+  PlanRepoEntry,
+  PlanStep,
+  PlanStepFile,
+} from './steps.js';
 export type {
   AppPlanResult,
   ExistingNamedFile,
   ExistingStateAppClaim,
   PlanCheck,
   PlanCheckStatus,
+  PlanDefaultBranches,
   PlanRepoFiles,
   PlanSchemaDirs,
   ResolvedPlanContext,

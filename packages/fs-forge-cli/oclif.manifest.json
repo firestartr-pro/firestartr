@@ -1672,6 +1672,957 @@
         "discover.js"
       ]
     },
+    "app:plan": {
+      "aliases": [],
+      "args": {},
+      "description": "Render files, compare with repos, and run checks for an app (read-only)",
+      "examples": [
+        "<%= config.bin %> <%= command.id %> --inputs app-inputs.yaml",
+        "<%= config.bin %> <%= command.id %> --inputs app-inputs.yaml --json",
+        "<%= config.bin %> <%= command.id %> --inputs app-inputs.yaml --out ./rendered --org-plan free"
+      ],
+      "flags": {
+        "inputs": {
+          "description": "Path to the AppInputs YAML file",
+          "name": "inputs",
+          "required": true,
+          "hasDynamicHelp": false,
+          "multiple": false,
+          "type": "option"
+        },
+        "out": {
+          "description": "Write rendered non-noop, non-conflict files to <dir>/<repo>/<path>",
+          "name": "out",
+          "hasDynamicHelp": false,
+          "multiple": false,
+          "type": "option"
+        },
+        "org": {
+          "description": "GitHub organization (overrides inputs file; falls back to FSCRT_ORG or context config)",
+          "name": "org",
+          "hasDynamicHelp": false,
+          "multiple": false,
+          "type": "option"
+        },
+        "app": {
+          "description": "Application name (overrides inputs file)",
+          "name": "app",
+          "hasDynamicHelp": false,
+          "multiple": false,
+          "type": "option"
+        },
+        "org-plan": {
+          "description": "Override GitHub organization plan detection",
+          "name": "org-plan",
+          "hasDynamicHelp": false,
+          "multiple": false,
+          "options": [
+            "free",
+            "paid"
+          ],
+          "type": "option"
+        },
+        "claims-repo": {
+          "description": "Repository name for the claims repo (default: config, then claims)",
+          "name": "claims-repo",
+          "hasDynamicHelp": false,
+          "multiple": false,
+          "type": "option"
+        },
+        "json": {
+          "description": "Output as JSON",
+          "name": "json",
+          "allowNo": false,
+          "type": "boolean"
+        }
+      },
+      "hasDynamicHelp": false,
+      "hiddenAliases": [],
+      "id": "app:plan",
+      "pluginAlias": "@firestartr/fs-forge-cli",
+      "pluginName": "@firestartr/fs-forge-cli",
+      "pluginType": "core",
+      "strict": true,
+      "enableJsonFlag": false,
+      "isESM": true,
+      "relativePath": [
+        "dist",
+        "commands",
+        "app",
+        "plan.js"
+      ]
+    },
+    "diagram:print": {
+      "aliases": [],
+      "args": {},
+      "description": "Render an arbitrary relation graph (nodes/edges JSON) as a tree, using the same graphics as `discovery map`",
+      "examples": [
+        "<%= config.bin %> <%= command.id %> --file graph.json",
+        "cat graph.json | <%= config.bin %> <%= command.id %>",
+        "<%= config.bin %> <%= command.id %> --file graph.json --ascii"
+      ],
+      "flags": {
+        "file": {
+          "char": "f",
+          "description": "Path to a JSON file with a relation graph ({ nodes, edges }); reads stdin if omitted",
+          "name": "file",
+          "hasDynamicHelp": false,
+          "multiple": false,
+          "type": "option"
+        },
+        "ascii": {
+          "description": "Use ASCII icons instead of emoji",
+          "name": "ascii",
+          "allowNo": false,
+          "type": "boolean"
+        }
+      },
+      "hasDynamicHelp": false,
+      "hiddenAliases": [],
+      "id": "diagram:print",
+      "pluginAlias": "@firestartr/fs-forge-cli",
+      "pluginName": "@firestartr/fs-forge-cli",
+      "pluginType": "core",
+      "strict": true,
+      "enableJsonFlag": false,
+      "isESM": true,
+      "relativePath": [
+        "dist",
+        "commands",
+        "diagram",
+        "print.js"
+      ]
+    },
+    "features:add": {
+      "aliases": [],
+      "args": {
+        "component": {
+          "description": "ComponentClaim name",
+          "name": "component"
+        }
+      },
+      "description": "Add a Feature reference to a ComponentClaim. Pass --name <feature> with --help to load schema-derived args.* flags.",
+      "examples": [
+        "<%= config.bin %> <%= command.id %> my-component --name logging --version 1.0.0 --org my-org",
+        "<%= config.bin %> <%= command.id %> --file component.yaml --name logging --ref main"
+      ],
+      "flags": {
+        "name": {
+          "description": "Feature name",
+          "name": "name",
+          "required": true,
+          "hasDynamicHelp": false,
+          "multiple": false,
+          "type": "option"
+        },
+        "version": {
+          "description": "Feature version to pin",
+          "exclusive": [
+            "ref"
+          ],
+          "name": "version",
+          "hasDynamicHelp": false,
+          "multiple": false,
+          "type": "option"
+        },
+        "ref": {
+          "description": "Feature git reference to pin",
+          "exclusive": [
+            "version"
+          ],
+          "name": "ref",
+          "hasDynamicHelp": false,
+          "multiple": false,
+          "type": "option"
+        },
+        "repo": {
+          "description": "Feature repository metadata",
+          "name": "repo",
+          "hasDynamicHelp": false,
+          "multiple": false,
+          "type": "option"
+        },
+        "source": {
+          "description": "Feature source URL or local path",
+          "name": "source",
+          "default": "https://raw.githubusercontent.com/firestartr-pro/docs/main/site/raw/features",
+          "hasDynamicHelp": false,
+          "multiple": false,
+          "type": "option"
+        },
+        "refresh": {
+          "description": "Refresh the cached Feature schema",
+          "name": "refresh",
+          "allowNo": false,
+          "type": "boolean"
+        },
+        "file": {
+          "char": "f",
+          "description": "Local ComponentClaim YAML file",
+          "name": "file",
+          "hasDynamicHelp": false,
+          "multiple": false,
+          "type": "option"
+        },
+        "org": {
+          "description": "GitHub organization containing the claims repo (default: FSCRT_ORG, then the config entry matching the current directory)",
+          "env": "FSCRT_ORG",
+          "name": "org",
+          "noCacheDefault": true,
+          "hasDynamicHelp": false,
+          "multiple": false,
+          "type": "option"
+        },
+        "json": {
+          "description": "Output as JSON",
+          "name": "json",
+          "allowNo": false,
+          "type": "boolean"
+        },
+        "commit": {
+          "description": "Commit the claim and dispatch provisioning",
+          "name": "commit",
+          "allowNo": false,
+          "type": "boolean"
+        },
+        "no-wait": {
+          "description": "Skip waiting for the provision workflow to complete",
+          "name": "no-wait",
+          "allowNo": false,
+          "type": "boolean"
+        },
+        "issue": {
+          "dependsOn": [
+            "commit"
+          ],
+          "description": "Link the commit to an existing claims-repo issue (adds \"Closes #N\" to the claim PR)",
+          "exclusive": [
+            "create-issue"
+          ],
+          "name": "issue",
+          "hasDynamicHelp": false,
+          "multiple": false,
+          "type": "option"
+        },
+        "create-issue": {
+          "dependsOn": [
+            "commit"
+          ],
+          "description": "Open an issue in the claims repo before committing, then link it to the claim PR",
+          "exclusive": [
+            "issue"
+          ],
+          "name": "create-issue",
+          "allowNo": false,
+          "type": "boolean"
+        },
+        "issue-title": {
+          "dependsOn": [
+            "create-issue"
+          ],
+          "description": "Title for the issue opened by --create-issue",
+          "name": "issue-title",
+          "hasDynamicHelp": false,
+          "multiple": false,
+          "type": "option"
+        },
+        "issue-body": {
+          "dependsOn": [
+            "create-issue"
+          ],
+          "description": "Body for the issue opened by --create-issue",
+          "name": "issue-body",
+          "hasDynamicHelp": false,
+          "multiple": false,
+          "type": "option"
+        },
+        "wait-for-checks": {
+          "description": "After provisioning, watch wet PR check runs until completion (requires --commit; --no-wait-for-checks to skip)",
+          "name": "wait-for-checks",
+          "allowNo": true,
+          "type": "boolean"
+        },
+        "state-repos": {
+          "description": "Comma-separated state repos for --wait-for-checks (default: <org>/state-github,<org>/state-infra)",
+          "name": "state-repos",
+          "hasDynamicHelp": false,
+          "multiple": false,
+          "type": "option"
+        }
+      },
+      "hasDynamicHelp": false,
+      "hiddenAliases": [],
+      "id": "features:add",
+      "pluginAlias": "@firestartr/fs-forge-cli",
+      "pluginName": "@firestartr/fs-forge-cli",
+      "pluginType": "core",
+      "strict": true,
+      "usage": "(COMPONENT | --file <path>) --name <feature> (--version <version> | --ref <ref>)",
+      "helpRelationships": [
+        {
+          "type": "exactlyOne",
+          "args": [
+            "component"
+          ],
+          "flags": [
+            "file"
+          ]
+        }
+      ],
+      "isESM": true,
+      "relativePath": [
+        "dist",
+        "commands",
+        "features",
+        "add.js"
+      ]
+    },
+    "features:discover": {
+      "aliases": [
+        "discovery:features"
+      ],
+      "args": {},
+      "description": "Discover available platform features",
+      "flags": {
+        "source": {
+          "description": "Feature source URL or local path",
+          "name": "source",
+          "default": "https://raw.githubusercontent.com/firestartr-pro/docs/main/site/raw/features",
+          "hasDynamicHelp": false,
+          "multiple": false,
+          "type": "option"
+        },
+        "json": {
+          "description": "Output as JSON",
+          "exclusive": [
+            "readme",
+            "changelog"
+          ],
+          "name": "json",
+          "allowNo": false,
+          "type": "boolean"
+        },
+        "versions": {
+          "description": "Show version history for a feature",
+          "exclusive": [
+            "schema",
+            "readme",
+            "changelog"
+          ],
+          "name": "versions",
+          "hasDynamicHelp": false,
+          "multiple": false,
+          "type": "option"
+        },
+        "schema": {
+          "description": "Show the schema for a feature version (name@version)",
+          "exclusive": [
+            "versions",
+            "readme",
+            "changelog"
+          ],
+          "name": "schema",
+          "hasDynamicHelp": false,
+          "multiple": false,
+          "type": "option"
+        },
+        "readme": {
+          "description": "Show a feature README",
+          "exclusive": [
+            "versions",
+            "schema",
+            "changelog"
+          ],
+          "name": "readme",
+          "hasDynamicHelp": false,
+          "multiple": false,
+          "type": "option"
+        },
+        "changelog": {
+          "description": "Show a feature CHANGELOG",
+          "exclusive": [
+            "versions",
+            "schema",
+            "readme"
+          ],
+          "name": "changelog",
+          "hasDynamicHelp": false,
+          "multiple": false,
+          "type": "option"
+        }
+      },
+      "hasDynamicHelp": false,
+      "hiddenAliases": [],
+      "id": "features:discover",
+      "pluginAlias": "@firestartr/fs-forge-cli",
+      "pluginName": "@firestartr/fs-forge-cli",
+      "pluginType": "core",
+      "strict": true,
+      "enableJsonFlag": false,
+      "isESM": true,
+      "relativePath": [
+        "dist",
+        "commands",
+        "features",
+        "discover.js"
+      ]
+    },
+    "features:edit": {
+      "aliases": [],
+      "args": {
+        "component": {
+          "description": "ComponentClaim name",
+          "name": "component"
+        }
+      },
+      "description": "Edit a Feature reference on a ComponentClaim. Pass --name <feature> with --help to load schema-derived args.* flags. Omit --version and --ref to preserve the current pin.",
+      "examples": [
+        "<%= config.bin %> <%= command.id %> my-component --name logging --org my-org",
+        "<%= config.bin %> <%= command.id %> --file component.yaml --name logging --ref main"
+      ],
+      "flags": {
+        "name": {
+          "description": "Feature name",
+          "name": "name",
+          "required": true,
+          "hasDynamicHelp": false,
+          "multiple": false,
+          "type": "option"
+        },
+        "version": {
+          "description": "Feature version to pin",
+          "exclusive": [
+            "ref"
+          ],
+          "name": "version",
+          "hasDynamicHelp": false,
+          "multiple": false,
+          "type": "option"
+        },
+        "ref": {
+          "description": "Feature git reference to pin",
+          "exclusive": [
+            "version"
+          ],
+          "name": "ref",
+          "hasDynamicHelp": false,
+          "multiple": false,
+          "type": "option"
+        },
+        "repo": {
+          "description": "Feature repository metadata",
+          "name": "repo",
+          "hasDynamicHelp": false,
+          "multiple": false,
+          "type": "option"
+        },
+        "source": {
+          "description": "Feature source URL or local path",
+          "name": "source",
+          "default": "https://raw.githubusercontent.com/firestartr-pro/docs/main/site/raw/features",
+          "hasDynamicHelp": false,
+          "multiple": false,
+          "type": "option"
+        },
+        "refresh": {
+          "description": "Refresh the cached Feature schema",
+          "name": "refresh",
+          "allowNo": false,
+          "type": "boolean"
+        },
+        "file": {
+          "char": "f",
+          "description": "Local ComponentClaim YAML file",
+          "name": "file",
+          "hasDynamicHelp": false,
+          "multiple": false,
+          "type": "option"
+        },
+        "org": {
+          "description": "GitHub organization containing the claims repo (default: FSCRT_ORG, then the config entry matching the current directory)",
+          "env": "FSCRT_ORG",
+          "name": "org",
+          "noCacheDefault": true,
+          "hasDynamicHelp": false,
+          "multiple": false,
+          "type": "option"
+        },
+        "json": {
+          "description": "Output as JSON",
+          "name": "json",
+          "allowNo": false,
+          "type": "boolean"
+        },
+        "commit": {
+          "description": "Commit the claim and dispatch provisioning",
+          "name": "commit",
+          "allowNo": false,
+          "type": "boolean"
+        },
+        "no-wait": {
+          "description": "Skip waiting for the provision workflow to complete",
+          "name": "no-wait",
+          "allowNo": false,
+          "type": "boolean"
+        },
+        "issue": {
+          "dependsOn": [
+            "commit"
+          ],
+          "description": "Link the commit to an existing claims-repo issue (adds \"Closes #N\" to the claim PR)",
+          "exclusive": [
+            "create-issue"
+          ],
+          "name": "issue",
+          "hasDynamicHelp": false,
+          "multiple": false,
+          "type": "option"
+        },
+        "create-issue": {
+          "dependsOn": [
+            "commit"
+          ],
+          "description": "Open an issue in the claims repo before committing, then link it to the claim PR",
+          "exclusive": [
+            "issue"
+          ],
+          "name": "create-issue",
+          "allowNo": false,
+          "type": "boolean"
+        },
+        "issue-title": {
+          "dependsOn": [
+            "create-issue"
+          ],
+          "description": "Title for the issue opened by --create-issue",
+          "name": "issue-title",
+          "hasDynamicHelp": false,
+          "multiple": false,
+          "type": "option"
+        },
+        "issue-body": {
+          "dependsOn": [
+            "create-issue"
+          ],
+          "description": "Body for the issue opened by --create-issue",
+          "name": "issue-body",
+          "hasDynamicHelp": false,
+          "multiple": false,
+          "type": "option"
+        },
+        "wait-for-checks": {
+          "description": "After provisioning, watch wet PR check runs until completion (requires --commit; --no-wait-for-checks to skip)",
+          "name": "wait-for-checks",
+          "allowNo": true,
+          "type": "boolean"
+        },
+        "state-repos": {
+          "description": "Comma-separated state repos for --wait-for-checks (default: <org>/state-github,<org>/state-infra)",
+          "name": "state-repos",
+          "hasDynamicHelp": false,
+          "multiple": false,
+          "type": "option"
+        }
+      },
+      "hasDynamicHelp": false,
+      "hiddenAliases": [],
+      "id": "features:edit",
+      "pluginAlias": "@firestartr/fs-forge-cli",
+      "pluginName": "@firestartr/fs-forge-cli",
+      "pluginType": "core",
+      "strict": true,
+      "usage": "(COMPONENT | --file <path>) --name <feature> [--version <version> | --ref <ref>]",
+      "helpRelationships": [
+        {
+          "type": "exactlyOne",
+          "args": [
+            "component"
+          ],
+          "flags": [
+            "file"
+          ]
+        }
+      ],
+      "isESM": true,
+      "relativePath": [
+        "dist",
+        "commands",
+        "features",
+        "edit.js"
+      ]
+    },
+    "features:list": {
+      "aliases": [],
+      "args": {
+        "component": {
+          "description": "ComponentClaim name",
+          "name": "component"
+        }
+      },
+      "description": "List Feature references on a ComponentClaim",
+      "examples": [
+        "<%= config.bin %> <%= command.id %> my-component --org my-org",
+        "<%= config.bin %> <%= command.id %> --file component.yaml --json"
+      ],
+      "flags": {
+        "file": {
+          "char": "f",
+          "description": "Local ComponentClaim YAML file",
+          "name": "file",
+          "hasDynamicHelp": false,
+          "multiple": false,
+          "type": "option"
+        },
+        "org": {
+          "description": "GitHub organization containing the claims repo (default: FSCRT_ORG, then the config entry matching the current directory)",
+          "env": "FSCRT_ORG",
+          "name": "org",
+          "noCacheDefault": true,
+          "hasDynamicHelp": false,
+          "multiple": false,
+          "type": "option"
+        },
+        "json": {
+          "description": "Output as JSON",
+          "name": "json",
+          "allowNo": false,
+          "type": "boolean"
+        }
+      },
+      "hasDynamicHelp": false,
+      "hiddenAliases": [],
+      "id": "features:list",
+      "pluginAlias": "@firestartr/fs-forge-cli",
+      "pluginName": "@firestartr/fs-forge-cli",
+      "pluginType": "core",
+      "strict": true,
+      "usage": "(COMPONENT | --file <path>)",
+      "enableJsonFlag": false,
+      "helpRelationships": [
+        {
+          "type": "exactlyOne",
+          "args": [
+            "component"
+          ],
+          "flags": [
+            "file"
+          ]
+        }
+      ],
+      "isESM": true,
+      "relativePath": [
+        "dist",
+        "commands",
+        "features",
+        "list.js"
+      ]
+    },
+    "features:remove": {
+      "aliases": [],
+      "args": {
+        "component": {
+          "description": "ComponentClaim name",
+          "name": "component"
+        }
+      },
+      "description": "Remove a Feature reference from a ComponentClaim",
+      "examples": [
+        "<%= config.bin %> <%= command.id %> my-component --name logging --org my-org",
+        "<%= config.bin %> <%= command.id %> --file component.yaml --name logging"
+      ],
+      "flags": {
+        "name": {
+          "description": "Feature name",
+          "name": "name",
+          "required": true,
+          "hasDynamicHelp": false,
+          "multiple": false,
+          "type": "option"
+        },
+        "file": {
+          "char": "f",
+          "description": "Local ComponentClaim YAML file",
+          "name": "file",
+          "hasDynamicHelp": false,
+          "multiple": false,
+          "type": "option"
+        },
+        "org": {
+          "description": "GitHub organization containing the claims repo (default: FSCRT_ORG, then the config entry matching the current directory)",
+          "env": "FSCRT_ORG",
+          "name": "org",
+          "noCacheDefault": true,
+          "hasDynamicHelp": false,
+          "multiple": false,
+          "type": "option"
+        },
+        "json": {
+          "description": "Output as JSON",
+          "name": "json",
+          "allowNo": false,
+          "type": "boolean"
+        },
+        "commit": {
+          "description": "Commit the claim and dispatch provisioning",
+          "name": "commit",
+          "allowNo": false,
+          "type": "boolean"
+        },
+        "no-wait": {
+          "description": "Skip waiting for the provision workflow to complete",
+          "name": "no-wait",
+          "allowNo": false,
+          "type": "boolean"
+        },
+        "issue": {
+          "dependsOn": [
+            "commit"
+          ],
+          "description": "Link the commit to an existing claims-repo issue (adds \"Closes #N\" to the claim PR)",
+          "exclusive": [
+            "create-issue"
+          ],
+          "name": "issue",
+          "hasDynamicHelp": false,
+          "multiple": false,
+          "type": "option"
+        },
+        "create-issue": {
+          "dependsOn": [
+            "commit"
+          ],
+          "description": "Open an issue in the claims repo before committing, then link it to the claim PR",
+          "exclusive": [
+            "issue"
+          ],
+          "name": "create-issue",
+          "allowNo": false,
+          "type": "boolean"
+        },
+        "issue-title": {
+          "dependsOn": [
+            "create-issue"
+          ],
+          "description": "Title for the issue opened by --create-issue",
+          "name": "issue-title",
+          "hasDynamicHelp": false,
+          "multiple": false,
+          "type": "option"
+        },
+        "issue-body": {
+          "dependsOn": [
+            "create-issue"
+          ],
+          "description": "Body for the issue opened by --create-issue",
+          "name": "issue-body",
+          "hasDynamicHelp": false,
+          "multiple": false,
+          "type": "option"
+        },
+        "wait-for-checks": {
+          "description": "After provisioning, watch wet PR check runs until completion (requires --commit; --no-wait-for-checks to skip)",
+          "name": "wait-for-checks",
+          "allowNo": true,
+          "type": "boolean"
+        },
+        "state-repos": {
+          "description": "Comma-separated state repos for --wait-for-checks (default: <org>/state-github,<org>/state-infra)",
+          "name": "state-repos",
+          "hasDynamicHelp": false,
+          "multiple": false,
+          "type": "option"
+        }
+      },
+      "hasDynamicHelp": false,
+      "hiddenAliases": [],
+      "id": "features:remove",
+      "pluginAlias": "@firestartr/fs-forge-cli",
+      "pluginName": "@firestartr/fs-forge-cli",
+      "pluginType": "core",
+      "strict": true,
+      "usage": "(COMPONENT | --file <path>) --name <feature>",
+      "enableJsonFlag": false,
+      "helpRelationships": [
+        {
+          "type": "exactlyOne",
+          "args": [
+            "component"
+          ],
+          "flags": [
+            "file"
+          ]
+        }
+      ],
+      "isESM": true,
+      "relativePath": [
+        "dist",
+        "commands",
+        "features",
+        "remove.js"
+      ]
+    },
+    "discovery:map": {
+      "aliases": [],
+      "args": {},
+      "description": "Show the relation tree for every claim in an org",
+      "examples": [
+        "<%= config.bin %> <%= command.id %> --org my-org",
+        "<%= config.bin %> <%= command.id %> --org my-org --kind group --kind component --ascii",
+        "<%= config.bin %> <%= command.id %> --org my-org --json"
+      ],
+      "flags": {
+        "org": {
+          "description": "GitHub organization containing the claims repo (default: FSCRT_ORG, then the config entry matching the current directory)",
+          "env": "FSCRT_ORG",
+          "name": "org",
+          "noCacheDefault": true,
+          "hasDynamicHelp": false,
+          "multiple": false,
+          "type": "option"
+        },
+        "ref": {
+          "description": "Claims repo branch, tag, or commit",
+          "name": "ref",
+          "hasDynamicHelp": false,
+          "multiple": false,
+          "type": "option"
+        },
+        "kind": {
+          "description": "Only show this claim kind by short ID (repeatable)",
+          "name": "kind",
+          "hasDynamicHelp": false,
+          "multiple": true,
+          "options": [
+            "argodeploy",
+            "ArgoDeployClaim",
+            "component",
+            "ComponentClaim",
+            "domain",
+            "DomainClaim",
+            "group",
+            "GroupClaim",
+            "orgsettings",
+            "OrgSettingsClaim",
+            "orgwebhook",
+            "OrgWebhookClaim",
+            "secrets",
+            "SecretsClaim",
+            "system",
+            "SystemClaim",
+            "tfworkspace",
+            "TFWorkspaceClaim",
+            "user",
+            "UserClaim"
+          ],
+          "type": "option"
+        },
+        "ascii": {
+          "description": "Use ASCII claim icons",
+          "name": "ascii",
+          "allowNo": false,
+          "type": "boolean"
+        },
+        "json": {
+          "description": "Output the relation graph as JSON",
+          "name": "json",
+          "allowNo": false,
+          "type": "boolean"
+        }
+      },
+      "hasDynamicHelp": false,
+      "hiddenAliases": [],
+      "id": "discovery:map",
+      "pluginAlias": "@firestartr/fs-forge-cli",
+      "pluginName": "@firestartr/fs-forge-cli",
+      "pluginType": "core",
+      "strict": true,
+      "enableJsonFlag": false,
+      "isESM": true,
+      "relativePath": [
+        "dist",
+        "commands",
+        "discovery",
+        "map.js"
+      ]
+    },
+    "discovery:org-elements": {
+      "aliases": [],
+      "args": {},
+      "description": "List all claims in an org's claims repo",
+      "examples": [
+        "<%= config.bin %> <%= command.id %> --org my-org",
+        "<%= config.bin %> <%= command.id %> --org my-org --kind component --kind group",
+        "<%= config.bin %> <%= command.id %> --org my-org --json"
+      ],
+      "flags": {
+        "org": {
+          "description": "GitHub organization owning the claims repo",
+          "env": "FSCRT_ORG",
+          "name": "org",
+          "noCacheDefault": true,
+          "hasDynamicHelp": false,
+          "multiple": false,
+          "type": "option"
+        },
+        "claims-repo": {
+          "description": "Repository name for the claims repo (default: config, then claims)",
+          "name": "claims-repo",
+          "hasDynamicHelp": false,
+          "multiple": false,
+          "type": "option"
+        },
+        "kind": {
+          "description": "Filter to a claim kind by short ID (repeatable)",
+          "name": "kind",
+          "hasDynamicHelp": false,
+          "multiple": true,
+          "options": [
+            "argodeploy",
+            "ArgoDeployClaim",
+            "component",
+            "ComponentClaim",
+            "domain",
+            "DomainClaim",
+            "group",
+            "GroupClaim",
+            "orgsettings",
+            "OrgSettingsClaim",
+            "orgwebhook",
+            "OrgWebhookClaim",
+            "secrets",
+            "SecretsClaim",
+            "system",
+            "SystemClaim",
+            "tfworkspace",
+            "TFWorkspaceClaim",
+            "user",
+            "UserClaim"
+          ],
+          "type": "option"
+        },
+        "json": {
+          "description": "Output as JSON",
+          "name": "json",
+          "allowNo": false,
+          "type": "boolean"
+        }
+      },
+      "hasDynamicHelp": false,
+      "hiddenAliases": [],
+      "id": "discovery:org-elements",
+      "pluginAlias": "@firestartr/fs-forge-cli",
+      "pluginName": "@firestartr/fs-forge-cli",
+      "pluginType": "core",
+      "strict": true,
+      "enableJsonFlag": false,
+      "isESM": true,
+      "relativePath": [
+        "dist",
+        "commands",
+        "discovery",
+        "org-elements.js"
+      ]
+    },
     "create:argodeploy": {
       "aliases": [],
       "args": {},
@@ -6213,877 +7164,6 @@
         "commands",
         "defaults",
         "show.js"
-      ]
-    },
-    "diagram:print": {
-      "aliases": [],
-      "args": {},
-      "description": "Render an arbitrary relation graph (nodes/edges JSON) as a tree, using the same graphics as `discovery map`",
-      "examples": [
-        "<%= config.bin %> <%= command.id %> --file graph.json",
-        "cat graph.json | <%= config.bin %> <%= command.id %>",
-        "<%= config.bin %> <%= command.id %> --file graph.json --ascii"
-      ],
-      "flags": {
-        "file": {
-          "char": "f",
-          "description": "Path to a JSON file with a relation graph ({ nodes, edges }); reads stdin if omitted",
-          "name": "file",
-          "hasDynamicHelp": false,
-          "multiple": false,
-          "type": "option"
-        },
-        "ascii": {
-          "description": "Use ASCII icons instead of emoji",
-          "name": "ascii",
-          "allowNo": false,
-          "type": "boolean"
-        }
-      },
-      "hasDynamicHelp": false,
-      "hiddenAliases": [],
-      "id": "diagram:print",
-      "pluginAlias": "@firestartr/fs-forge-cli",
-      "pluginName": "@firestartr/fs-forge-cli",
-      "pluginType": "core",
-      "strict": true,
-      "enableJsonFlag": false,
-      "isESM": true,
-      "relativePath": [
-        "dist",
-        "commands",
-        "diagram",
-        "print.js"
-      ]
-    },
-    "discovery:map": {
-      "aliases": [],
-      "args": {},
-      "description": "Show the relation tree for every claim in an org",
-      "examples": [
-        "<%= config.bin %> <%= command.id %> --org my-org",
-        "<%= config.bin %> <%= command.id %> --org my-org --kind group --kind component --ascii",
-        "<%= config.bin %> <%= command.id %> --org my-org --json"
-      ],
-      "flags": {
-        "org": {
-          "description": "GitHub organization containing the claims repo (default: FSCRT_ORG, then the config entry matching the current directory)",
-          "env": "FSCRT_ORG",
-          "name": "org",
-          "noCacheDefault": true,
-          "hasDynamicHelp": false,
-          "multiple": false,
-          "type": "option"
-        },
-        "ref": {
-          "description": "Claims repo branch, tag, or commit",
-          "name": "ref",
-          "hasDynamicHelp": false,
-          "multiple": false,
-          "type": "option"
-        },
-        "kind": {
-          "description": "Only show this claim kind by short ID (repeatable)",
-          "name": "kind",
-          "hasDynamicHelp": false,
-          "multiple": true,
-          "options": [
-            "argodeploy",
-            "ArgoDeployClaim",
-            "component",
-            "ComponentClaim",
-            "domain",
-            "DomainClaim",
-            "group",
-            "GroupClaim",
-            "orgsettings",
-            "OrgSettingsClaim",
-            "orgwebhook",
-            "OrgWebhookClaim",
-            "secrets",
-            "SecretsClaim",
-            "system",
-            "SystemClaim",
-            "tfworkspace",
-            "TFWorkspaceClaim",
-            "user",
-            "UserClaim"
-          ],
-          "type": "option"
-        },
-        "ascii": {
-          "description": "Use ASCII claim icons",
-          "name": "ascii",
-          "allowNo": false,
-          "type": "boolean"
-        },
-        "json": {
-          "description": "Output the relation graph as JSON",
-          "name": "json",
-          "allowNo": false,
-          "type": "boolean"
-        }
-      },
-      "hasDynamicHelp": false,
-      "hiddenAliases": [],
-      "id": "discovery:map",
-      "pluginAlias": "@firestartr/fs-forge-cli",
-      "pluginName": "@firestartr/fs-forge-cli",
-      "pluginType": "core",
-      "strict": true,
-      "enableJsonFlag": false,
-      "isESM": true,
-      "relativePath": [
-        "dist",
-        "commands",
-        "discovery",
-        "map.js"
-      ]
-    },
-    "discovery:org-elements": {
-      "aliases": [],
-      "args": {},
-      "description": "List all claims in an org's claims repo",
-      "examples": [
-        "<%= config.bin %> <%= command.id %> --org my-org",
-        "<%= config.bin %> <%= command.id %> --org my-org --kind component --kind group",
-        "<%= config.bin %> <%= command.id %> --org my-org --json"
-      ],
-      "flags": {
-        "org": {
-          "description": "GitHub organization owning the claims repo",
-          "env": "FSCRT_ORG",
-          "name": "org",
-          "noCacheDefault": true,
-          "hasDynamicHelp": false,
-          "multiple": false,
-          "type": "option"
-        },
-        "claims-repo": {
-          "description": "Repository name for the claims repo (default: config, then claims)",
-          "name": "claims-repo",
-          "hasDynamicHelp": false,
-          "multiple": false,
-          "type": "option"
-        },
-        "kind": {
-          "description": "Filter to a claim kind by short ID (repeatable)",
-          "name": "kind",
-          "hasDynamicHelp": false,
-          "multiple": true,
-          "options": [
-            "argodeploy",
-            "ArgoDeployClaim",
-            "component",
-            "ComponentClaim",
-            "domain",
-            "DomainClaim",
-            "group",
-            "GroupClaim",
-            "orgsettings",
-            "OrgSettingsClaim",
-            "orgwebhook",
-            "OrgWebhookClaim",
-            "secrets",
-            "SecretsClaim",
-            "system",
-            "SystemClaim",
-            "tfworkspace",
-            "TFWorkspaceClaim",
-            "user",
-            "UserClaim"
-          ],
-          "type": "option"
-        },
-        "json": {
-          "description": "Output as JSON",
-          "name": "json",
-          "allowNo": false,
-          "type": "boolean"
-        }
-      },
-      "hasDynamicHelp": false,
-      "hiddenAliases": [],
-      "id": "discovery:org-elements",
-      "pluginAlias": "@firestartr/fs-forge-cli",
-      "pluginName": "@firestartr/fs-forge-cli",
-      "pluginType": "core",
-      "strict": true,
-      "enableJsonFlag": false,
-      "isESM": true,
-      "relativePath": [
-        "dist",
-        "commands",
-        "discovery",
-        "org-elements.js"
-      ]
-    },
-    "features:add": {
-      "aliases": [],
-      "args": {
-        "component": {
-          "description": "ComponentClaim name",
-          "name": "component"
-        }
-      },
-      "description": "Add a Feature reference to a ComponentClaim. Pass --name <feature> with --help to load schema-derived args.* flags.",
-      "examples": [
-        "<%= config.bin %> <%= command.id %> my-component --name logging --version 1.0.0 --org my-org",
-        "<%= config.bin %> <%= command.id %> --file component.yaml --name logging --ref main"
-      ],
-      "flags": {
-        "name": {
-          "description": "Feature name",
-          "name": "name",
-          "required": true,
-          "hasDynamicHelp": false,
-          "multiple": false,
-          "type": "option"
-        },
-        "version": {
-          "description": "Feature version to pin",
-          "exclusive": [
-            "ref"
-          ],
-          "name": "version",
-          "hasDynamicHelp": false,
-          "multiple": false,
-          "type": "option"
-        },
-        "ref": {
-          "description": "Feature git reference to pin",
-          "exclusive": [
-            "version"
-          ],
-          "name": "ref",
-          "hasDynamicHelp": false,
-          "multiple": false,
-          "type": "option"
-        },
-        "repo": {
-          "description": "Feature repository metadata",
-          "name": "repo",
-          "hasDynamicHelp": false,
-          "multiple": false,
-          "type": "option"
-        },
-        "source": {
-          "description": "Feature source URL or local path",
-          "name": "source",
-          "default": "https://raw.githubusercontent.com/firestartr-pro/docs/main/site/raw/features",
-          "hasDynamicHelp": false,
-          "multiple": false,
-          "type": "option"
-        },
-        "refresh": {
-          "description": "Refresh the cached Feature schema",
-          "name": "refresh",
-          "allowNo": false,
-          "type": "boolean"
-        },
-        "file": {
-          "char": "f",
-          "description": "Local ComponentClaim YAML file",
-          "name": "file",
-          "hasDynamicHelp": false,
-          "multiple": false,
-          "type": "option"
-        },
-        "org": {
-          "description": "GitHub organization containing the claims repo (default: FSCRT_ORG, then the config entry matching the current directory)",
-          "env": "FSCRT_ORG",
-          "name": "org",
-          "noCacheDefault": true,
-          "hasDynamicHelp": false,
-          "multiple": false,
-          "type": "option"
-        },
-        "json": {
-          "description": "Output as JSON",
-          "name": "json",
-          "allowNo": false,
-          "type": "boolean"
-        },
-        "commit": {
-          "description": "Commit the claim and dispatch provisioning",
-          "name": "commit",
-          "allowNo": false,
-          "type": "boolean"
-        },
-        "no-wait": {
-          "description": "Skip waiting for the provision workflow to complete",
-          "name": "no-wait",
-          "allowNo": false,
-          "type": "boolean"
-        },
-        "issue": {
-          "dependsOn": [
-            "commit"
-          ],
-          "description": "Link the commit to an existing claims-repo issue (adds \"Closes #N\" to the claim PR)",
-          "exclusive": [
-            "create-issue"
-          ],
-          "name": "issue",
-          "hasDynamicHelp": false,
-          "multiple": false,
-          "type": "option"
-        },
-        "create-issue": {
-          "dependsOn": [
-            "commit"
-          ],
-          "description": "Open an issue in the claims repo before committing, then link it to the claim PR",
-          "exclusive": [
-            "issue"
-          ],
-          "name": "create-issue",
-          "allowNo": false,
-          "type": "boolean"
-        },
-        "issue-title": {
-          "dependsOn": [
-            "create-issue"
-          ],
-          "description": "Title for the issue opened by --create-issue",
-          "name": "issue-title",
-          "hasDynamicHelp": false,
-          "multiple": false,
-          "type": "option"
-        },
-        "issue-body": {
-          "dependsOn": [
-            "create-issue"
-          ],
-          "description": "Body for the issue opened by --create-issue",
-          "name": "issue-body",
-          "hasDynamicHelp": false,
-          "multiple": false,
-          "type": "option"
-        },
-        "wait-for-checks": {
-          "description": "After provisioning, watch wet PR check runs until completion (requires --commit; --no-wait-for-checks to skip)",
-          "name": "wait-for-checks",
-          "allowNo": true,
-          "type": "boolean"
-        },
-        "state-repos": {
-          "description": "Comma-separated state repos for --wait-for-checks (default: <org>/state-github,<org>/state-infra)",
-          "name": "state-repos",
-          "hasDynamicHelp": false,
-          "multiple": false,
-          "type": "option"
-        }
-      },
-      "hasDynamicHelp": false,
-      "hiddenAliases": [],
-      "id": "features:add",
-      "pluginAlias": "@firestartr/fs-forge-cli",
-      "pluginName": "@firestartr/fs-forge-cli",
-      "pluginType": "core",
-      "strict": true,
-      "usage": "(COMPONENT | --file <path>) --name <feature> (--version <version> | --ref <ref>)",
-      "helpRelationships": [
-        {
-          "type": "exactlyOne",
-          "args": [
-            "component"
-          ],
-          "flags": [
-            "file"
-          ]
-        }
-      ],
-      "isESM": true,
-      "relativePath": [
-        "dist",
-        "commands",
-        "features",
-        "add.js"
-      ]
-    },
-    "features:discover": {
-      "aliases": [
-        "discovery:features"
-      ],
-      "args": {},
-      "description": "Discover available platform features",
-      "flags": {
-        "source": {
-          "description": "Feature source URL or local path",
-          "name": "source",
-          "default": "https://raw.githubusercontent.com/firestartr-pro/docs/main/site/raw/features",
-          "hasDynamicHelp": false,
-          "multiple": false,
-          "type": "option"
-        },
-        "json": {
-          "description": "Output as JSON",
-          "exclusive": [
-            "readme",
-            "changelog"
-          ],
-          "name": "json",
-          "allowNo": false,
-          "type": "boolean"
-        },
-        "versions": {
-          "description": "Show version history for a feature",
-          "exclusive": [
-            "schema",
-            "readme",
-            "changelog"
-          ],
-          "name": "versions",
-          "hasDynamicHelp": false,
-          "multiple": false,
-          "type": "option"
-        },
-        "schema": {
-          "description": "Show the schema for a feature version (name@version)",
-          "exclusive": [
-            "versions",
-            "readme",
-            "changelog"
-          ],
-          "name": "schema",
-          "hasDynamicHelp": false,
-          "multiple": false,
-          "type": "option"
-        },
-        "readme": {
-          "description": "Show a feature README",
-          "exclusive": [
-            "versions",
-            "schema",
-            "changelog"
-          ],
-          "name": "readme",
-          "hasDynamicHelp": false,
-          "multiple": false,
-          "type": "option"
-        },
-        "changelog": {
-          "description": "Show a feature CHANGELOG",
-          "exclusive": [
-            "versions",
-            "schema",
-            "readme"
-          ],
-          "name": "changelog",
-          "hasDynamicHelp": false,
-          "multiple": false,
-          "type": "option"
-        }
-      },
-      "hasDynamicHelp": false,
-      "hiddenAliases": [],
-      "id": "features:discover",
-      "pluginAlias": "@firestartr/fs-forge-cli",
-      "pluginName": "@firestartr/fs-forge-cli",
-      "pluginType": "core",
-      "strict": true,
-      "enableJsonFlag": false,
-      "isESM": true,
-      "relativePath": [
-        "dist",
-        "commands",
-        "features",
-        "discover.js"
-      ]
-    },
-    "features:edit": {
-      "aliases": [],
-      "args": {
-        "component": {
-          "description": "ComponentClaim name",
-          "name": "component"
-        }
-      },
-      "description": "Edit a Feature reference on a ComponentClaim. Pass --name <feature> with --help to load schema-derived args.* flags. Omit --version and --ref to preserve the current pin.",
-      "examples": [
-        "<%= config.bin %> <%= command.id %> my-component --name logging --org my-org",
-        "<%= config.bin %> <%= command.id %> --file component.yaml --name logging --ref main"
-      ],
-      "flags": {
-        "name": {
-          "description": "Feature name",
-          "name": "name",
-          "required": true,
-          "hasDynamicHelp": false,
-          "multiple": false,
-          "type": "option"
-        },
-        "version": {
-          "description": "Feature version to pin",
-          "exclusive": [
-            "ref"
-          ],
-          "name": "version",
-          "hasDynamicHelp": false,
-          "multiple": false,
-          "type": "option"
-        },
-        "ref": {
-          "description": "Feature git reference to pin",
-          "exclusive": [
-            "version"
-          ],
-          "name": "ref",
-          "hasDynamicHelp": false,
-          "multiple": false,
-          "type": "option"
-        },
-        "repo": {
-          "description": "Feature repository metadata",
-          "name": "repo",
-          "hasDynamicHelp": false,
-          "multiple": false,
-          "type": "option"
-        },
-        "source": {
-          "description": "Feature source URL or local path",
-          "name": "source",
-          "default": "https://raw.githubusercontent.com/firestartr-pro/docs/main/site/raw/features",
-          "hasDynamicHelp": false,
-          "multiple": false,
-          "type": "option"
-        },
-        "refresh": {
-          "description": "Refresh the cached Feature schema",
-          "name": "refresh",
-          "allowNo": false,
-          "type": "boolean"
-        },
-        "file": {
-          "char": "f",
-          "description": "Local ComponentClaim YAML file",
-          "name": "file",
-          "hasDynamicHelp": false,
-          "multiple": false,
-          "type": "option"
-        },
-        "org": {
-          "description": "GitHub organization containing the claims repo (default: FSCRT_ORG, then the config entry matching the current directory)",
-          "env": "FSCRT_ORG",
-          "name": "org",
-          "noCacheDefault": true,
-          "hasDynamicHelp": false,
-          "multiple": false,
-          "type": "option"
-        },
-        "json": {
-          "description": "Output as JSON",
-          "name": "json",
-          "allowNo": false,
-          "type": "boolean"
-        },
-        "commit": {
-          "description": "Commit the claim and dispatch provisioning",
-          "name": "commit",
-          "allowNo": false,
-          "type": "boolean"
-        },
-        "no-wait": {
-          "description": "Skip waiting for the provision workflow to complete",
-          "name": "no-wait",
-          "allowNo": false,
-          "type": "boolean"
-        },
-        "issue": {
-          "dependsOn": [
-            "commit"
-          ],
-          "description": "Link the commit to an existing claims-repo issue (adds \"Closes #N\" to the claim PR)",
-          "exclusive": [
-            "create-issue"
-          ],
-          "name": "issue",
-          "hasDynamicHelp": false,
-          "multiple": false,
-          "type": "option"
-        },
-        "create-issue": {
-          "dependsOn": [
-            "commit"
-          ],
-          "description": "Open an issue in the claims repo before committing, then link it to the claim PR",
-          "exclusive": [
-            "issue"
-          ],
-          "name": "create-issue",
-          "allowNo": false,
-          "type": "boolean"
-        },
-        "issue-title": {
-          "dependsOn": [
-            "create-issue"
-          ],
-          "description": "Title for the issue opened by --create-issue",
-          "name": "issue-title",
-          "hasDynamicHelp": false,
-          "multiple": false,
-          "type": "option"
-        },
-        "issue-body": {
-          "dependsOn": [
-            "create-issue"
-          ],
-          "description": "Body for the issue opened by --create-issue",
-          "name": "issue-body",
-          "hasDynamicHelp": false,
-          "multiple": false,
-          "type": "option"
-        },
-        "wait-for-checks": {
-          "description": "After provisioning, watch wet PR check runs until completion (requires --commit; --no-wait-for-checks to skip)",
-          "name": "wait-for-checks",
-          "allowNo": true,
-          "type": "boolean"
-        },
-        "state-repos": {
-          "description": "Comma-separated state repos for --wait-for-checks (default: <org>/state-github,<org>/state-infra)",
-          "name": "state-repos",
-          "hasDynamicHelp": false,
-          "multiple": false,
-          "type": "option"
-        }
-      },
-      "hasDynamicHelp": false,
-      "hiddenAliases": [],
-      "id": "features:edit",
-      "pluginAlias": "@firestartr/fs-forge-cli",
-      "pluginName": "@firestartr/fs-forge-cli",
-      "pluginType": "core",
-      "strict": true,
-      "usage": "(COMPONENT | --file <path>) --name <feature> [--version <version> | --ref <ref>]",
-      "helpRelationships": [
-        {
-          "type": "exactlyOne",
-          "args": [
-            "component"
-          ],
-          "flags": [
-            "file"
-          ]
-        }
-      ],
-      "isESM": true,
-      "relativePath": [
-        "dist",
-        "commands",
-        "features",
-        "edit.js"
-      ]
-    },
-    "features:list": {
-      "aliases": [],
-      "args": {
-        "component": {
-          "description": "ComponentClaim name",
-          "name": "component"
-        }
-      },
-      "description": "List Feature references on a ComponentClaim",
-      "examples": [
-        "<%= config.bin %> <%= command.id %> my-component --org my-org",
-        "<%= config.bin %> <%= command.id %> --file component.yaml --json"
-      ],
-      "flags": {
-        "file": {
-          "char": "f",
-          "description": "Local ComponentClaim YAML file",
-          "name": "file",
-          "hasDynamicHelp": false,
-          "multiple": false,
-          "type": "option"
-        },
-        "org": {
-          "description": "GitHub organization containing the claims repo (default: FSCRT_ORG, then the config entry matching the current directory)",
-          "env": "FSCRT_ORG",
-          "name": "org",
-          "noCacheDefault": true,
-          "hasDynamicHelp": false,
-          "multiple": false,
-          "type": "option"
-        },
-        "json": {
-          "description": "Output as JSON",
-          "name": "json",
-          "allowNo": false,
-          "type": "boolean"
-        }
-      },
-      "hasDynamicHelp": false,
-      "hiddenAliases": [],
-      "id": "features:list",
-      "pluginAlias": "@firestartr/fs-forge-cli",
-      "pluginName": "@firestartr/fs-forge-cli",
-      "pluginType": "core",
-      "strict": true,
-      "usage": "(COMPONENT | --file <path>)",
-      "enableJsonFlag": false,
-      "helpRelationships": [
-        {
-          "type": "exactlyOne",
-          "args": [
-            "component"
-          ],
-          "flags": [
-            "file"
-          ]
-        }
-      ],
-      "isESM": true,
-      "relativePath": [
-        "dist",
-        "commands",
-        "features",
-        "list.js"
-      ]
-    },
-    "features:remove": {
-      "aliases": [],
-      "args": {
-        "component": {
-          "description": "ComponentClaim name",
-          "name": "component"
-        }
-      },
-      "description": "Remove a Feature reference from a ComponentClaim",
-      "examples": [
-        "<%= config.bin %> <%= command.id %> my-component --name logging --org my-org",
-        "<%= config.bin %> <%= command.id %> --file component.yaml --name logging"
-      ],
-      "flags": {
-        "name": {
-          "description": "Feature name",
-          "name": "name",
-          "required": true,
-          "hasDynamicHelp": false,
-          "multiple": false,
-          "type": "option"
-        },
-        "file": {
-          "char": "f",
-          "description": "Local ComponentClaim YAML file",
-          "name": "file",
-          "hasDynamicHelp": false,
-          "multiple": false,
-          "type": "option"
-        },
-        "org": {
-          "description": "GitHub organization containing the claims repo (default: FSCRT_ORG, then the config entry matching the current directory)",
-          "env": "FSCRT_ORG",
-          "name": "org",
-          "noCacheDefault": true,
-          "hasDynamicHelp": false,
-          "multiple": false,
-          "type": "option"
-        },
-        "json": {
-          "description": "Output as JSON",
-          "name": "json",
-          "allowNo": false,
-          "type": "boolean"
-        },
-        "commit": {
-          "description": "Commit the claim and dispatch provisioning",
-          "name": "commit",
-          "allowNo": false,
-          "type": "boolean"
-        },
-        "no-wait": {
-          "description": "Skip waiting for the provision workflow to complete",
-          "name": "no-wait",
-          "allowNo": false,
-          "type": "boolean"
-        },
-        "issue": {
-          "dependsOn": [
-            "commit"
-          ],
-          "description": "Link the commit to an existing claims-repo issue (adds \"Closes #N\" to the claim PR)",
-          "exclusive": [
-            "create-issue"
-          ],
-          "name": "issue",
-          "hasDynamicHelp": false,
-          "multiple": false,
-          "type": "option"
-        },
-        "create-issue": {
-          "dependsOn": [
-            "commit"
-          ],
-          "description": "Open an issue in the claims repo before committing, then link it to the claim PR",
-          "exclusive": [
-            "issue"
-          ],
-          "name": "create-issue",
-          "allowNo": false,
-          "type": "boolean"
-        },
-        "issue-title": {
-          "dependsOn": [
-            "create-issue"
-          ],
-          "description": "Title for the issue opened by --create-issue",
-          "name": "issue-title",
-          "hasDynamicHelp": false,
-          "multiple": false,
-          "type": "option"
-        },
-        "issue-body": {
-          "dependsOn": [
-            "create-issue"
-          ],
-          "description": "Body for the issue opened by --create-issue",
-          "name": "issue-body",
-          "hasDynamicHelp": false,
-          "multiple": false,
-          "type": "option"
-        },
-        "wait-for-checks": {
-          "description": "After provisioning, watch wet PR check runs until completion (requires --commit; --no-wait-for-checks to skip)",
-          "name": "wait-for-checks",
-          "allowNo": true,
-          "type": "boolean"
-        },
-        "state-repos": {
-          "description": "Comma-separated state repos for --wait-for-checks (default: <org>/state-github,<org>/state-infra)",
-          "name": "state-repos",
-          "hasDynamicHelp": false,
-          "multiple": false,
-          "type": "option"
-        }
-      },
-      "hasDynamicHelp": false,
-      "hiddenAliases": [],
-      "id": "features:remove",
-      "pluginAlias": "@firestartr/fs-forge-cli",
-      "pluginName": "@firestartr/fs-forge-cli",
-      "pluginType": "core",
-      "strict": true,
-      "usage": "(COMPONENT | --file <path>) --name <feature>",
-      "enableJsonFlag": false,
-      "helpRelationships": [
-        {
-          "type": "exactlyOne",
-          "args": [
-            "component"
-          ],
-          "flags": [
-            "file"
-          ]
-        }
-      ],
-      "isESM": true,
-      "relativePath": [
-        "dist",
-        "commands",
-        "features",
-        "remove.js"
       ]
     },
     "kinds:show": {

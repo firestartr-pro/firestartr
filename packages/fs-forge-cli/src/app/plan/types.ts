@@ -34,6 +34,14 @@ export interface ExistingStateAppClaim {
   isStateRepoClaim: boolean;
 }
 
+export interface PlanDefaultBranches {
+  claims: string;
+  dotFirestartr: string;
+  stateApp: string;
+  stateArgocd: string;
+  service: string;
+}
+
 export interface ResolvedPlanContext {
   org: string;
   claimsRepoName: string;
@@ -42,7 +50,7 @@ export interface ResolvedPlanContext {
   claimsMap: ClaimsMap;
   serviceRepoOwner: string;
   serviceRepoName: string;
-  serviceDefaultBranch: string;
+  defaultBranches: PlanDefaultBranches;
   serviceClaimPath: string;
   serviceClaimContent: string;
   serviceClaimDefaults: ServiceClaimDefaults;

@@ -136,16 +136,16 @@ async function readFileFromDefaultBranch(
   api: GitHubApi,
   ref: RepoRef,
   path: string,
-): Promise<string | undefined> {
+): Promise<{ defaultBranch: string; content?: string }> {
   let defaultBranch: string;
   try {
     defaultBranch = await api.getDefaultBranch(ref);
   } catch (error) {
-    if (isNotFoundError(error)) return undefined;
+    if (isNotFoundError(error)) return { defaultBranch: 'main' };
     throw error;
   }
   const file = await api.readFile(ref, path, defaultBranch);
-  return file?.content;
+  return { defaultBranch, content: file?.content };
 }
 
 async function readExistingArgocdFiles(
@@ -153,6 +153,7 @@ async function readExistingArgocdFiles(
   org: string,
   app: string,
 ): Promise<{
+  defaultBranch: string;
   applicationSet?: ExistingNamedFile;
   appProject?: ExistingNamedFile;
   parseErrors: ArgocdFileConflict[];
@@ -161,6 +162,7 @@ async function readExistingArgocdFiles(
 }> {
   const ref: RepoRef = { owner: org, repo: 'state-argocd' };
   const empty = {
+    defaultBranch: 'main',
     parseErrors: [] as ArgocdFileConflict[],
     duplicateApplicationSets: [] as string[],
     duplicateAppProjects: [] as string[],
@@ -177,7 +179,7 @@ async function readExistingArgocdFiles(
   try {
     paths = await api.listBlobPaths(ref, defaultBranch);
   } catch (error) {
-    if (isNotFoundError(error)) return empty;
+    if (isNotFoundError(error)) return { ...empty, defaultBranch };
     throw error;
   }
 
@@ -233,6 +235,7 @@ async function readExistingArgocdFiles(
   }
 
   return {
+    defaultBranch,
     applicationSet:
       applicationSets.length === 1 ? applicationSets[0] : undefined,
     appProject: appProjects.length === 1 ? appProjects[0] : undefined,
@@ -248,13 +251,13 @@ async function readExistingStateAppFiles(
   api: GitHubApi,
   org: string,
   inputs: AppInputs,
-): Promise<Record<string, string>> {
+): Promise<{ defaultBranch: string; files: Record<string, string> }> {
   const ref: RepoRef = { owner: org, repo: `app-${inputs.app}` };
   let defaultBranch: string;
   try {
     defaultBranch = await api.getDefaultBranch(ref);
   } catch (error) {
-    if (isNotFoundError(error)) return {};
+    if (isNotFoundError(error)) return { defaultBranch: 'main', files: {} };
     throw error;
   }
 
@@ -274,7 +277,7 @@ async function readExistingStateAppFiles(
       files[pathsToRead[i]] = file.content;
     }
   }
-  return files;
+  return { defaultBranch, files };
 }
 
 export async function resolvePlanContext(
@@ -301,15 +304,17 @@ export async function resolvePlanContext(
 
   // Fetch independent remote data in parallel.
   const [
+    claimsDefaultBranch,
     claimsMap,
     featureIndex,
     dotFirestartr,
     orgPlan,
     serviceDefaultBranch,
-    existingDotFirestartrApp,
+    existingDotFirestartrAppResult,
     existingArgocd,
-    existingStateAppFiles,
+    existingStateAppResult,
   ] = await Promise.all([
+    api.getDefaultBranch({ owner: org, repo: claimsRepoName }),
     loadClaimsMap(cRepo).catch((error: unknown) => {
       const detail = error instanceof Error ? error.message : String(error);
       throw new Error(
@@ -411,7 +416,13 @@ export async function resolvePlanContext(
     claimsMap,
     serviceRepoOwner,
     serviceRepoName,
-    serviceDefaultBranch,
+    defaultBranches: {
+      claims: claimsDefaultBranch,
+      dotFirestartr: existingDotFirestartrAppResult.defaultBranch,
+      stateApp: existingStateAppResult.defaultBranch,
+      stateArgocd: existingArgocd.defaultBranch,
+      service: serviceDefaultBranch,
+    },
     serviceClaimPath: serviceClaim.filePath,
     serviceClaimContent: serviceClaim.content,
     serviceClaimDefaults,
@@ -437,13 +448,13 @@ export async function resolvePlanContext(
     },
     defaultFilters: extractDefaultFilters(buildSchema),
     dotFirestartr,
-    existingDotFirestartrApp,
+    existingDotFirestartrApp: existingDotFirestartrAppResult.content,
     existingArgocdApplicationSet: existingArgocd.applicationSet,
     existingArgocdAppProject: existingArgocd.appProject,
     argocdParseErrors: existingArgocd.parseErrors,
     duplicateArgocdApplicationSets: existingArgocd.duplicateApplicationSets,
     duplicateArgocdAppProjects: existingArgocd.duplicateAppProjects,
-    existingStateAppFiles,
+    existingStateAppFiles: existingStateAppResult.files,
     existingMakeDispatches: makeDispatchesFile?.content,
     existingBuildImages: buildImagesFile?.content,
   };

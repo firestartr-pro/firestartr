@@ -37,6 +37,11 @@ function inferServiceName(
       `Cannot infer --service: apps/${app}.yaml is absent in .firestartr. Pass --service <service>.`,
     );
   }
+  if (dotFirestartr.appConfig.malformed) {
+    throw new Error(
+      `Cannot infer --service: apps/${app}.yaml is malformed in .firestartr (${dotFirestartr.appConfig.error}). Pass --service <service>.`,
+    );
+  }
   const services = dotFirestartr.appConfig.services;
   if (services.length === 1) {
     return services[0].name;
@@ -125,9 +130,12 @@ export function formatDiscoverSummary(result: AppDiscoverResult): string {
       .join(', ');
     lines.push(`Platforms: ${platforms || 'none'}`);
     lines.push(`Registries: ${registries || 'none'}`);
-    lines.push(
-      `App config: ${result.dotFirestartr.appConfig.present ? 'present' : 'absent'}`,
-    );
+    const appConfigStatus = !result.dotFirestartr.appConfig.present
+      ? 'absent'
+      : result.dotFirestartr.appConfig.malformed
+        ? `malformed (${result.dotFirestartr.appConfig.error})`
+        : 'present';
+    lines.push(`App config: ${appConfigStatus}`);
     if (result.dotFirestartr.errors.length > 0) {
       lines.push('Skipped malformed YAML:');
       for (const err of result.dotFirestartr.errors) {

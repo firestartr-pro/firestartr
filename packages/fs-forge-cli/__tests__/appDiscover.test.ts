@@ -448,7 +448,12 @@ describe('discoverApp', () => {
       },
     ]);
     expect(result.dotFirestartr.registries).toEqual([]);
-    expect(result.dotFirestartr.appConfig).toEqual({ present: false });
+    expect(result.dotFirestartr.appConfig).toEqual({
+      present: true,
+      malformed: true,
+      error: expect.any(String),
+      services: [],
+    });
     expect(result.dotFirestartr.errors.map((e) => e.path)).toEqual([
       'platforms/bad.yaml',
       'docker_registries/bad-reg.yaml',
@@ -456,6 +461,7 @@ describe('discoverApp', () => {
     ]);
 
     const summary = formatDiscoverSummary(result);
+    expect(summary).toContain('App config: malformed');
     expect(summary).toContain('platforms/bad.yaml');
     expect(summary).toContain('docker_registries/bad-reg.yaml');
     expect(summary).toContain('apps/broken.yaml');
