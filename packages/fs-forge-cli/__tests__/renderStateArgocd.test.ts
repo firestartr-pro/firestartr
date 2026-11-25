@@ -61,7 +61,7 @@ describe('renderStateArgocd', () => {
   const validateProject = loadVendorValidator('argocd-appproject', VENDOR_DIR);
   const platforms = [loadPlatformFixture()];
 
-  it('creates ApplicationSet and AppProject from scratch matching spec and vendored schemas', () => {
+  it('creates canonical ApplicationSet and AppProject with slack_channel matching councilbox ground truth', () => {
     const result = renderStateArgocd({
       org: 'acme',
       inputs: baseInputs({ slack_channel: '#billing-alerts' }),
@@ -73,49 +73,132 @@ describe('renderStateArgocd', () => {
       'apps/billing/argo-billing.ApplicationSet.yaml',
     );
     expect(result.applicationSet.outcome).toEqual({ kind: 'create' });
-    const appSet = YAML.parse(result.applicationSet.content);
+    const appSet = YAML.parse(result.applicationSet.content ?? '');
     expect(validateAppSet(appSet)).toBe(true);
-    expect(appSet.metadata).toEqual({ name: 'app-billing', namespace: 'argocd' });
-    expect(appSet.spec.goTemplate).toBe(true);
-    expect(appSet.spec.goTemplateOptions).toEqual(['missingkey=error']);
-    expect(appSet.spec.generators[0].git).toEqual({
-      repoURL: 'https://github.com/acme/app-billing.git',
-      revision: 'deployment',
-      directories: [{ path: 'kubernetes/*/*/*' }],
-      values: { 'example-dev': 'https://eks-dev.example.com' },
-    });
-    expect(appSet.spec.template.metadata.labels).toEqual({
-      'app-name': 'billing',
+    expect(appSet).toEqual({
+      apiVersion: 'argoproj.io/v1alpha1',
+      kind: 'ApplicationSet',
+      metadata: {
+        name: 'app-billing',
+        namespace: 'argocd',
+      },
+      spec: {
+        goTemplate: true,
+        goTemplateOptions: ['missingkey=error'],
+        generators: [
+          {
+            git: {
+              repoURL: 'https://github.com/acme/app-billing.git',
+              revision: 'deployment',
+              directories: [{ path: 'kubernetes/*/*/*' }],
+              values: { 'example-dev': 'https://eks-dev.example.com' },
+            },
+          },
+        ],
+        template: {
+          metadata: {
+            name: 'app-billing-{{index .path.segments 1}}-{{index .path.segments 2}}-{{index .path.segments 3}}',
+            labels: {
+              'app-name': 'billing',
+            },
+          },
+          spec: {
+            project: 'app-billing',
+            source: {
+              repoURL: 'https://github.com/acme/app-billing.git',
+              targetRevision: 'deployment',
+              path: '{{index .path.segments 0}}/{{index .path.segments 1}}/{{index .path.segments 2}}/{{index .path.segments 3}}',
+            },
+            destination: {
+              server: '{{index .values (index .path.segments 1)}}',
+              namespace:
+                '{{index .path.segments 2}}-billing-{{index .path.segments 3}}',
+            },
+            syncPolicy: {
+              automated: {
+                prune: true,
+              },
+              syncOptions: ['CreateNamespace=true', 'ServerSideApply=true'],
+            },
+            ignoreDifferences: [
+              {
+                group: 'policy',
+                kind: 'PodDisruptionBudget',
+                jsonPointers: [
+                  '/status',
+                  '/metadata/uid',
+                  '/metadata/generation',
+                  '/metadata/resourceVersion',
+                  '/metadata/creationTimestamp',
+                ],
+              },
+              {
+                group: 'keda.sh',
+                kind: 'ScaledObject',
+                jsonPointers: [
+                  '/status',
+                  '/metadata/uid',
+                  '/metadata/generation',
+                  '/metadata/resourceVersion',
+                  '/metadata/creationTimestamp',
+                ],
+              },
+            ],
+          },
+        },
+      },
     });
 
     expect(result.appProject.path).toBe(
       'apps/billing/argo-billing.Project.yaml',
     );
     expect(result.appProject.outcome).toEqual({ kind: 'create' });
-    const project = YAML.parse(result.appProject.content);
+    const project = YAML.parse(result.appProject.content ?? '');
     expect(validateProject(project)).toBe(true);
-    expect(project.metadata.annotations).toEqual({
-      'notifications.argoproj.io/subscribe.on-sync-running.github':
-        'fs-argocd-notifications',
-      'notifications.argoproj.io/subscribe.on-sync-succeeded.github':
-        'fs-argocd-notifications',
-      'notifications.argoproj.io/subscribe.on-sync-failed.github':
-        'fs-argocd-notifications',
-      'notifications.argoproj.io/subscribe.on-sync-failed.slack':
-        '#billing-alerts',
-      'notifications.argoproj.io/subscribe.on-health-degraded.slack':
-        '#billing-alerts',
-    });
-    expect(project.spec.description).toBe('billing State Project');
-    expect(project.spec.destinations).toEqual([
-      {
-        namespace: 'example-team-billing-dev',
-        server: 'https://eks-dev.example.com',
+    expect(project).toEqual({
+      apiVersion: 'argoproj.io/v1alpha1',
+      kind: 'AppProject',
+      metadata: {
+        name: 'app-billing',
+        namespace: 'argocd',
+        annotations: {
+          'notifications.argoproj.io/subscribe.on-deployed.github':
+            'fs-argocd-notifications',
+          'notifications.argoproj.io/subscribe.on-health-degraded.github':
+            'fs-argocd-notifications',
+          'notifications.argoproj.io/subscribe.on-sync-failed.github':
+            'fs-argocd-notifications',
+          'notifications.argoproj.io/subscribe.on-sync-failed.slack':
+            '#billing-alerts',
+          'notifications.argoproj.io/subscribe.on-health-degraded.slack':
+            '#billing-alerts',
+        },
       },
-    ]);
+      spec: {
+        description: 'billing State Project',
+        sourceRepos: ['https://github.com/acme/app-billing.git'],
+        destinations: [
+          {
+            namespace: 'example-team-billing-dev',
+            server: 'https://eks-dev.example.com',
+          },
+        ],
+        clusterResourceWhitelist: [
+          { group: '', kind: 'Namespace' },
+          { group: '', kind: 'PersistentVolume' },
+          { group: 'networking.k8s.io', kind: 'IngressClass' },
+          { group: 'rbac.authorization.k8s.io', kind: 'ClusterRole' },
+          { group: 'rbac.authorization.k8s.io', kind: 'ClusterRoleBinding' },
+          {
+            group: 'apiextensions.k8s.io',
+            kind: 'CustomResourceDefinition',
+          },
+        ],
+      },
+    });
   });
 
-  it('omits Slack annotations when slack_channel is not set', () => {
+  it('creates canonical AppProject without Slack annotations when slack_channel is not set', () => {
     const result = renderStateArgocd({
       org: 'acme',
       inputs: baseInputs(),
@@ -123,11 +206,45 @@ describe('renderStateArgocd', () => {
       vendorDir: VENDOR_DIR,
     });
 
-    const project = YAML.parse(result.appProject.content);
+    const project = YAML.parse(result.appProject.content ?? '');
     expect(validateProject(project)).toBe(true);
-    const keys = Object.keys(project.metadata.annotations);
-    expect(keys.some((k) => k.endsWith('.slack'))).toBe(false);
-    expect(keys).toHaveLength(3);
+    expect(project).toEqual({
+      apiVersion: 'argoproj.io/v1alpha1',
+      kind: 'AppProject',
+      metadata: {
+        name: 'app-billing',
+        namespace: 'argocd',
+        annotations: {
+          'notifications.argoproj.io/subscribe.on-deployed.github':
+            'fs-argocd-notifications',
+          'notifications.argoproj.io/subscribe.on-health-degraded.github':
+            'fs-argocd-notifications',
+          'notifications.argoproj.io/subscribe.on-sync-failed.github':
+            'fs-argocd-notifications',
+        },
+      },
+      spec: {
+        description: 'billing State Project',
+        sourceRepos: ['https://github.com/acme/app-billing.git'],
+        destinations: [
+          {
+            namespace: 'example-team-billing-dev',
+            server: 'https://eks-dev.example.com',
+          },
+        ],
+        clusterResourceWhitelist: [
+          { group: '', kind: 'Namespace' },
+          { group: '', kind: 'PersistentVolume' },
+          { group: 'networking.k8s.io', kind: 'IngressClass' },
+          { group: 'rbac.authorization.k8s.io', kind: 'ClusterRole' },
+          { group: 'rbac.authorization.k8s.io', kind: 'ClusterRoleBinding' },
+          {
+            group: 'apiextensions.k8s.io',
+            kind: 'CustomResourceDefinition',
+          },
+        ],
+      },
+    });
   });
 
   it('returns noop on identical existing ApplicationSet and AppProject', () => {
@@ -334,5 +451,263 @@ describe('renderStateArgocd', () => {
       },
     });
     expect(resKind.appProject.outcome.kind).toBe('conflict');
+    expect(resKind.appProject.content).toBeUndefined();
+  });
+
+  it('returns noop on re-render when the same tenant/env targets two clusters', () => {
+    const twoClusterPlatforms: DiscoveredPlatform[] = [
+      { name: 'c1', type: 'kubernetes', tenants: [], envs: [] },
+      { name: 'c2', type: 'kubernetes', tenants: [], envs: [] },
+    ];
+    const twoClusterInputs = baseInputs({
+      targets: [
+        {
+          platform: 'c1',
+          tenant: 't',
+          env: 'dev',
+          cluster_url: 'https://u1',
+          track: 'snapshots',
+        },
+        {
+          platform: 'c2',
+          tenant: 't',
+          env: 'dev',
+          cluster_url: 'https://u2',
+          track: 'snapshots',
+        },
+      ],
+    });
+
+    const c1 = renderStateArgocd({
+      org: 'acme',
+      inputs: twoClusterInputs,
+      platforms: twoClusterPlatforms,
+      vendorDir: VENDOR_DIR,
+    });
+    const c2 = renderStateArgocd({
+      org: 'acme',
+      inputs: twoClusterInputs,
+      platforms: twoClusterPlatforms,
+      vendorDir: VENDOR_DIR,
+      existingApplicationSet: {
+        path: c1.applicationSet.path,
+        content: c1.applicationSet.content ?? '',
+      },
+      existingAppProject: {
+        path: c1.appProject.path,
+        content: c1.appProject.content ?? '',
+      },
+    });
+
+    expect(c2.applicationSet.outcome).toEqual({ kind: 'noop' });
+    expect(c2.appProject.outcome).toEqual({ kind: 'noop' });
+  });
+
+  it('returns conflict instead of throwing when merged ApplicationSet or AppProject fails schema validation', () => {
+    const created = renderStateArgocd({
+      org: 'acme',
+      inputs: baseInputs(),
+      platforms,
+      vendorDir: VENDOR_DIR,
+    });
+    const twoTargets = baseInputs({
+      targets: [
+        {
+          platform: 'example-dev',
+          tenant: 'example-team',
+          env: 'dev',
+          cluster_url: 'https://eks-dev.example.com',
+          track: 'snapshots',
+        },
+        {
+          platform: 'example-prod',
+          tenant: 'example-team',
+          env: 'pro',
+          cluster_url: 'https://eks-prod.example.com',
+          track: 'releases',
+        },
+      ],
+    });
+
+    const invalidAppSet = (created.applicationSet.content ?? '').replace(
+      'goTemplate: true',
+      'goTemplate: "not-a-bool"',
+    );
+    const invalidProject = (created.appProject.content ?? '').replace(
+      'description: billing State Project',
+      'description: 12345',
+    );
+
+    const res = renderStateArgocd({
+      org: 'acme',
+      inputs: twoTargets,
+      platforms,
+      vendorDir: VENDOR_DIR,
+      existingApplicationSet: {
+        path: created.applicationSet.path,
+        content: invalidAppSet,
+      },
+      existingAppProject: {
+        path: created.appProject.path,
+        content: invalidProject,
+      },
+    });
+
+    expect(res.applicationSet.outcome.kind).toBe('conflict');
+    expect(res.applicationSet.content).toBeUndefined();
+    expect(res.appProject.outcome.kind).toBe('conflict');
+    expect(res.appProject.content).toBeUndefined();
+  });
+
+  it('returns conflict when owned values or destinations node has wrong YAML type', () => {
+    const created = renderStateArgocd({
+      org: 'acme',
+      inputs: baseInputs(),
+      platforms,
+      vendorDir: VENDOR_DIR,
+    });
+    const twoTargets = baseInputs({
+      targets: [
+        {
+          platform: 'example-dev',
+          tenant: 'example-team',
+          env: 'dev',
+          cluster_url: 'https://eks-dev.example.com',
+          track: 'snapshots',
+        },
+        {
+          platform: 'example-prod',
+          tenant: 'example-team',
+          env: 'pro',
+          cluster_url: 'https://eks-prod.example.com',
+          track: 'releases',
+        },
+      ],
+    });
+
+    const strVals = (created.applicationSet.content ?? '').replace(
+      /values:\n(\s+example-dev:[^\n]*\n)?/,
+      'values: just-a-string\n',
+    );
+    const resAppSet = renderStateArgocd({
+      org: 'acme',
+      inputs: twoTargets,
+      platforms,
+      vendorDir: VENDOR_DIR,
+      existingApplicationSet: {
+        path: created.applicationSet.path,
+        content: strVals,
+      },
+    });
+    expect(resAppSet.applicationSet.outcome.kind).toBe('conflict');
+    expect(resAppSet.applicationSet.content).toBeUndefined();
+    if (resAppSet.applicationSet.outcome.kind === 'conflict') {
+      expect(resAppSet.applicationSet.outcome.reason).toContain('values');
+    }
+
+    const projStr = (created.appProject.content ?? '').replace(
+      /destinations:\n(\s+-[^\n]*\n(\s+[^\n]*\n)*)?/,
+      'destinations: oops\n',
+    );
+    const resProj = renderStateArgocd({
+      org: 'acme',
+      inputs: twoTargets,
+      platforms,
+      vendorDir: VENDOR_DIR,
+      existingAppProject: {
+        path: created.appProject.path,
+        content: projStr,
+      },
+    });
+    expect(resProj.appProject.outcome.kind).toBe('conflict');
+    expect(resProj.appProject.content).toBeUndefined();
+    if (resProj.appProject.outcome.kind === 'conflict') {
+      expect(resProj.appProject.outcome.reason).toContain('destinations');
+    }
+  });
+
+  it('omits content on cluster URL split conflict during create', () => {
+    const res = renderStateArgocd({
+      org: 'acme',
+      inputs: baseInputs({
+        targets: [
+          {
+            platform: 'example-dev',
+            tenant: 't1',
+            env: 'dev',
+            cluster_url: 'https://u1',
+            track: 'snapshots',
+          },
+          {
+            platform: 'example-dev',
+            tenant: 't2',
+            env: 'dev',
+            cluster_url: 'https://u2',
+            track: 'snapshots',
+          },
+        ],
+      }),
+      platforms,
+      vendorDir: VENDOR_DIR,
+    });
+
+    expect(res.applicationSet.outcome.kind).toBe('conflict');
+    expect(res.applicationSet.content).toBeUndefined();
+  });
+
+  it('preserves CRLF line endings when merging into CRLF files', () => {
+    const created = renderStateArgocd({
+      org: 'acme',
+      inputs: baseInputs(),
+      platforms,
+      vendorDir: VENDOR_DIR,
+    });
+    const crlfAppSet = (created.applicationSet.content ?? '').replace(
+      /\n/g,
+      '\r\n',
+    );
+    const crlfProject = (created.appProject.content ?? '').replace(
+      /\n/g,
+      '\r\n',
+    );
+
+    const merged = renderStateArgocd({
+      org: 'acme',
+      inputs: baseInputs({
+        targets: [
+          {
+            platform: 'example-dev',
+            tenant: 'example-team',
+            env: 'dev',
+            cluster_url: 'https://eks-dev.example.com',
+            track: 'snapshots',
+          },
+          {
+            platform: 'example-prod',
+            tenant: 'example-team',
+            env: 'pro',
+            cluster_url: 'https://eks-prod.example.com',
+            track: 'releases',
+          },
+        ],
+      }),
+      platforms,
+      vendorDir: VENDOR_DIR,
+      existingApplicationSet: {
+        path: created.applicationSet.path,
+        content: crlfAppSet,
+      },
+      existingAppProject: {
+        path: created.appProject.path,
+        content: crlfProject,
+      },
+    });
+
+    expect(merged.applicationSet.outcome.kind).toBe('merge');
+    expect(merged.applicationSet.content).toContain('\r\n');
+    expect(merged.applicationSet.content).not.toMatch(/(?<!\r)\n/);
+    expect(merged.appProject.outcome.kind).toBe('merge');
+    expect(merged.appProject.content).toContain('\r\n');
+    expect(merged.appProject.content).not.toMatch(/(?<!\r)\n/);
   });
 });

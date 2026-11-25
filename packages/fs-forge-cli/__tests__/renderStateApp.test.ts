@@ -136,6 +136,37 @@ describe('renderStateAppTargets', () => {
         existingFiles: { [envPath]: existingEnv },
       });
       expect(files[0].outcome.kind).toBe('conflict');
+      expect(files[0].content).toBeUndefined();
     }
+  });
+
+  it('returns a single conflict entry when two targets produce the same env file path', () => {
+    const files = renderStateAppTargets({
+      inputs: baseInputs({
+        targets: [
+          {
+            platform: 'c1',
+            tenant: 't',
+            env: 'dev',
+            cluster_url: 'https://u1',
+            track: 'snapshots',
+          },
+          {
+            platform: 'c1',
+            tenant: 't',
+            env: 'dev',
+            cluster_url: 'https://u2',
+            track: 'snapshots',
+          },
+        ],
+      }),
+      registries,
+      schemasDir: SCHEMAS_DIR,
+    });
+
+    expect(files).toHaveLength(1);
+    expect(files[0].path).toBe('kubernetes/c1/t/dev.yaml');
+    expect(files[0].outcome.kind).toBe('conflict');
+    expect(files[0].content).toBeUndefined();
   });
 });

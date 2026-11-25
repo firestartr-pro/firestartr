@@ -201,9 +201,97 @@ describe('renderDotFirestartrApp', () => {
     });
 
     expect(result.outcome.kind).toBe('conflict');
+    expect(result.content).toBeUndefined();
     if (result.outcome.kind === 'conflict') {
       expect(result.outcome.reason).toContain('example-org/store-state');
       expect(result.outcome.reason).toContain('example-org/app-example-store');
     }
+  });
+
+  it('returns conflict instead of throwing when merged file fails schema validation due to extra user field', () => {
+    const existing = [
+      'name: billing',
+      'state_repo: acme/app-billing',
+      'custom_extra: {deep: [1, 2]}',
+      'services:',
+      '  - repo: acme/billing-api',
+      '    service_names: [a]',
+      '',
+    ].join('\n');
+
+    const result = renderDotFirestartrApp({
+      org: 'acme',
+      inputs: baseInputs({
+        service: {
+          repo: 'billing-api',
+          release_type: 'node',
+          service_names: ['a', 'b'],
+        },
+      }),
+      schemasDir: SCHEMAS_DIR,
+      existingContent: existing,
+    });
+
+    expect(result.outcome.kind).toBe('conflict');
+    expect(result.content).toBeUndefined();
+    if (result.outcome.kind === 'conflict') {
+      expect(result.outcome.reason).toContain('custom_extra');
+    }
+  });
+
+  it('returns conflict when owned services or service_names node has wrong YAML type', () => {
+    const servicesString = renderDotFirestartrApp({
+      org: 'acme',
+      inputs: baseInputs(),
+      schemasDir: SCHEMAS_DIR,
+      existingContent:
+        'name: billing\nstate_repo: acme/app-billing\nservices: oops\n',
+    });
+    expect(servicesString.outcome.kind).toBe('conflict');
+    expect(servicesString.content).toBeUndefined();
+    if (servicesString.outcome.kind === 'conflict') {
+      expect(servicesString.outcome.reason).toContain('services');
+    }
+
+    const namesString = renderDotFirestartrApp({
+      org: 'acme',
+      inputs: baseInputs({
+        service: {
+          repo: 'billing-api',
+          release_type: 'node',
+          service_names: ['a', 'b'],
+        },
+      }),
+      schemasDir: SCHEMAS_DIR,
+      existingContent:
+        'name: billing\nstate_repo: acme/app-billing\nservices:\n  - repo: acme/billing-api\n    service_names: oops\n',
+    });
+    expect(namesString.outcome.kind).toBe('conflict');
+    expect(namesString.content).toBeUndefined();
+    if (namesString.outcome.kind === 'conflict') {
+      expect(namesString.outcome.reason).toContain('service_names');
+    }
+  });
+
+  it('preserves CRLF line endings when merging into a CRLF file', () => {
+    const existing = [
+      'name: billing',
+      'state_repo: acme/app-billing',
+      'services:',
+      '  - repo: acme/other-svc',
+      '    service_names: [other-svc]',
+      '',
+    ].join('\r\n');
+
+    const result = renderDotFirestartrApp({
+      org: 'acme',
+      inputs: baseInputs(),
+      schemasDir: SCHEMAS_DIR,
+      existingContent: existing,
+    });
+
+    expect(result.outcome.kind).toBe('merge');
+    expect(result.content).toContain('\r\n');
+    expect(result.content).not.toMatch(/(?<!\r)\n/);
   });
 });
