@@ -1,4 +1,4 @@
-import { describe, expect, it } from '@jest/globals';
+import { describe, expect, it, jest } from '@jest/globals';
 import { tmpdir } from 'os';
 
 import {
@@ -92,6 +92,35 @@ describe('vendored schema validators', () => {
 
       expect(validate(invalidDoc)).toBe(false);
     });
+
+    it('still rejects a string for an int64 integer field', () => {
+      const invalidDoc = {
+        apiVersion: 'argoproj.io/v1alpha1',
+        kind: 'ApplicationSet',
+        metadata: { name: 'app-billing', namespace: 'argocd' },
+        spec: {
+          generators: [
+            {
+              git: {
+                repoURL: 'https://github.com/acme/app-billing.git',
+                revision: 'deployment',
+                directories: [{ path: 'kubernetes/eks-prod/*/*' }],
+              },
+            },
+          ],
+          template: {
+            metadata: { name: 'app-billing-{{ .path.basename }}' },
+            spec: {
+              project: 'app-billing',
+              revisionHistoryLimit: 'not-an-integer',
+              destination: { namespace: 'core-billing-dev' },
+            },
+          },
+        },
+      };
+
+      expect(validate(invalidDoc)).toBe(false);
+    });
   });
 
   describe('argocd-appproject', () => {
@@ -164,6 +193,25 @@ describe('vendored schema validators', () => {
       ).toBe(true);
     } finally {
       process.chdir(prevCwd);
+    }
+  });
+
+  it('compiles vendored schemas without emitting Ajv unknown-format warnings to stderr', async () => {
+    const warnSpy = jest.spyOn(console, 'warn').mockImplementation(() => {});
+    const stderrSpy = jest
+      .spyOn(process.stderr, 'write')
+      .mockImplementation(() => true);
+    try {
+      jest.resetModules();
+      const fresh = await import('../src/schema/vendorSchemas');
+      fresh.loadVendorValidator('argocd-applicationset', VENDOR_DIR);
+      fresh.loadVendorValidator('argocd-appproject', VENDOR_DIR);
+
+      expect(warnSpy).not.toHaveBeenCalled();
+      expect(stderrSpy).not.toHaveBeenCalled();
+    } finally {
+      warnSpy.mockRestore();
+      stderrSpy.mockRestore();
     }
   });
 });
