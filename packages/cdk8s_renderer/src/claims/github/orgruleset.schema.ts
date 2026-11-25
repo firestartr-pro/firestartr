@@ -18,6 +18,7 @@ export default {
           properties: {
             name: {
               type: 'string',
+              maxLength: 186,
               // The display name reaches Terraform workspace paths through
               // the firestartr.dev/external-name annotation. A path
               // separator in it could escape /tmp/gh-workspaces and make

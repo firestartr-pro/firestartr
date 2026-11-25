@@ -1,10 +1,9 @@
 import fs from 'fs';
 import os from 'os';
 import path from 'path';
-import common from 'catalog_common';
 import YAML from 'yaml';
 
-import { ClaimValidation } from '../src/claims';
+import { validateClaimAgainstSchema } from '../src/skills/validate-claim-against-schema';
 import {
   createTestContext,
   RendererTestContext,
@@ -285,6 +284,21 @@ describe('GitHub organization ruleset rendering', () => {
     );
   });
 
+  it('keeps the CR filename within the filesystem length limit', async () => {
+    const longName = 'a'.repeat(186);
+
+    await context.applyPatches('orgruleset_a', [
+      { op: 'replace', path: '/providers/github/name', value: longName },
+    ]);
+
+    const { renderedMap } = await render();
+    const cr = findRulesetCr(renderedMap, longName);
+    const fileName = `FirestartrGithubOrgRuleset.${cr.metadata.name}.yaml`;
+
+    expect(Buffer.byteLength(fileName)).toBe(255);
+    expect(fs.readdirSync(context.getResourcesOutDir())).toContain(fileName);
+  });
+
   it('renders a catalog Resource of type ruleset', async () => {
     const { renderedMap } = await render();
 
@@ -312,10 +326,12 @@ describe('OrgRulesetClaim schema', () => {
   async function validate(patches: any[]) {
     await context.applyPatches('orgruleset_a', patches);
 
-    ClaimValidation.validateClaim(
-      common.io.fromYaml(await context.getFile('orgruleset_a')),
-      SCHEMA_ID,
-    );
+    const result = await validateClaimAgainstSchema({
+      claimPath: await context.getFilePath('orgruleset_a'),
+      schemaType: SCHEMA_ID,
+    });
+
+    if (!result.valid) throw result.errors;
   }
 
   it('accepts a valid claim', async () => {
@@ -333,6 +349,19 @@ describe('OrgRulesetClaim schema', () => {
 
     expect(errors[0].instancePath).toBe('/providers/github/name');
     expect(errors[0].message).toMatch(/pattern/);
+  });
+
+  it('rejects a ruleset name that exceeds the CR filename length limit', async () => {
+    const errors = await validate([
+      {
+        op: 'replace',
+        path: '/providers/github/name',
+        value: 'a'.repeat(187),
+      },
+    ]).catch((e) => e);
+
+    expect(errors[0].instancePath).toBe('/providers/github/name');
+    expect(errors[0].message).toMatch(/maximum|more than 186/);
   });
 
   it('rejects an unknown rule type and lists the known ones', async () => {
