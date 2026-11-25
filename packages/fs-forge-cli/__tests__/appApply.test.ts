@@ -786,4 +786,97 @@ describe('applyApp', () => {
     expect(result.steps[1].repos[0].reason).toContain('acme/.firestartr#8');
     expect(api.createdPulls).toHaveLength(0);
   });
+
+  it('fails without overwriting when a reused open PR touches files outside the plan changes', async () => {
+    const api = makeApi();
+    const clock = makeFakeClock();
+    const dotRef = { owner: 'acme', repo: '.firestartr' };
+    api.setPullRequests(dotRef, [
+      {
+        number: 42,
+        htmlUrl: 'https://github.com/acme/.firestartr/pull/42',
+        state: 'open',
+        headRef: 'fs-forge/app-payments',
+        baseRef: 'main',
+        baseSha: 'base-sha',
+        updatedAt: '',
+      },
+    ]);
+    api.setFile(dotRef, 'apps/payments.yaml', 'dot-app\n');
+    api.setPullRequestFiles(dotRef, 42, [
+      { filename: 'apps/payments.yaml', status: 'added' },
+      { filename: 'apps/other.yaml', status: 'modified' },
+    ]);
+
+    const plan = makeFullPlan({
+      claims: [
+        noopFile('claims/components/app-payments.yaml'),
+        noopFile('claims/components/payments-api.yaml'),
+      ],
+      stateApp: [noopFile('kubernetes/eks-main/core/dev.yaml')],
+      stateArgocd: [
+        noopFile('apps/payments/argo-payments.ApplicationSet.yaml'),
+      ],
+      service: [noopFile('.github/make_dispatches.yaml')],
+    });
+
+    const result = await applyApp(api, plan, {
+      now: clock.now,
+      sleep: clock.sleep,
+    });
+
+    expect(result.outcome).toBe('failed');
+    expect(result.steps[1].repos[0].state).toBe('failed');
+    expect(result.steps[1].repos[0].reason).toContain('acme/.firestartr#42');
+    expect(result.steps[1].repos[0].reason).toContain('apps/other.yaml');
+    expect(api.committed).toHaveLength(0);
+    expect(api.createdPulls).toHaveLength(0);
+  });
+
+  it('reuses an existing open PR when content differs only in CRLF vs LF line endings', async () => {
+    const api = makeApi();
+    const clock = makeFakeClock();
+    const dotRef = { owner: 'acme', repo: '.firestartr' };
+    api.setPullRequests(dotRef, [
+      {
+        number: 42,
+        htmlUrl: 'https://github.com/acme/.firestartr/pull/42',
+        state: 'open',
+        headRef: 'fs-forge/app-payments',
+        baseRef: 'main',
+        baseSha: 'base-sha',
+        updatedAt: '',
+      },
+    ]);
+    api.setFile(dotRef, 'apps/payments.yaml', 'dot-app\r\n');
+    api.setPullRequestFiles(dotRef, 42, [
+      { filename: 'apps/payments.yaml', status: 'added' },
+    ]);
+
+    api.onGetPullRequest = (ref, pr) => {
+      api.setPrState(ref, pr, 'closed', true);
+    };
+
+    const plan = makeFullPlan({
+      claims: [
+        noopFile('claims/components/app-payments.yaml'),
+        noopFile('claims/components/payments-api.yaml'),
+      ],
+      stateApp: [noopFile('kubernetes/eks-main/core/dev.yaml')],
+      stateArgocd: [
+        noopFile('apps/payments/argo-payments.ApplicationSet.yaml'),
+      ],
+      service: [noopFile('.github/make_dispatches.yaml')],
+    });
+
+    const result = await applyApp(api, plan, {
+      now: clock.now,
+      sleep: clock.sleep,
+    });
+
+    expect(result.outcome).toBe('done');
+    expect(result.steps[1].repos[0].state).toBe('merged');
+    expect(api.committed).toHaveLength(0);
+    expect(api.createdPulls).toHaveLength(0);
+  });
 });
