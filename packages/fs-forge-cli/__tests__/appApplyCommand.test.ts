@@ -581,6 +581,22 @@ describe('fs-forge app apply command', () => {
     expect(error?.message).toContain('Service ComponentClaim');
   });
 
+  it('exits with code 2 when GitHub auth setup fails (missing token)', async () => {
+    MockCreateGitHubApi.mockImplementation(() => {
+      throw new Error(
+        'GITHUB_TOKEN is required (or log in with `gh auth login`)',
+      );
+    });
+
+    const { error } = await runCommand(AppApply, ['--inputs', inputsPath]);
+
+    expect(error).toBeDefined();
+    expect((error as { oclif?: { exit?: number } }).oclif?.exit).toBe(
+      APP_APPLY_EXIT_CODES.error,
+    );
+    expect(error?.message).toContain('GITHUB_TOKEN is required');
+  });
+
   it('keeps repo fixture constants referenced', () => {
     expect(STATE_ARGOCD_REPO.repo).toBe('state-argocd');
     expect(SERVICE_REPO.repo).toBe('payments-api');
