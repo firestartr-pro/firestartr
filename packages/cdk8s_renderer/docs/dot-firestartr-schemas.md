@@ -34,6 +34,20 @@ can be compiled alongside the action view in the same validator instance.
 Docs-repository promotion is discontinued; any existing docs-hosted copies are
 not updated by this repository.
 
+## State repo environment schema (`state_apps_env`)
+
+[`state_apps_env.schema.ts`](../src/schemas/dot-firestartr/state_apps_env.schema.ts)
+describes `kubernetes/<cluster>/<tenant>/<env>.yaml` in an `app-<app>` state
+repository. Because this file lives outside `.firestartr`, it is exported by
+name (`stateAppsEnv`) and omitted from the `schemas` directory map:
+
+```ts
+import { stateAppsEnv } from '@firestartr/firestartr-claims_schemas/dot-firestartr';
+```
+
+Its standalone JSON file is available at
+`@firestartr/firestartr-claims_schemas/dot-firestartr/state_apps_env.schema.json`.
+
 ## Compatibility
 
 Applications and platforms preserve the action schemas' validation rules.
