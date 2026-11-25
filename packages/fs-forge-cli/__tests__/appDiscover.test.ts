@@ -128,8 +128,8 @@ describe('discoverApp', () => {
 
     // 3. Real ComponentClaims (no spec: wrapper; features under providers.github.features)
     seedClaimsMap(api, {
-      'component-store': 'components/store.yaml',
-      'component-worker': 'components/worker.yaml',
+      'ComponentClaim-store': 'components/store.yaml',
+      'ComponentClaim-worker': 'components/worker.yaml',
     });
     api.setFile(
       { owner: ORG, repo: CLAIMS_REPO },
@@ -274,7 +274,7 @@ describe('discoverApp', () => {
       ].join('\n'),
     );
 
-    seedClaimsMap(api, { 'component-store': 'components/store.yaml' });
+    seedClaimsMap(api, { 'ComponentClaim-store': 'components/store.yaml' });
     api.setFile(
       { owner: ORG, repo: CLAIMS_REPO },
       'claims/components/store.yaml',
@@ -300,7 +300,7 @@ describe('discoverApp', () => {
 
   it('reports absent .firestartr and state-argocd without throwing when --service is provided', async () => {
     const api = new MemoryGitHubApi();
-    seedClaimsMap(api, { 'component-svc-a': 'components/svc-a.yaml' });
+    seedClaimsMap(api, { 'ComponentClaim-svc-a': 'components/svc-a.yaml' });
     api.setFile(
       { owner: ORG, repo: CLAIMS_REPO },
       'claims/components/svc-a.yaml',
@@ -354,7 +354,7 @@ describe('discoverApp', () => {
         app: 'missing-app',
         service: 'ghost-svc',
       }),
-    ).rejects.toThrow(/Service claim not found: component-ghost-svc/);
+    ).rejects.toThrow(/Service claim not found: ComponentClaim-ghost-svc/);
   });
 
   it('detects owner/system disagreement across other repo entries of the App', async () => {
@@ -366,8 +366,8 @@ describe('discoverApp', () => {
     api.setFile(dotRef, 'apps/example-store.yaml', APPS_YAML);
 
     seedClaimsMap(api, {
-      'component-store': 'components/store.yaml',
-      'component-worker': 'components/worker.yaml',
+      'ComponentClaim-store': 'components/store.yaml',
+      'ComponentClaim-worker': 'components/worker.yaml',
     });
     api.setFile(
       { owner: ORG, repo: CLAIMS_REPO },
@@ -424,7 +424,7 @@ describe('discoverApp', () => {
     );
     api.setFile(dotRef, 'apps/broken.yaml', 'services: [unclosed\n');
 
-    seedClaimsMap(api, { 'component-store': 'components/store.yaml' });
+    seedClaimsMap(api, { 'ComponentClaim-store': 'components/store.yaml' });
     api.setFile(
       { owner: ORG, repo: CLAIMS_REPO },
       'claims/components/store.yaml',
@@ -479,7 +479,7 @@ describe('discoverApp', () => {
       'name: p\ntype: eks\ntenants: [core]\nenvs: [dev, pre, pro]\n',
     );
 
-    seedClaimsMap(api, { 'component-store': 'components/store.yaml' });
+    seedClaimsMap(api, { 'ComponentClaim-store': 'components/store.yaml' });
     api.setFile(
       { owner: ORG, repo: CLAIMS_REPO },
       'claims/components/store.yaml',
@@ -517,9 +517,9 @@ describe('discoverApp', () => {
   it('reads packages["."]["release-type"] and constrains proposed language mapping to release_please enum', async () => {
     const api = new MemoryGitHubApi();
     seedClaimsMap(api, {
-      'component-svc-pkg': 'components/svc-pkg.yaml',
-      'component-svc-elixir': 'components/svc-elixir.yaml',
-      'component-svc-csharp': 'components/svc-csharp.yaml',
+      'ComponentClaim-svc-pkg': 'components/svc-pkg.yaml',
+      'ComponentClaim-svc-elixir': 'components/svc-elixir.yaml',
+      'ComponentClaim-svc-csharp': 'components/svc-csharp.yaml',
     });
     for (const name of ['svc-pkg', 'svc-elixir', 'svc-csharp']) {
       api.setFile(
@@ -600,8 +600,8 @@ describe('discoverApp', () => {
     );
 
     seedClaimsMap(api, {
-      'component-precedence': 'components/precedence.yaml',
-      'component-defaults': 'components/defaults.yaml',
+      'ComponentClaim-precedence': 'components/precedence.yaml',
+      'ComponentClaim-defaults': 'components/defaults.yaml',
     });
     api.setFile(
       { owner: ORG, repo: CLAIMS_REPO },
