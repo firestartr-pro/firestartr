@@ -262,11 +262,11 @@ describe('renderStateArgocd', () => {
       vendorDir: VENDOR_DIR,
       existingApplicationSet: {
         path: created.applicationSet.path,
-        content: created.applicationSet.content,
+        content: created.applicationSet.content ?? '',
       },
       existingAppProject: {
         path: created.appProject.path,
-        content: created.appProject.content,
+        content: created.appProject.content ?? '',
       },
     });
 
@@ -324,7 +324,7 @@ describe('renderStateArgocd', () => {
     expect(merged.applicationSet.content).toContain(
       '# Keep this ApplicationSet comment',
     );
-    const mergedAppSet = YAML.parse(merged.applicationSet.content);
+    const mergedAppSet = YAML.parse(merged.applicationSet.content ?? '');
     expect(validateAppSet(mergedAppSet)).toBe(true);
     expect(mergedAppSet.spec.generators[0].git.values['example-prod']).toBe(
       'https://eks-prod.example.com',
@@ -337,7 +337,7 @@ describe('renderStateArgocd', () => {
     expect(merged.appProject.content).toContain(
       '# Keep this AppProject comment',
     );
-    const mergedProject = YAML.parse(merged.appProject.content);
+    const mergedProject = YAML.parse(merged.appProject.content ?? '');
     expect(validateProject(mergedProject)).toBe(true);
     expect(mergedProject.spec.syncWindows).toHaveLength(1);
     expect(mergedProject.spec.destinations).toHaveLength(2);
@@ -368,16 +368,20 @@ describe('renderStateArgocd', () => {
       vendorDir: VENDOR_DIR,
       existingApplicationSet: {
         path: created.applicationSet.path,
-        content: created.applicationSet.content,
+        content: created.applicationSet.content ?? '',
       },
       existingAppProject: {
         path: created.appProject.path,
-        content: created.appProject.content,
+        content: created.appProject.content ?? '',
       },
     });
 
     expect(conflict.applicationSet.outcome.kind).toBe('conflict');
-    expect(conflict.appProject.outcome.kind).toBe('conflict');
+    expect(conflict.applicationSet.content).toBeUndefined();
+    expect(conflict.appProject.outcome).toEqual({
+      kind: 'merge',
+      added: ['destination:example-team-billing-dev'],
+    });
   });
 
   it('reports conflict on mismatched kind, repoURL, project, or label', () => {
@@ -388,7 +392,7 @@ describe('renderStateArgocd', () => {
       vendorDir: VENDOR_DIR,
     });
 
-    const wrongRepo = created.applicationSet.content.replace(
+    const wrongRepo = (created.applicationSet.content ?? '').replace(
       'https://github.com/acme/app-billing.git',
       'https://github.com/acme/other-repo.git',
     );
@@ -404,7 +408,7 @@ describe('renderStateArgocd', () => {
     });
     expect(resRepo.applicationSet.outcome.kind).toBe('conflict');
 
-    const wrongLabel = created.applicationSet.content.replace(
+    const wrongLabel = (created.applicationSet.content ?? '').replace(
       'app-name: billing',
       'app-name: other',
     );
@@ -420,7 +424,7 @@ describe('renderStateArgocd', () => {
     });
     expect(resLabel.applicationSet.outcome.kind).toBe('conflict');
 
-    const wrongProject = created.applicationSet.content.replace(
+    const wrongProject = (created.applicationSet.content ?? '').replace(
       'project: app-billing',
       'project: other-project',
     );
@@ -436,7 +440,7 @@ describe('renderStateArgocd', () => {
     });
     expect(resProject.applicationSet.outcome.kind).toBe('conflict');
 
-    const wrongKind = created.appProject.content.replace(
+    const wrongKind = (created.appProject.content ?? '').replace(
       'kind: AppProject',
       'kind: Application',
     );

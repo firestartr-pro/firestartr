@@ -15,13 +15,31 @@ export interface RenderDotFirestartrOptions {
   existingContent?: string;
 }
 
-function validateAppsDoc(data: unknown, schemasDir: string): void {
+function validateAppsDocErrors(
+  data: unknown,
+  schemasDir: string,
+): string[] | undefined {
   const validate = loadDotFirestartrValidator('apps', schemasDir);
   if (!validate(data)) {
+    return formatAjvErrors(validate.errors);
+  }
+  return undefined;
+}
+
+function validateAppsDoc(data: unknown, schemasDir: string): void {
+  const errors = validateAppsDocErrors(data, schemasDir);
+  if (errors) {
     throw new Error(
-      `Rendered apps.yaml failed schema validation: ${formatAjvErrors(validate.errors).join('; ')}`,
+      `Rendered apps.yaml failed schema validation: ${errors.join('; ')}`,
     );
   }
+}
+
+function preserveEol(rendered: string, existingContent: string): string {
+  if (existingContent.includes('\r\n')) {
+    return rendered.replace(/\r?\n/g, '\r\n');
+  }
+  return rendered;
 }
 
 export function renderDotFirestartrApp(
@@ -63,7 +81,6 @@ export function renderDotFirestartrApp(
   if (doc.errors.length > 0) {
     return {
       path,
-      content: existingContent,
       outcome: {
         kind: 'conflict',
         reason: `Malformed YAML in ${path}: ${doc.errors[0].message}`,
@@ -75,7 +92,6 @@ export function renderDotFirestartrApp(
   if (!isRecord(parsed)) {
     return {
       path,
-      content: existingContent,
       outcome: {
         kind: 'conflict',
         reason: `Expected YAML mapping in ${path}`,
@@ -86,7 +102,6 @@ export function renderDotFirestartrApp(
   if (parsed.state_repo !== expectedStateRepo) {
     return {
       path,
-      content: existingContent,
       outcome: {
         kind: 'conflict',
         reason: `state_repo is "${String(parsed.state_repo ?? '')}", expected "${expectedStateRepo}"`,
@@ -95,6 +110,15 @@ export function renderDotFirestartrApp(
   }
 
   let servicesNode = doc.get('services', true);
+  if (doc.has('services') && !(servicesNode instanceof YAMLSeq)) {
+    return {
+      path,
+      outcome: {
+        kind: 'conflict',
+        reason: `Expected "services" to be a YAML sequence in ${path}`,
+      },
+    };
+  }
   if (!(servicesNode instanceof YAMLSeq)) {
     servicesNode = doc.createNode([]);
     doc.set('services', servicesNode);
@@ -112,6 +136,18 @@ export function renderDotFirestartrApp(
   const added: string[] = [];
   if (matchingService) {
     const rawNames: unknown = matchingService.get('service_names', true);
+    if (
+      matchingService.has('service_names') &&
+      !(rawNames instanceof YAMLSeq)
+    ) {
+      return {
+        path,
+        outcome: {
+          kind: 'conflict',
+          reason: `Expected "service_names" to be a YAML sequence for "${serviceRepoSlug}" in ${path}`,
+        },
+      };
+    }
     let namesSeq: YAMLSeq;
     if (rawNames instanceof YAMLSeq) {
       namesSeq = rawNames;
@@ -148,10 +184,19 @@ export function renderDotFirestartrApp(
     };
   }
 
-  validateAppsDoc(doc.toJS(), schemasDir);
+  const validationErrors = validateAppsDocErrors(doc.toJS(), schemasDir);
+  if (validationErrors) {
+    return {
+      path,
+      outcome: {
+        kind: 'conflict',
+        reason: `Merged ${path} failed schema validation: ${validationErrors.join('; ')}`,
+      },
+    };
+  }
   return {
     path,
-    content: doc.toString(),
+    content: preserveEol(doc.toString(), existingContent),
     outcome: { kind: 'merge', added },
   };
 }

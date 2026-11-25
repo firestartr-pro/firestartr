@@ -4,8 +4,17 @@ export type RenderOutcome =
   | { kind: 'noop' }
   | { kind: 'conflict'; reason: string };
 
-export interface RenderedFile {
-  path: string;
-  content: string;
-  outcome: RenderOutcome;
-}
+export type RenderedFile =
+  | {
+      path: string;
+      content: string;
+      outcome:
+        | { kind: 'create' }
+        | { kind: 'merge'; added: string[] }
+        | { kind: 'noop' };
+    }
+  | {
+      path: string;
+      content?: never;
+      outcome: { kind: 'conflict'; reason: string };
+    };

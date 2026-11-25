@@ -31,30 +31,57 @@ const CLUSTER_RESOURCE_WHITELIST = [
   { group: 'apiextensions.k8s.io', kind: 'CustomResourceDefinition' },
 ];
 
+const IGNORE_DIFFERENCES_JSON_POINTERS = [
+  '/status',
+  '/metadata/uid',
+  '/metadata/generation',
+  '/metadata/resourceVersion',
+  '/metadata/creationTimestamp',
+];
+
 const IGNORE_DIFFERENCES = [
   {
     group: 'policy',
     kind: 'PodDisruptionBudget',
-    jqPathExpressions: ['.status'],
+    jsonPointers: IGNORE_DIFFERENCES_JSON_POINTERS,
   },
   {
     group: 'keda.sh',
     kind: 'ScaledObject',
-    jqPathExpressions: ['.status'],
+    jsonPointers: IGNORE_DIFFERENCES_JSON_POINTERS,
   },
 ];
+
+function validateVendorDocErrors(
+  name: 'argocd-applicationset' | 'argocd-appproject',
+  data: unknown,
+  vendorDir: string,
+): string[] | undefined {
+  const validate = loadVendorValidator(name, vendorDir);
+  if (!validate(data)) {
+    return formatAjvErrors(validate.errors);
+  }
+  return undefined;
+}
 
 function validateVendorDoc(
   name: 'argocd-applicationset' | 'argocd-appproject',
   data: unknown,
   vendorDir: string,
 ): void {
-  const validate = loadVendorValidator(name, vendorDir);
-  if (!validate(data)) {
+  const errors = validateVendorDocErrors(name, data, vendorDir);
+  if (errors) {
     throw new Error(
-      `Rendered ${name} failed schema validation: ${formatAjvErrors(validate.errors).join('; ')}`,
+      `Rendered ${name} failed schema validation: ${errors.join('; ')}`,
     );
   }
+}
+
+function preserveEol(rendered: string, existingContent: string): string {
+  if (existingContent.includes('\r\n')) {
+    return rendered.replace(/\r?\n/g, '\r\n');
+  }
+  return rendered;
 }
 
 function collectClusterValues(
@@ -96,7 +123,6 @@ function renderApplicationSet(options: RenderStateArgocdOptions): RenderedFile {
   if ('conflict' in clusterValuesResult) {
     return {
       path,
-      content: existingApplicationSet?.content ?? '',
       outcome: { kind: 'conflict', reason: clusterValuesResult.conflict },
     };
   }
@@ -136,7 +162,7 @@ function renderApplicationSet(options: RenderStateArgocdOptions): RenderedFile {
             source: {
               repoURL: expectedRepoUrl,
               targetRevision: 'deployment',
-              path: '{{.path.path}}',
+              path: '{{index .path.segments 0}}/{{index .path.segments 1}}/{{index .path.segments 2}}/{{index .path.segments 3}}',
             },
             destination: {
               server: '{{index .values (index .path.segments 1)}}',
@@ -166,7 +192,6 @@ function renderApplicationSet(options: RenderStateArgocdOptions): RenderedFile {
   if (doc.errors.length > 0) {
     return {
       path,
-      content: existingContent,
       outcome: {
         kind: 'conflict',
         reason: `Malformed YAML in ${path}: ${doc.errors[0].message}`,
@@ -178,7 +203,6 @@ function renderApplicationSet(options: RenderStateArgocdOptions): RenderedFile {
   if (!isRecord(parsed)) {
     return {
       path,
-      content: existingContent,
       outcome: { kind: 'conflict', reason: `Expected YAML mapping in ${path}` },
     };
   }
@@ -186,7 +210,6 @@ function renderApplicationSet(options: RenderStateArgocdOptions): RenderedFile {
   if (parsed.kind !== 'ApplicationSet') {
     return {
       path,
-      content: existingContent,
       outcome: {
         kind: 'conflict',
         reason: `Expected kind "ApplicationSet", found "${String(parsed.kind ?? '')}"`,
@@ -198,7 +221,6 @@ function renderApplicationSet(options: RenderStateArgocdOptions): RenderedFile {
   if (metadata?.name !== expectedName) {
     return {
       path,
-      content: existingContent,
       outcome: {
         kind: 'conflict',
         reason: `Expected metadata.name "${expectedName}", found "${String(metadata?.name ?? '')}"`,
@@ -214,7 +236,6 @@ function renderApplicationSet(options: RenderStateArgocdOptions): RenderedFile {
   if (!gitGen || gitGen.repoURL !== expectedRepoUrl) {
     return {
       path,
-      content: existingContent,
       outcome: {
         kind: 'conflict',
         reason: `Expected git generator repoURL "${expectedRepoUrl}", found "${String(gitGen?.repoURL ?? '')}"`,
@@ -232,7 +253,6 @@ function renderApplicationSet(options: RenderStateArgocdOptions): RenderedFile {
   if (templateLabels?.['app-name'] !== app) {
     return {
       path,
-      content: existingContent,
       outcome: {
         kind: 'conflict',
         reason: `Expected template label app-name="${app}", found "${String(templateLabels?.['app-name'] ?? '')}"`,
@@ -245,7 +265,6 @@ function renderApplicationSet(options: RenderStateArgocdOptions): RenderedFile {
   if (templateSpec?.project !== expectedName) {
     return {
       path,
-      content: existingContent,
       outcome: {
         kind: 'conflict',
         reason: `Expected template spec.project "${expectedName}", found "${String(templateSpec?.project ?? '')}"`,
@@ -259,7 +278,6 @@ function renderApplicationSet(options: RenderStateArgocdOptions): RenderedFile {
   if (templateSource?.repoURL !== expectedRepoUrl) {
     return {
       path,
-      content: existingContent,
       outcome: {
         kind: 'conflict',
         reason: `Expected template source.repoURL "${expectedRepoUrl}", found "${String(templateSource?.repoURL ?? '')}"`,
@@ -271,7 +289,6 @@ function renderApplicationSet(options: RenderStateArgocdOptions): RenderedFile {
   if (!(gitNode instanceof YAMLMap)) {
     return {
       path,
-      content: existingContent,
       outcome: {
         kind: 'conflict',
         reason: `Missing spec.generators[0].git mapping in ${path}`,
@@ -280,6 +297,15 @@ function renderApplicationSet(options: RenderStateArgocdOptions): RenderedFile {
   }
 
   const rawValues: unknown = gitNode.get('values', true);
+  if (gitNode.has('values') && !(rawValues instanceof YAMLMap)) {
+    return {
+      path,
+      outcome: {
+        kind: 'conflict',
+        reason: `Expected "values" to be a YAML mapping in ${path}`,
+      },
+    };
+  }
   let valuesMap: YAMLMap;
   if (rawValues instanceof YAMLMap) {
     valuesMap = rawValues;
@@ -295,7 +321,6 @@ function renderApplicationSet(options: RenderStateArgocdOptions): RenderedFile {
       if (existingUrl !== url) {
         return {
           path,
-          content: existingContent,
           outcome: {
             kind: 'conflict',
             reason: `Cluster "${cluster}" has URL "${String(existingUrl)}", expected "${url}"`,
@@ -316,10 +341,23 @@ function renderApplicationSet(options: RenderStateArgocdOptions): RenderedFile {
     };
   }
 
-  validateVendorDoc('argocd-applicationset', doc.toJS(), vendorDir);
+  const validationErrors = validateVendorDocErrors(
+    'argocd-applicationset',
+    doc.toJS(),
+    vendorDir,
+  );
+  if (validationErrors) {
+    return {
+      path,
+      outcome: {
+        kind: 'conflict',
+        reason: `Merged ${path} failed schema validation: ${validationErrors.join('; ')}`,
+      },
+    };
+  }
   return {
     path,
-    content: doc.toString(),
+    content: preserveEol(doc.toString(), existingContent),
     outcome: { kind: 'merge', added },
   };
 }
@@ -345,9 +383,9 @@ function renderAppProject(options: RenderStateArgocdOptions): RenderedFile {
 
   if (!existingAppProject) {
     const annotations: Record<string, string> = {
-      'notifications.argoproj.io/subscribe.on-sync-running.github':
+      'notifications.argoproj.io/subscribe.on-deployed.github':
         'fs-argocd-notifications',
-      'notifications.argoproj.io/subscribe.on-sync-succeeded.github':
+      'notifications.argoproj.io/subscribe.on-health-degraded.github':
         'fs-argocd-notifications',
       'notifications.argoproj.io/subscribe.on-sync-failed.github':
         'fs-argocd-notifications',
@@ -388,7 +426,6 @@ function renderAppProject(options: RenderStateArgocdOptions): RenderedFile {
   if (doc.errors.length > 0) {
     return {
       path,
-      content: existingContent,
       outcome: {
         kind: 'conflict',
         reason: `Malformed YAML in ${path}: ${doc.errors[0].message}`,
@@ -400,7 +437,6 @@ function renderAppProject(options: RenderStateArgocdOptions): RenderedFile {
   if (!isRecord(parsed)) {
     return {
       path,
-      content: existingContent,
       outcome: { kind: 'conflict', reason: `Expected YAML mapping in ${path}` },
     };
   }
@@ -408,7 +444,6 @@ function renderAppProject(options: RenderStateArgocdOptions): RenderedFile {
   if (parsed.kind !== 'AppProject') {
     return {
       path,
-      content: existingContent,
       outcome: {
         kind: 'conflict',
         reason: `Expected kind "AppProject", found "${String(parsed.kind ?? '')}"`,
@@ -420,7 +455,6 @@ function renderAppProject(options: RenderStateArgocdOptions): RenderedFile {
   if (metadata?.name !== expectedName) {
     return {
       path,
-      content: existingContent,
       outcome: {
         kind: 'conflict',
         reason: `Expected metadata.name "${expectedName}", found "${String(metadata?.name ?? '')}"`,
@@ -434,7 +468,6 @@ function renderAppProject(options: RenderStateArgocdOptions): RenderedFile {
   if (!sourceRepos.includes(expectedRepoUrl)) {
     return {
       path,
-      content: existingContent,
       outcome: {
         kind: 'conflict',
         reason: `spec.sourceRepos does not contain "${expectedRepoUrl}"`,
@@ -446,12 +479,20 @@ function renderAppProject(options: RenderStateArgocdOptions): RenderedFile {
   if (!(specNode instanceof YAMLMap)) {
     return {
       path,
-      content: existingContent,
       outcome: { kind: 'conflict', reason: `Missing spec mapping in ${path}` },
     };
   }
 
   const rawDests: unknown = specNode.get('destinations', true);
+  if (specNode.has('destinations') && !(rawDests instanceof YAMLSeq)) {
+    return {
+      path,
+      outcome: {
+        kind: 'conflict',
+        reason: `Expected "destinations" to be a YAML sequence in ${path}`,
+      },
+    };
+  }
   let destsSeq: YAMLSeq;
   if (rawDests instanceof YAMLSeq) {
     destsSeq = rawDests;
@@ -460,34 +501,23 @@ function renderAppProject(options: RenderStateArgocdOptions): RenderedFile {
     specNode.set('destinations', destsSeq);
   }
 
-  const existingByNamespace = new Map<string, string>();
+  const existingDestinations = new Set<string>();
   for (const item of destsSeq.items) {
     if (item instanceof YAMLMap) {
       const ns = item.get('namespace');
       const srv = item.get('server');
       if (typeof ns === 'string' && typeof srv === 'string') {
-        existingByNamespace.set(ns, srv);
+        existingDestinations.add(`${ns}\0${srv}`);
       }
     }
   }
 
   const added: string[] = [];
   for (const dest of desiredDestinations) {
-    const existingServer = existingByNamespace.get(dest.namespace);
-    if (existingServer !== undefined) {
-      if (existingServer !== dest.server) {
-        return {
-          path,
-          content: existingContent,
-          outcome: {
-            kind: 'conflict',
-            reason: `Destination "${dest.namespace}" has server "${existingServer}", expected "${dest.server}"`,
-          },
-        };
-      }
-    } else {
+    const key = `${dest.namespace}\0${dest.server}`;
+    if (!existingDestinations.has(key)) {
       destsSeq.add(doc.createNode(dest));
-      existingByNamespace.set(dest.namespace, dest.server);
+      existingDestinations.add(key);
       added.push(`destination:${dest.namespace}`);
     }
   }
@@ -500,10 +530,23 @@ function renderAppProject(options: RenderStateArgocdOptions): RenderedFile {
     };
   }
 
-  validateVendorDoc('argocd-appproject', doc.toJS(), vendorDir);
+  const validationErrors = validateVendorDocErrors(
+    'argocd-appproject',
+    doc.toJS(),
+    vendorDir,
+  );
+  if (validationErrors) {
+    return {
+      path,
+      outcome: {
+        kind: 'conflict',
+        reason: `Merged ${path} failed schema validation: ${validationErrors.join('; ')}`,
+      },
+    };
+  }
   return {
     path,
-    content: doc.toString(),
+    content: preserveEol(doc.toString(), existingContent),
     outcome: { kind: 'merge', added },
   };
 }

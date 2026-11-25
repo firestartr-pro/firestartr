@@ -79,7 +79,6 @@ function renderTargetEnvFile(
   if (doc.errors.length > 0) {
     return {
       path,
-      content: existingContent,
       outcome: {
         kind: 'conflict',
         reason: `Malformed YAML in ${path}: ${doc.errors[0].message}`,
@@ -91,7 +90,6 @@ function renderTargetEnvFile(
   if (!isRecord(parsed)) {
     return {
       path,
-      content: existingContent,
       outcome: { kind: 'conflict', reason: `Expected YAML mapping in ${path}` },
     };
   }
@@ -99,7 +97,6 @@ function renderTargetEnvFile(
   if (parsed.chart !== expectedChart) {
     return {
       path,
-      content: existingContent,
       outcome: {
         kind: 'conflict',
         reason: `chart is "${String(parsed.chart ?? '')}", expected "${expectedChart}"`,
@@ -110,7 +107,6 @@ function renderTargetEnvFile(
   if (parsed.version !== inputs.chart.version) {
     return {
       path,
-      content: existingContent,
       outcome: {
         kind: 'conflict',
         reason: `version is "${String(parsed.version ?? '')}", expected "${inputs.chart.version}"`,
@@ -121,7 +117,6 @@ function renderTargetEnvFile(
   if (parsed.releaseName !== undefined && parsed.releaseName !== inputs.app) {
     return {
       path,
-      content: existingContent,
       outcome: {
         kind: 'conflict',
         reason: `releaseName is "${String(parsed.releaseName)}", expected "${inputs.app}"`,
@@ -135,7 +130,6 @@ function renderTargetEnvFile(
   ) {
     return {
       path,
-      content: existingContent,
       outcome: {
         kind: 'conflict',
         reason: `namespace is "${String(parsed.namespace)}", expected "${expectedNamespace}"`,
@@ -155,10 +149,33 @@ export function renderStateAppTargets(
 ): RenderedFile[] {
   const { inputs, registries, schemasDir, existingFiles = {} } = options;
   const expectedChart = resolveChartReference(inputs, registries);
+  const envPathCounts = new Map<string, number>();
+  for (const target of inputs.targets) {
+    const envPath = `kubernetes/${target.platform}/${target.tenant}/${target.env}.yaml`;
+    envPathCounts.set(envPath, (envPathCounts.get(envPath) ?? 0) + 1);
+  }
+
   const rendered: RenderedFile[] = [];
+  const emittedEnvPaths = new Set<string>();
 
   for (const target of inputs.targets) {
     const envPath = `kubernetes/${target.platform}/${target.tenant}/${target.env}.yaml`;
+    if (emittedEnvPaths.has(envPath)) {
+      continue;
+    }
+    emittedEnvPaths.add(envPath);
+
+    if ((envPathCounts.get(envPath) ?? 0) > 1) {
+      rendered.push({
+        path: envPath,
+        outcome: {
+          kind: 'conflict',
+          reason: `Duplicate target env file path "${envPath}" in inputs`,
+        },
+      });
+      continue;
+    }
+
     rendered.push(
       renderTargetEnvFile(
         inputs,

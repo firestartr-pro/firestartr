@@ -68,7 +68,7 @@ describe('renderStateAppTargets', () => {
 
     expect(envFile.path).toBe('kubernetes/example-dev/example-team/dev.yaml');
     expect(envFile.outcome).toEqual({ kind: 'create' });
-    const parsed = YAML.parse(envFile.content);
+    const parsed = YAML.parse(envFile.content ?? '');
     expect(validate(parsed)).toBe(true);
     expect(parsed).toEqual({
       version: '1.2.3',

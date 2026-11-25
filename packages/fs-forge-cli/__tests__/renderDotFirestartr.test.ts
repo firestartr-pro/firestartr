@@ -58,7 +58,7 @@ describe('renderDotFirestartrApp', () => {
     expect(result.path).toBe('apps/billing.yaml');
     expect(result.outcome).toEqual({ kind: 'create' });
 
-    const parsed = YAML.parse(result.content);
+    const parsed = YAML.parse(result.content ?? '');
     expect(validate(parsed)).toBe(true);
     expect(parsed).toEqual({
       name: 'billing',
@@ -87,7 +87,7 @@ describe('renderDotFirestartrApp', () => {
     });
 
     expect(result.outcome).toEqual({ kind: 'create' });
-    const parsed = YAML.parse(result.content);
+    const parsed = YAML.parse(result.content ?? '');
     expect(validate(parsed)).toBe(true);
     expect(parsed.services[0].service_names).toEqual(['api', 'worker']);
   });
@@ -148,7 +148,7 @@ describe('renderDotFirestartrApp', () => {
     });
     expect(result.content).toContain('# Managed app config');
     expect(result.content).toContain('# Primary service');
-    const parsed = YAML.parse(result.content);
+    const parsed = YAML.parse(result.content ?? '');
     expect(validate(parsed)).toBe(true);
     expect(parsed.services[0].service_names).toEqual([
       'existing-name',
@@ -177,7 +177,7 @@ describe('renderDotFirestartrApp', () => {
       kind: 'merge',
       added: ['service:acme/billing-api'],
     });
-    const parsed = YAML.parse(result.content);
+    const parsed = YAML.parse(result.content ?? '');
     expect(validate(parsed)).toBe(true);
     expect(parsed.services).toHaveLength(2);
     expect(parsed.services[1]).toEqual({
