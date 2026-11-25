@@ -918,4 +918,42 @@ describe('app plan (resolve, render, checks)', () => {
       }),
     ).rejects.toThrow(/acme\/claims.*claims-map\.json/);
   });
+
+  it('reports failing checks when state-argocd, .firestartr, or service repo does not exist', async () => {
+    const cases = [
+      {
+        repo: STATE_ARGOCD_REPO,
+        checkId: 'state-argocd-repo',
+        slug: 'acme/state-argocd',
+      },
+      {
+        repo: DOT_FIRESTARTR_REPO,
+        checkId: 'dot-firestartr-repo',
+        slug: 'acme/.firestartr',
+      },
+      {
+        repo: SERVICE_REPO,
+        checkId: 'service-repo',
+        slug: 'acme/payments-api',
+      },
+    ];
+
+    for (const { repo, checkId, slug } of cases) {
+      const api = new MemoryGitHubApi();
+      seedBaseRepos(api, { orgPlan: 'paid' });
+      api.existingRepos.delete(api.key(repo));
+
+      const result = await planApp({
+        api,
+        featureSource: createFakeFeatureSource(),
+        inputs: BASE_INPUTS,
+        schemaDirs: SCHEMA_DIRS,
+      });
+
+      const check = result.checks.find((c) => c.id === checkId);
+      expect(check?.status).toBe('fail');
+      expect(check?.message).toContain(slug);
+      expect(check?.message).toMatch(/must exist/i);
+    }
+  });
 });
