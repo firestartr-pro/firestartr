@@ -27,7 +27,6 @@ ajv.addFormat('int64', {
   validate: (n: number) => Number.isInteger(n),
 });
 ajv.addFormat('date-time', true);
-ajv.addFormat('crd-openapi', true);
 
 const compiledByDir = new Map<string, Map<VendorSchemaName, VendorValidator>>();
 
