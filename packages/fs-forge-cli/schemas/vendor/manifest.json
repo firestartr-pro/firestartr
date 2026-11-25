@@ -13,13 +13,6 @@
       "format": "crd-openapi",
       "ref": "v3.4.5",
       "url": "https://raw.githubusercontent.com/argoproj/argo-cd/v3.4.5/manifests/crds/appproject-crd.yaml"
-    },
-    {
-      "name": "build-images",
-      "output": "build-images.schema.json",
-      "format": "json",
-      "ref": "v4.0.1",
-      "url": "https://raw.githubusercontent.com/prefapp/firestarter-workflows/v4.0.1/firestarter/workflows/build_images/resources/schema.json"
     }
   ]
 }

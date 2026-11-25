@@ -7,6 +7,7 @@ const SCHEMAS_PACKAGE = '@firestartr/firestartr-claims_schemas';
 
 export const ACTIONS_SCHEMA_FILES = {
   make_dispatches: 'config.schema.json',
+  build_images: 'build-images.schema.json',
 } as const;
 
 export type ActionsSchemaName = keyof typeof ACTIONS_SCHEMA_FILES;

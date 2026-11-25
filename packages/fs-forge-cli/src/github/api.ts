@@ -156,4 +156,8 @@ export interface GitHubApi {
   repoExists(ref: RepoRef): Promise<boolean>;
   teamExists(org: string, teamSlug: string): Promise<boolean>;
   userIsOrgMember(org: string, username: string): Promise<boolean>;
+  /** GitHub billing plan for the org, or `'unknown'` when the token cannot read it. */
+  getOrgPlan(org: string): Promise<OrgPlan>;
 }
+
+export type OrgPlan = 'free' | 'paid' | 'unknown';

@@ -400,5 +400,21 @@ export function createOctokitApi(octokit: Octokit): GitHubApi {
         throw error;
       }
     },
+
+    async getOrgPlan(org) {
+      try {
+        const { data } = await octokit.rest.orgs.get({ org });
+        const planName = data.plan?.name;
+        if (!planName) return 'unknown';
+        return planName.toLowerCase() === 'free' ? 'free' : 'paid';
+      } catch (error) {
+        const status =
+          typeof error === 'object' && error !== null && 'status' in error
+            ? (error as { status?: unknown }).status
+            : undefined;
+        if (status === 403 || status === 404) return 'unknown';
+        throw error;
+      }
+    },
   };
 }

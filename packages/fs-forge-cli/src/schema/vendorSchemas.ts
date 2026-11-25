@@ -5,7 +5,6 @@ import { join } from 'path';
 export const VENDOR_SCHEMA_FILES = {
   'argocd-applicationset': 'argocd-applicationset.schema.json',
   'argocd-appproject': 'argocd-appproject.schema.json',
-  'build-images': 'build-images.schema.json',
 } as const;
 
 export type VendorSchemaName = keyof typeof VENDOR_SCHEMA_FILES;

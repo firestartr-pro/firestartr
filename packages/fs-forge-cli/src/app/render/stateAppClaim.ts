@@ -7,7 +7,13 @@ import { isRecord } from '../../utils/isRecord.js';
 
 import { extractFeatureMajor, preserveEol } from './shared.js';
 import type { RenderedFile } from './types.js';
+import type { OrgPlan } from '../../github/api.js';
 import type { AppInputs } from '../../schema/appInputs.js';
+import {
+  coreStateAppSecrets,
+  coreStateAppVars,
+  type NameValueEntry,
+} from '../plan/requiredVars.js';
 
 const STATE_REPO_APPS_FEATURE = 'state_repo_apps';
 
@@ -23,6 +29,27 @@ export interface RenderStateAppClaimOptions {
   stateRepoAppsMajor: number;
   claimSchemasDir: string;
   existingContent?: string;
+  /** Org GitHub plan. Only `'free'` writes vars and secrets into the new claim. */
+  orgPlan?: OrgPlan;
+  /** Needed registry/cloud vars copied from the Service claim (used on a free plan). */
+  copiedVars?: NameValueEntry[];
+  /** Needed registry/cloud secrets copied from the Service claim (used on a free plan). */
+  copiedSecrets?: NameValueEntry[];
+}
+
+function mergeNamedEntries(
+  base: NameValueEntry[],
+  extra: NameValueEntry[],
+): NameValueEntry[] {
+  const seen = new Set(base.map((entry) => entry.name));
+  const merged = [...base];
+  for (const entry of extra) {
+    if (!seen.has(entry.name)) {
+      seen.add(entry.name);
+      merged.push(entry);
+    }
+  }
+  return merged;
 }
 
 export async function renderStateAppClaim(
@@ -34,6 +61,9 @@ export async function renderStateAppClaim(
     stateRepoAppsMajor,
     claimSchemasDir,
     existingContent,
+    orgPlan,
+    copiedVars = [],
+    copiedSecrets = [],
   } = options;
   const appClaimName = `app-${inputs.app}`;
   const path = deterministicPath('ComponentClaim', appClaimName);
@@ -43,6 +73,17 @@ export async function renderStateAppClaim(
   if (existingContent === undefined) {
     const owner = inputs.owner ?? serviceClaim.owner;
     const system = inputs.system ?? serviceClaim.system;
+    const freePlanEntries =
+      orgPlan === 'free'
+        ? {
+            vars: {
+              actions: mergeNamedEntries(coreStateAppVars(), copiedVars),
+            },
+            secrets: {
+              actions: mergeNamedEntries(coreStateAppSecrets(), copiedSecrets),
+            },
+          }
+        : {};
     const claim: Record<string, unknown> = {
       kind: 'ComponentClaim',
       version: '1.0',
@@ -75,6 +116,7 @@ export async function renderStateAppClaim(
               orphan: true,
             },
           ],
+          ...freePlanEntries,
           features: [
             {
               name: STATE_REPO_APPS_FEATURE,

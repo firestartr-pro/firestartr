@@ -146,52 +146,20 @@ describe('vendored schema validators', () => {
     });
   });
 
-  describe('build-images', () => {
-    const validate = loadVendorValidator('build-images', VENDOR_DIR);
-
-    it('accepts a valid build_images.yaml document', () => {
-      const validDoc = {
-        snapshots: {
-          default: {
-            dockerfile: './Dockerfile',
-            auto: true,
-          },
-        },
-      };
-
-      expect(validate(validDoc)).toBe(true);
-    });
-
-    it('rejects an invalid build_images.yaml document with unknown auth_strategy', () => {
-      const invalidDoc = {
-        snapshots: {
-          default: {
-            dockerfile: './Dockerfile',
-            registry: {
-              name: 'ghcr',
-              auth_strategy: 'invalid_strategy',
-            },
-          },
-        },
-      };
-
-      expect(validate(invalidDoc)).toBe(false);
-    });
-  });
-
   it('loads vendored schemas from package root even when cwd is outside the package', () => {
     const prevCwd = process.cwd();
     try {
       process.chdir(tmpdir());
       const validate = loadVendorValidator(
-        'build-images',
+        'argocd-appproject',
         vendorSchemasDir(PACKAGE_ROOT),
       );
       expect(
         validate({
-          snapshots: {
-            default: { dockerfile: './Dockerfile', auto: true },
-          },
+          apiVersion: 'argoproj.io/v1alpha1',
+          kind: 'AppProject',
+          metadata: { name: 'app-billing', namespace: 'argocd' },
+          spec: {},
         }),
       ).toBe(true);
     } finally {

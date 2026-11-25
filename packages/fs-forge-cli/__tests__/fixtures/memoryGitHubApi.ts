@@ -5,6 +5,7 @@ import type {
   CheckRunSummary,
   CreatedItem,
   GitHubApi,
+  OrgPlan,
   PullRequestFile,
   PullRequestSummary,
   RepoFile,
@@ -71,6 +72,7 @@ export class MemoryGitHubApi implements GitHubApi {
   readonly existingRepos = new Set<string>();
   readonly existingTeams = new Set<string>();
   readonly members = new Set<string>();
+  readonly orgPlans = new Map<string, OrgPlan>();
   tarball = Buffer.alloc(0);
   /** When true, dispatched workflows report a completed run. */
   autoCompleteDispatches = false;
@@ -469,5 +471,14 @@ export class MemoryGitHubApi implements GitHubApi {
   async userIsOrgMember(org: string, username: string): Promise<boolean> {
     this.calls.push(`userIsOrgMember ${org}/${username}`);
     return this.members.has(`${org}/${username}`);
+  }
+
+  setOrgPlan(org: string, plan: OrgPlan): void {
+    this.orgPlans.set(org, plan);
+  }
+
+  async getOrgPlan(org: string): Promise<OrgPlan> {
+    this.calls.push(`getOrgPlan ${org}`);
+    return this.orgPlans.get(org) ?? 'paid';
   }
 }
