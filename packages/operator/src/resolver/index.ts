@@ -118,6 +118,31 @@ export function withoutPlaintextSecrets(cr: any) {
   return { ...cr, spec: { ...cr.spec, secrets: {} } };
 }
 
+/**
+ * Destroying an org ruleset does not need the outputs of referenced groups.
+ */
+export function withoutDestroyDependencies(cr: any) {
+  const withoutSecrets = withoutPlaintextSecrets(cr);
+
+  if (cr.kind !== 'FirestartrGithubOrgRuleset') return withoutSecrets;
+
+  const ruleset = withoutSecrets.spec?.ruleset;
+  if (!ruleset?.bypass_actors) return withoutSecrets;
+
+  return {
+    ...withoutSecrets,
+    spec: {
+      ...withoutSecrets.spec,
+      ruleset: {
+        ...ruleset,
+        bypass_actors: ruleset.bypass_actors.filter(
+          (actor: any) => !actor?.ref,
+        ),
+      },
+    },
+  };
+}
+
 export async function resolveSecretRef(
   namespace: string,
   crDependency: any,

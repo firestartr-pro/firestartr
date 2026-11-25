@@ -29,7 +29,7 @@ export class EntityGHOrgRuleset extends Entity {
     this.patchData({
       path: '/config',
       op: PatchOperations.replace,
-      value: this.rulesetConfig(),
+      value: this.rulesetConfig(tfOp),
     });
 
     log.debug(`[gh-provisioner] ${this.k8sId} loaded its data`);
@@ -40,10 +40,19 @@ export class EntityGHOrgRuleset extends Entity {
   // that CR, so this execution only needs to turn the ref into the team id the
   // module expects. Resolving here makes a missing group or outputs secret
   // fail before the plan instead of inside a Terraform data source.
-  private rulesetConfig(): any {
+  private rulesetConfig(tfOp: string): any {
     const ruleset = this.cr.spec.ruleset;
 
     if (!ruleset.bypass_actors) return ruleset;
+
+    if (tfOp === 'destroy' || tfOp === 'plan-destroy') {
+      return {
+        ...ruleset,
+        bypass_actors: ruleset.bypass_actors.filter(
+          (actor: any) => !actor?.ref,
+        ),
+      };
+    }
 
     return {
       ...ruleset,

@@ -54,7 +54,7 @@ function makeWorkItem(
 }
 
 function makeRulesetWorkItem(
-  groupName?: string,
+  groupName?: string | string[],
   groupKind: string = KIND_GROUP,
 ): WorkItem {
   const item: any = {
@@ -63,15 +63,14 @@ function makeRulesetWorkItem(
   };
 
   if (groupName) {
+    const groupNames = Array.isArray(groupName) ? groupName : [groupName];
     item.spec = {
       ruleset: {
-        bypass_actors: [
-          {
+        bypass_actors: groupNames.map((name) => ({
             actor_type: 'Team',
             bypass_mode: 'always',
-            ref: { kind: groupKind, name: groupName, needsSecret: true },
-          },
-        ],
+            ref: { kind: groupKind, name, needsSecret: true },
+          })),
       },
     };
   }
@@ -939,5 +938,30 @@ describe('buildDeferredParentKeys — cluster existence and provisioning check',
     );
 
     expect(result.has('FirestartrGithubGroup/unprovisioned-group')).toBe(true);
+  });
+
+  it('defers a ruleset when its second bypass group is not provisioned', async () => {
+    const ruleset = makeRulesetWorkItem(['provisioned-group', 'pending-group']);
+    const activeKeys = new Set<string>();
+    const getItemByItemPath = jest.fn(async (path: string) => ({
+      status: {
+        conditions:
+          path.endsWith('/provisioned-group')
+            ? [{ type: 'PROVISIONED', status: 'True' }]
+            : [{ type: 'PROVISIONED', status: 'False' }],
+      },
+    }));
+
+    const deferred = await buildDeferredParentKeys(
+      [ruleset],
+      activeKeys,
+      getItemByItemPath,
+    );
+
+    expect(getItemByItemPath).toHaveBeenCalledTimes(2);
+    expect(deferred).toEqual(
+      new Set(['FirestartrGithubGroup/pending-group']),
+    );
+    expect(hasActiveParent(ruleset, activeKeys, deferred)).toBe(true);
   });
 });

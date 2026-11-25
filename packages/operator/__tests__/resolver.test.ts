@@ -2,6 +2,7 @@ import {
   ResolverError,
   outputsSecretName,
   resolve,
+  withoutDestroyDependencies,
   withoutPlaintextSecrets,
 } from '../src/resolver';
 import { getItemByItemPathMockFn, getSecretMockFn } from './fixtures/utils';
@@ -514,6 +515,46 @@ describe('Resolver', () => {
     expect(withoutPlaintextSecrets(cr).spec.actionsVariables).toEqual([
       { name: 'PLAIN', value: 'true', visibility: 'all' },
     ]);
+  });
+
+  it('does not resolve referenced groups when destroying an org ruleset', async () => {
+    const cr = {
+      kind: 'FirestartrGithubOrgRuleset',
+      metadata: { name: 'ruleset', namespace: 'default' },
+      spec: {
+        provider: {
+          ref: { kind: 'FirestartrProviderConfig', name: 'github' },
+        },
+        ruleset: {
+          bypass_actors: [
+            {
+              actor_type: 'Team',
+              ref: { kind: 'FirestartrGithubGroup', name: 'team-a' },
+            },
+          ],
+        },
+      },
+    };
+    const getItemByItemPath = jest.fn(async (itemPath: string) =>
+      itemPath.endsWith('/providerconfigs/github')
+        ? {
+            kind: 'FirestartrProviderConfig',
+            metadata: { name: 'github', namespace: 'default' },
+            spec: {},
+          }
+        : undefined,
+    );
+
+    const dependencies = await resolve(
+      withoutDestroyDependencies(cr),
+      getItemByItemPath,
+      jest.fn(),
+    );
+
+    expect(Object.keys(dependencies)).toEqual([
+      'FirestartrProviderConfig-github',
+    ]);
+    expect(getItemByItemPath).toHaveBeenCalledTimes(1);
   });
 });
 

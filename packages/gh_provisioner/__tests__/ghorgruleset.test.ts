@@ -85,6 +85,18 @@ describe('EntityGHOrgRuleset entity', () => {
     );
   });
 
+  it.each(['destroy', 'plan-destroy'])(
+    'does not require a referenced group for %s',
+    async (tfOp) => {
+      delete (entity as any)._deps[
+        'FirestartrGithubGroup-platform-team-7f3a2c1e-9b4d-4a6f-8c2e-1d5b7a9f0c3e'
+      ];
+
+      await expect(entity.loadResources(tfOp)).resolves.toBeUndefined();
+      expect(entity.document.config.bypass_actors).toEqual([]);
+    },
+  );
+
   describe('provider owner', () => {
     it('rejects a provider whose owner differs from spec.org', async () => {
       entity.provider.cr.spec.config = '{"owner":"other-org"}';
