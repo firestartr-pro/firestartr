@@ -152,10 +152,10 @@ export default class AppApply extends Command {
       this.error(message, { exit: APP_APPLY_EXIT_CODES.error });
     }
 
-    const api = createGitHubApi();
-
+    let api;
     let planResult;
     try {
+      api = createGitHubApi();
       planResult = await planApp({
         api,
         featureSource: createFeatureSource(DEFAULT_FEATURE_SOURCE),

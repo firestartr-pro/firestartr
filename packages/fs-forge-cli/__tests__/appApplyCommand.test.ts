@@ -33,9 +33,6 @@ const MockCreateFeatureSource = createFeatureSource as unknown as jest.Mock;
 const ORG = 'acme';
 const CLAIMS_REPO = { owner: ORG, repo: 'claims' };
 const DOT_FIRESTARTR_REPO = { owner: ORG, repo: '.firestartr' };
-const STATE_ARGOCD_REPO = { owner: ORG, repo: 'state-argocd' };
-const SERVICE_REPO = { owner: ORG, repo: 'payments-api' };
-const STATE_APP_REPO = { owner: ORG, repo: 'app-payments' };
 
 function createFakeFeatureSource(): FeatureSource {
   const index = {
@@ -595,11 +592,5 @@ describe('fs-forge app apply command', () => {
       APP_APPLY_EXIT_CODES.error,
     );
     expect(error?.message).toContain('GITHUB_TOKEN is required');
-  });
-
-  it('keeps repo fixture constants referenced', () => {
-    expect(STATE_ARGOCD_REPO.repo).toBe('state-argocd');
-    expect(SERVICE_REPO.repo).toBe('payments-api');
-    expect(STATE_APP_REPO.repo).toBe('app-payments');
   });
 });
