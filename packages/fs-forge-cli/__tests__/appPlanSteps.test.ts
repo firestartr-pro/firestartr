@@ -1,4 +1,4 @@
-import { mkdtemp, readFile, rm } from 'fs/promises';
+import { mkdtemp, readdir, readFile, rm, symlink, writeFile } from 'fs/promises';
 import { tmpdir } from 'os';
 import { join } from 'path';
 
@@ -356,6 +356,78 @@ describe('writePlanOutputFiles', () => {
 
     await expect(writePlanOutputFiles(outDir, steps)).rejects.toThrow(
       /Refusing to write outside --out/,
+    );
+  });
+
+  it('rejects writing through a symlink inside --out pointing outside', async () => {
+    const outsideDir = await mkdtemp(join(tmpdir(), 'fs-forge-outside-'));
+    try {
+      await symlink(outsideDir, join(outDir, 'claims'));
+      const steps: PlanStep[] = [
+        {
+          step: 1,
+          parallel: false,
+          satisfied: false,
+          repos: [
+            {
+              repo: 'acme/claims',
+              baseBranch: 'main',
+              headBranch: 'fs-forge/app-payments',
+              hasChanges: true,
+              summary: 'pr',
+              files: [
+                {
+                  path: 'apps/demo.yaml',
+                  outcome: { kind: 'create' },
+                  content: 'PWNED',
+                },
+              ],
+            },
+          ],
+        },
+      ];
+
+      await expect(writePlanOutputFiles(outDir, steps)).rejects.toThrow(
+        /Refusing to write outside --out/,
+      );
+      expect(await readdir(outsideDir)).toEqual([]);
+    } finally {
+      await rm(outsideDir, { recursive: true, force: true });
+    }
+  });
+
+  it('reports a clean --out error when a regular file blocks a repo directory', async () => {
+    const blockingPath = join(outDir, 'claims');
+    await writeFile(blockingPath, 'not a dir', 'utf8');
+    const steps: PlanStep[] = [
+      {
+        step: 1,
+        parallel: false,
+        satisfied: false,
+        repos: [
+          {
+            repo: 'acme/claims',
+            baseBranch: 'main',
+            headBranch: 'fs-forge/app-payments',
+            hasChanges: true,
+            summary: 'pr',
+            files: [
+              {
+                path: 'f.yaml',
+                outcome: { kind: 'create' },
+                content: 'x',
+              },
+            ],
+          },
+        ],
+      },
+    ];
+
+    await expect(writePlanOutputFiles(outDir, steps)).rejects.toThrow(
+      /--out.*claims/,
+    );
+    await expect(writePlanOutputFiles(outDir, steps)).rejects.not.toThrow(
+      /EEXIST/,
     );
   });
 });

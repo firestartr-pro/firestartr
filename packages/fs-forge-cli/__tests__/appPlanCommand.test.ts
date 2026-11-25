@@ -364,6 +364,38 @@ describe('fs-forge app plan command', () => {
     expect(error?.message).toContain('Invalid inputs file');
   });
 
+  it('exits with code 2 when inputs file has a non-DNS-label app name', async () => {
+    const badPath = join(workDir, 'bad-app.yaml');
+    await writeFile(
+      badPath,
+      YAML.stringify({ ...VALID_INPUTS, app: '../evil' }),
+      'utf8',
+    );
+    MockCreateGitHubApi.mockReturnValue(seedHappyApi());
+
+    const { error } = await runCommand(AppPlan, ['--inputs', badPath]);
+
+    expect(error).toBeDefined();
+    expect((error as { oclif?: { exit?: number } }).oclif?.exit).toBe(2);
+    expect(error?.message).toContain('pattern');
+  });
+
+  it('exits with code 2 when --app override is not a valid DNS label', async () => {
+    MockCreateGitHubApi.mockReturnValue(seedHappyApi());
+
+    const { error } = await runCommand(AppPlan, [
+      '--inputs',
+      inputsPath,
+      '--app',
+      '../evil',
+    ]);
+
+    expect(error).toBeDefined();
+    expect((error as { oclif?: { exit?: number } }).oclif?.exit).toBe(2);
+    expect(error?.message).toContain('../evil');
+    expect(error?.message).toContain('pattern');
+  });
+
   it('exits with code 2 on resolve errors such as a missing Service claim', async () => {
     const api = seedHappyApi();
     api.setFile(
