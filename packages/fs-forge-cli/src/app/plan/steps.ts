@@ -1,4 +1,4 @@
-import { mkdir, writeFile } from 'fs/promises';
+import { lstat, mkdir, realpath, writeFile } from 'fs/promises';
 import { dirname, isAbsolute, resolve, sep } from 'path';
 
 import type { AppPlanResult, PlanCheck } from './types.js';
@@ -319,11 +319,47 @@ function assertSafeRelativeSegment(value: string, label: string): void {
   }
 }
 
+async function assertSafeOutputTarget(
+  realRootDir: string,
+  segments: string[],
+): Promise<void> {
+  let current = realRootDir;
+  for (let i = 0; i < segments.length; i++) {
+    current = resolve(current, segments[i]);
+    let st;
+    try {
+      st = await lstat(current);
+    } catch (err) {
+      if ((err as NodeJS.ErrnoException).code === 'ENOENT') {
+        return;
+      }
+      throw err;
+    }
+    if (st.isSymbolicLink()) {
+      throw new Error(
+        `Refusing to write outside --out: "${current}" is a symlink.`,
+      );
+    }
+    const isLast = i === segments.length - 1;
+    if (!isLast && !st.isDirectory()) {
+      throw new Error(
+        `Refusing to write to --out: "${current}" already exists and is not a directory.`,
+      );
+    }
+    if (isLast && st.isDirectory()) {
+      throw new Error(
+        `Refusing to write to --out: "${current}" already exists and is a directory.`,
+      );
+    }
+  }
+}
+
 export async function writePlanOutputFiles(
   outDir: string,
   steps: PlanStep[],
 ): Promise<string[]> {
   const rootDir = resolve(outDir);
+  let realRootDir: string | undefined;
   const written: string[] = [];
 
   for (const step of steps) {
@@ -350,8 +386,34 @@ export async function writePlanOutputFiles(
           );
         }
 
-        await mkdir(dirname(targetPath), { recursive: true });
-        await writeFile(targetPath, file.content, 'utf8');
+        if (realRootDir === undefined) {
+          try {
+            await mkdir(rootDir, { recursive: true });
+          } catch (err) {
+            if ((err as NodeJS.ErrnoException).code === 'EEXIST') {
+              throw new Error(
+                `Refusing to write to --out: "${rootDir}" already exists and is not a directory.`,
+              );
+            }
+            throw err;
+          }
+          realRootDir = await realpath(rootDir);
+        }
+
+        const segments = [
+          repoName,
+          ...file.path.split(/[/\\]/).filter((s) => s.length > 0),
+        ];
+        const realTargetPath = resolve(realRootDir, ...segments);
+        if (!realTargetPath.startsWith(`${realRootDir}${sep}`)) {
+          throw new Error(
+            `Refusing to write outside --out: resolved path "${realTargetPath}" escapes "${realRootDir}".`,
+          );
+        }
+
+        await assertSafeOutputTarget(realRootDir, segments);
+        await mkdir(dirname(realTargetPath), { recursive: true });
+        await writeFile(realTargetPath, file.content, 'utf8');
         written.push(targetPath);
       }
     }

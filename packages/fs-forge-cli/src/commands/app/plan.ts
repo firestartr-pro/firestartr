@@ -15,6 +15,7 @@ import { actionsSchemasDir } from '../../schema/actionsSchemas.js';
 import {
   appInputsSchemaDir,
   loadAppInputsFile,
+  validateAppInputs,
 } from '../../schema/appInputs.js';
 import { claimSchemasDir } from '../../schema/claimSchemas.js';
 import { dotFirestartrSchemasDir } from '../../schema/dotFirestartrSchemas.js';
@@ -71,10 +72,8 @@ export default class AppPlan extends Command {
   async run(): Promise<void> {
     const { flags } = await this.parse(AppPlan);
 
-    const loaded = await loadAppInputsFile(
-      flags.inputs,
-      appInputsSchemaDir(this.config.root),
-    );
+    const schemasDir = appInputsSchemaDir(this.config.root);
+    const loaded = await loadAppInputsFile(flags.inputs, schemasDir);
     if (!loaded.valid) {
       this.error(`Invalid inputs file:\n${loaded.errors.join('\n')}`, {
         exit: 2,
@@ -83,8 +82,18 @@ export default class AppPlan extends Command {
 
     const inputs = {
       ...loaded.data,
-      ...(flags.app ? { app: flags.app } : {}),
+      ...(flags.app !== undefined ? { app: flags.app } : {}),
     };
+
+    if (flags.app !== undefined) {
+      const revalidated = validateAppInputs(inputs, schemasDir);
+      if (!revalidated.valid) {
+        this.error(
+          `Invalid --app value "${flags.app}":\n${revalidated.errors.join('\n')}`,
+          { exit: 2 },
+        );
+      }
+    }
 
     const org =
       flags.org ?? inputs.org ?? process.env.FSCRT_ORG ?? orgFromContext();
