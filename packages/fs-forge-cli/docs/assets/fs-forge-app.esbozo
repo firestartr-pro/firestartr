@@ -1,0 +1,260 @@
+{
+  "version": 1,
+  "title": "fs-forge app",
+  "elements": [
+    {
+      "id": "dev",
+      "type": "rectangle",
+      "x": 44,
+      "y": 110,
+      "width": 198,
+      "height": 88,
+      "label": "Developer"
+    },
+    {
+      "id": "ag",
+      "type": "rectangle",
+      "x": 308,
+      "y": 110,
+      "width": 198,
+      "height": 88,
+      "label": "Agent\nfs-forge skill"
+    },
+    {
+      "id": "ds",
+      "type": "rectangle",
+      "x": 572,
+      "y": 110,
+      "width": 198,
+      "height": 88,
+      "label": "app discover\nread-only"
+    },
+    {
+      "id": "inp",
+      "type": "rectangle",
+      "x": 836,
+      "y": 110,
+      "width": 198,
+      "height": 88,
+      "label": "AppInputs\nfile",
+      "fill": {
+        "kind": "solid",
+        "grey": 1
+      }
+    },
+    {
+      "id": "pl",
+      "type": "rectangle",
+      "x": 1100,
+      "y": 110,
+      "width": 198,
+      "height": 88,
+      "label": "app plan\nread-only"
+    },
+    {
+      "id": "ap",
+      "type": "rectangle",
+      "x": 44,
+      "y": 286,
+      "width": 198,
+      "height": 88,
+      "label": "app apply\nopens the PRs"
+    },
+    {
+      "id": "s1",
+      "type": "rectangle",
+      "x": 308,
+      "y": 286,
+      "width": 198,
+      "height": 88,
+      "label": "1 \u00b7 claims repo"
+    },
+    {
+      "id": "g",
+      "type": "rectangle",
+      "x": 572,
+      "y": 264,
+      "width": 396,
+      "height": 132,
+      "stroke": {
+        "style": "dashed"
+      },
+      "tone": "muted"
+    },
+    {
+      "id": "s2",
+      "type": "rectangle",
+      "x": 594,
+      "y": 286,
+      "width": 352,
+      "height": 88,
+      "label": "2 \u00b7 .firestartr\napp-<app>, state-argocd"
+    },
+    {
+      "id": "s3",
+      "type": "rectangle",
+      "x": 1100,
+      "y": 286,
+      "width": 198,
+      "height": 88,
+      "label": "3 \u00b7 Service repo"
+    },
+    {
+      "id": "e1",
+      "type": "arrow",
+      "points": [
+        {
+          "x": 143,
+          "y": 154,
+          "snap": "dev"
+        },
+        {
+          "x": 407,
+          "y": 154,
+          "snap": "ag"
+        }
+      ],
+      "label": "asks"
+    },
+    {
+      "id": "e2",
+      "type": "arrow",
+      "points": [
+        {
+          "x": 407,
+          "y": 154,
+          "snap": "ag"
+        },
+        {
+          "x": 671,
+          "y": 154,
+          "snap": "ds"
+        }
+      ],
+      "label": "runs"
+    },
+    {
+      "id": "e3",
+      "type": "arrow",
+      "points": [
+        {
+          "x": 671,
+          "y": 154,
+          "snap": "ds"
+        },
+        {
+          "x": 935,
+          "y": 154,
+          "snap": "inp"
+        }
+      ],
+      "label": "choices"
+    },
+    {
+      "id": "e4",
+      "type": "arrow",
+      "points": [
+        {
+          "x": 935,
+          "y": 154,
+          "snap": "inp"
+        },
+        {
+          "x": 1199,
+          "y": 154,
+          "snap": "pl"
+        }
+      ]
+    },
+    {
+      "id": "e5",
+      "type": "arrow",
+      "points": [
+        {
+          "x": 1199,
+          "y": 154,
+          "snap": "pl"
+        },
+        {
+          "x": 1199,
+          "y": 236
+        },
+        {
+          "x": 143,
+          "y": 236
+        },
+        {
+          "x": 143,
+          "y": 330,
+          "snap": "ap"
+        }
+      ],
+      "label": "when approved"
+    },
+    {
+      "id": "e6",
+      "type": "arrow",
+      "points": [
+        {
+          "x": 143,
+          "y": 330,
+          "snap": "ap"
+        },
+        {
+          "x": 407,
+          "y": 330,
+          "snap": "s1"
+        }
+      ],
+      "label": "opens"
+    },
+    {
+      "id": "e7",
+      "type": "arrow",
+      "points": [
+        {
+          "x": 407,
+          "y": 330,
+          "snap": "s1"
+        },
+        {
+          "x": 770,
+          "y": 330,
+          "snap": "g"
+        }
+      ]
+    },
+    {
+      "id": "e8",
+      "type": "arrow",
+      "points": [
+        {
+          "x": 770,
+          "y": 330,
+          "snap": "g"
+        },
+        {
+          "x": 1199,
+          "y": 330,
+          "snap": "s3"
+        }
+      ]
+    },
+    {
+      "id": "t",
+      "type": "text",
+      "x": 44,
+      "y": 30,
+      "content": "fs-forge app",
+      "fontSize": "L"
+    },
+    {
+      "id": "n",
+      "type": "text",
+      "x": 44,
+      "y": 430,
+      "content": "Each step waits for the previous one: merged, checks green, provisioned. A rerun resumes.",
+      "tone": "muted"
+    }
+  ]
+}
