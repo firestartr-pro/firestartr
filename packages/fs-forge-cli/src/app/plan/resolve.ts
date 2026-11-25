@@ -132,20 +132,32 @@ function isStateRepoComponentClaim(content: string): boolean {
   }
 }
 
+async function resolveRepoBranch(
+  api: GitHubApi,
+  ref: RepoRef,
+): Promise<{ defaultBranch: string; exists: boolean }> {
+  if (!(await api.repoExists(ref))) {
+    return { defaultBranch: 'main', exists: false };
+  }
+  try {
+    return { defaultBranch: await api.getDefaultBranch(ref), exists: true };
+  } catch (error) {
+    if (isNotFoundError(error)) {
+      return { defaultBranch: 'main', exists: false };
+    }
+    throw error;
+  }
+}
+
 async function readFileFromDefaultBranch(
   api: GitHubApi,
   ref: RepoRef,
   path: string,
-): Promise<{ defaultBranch: string; content?: string }> {
-  let defaultBranch: string;
-  try {
-    defaultBranch = await api.getDefaultBranch(ref);
-  } catch (error) {
-    if (isNotFoundError(error)) return { defaultBranch: 'main' };
-    throw error;
-  }
+): Promise<{ defaultBranch: string; exists: boolean; content?: string }> {
+  const { defaultBranch, exists } = await resolveRepoBranch(api, ref);
+  if (!exists) return { defaultBranch, exists: false };
   const file = await api.readFile(ref, path, defaultBranch);
-  return { defaultBranch, content: file?.content };
+  return { defaultBranch, exists: true, content: file?.content };
 }
 
 async function readExistingArgocdFiles(
@@ -154,6 +166,7 @@ async function readExistingArgocdFiles(
   app: string,
 ): Promise<{
   defaultBranch: string;
+  exists: boolean;
   applicationSet?: ExistingNamedFile;
   appProject?: ExistingNamedFile;
   parseErrors: ArgocdFileConflict[];
@@ -163,23 +176,21 @@ async function readExistingArgocdFiles(
   const ref: RepoRef = { owner: org, repo: 'state-argocd' };
   const empty = {
     defaultBranch: 'main',
+    exists: false,
     parseErrors: [] as ArgocdFileConflict[],
     duplicateApplicationSets: [] as string[],
     duplicateAppProjects: [] as string[],
   };
-  let defaultBranch: string;
-  try {
-    defaultBranch = await api.getDefaultBranch(ref);
-  } catch (error) {
-    if (isNotFoundError(error)) return empty;
-    throw error;
-  }
+  const { defaultBranch, exists } = await resolveRepoBranch(api, ref);
+  if (!exists) return empty;
 
   let paths: string[];
   try {
     paths = await api.listBlobPaths(ref, defaultBranch);
   } catch (error) {
-    if (isNotFoundError(error)) return { ...empty, defaultBranch };
+    if (isNotFoundError(error)) {
+      return { ...empty, defaultBranch, exists: true };
+    }
     throw error;
   }
 
@@ -236,6 +247,7 @@ async function readExistingArgocdFiles(
 
   return {
     defaultBranch,
+    exists: true,
     applicationSet:
       applicationSets.length === 1 ? applicationSets[0] : undefined,
     appProject: appProjects.length === 1 ? appProjects[0] : undefined,
@@ -309,7 +321,7 @@ export async function resolvePlanContext(
     featureIndex,
     dotFirestartr,
     orgPlan,
-    serviceDefaultBranch,
+    serviceRepoBranch,
     existingDotFirestartrAppResult,
     existingArgocd,
     existingStateAppResult,
@@ -324,7 +336,7 @@ export async function resolvePlanContext(
     featureSource.readFeatureIndex(),
     readDotFirestartr(api, org, inputs.app),
     options.orgPlan ? Promise.resolve(options.orgPlan) : api.getOrgPlan(org),
-    api.getDefaultBranch(serviceRepoRef),
+    resolveRepoBranch(api, serviceRepoRef),
     readFileFromDefaultBranch(
       api,
       { owner: org, repo: '.firestartr' },
@@ -396,16 +408,20 @@ export async function resolvePlanContext(
       STATE_REPO_APPS_FEATURE,
       stateAppFeature.version,
     ),
-    api.readFile(
-      serviceRepoRef,
-      '.github/make_dispatches.yaml',
-      serviceDefaultBranch,
-    ),
-    api.readFile(
-      serviceRepoRef,
-      '.github/build_images.yaml',
-      serviceDefaultBranch,
-    ),
+    serviceRepoBranch.exists
+      ? api.readFile(
+          serviceRepoRef,
+          '.github/make_dispatches.yaml',
+          serviceRepoBranch.defaultBranch,
+        )
+      : Promise.resolve(undefined),
+    serviceRepoBranch.exists
+      ? api.readFile(
+          serviceRepoRef,
+          '.github/build_images.yaml',
+          serviceRepoBranch.defaultBranch,
+        )
+      : Promise.resolve(undefined),
   ]);
 
   return {
@@ -421,7 +437,12 @@ export async function resolvePlanContext(
       dotFirestartr: existingDotFirestartrAppResult.defaultBranch,
       stateApp: existingStateAppResult.defaultBranch,
       stateArgocd: existingArgocd.defaultBranch,
-      service: serviceDefaultBranch,
+      service: serviceRepoBranch.defaultBranch,
+    },
+    repoExists: {
+      dotFirestartr: existingDotFirestartrAppResult.exists,
+      stateArgocd: existingArgocd.exists,
+      service: serviceRepoBranch.exists,
     },
     serviceClaimPath: serviceClaim.filePath,
     serviceClaimContent: serviceClaim.content,

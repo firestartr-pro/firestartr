@@ -422,11 +422,46 @@ function checkBuildImages(
   };
 }
 
+function checkTargetRepo(
+  id: string,
+  repoSlug: string,
+  exists: boolean,
+): PlanCheck {
+  if (exists) {
+    return {
+      id,
+      status: 'pass',
+      message: `Repository ${repoSlug} exists.`,
+    };
+  }
+  return {
+    id,
+    status: 'fail',
+    message: `Repository ${repoSlug} does not exist and must exist before applying this plan.`,
+    checklist: [`Create repository ${repoSlug} before running app apply.`],
+  };
+}
+
 export function runPlanChecks(
   context: ResolvedPlanContext,
   schemaDirs: PlanSchemaDirs,
 ): PlanCheck[] {
   return [
+    checkTargetRepo(
+      'dot-firestartr-repo',
+      `${context.org}/.firestartr`,
+      context.repoExists.dotFirestartr,
+    ),
+    checkTargetRepo(
+      'state-argocd-repo',
+      `${context.org}/state-argocd`,
+      context.repoExists.stateArgocd,
+    ),
+    checkTargetRepo(
+      'service-repo',
+      `${context.serviceRepoOwner}/${context.serviceRepoName}`,
+      context.repoExists.service,
+    ),
     checkClaimName(context),
     checkRegistryAndPlatforms(context),
     checkImageTypes(context),

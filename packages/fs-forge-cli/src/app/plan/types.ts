@@ -51,6 +51,11 @@ export interface ResolvedPlanContext {
   serviceRepoOwner: string;
   serviceRepoName: string;
   defaultBranches: PlanDefaultBranches;
+  repoExists: {
+    dotFirestartr: boolean;
+    stateArgocd: boolean;
+    service: boolean;
+  };
   serviceClaimPath: string;
   serviceClaimContent: string;
   serviceClaimDefaults: ServiceClaimDefaults;
