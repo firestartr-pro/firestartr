@@ -164,16 +164,14 @@ function computeFilterOverrides(
   return { overrides };
 }
 
-function findFeatureMap(
-  featuresSeq: YAMLSeq,
-  name: string,
-): YAMLMap | undefined {
+function findFeatureMaps(featuresSeq: YAMLSeq, name: string): YAMLMap[] {
+  const matches: YAMLMap[] = [];
   for (const item of featuresSeq.items) {
     if (item instanceof YAMLMap && item.get('name') === name) {
-      return item;
+      matches.push(item);
     }
   }
-  return undefined;
+  return matches;
 }
 
 export function renderServiceClaimFeatures(
@@ -283,7 +281,17 @@ export function renderServiceClaimFeatures(
   const notes: string[] = [];
 
   // 1. build_and_dispatch_docker_images
-  const existingBuild = findFeatureMap(featuresSeq, BUILD_DISPATCH_FEATURE);
+  const buildMatches = findFeatureMaps(featuresSeq, BUILD_DISPATCH_FEATURE);
+  if (buildMatches.length > 1) {
+    return {
+      path,
+      outcome: {
+        kind: 'conflict',
+        reason: `Feature "${BUILD_DISPATCH_FEATURE}" is listed ${buildMatches.length} times in ${path}`,
+      },
+    };
+  }
+  const existingBuild = buildMatches[0];
   const targetBuildMajor = featureMajors.build_and_dispatch_docker_images;
   const targetBuildRef = `${BUILD_DISPATCH_FEATURE}-v${targetBuildMajor}`;
 
@@ -433,7 +441,17 @@ export function renderServiceClaimFeatures(
   }
 
   // 2. release_please
-  const existingRelease = findFeatureMap(featuresSeq, RELEASE_PLEASE_FEATURE);
+  const releaseMatches = findFeatureMaps(featuresSeq, RELEASE_PLEASE_FEATURE);
+  if (releaseMatches.length > 1) {
+    return {
+      path,
+      outcome: {
+        kind: 'conflict',
+        reason: `Feature "${RELEASE_PLEASE_FEATURE}" is listed ${releaseMatches.length} times in ${path}`,
+      },
+    };
+  }
+  const existingRelease = releaseMatches[0];
   const targetReleaseMajor = featureMajors.release_please;
   const targetReleaseRef = `${RELEASE_PLEASE_FEATURE}-v${targetReleaseMajor}`;
 

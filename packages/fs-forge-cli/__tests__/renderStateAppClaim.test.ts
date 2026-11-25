@@ -288,4 +288,40 @@ describe('renderStateAppClaim', () => {
     expect(result.content).toContain('\r\n');
     expect(result.content).not.toMatch(/(?<!\r)\n/);
   });
+
+  it('conflicts when state_repo_apps is listed more than once', async () => {
+    const existing = [
+      'kind: ComponentClaim',
+      'version: "1.0"',
+      'name: app-billing',
+      'owner: group:default/platform',
+      'type: service',
+      'lifecycle: production',
+      'providers:',
+      '  github:',
+      '    name: app-billing',
+      '    org: acme',
+      '    features:',
+      '      - name: state_repo_apps',
+      '        ref: state_repo_apps-v3',
+      '      - name: state_repo_apps',
+      '        ref: state_repo_apps-v3',
+      '',
+    ].join('\n');
+
+    const result = await renderStateAppClaim({
+      inputs: BASE_INPUTS,
+      serviceClaim: SERVICE_CLAIM_DEFAULTS,
+      stateRepoAppsMajor: 3,
+      claimSchemasDir: SCHEMAS_DIR,
+      existingContent: existing,
+    });
+
+    expect(result.outcome.kind).toBe('conflict');
+    expect(result.content).toBeUndefined();
+    if (result.outcome.kind === 'conflict') {
+      expect(result.outcome.reason).toContain('state_repo_apps');
+      expect(result.outcome.reason).toContain('2 times');
+    }
+  });
 });

@@ -1,3 +1,4 @@
+import type { ErrorObject } from 'ajv';
 import YAML, { YAMLMap, YAMLSeq } from 'yaml';
 
 import { loadActionsValidator } from '../../schema/actionsSchemas.js';
@@ -41,6 +42,66 @@ function trackToDispatch(
     case 'releases':
       return { type: 'releases', version: '$latest_release' };
   }
+}
+
+function deploymentLabel(data: unknown, index: number): string {
+  if (isRecord(data) && Array.isArray(data.deployments)) {
+    const entry = data.deployments[index];
+    if (
+      isRecord(entry) &&
+      typeof entry.application === 'string' &&
+      entry.application.length > 0
+    ) {
+      return `deployments[${index}] (application ${entry.application})`;
+    }
+  }
+  return `deployments[${index}]`;
+}
+
+function formatExistingAjvError(data: unknown, err: ErrorObject): string {
+  const extra =
+    err.keyword === 'additionalProperties' &&
+    typeof err.params?.additionalProperty === 'string'
+      ? ` (${err.params.additionalProperty})`
+      : '';
+  const message = `${err.message ?? 'is invalid'}${extra}`.trim();
+  const match = /^\/deployments\/(\d+)(\/.*)?$/.exec(err.instancePath);
+  if (match) {
+    const index = Number(match[1]);
+    const rest = match[2] ? match[2].replace(/\//g, '.') : '';
+    const label = deploymentLabel(data, index);
+    return rest ? `${label}${rest}: ${message}` : `${label}: ${message}`;
+  }
+  const loc = err.instancePath || '/';
+  return `${loc}: ${message}`;
+}
+
+function validateExistingMakeDispatchesErrors(
+  data: unknown,
+  actionsSchemasDir: string,
+): string[] | undefined {
+  const validate = loadActionsValidator('make_dispatches', actionsSchemasDir);
+  const errors: string[] = [];
+  if (!validate(data)) {
+    for (const err of validate.errors ?? []) {
+      errors.push(formatExistingAjvError(data, err));
+    }
+  }
+
+  if (isRecord(data) && Array.isArray(data.deployments)) {
+    data.deployments.forEach((entry, index) => {
+      if (!isRecord(entry)) return;
+      const hasServiceNames = entry.service_names !== undefined;
+      const hasImageKeys = entry.image_keys !== undefined;
+      if (hasServiceNames === hasImageKeys) {
+        errors.push(
+          `${deploymentLabel(data, index)}: must define exactly one of service_names or image_keys`,
+        );
+      }
+    });
+  }
+
+  return errors.length > 0 ? errors : undefined;
 }
 
 function validateMakeDispatchesErrors(
@@ -144,6 +205,20 @@ export function renderMakeDispatches(
       outcome: {
         kind: 'conflict',
         reason: `Expected YAML mapping in ${path}`,
+      },
+    };
+  }
+
+  const existingErrors = validateExistingMakeDispatchesErrors(
+    parsed,
+    actionsSchemasDir,
+  );
+  if (existingErrors) {
+    return {
+      path,
+      outcome: {
+        kind: 'conflict',
+        reason: `Existing ${path} is invalid and must be fixed first: ${existingErrors.join('; ')}`,
       },
     };
   }

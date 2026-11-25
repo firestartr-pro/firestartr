@@ -2,6 +2,7 @@ import { describe, expect, it } from '@jest/globals';
 import YAML from 'yaml';
 
 import { renderServiceClaimFeatures } from '../src/app/render/serviceClaim.js';
+import { validateFeatureArgs } from '../src/utils/featureSchema.js';
 
 import type { AppInputs } from '../src/schema/appInputs.js';
 
@@ -121,7 +122,15 @@ describe('renderServiceClaimFeatures', () => {
     expect(result.content).toContain('# Service claim comment');
 
     const parsed = YAML.parse(result.content!) as {
-      providers: { github: { features: unknown[] } };
+      providers: {
+        github: {
+          features: Array<{
+            name: string;
+            ref: string;
+            args: Record<string, unknown>;
+          }>;
+        };
+      };
     };
     expect(parsed.providers.github.features).toEqual([
       {
@@ -139,6 +148,18 @@ describe('renderServiceClaimFeatures', () => {
         },
       },
     ]);
+    expect(
+      validateFeatureArgs(
+        BUILD_SCHEMA,
+        parsed.providers.github.features[0].args,
+      ),
+    ).toEqual({ valid: true, errors: [] });
+    expect(
+      validateFeatureArgs(
+        RELEASE_PLEASE_SCHEMA,
+        parsed.providers.github.features[1].args,
+      ),
+    ).toEqual({ valid: true, errors: [] });
 
     // Idempotent on its own output
     const second = renderServiceClaimFeatures({
@@ -564,5 +585,89 @@ describe('renderServiceClaimFeatures', () => {
     expect(result.outcome.kind).toBe('merge');
     expect(result.content).toContain('\r\n');
     expect(result.content).not.toMatch(/(?<!\r)\n/);
+  });
+
+  it('conflicts when build_and_dispatch_docker_images or release_please is listed more than once', () => {
+    const dupBuild = [
+      BASE_SERVICE_CLAIM.trimEnd(),
+      '    features:',
+      '      - name: build_and_dispatch_docker_images',
+      '        ref: build_and_dispatch_docker_images-v7',
+      '        args:',
+      '          auth_strategy: oidc',
+      '      - name: build_and_dispatch_docker_images',
+      '        ref: build_and_dispatch_docker_images-v7',
+      '        args:',
+      '          auth_strategy: oidc',
+      '',
+    ].join('\n');
+
+    const buildRes = renderServiceClaimFeatures({
+      org: 'acme',
+      inputs: makeInputs([
+        {
+          platform: 'eks',
+          tenant: 'core',
+          env: 'qa',
+          cluster_url: 'https://eks.example.com',
+          track: 'snapshots',
+        },
+      ]),
+      existingContent: dupBuild,
+      authStrategy: 'oidc',
+      featureMajors: FEATURE_MAJORS,
+      featureSchemas: FEATURE_SCHEMAS,
+      defaultFilters: DEFAULT_FILTERS,
+    });
+
+    expect(buildRes.outcome.kind).toBe('conflict');
+    expect(buildRes.content).toBeUndefined();
+    if (buildRes.outcome.kind === 'conflict') {
+      expect(buildRes.outcome.reason).toContain('build_and_dispatch_docker_images');
+      expect(buildRes.outcome.reason).toContain('2 times');
+    }
+
+    const dupRelease = [
+      BASE_SERVICE_CLAIM.trimEnd(),
+      '    features:',
+      '      - name: release_please',
+      '        ref: release_please-v2',
+      '        args:',
+      '          release_type: node',
+      '      - name: release_please',
+      '        ref: release_please-v2',
+      '        args:',
+      '          release_type: node',
+      '      - name: release_please',
+      '        ref: release_please-v2',
+      '        args:',
+      '          release_type: node',
+      '',
+    ].join('\n');
+
+    const releaseRes = renderServiceClaimFeatures({
+      org: 'acme',
+      inputs: makeInputs([
+        {
+          platform: 'eks',
+          tenant: 'core',
+          env: 'dev',
+          cluster_url: 'https://eks.example.com',
+          track: 'snapshots',
+        },
+      ]),
+      existingContent: dupRelease,
+      authStrategy: 'oidc',
+      featureMajors: FEATURE_MAJORS,
+      featureSchemas: FEATURE_SCHEMAS,
+      defaultFilters: DEFAULT_FILTERS,
+    });
+
+    expect(releaseRes.outcome.kind).toBe('conflict');
+    expect(releaseRes.content).toBeUndefined();
+    if (releaseRes.outcome.kind === 'conflict') {
+      expect(releaseRes.outcome.reason).toContain('release_please');
+      expect(releaseRes.outcome.reason).toContain('3 times');
+    }
   });
 });

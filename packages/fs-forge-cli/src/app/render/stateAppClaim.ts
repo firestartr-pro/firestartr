@@ -177,16 +177,25 @@ export async function renderStateAppClaim(
     githubMap.set('features', featuresSeq);
   }
 
-  let existingFeature: YAMLMap | undefined;
+  const existingMatches: YAMLMap[] = [];
   for (const item of featuresSeq.items) {
     if (
       item instanceof YAMLMap &&
       item.get('name') === STATE_REPO_APPS_FEATURE
     ) {
-      existingFeature = item;
-      break;
+      existingMatches.push(item);
     }
   }
+  if (existingMatches.length > 1) {
+    return {
+      path,
+      outcome: {
+        kind: 'conflict',
+        reason: `Feature "${STATE_REPO_APPS_FEATURE}" is listed ${existingMatches.length} times in ${path}`,
+      },
+    };
+  }
+  const existingFeature = existingMatches[0];
 
   if (existingFeature) {
     const existingObj = existingFeature.toJS(doc) as Record<string, unknown>;

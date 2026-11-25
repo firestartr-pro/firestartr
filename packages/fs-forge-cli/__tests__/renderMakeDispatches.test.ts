@@ -283,4 +283,112 @@ describe('renderMakeDispatches', () => {
     expect(result.content).toContain('\r\n');
     expect(result.content).not.toMatch(/(?<!\r)\n/);
   });
+
+  it('conflicts with a clear reason when an existing entry for our app is missing flavor', () => {
+    const existing = [
+      'deployments:',
+      '  - application: billing',
+      '    platform: eks-eu',
+      '    tenant: core',
+      '    env: dev',
+      '    type: snapshots',
+      '    version: $branch_main',
+      '    service_names:',
+      '      - billing-api',
+      '',
+    ].join('\n');
+
+    const result = renderMakeDispatches({
+      org: 'acme',
+      inputs: {
+        ...BASE_INPUTS,
+        targets: [BASE_INPUTS.targets[0]],
+      },
+      defaultBranch: 'main',
+      actionsSchemasDir: ACTIONS_SCHEMAS_DIR,
+      existingContent: existing,
+    });
+
+    expect(result.outcome.kind).toBe('conflict');
+    expect(result.content).toBeUndefined();
+    if (result.outcome.kind === 'conflict') {
+      expect(result.outcome.reason).toContain('invalid');
+      expect(result.outcome.reason).toContain('fixed first');
+      expect(result.outcome.reason).toContain('deployments[0] (application billing)');
+      expect(result.outcome.reason).toContain("must have required property 'flavor'");
+    }
+  });
+
+  it('conflicts with a clear reason when an existing entry for another app is missing flavor', () => {
+    const existing = [
+      'deployments:',
+      '  - application: shop',
+      '    platform: eks-eu',
+      '    tenant: core',
+      '    env: dev',
+      '    type: snapshots',
+      '    version: $branch_main',
+      '    service_names:',
+      '      - shop-api',
+      '',
+    ].join('\n');
+
+    const result = renderMakeDispatches({
+      org: 'acme',
+      inputs: {
+        ...BASE_INPUTS,
+        targets: [BASE_INPUTS.targets[0]],
+      },
+      defaultBranch: 'main',
+      actionsSchemasDir: ACTIONS_SCHEMAS_DIR,
+      existingContent: existing,
+    });
+
+    expect(result.outcome.kind).toBe('conflict');
+    expect(result.content).toBeUndefined();
+    if (result.outcome.kind === 'conflict') {
+      expect(result.outcome.reason).toContain('invalid');
+      expect(result.outcome.reason).toContain('fixed first');
+      expect(result.outcome.reason).toContain('deployments[0] (application shop)');
+      expect(result.outcome.reason).toContain("must have required property 'flavor'");
+    }
+  });
+
+  it('conflicts on the noop path when an existing entry has both image_keys and service_names', () => {
+    const existing = [
+      'deployments:',
+      '  - application: billing',
+      '    platform: eks-eu',
+      '    tenant: core',
+      '    env: dev',
+      '    type: snapshots',
+      '    version: $branch_main',
+      '    flavor: default',
+      '    image_keys:',
+      '      - img1',
+      '    service_names:',
+      '      - billing-api',
+      '',
+    ].join('\n');
+
+    const result = renderMakeDispatches({
+      org: 'acme',
+      inputs: {
+        ...BASE_INPUTS,
+        targets: [BASE_INPUTS.targets[0]],
+      },
+      defaultBranch: 'main',
+      actionsSchemasDir: ACTIONS_SCHEMAS_DIR,
+      existingContent: existing,
+    });
+
+    expect(result.outcome.kind).toBe('conflict');
+    expect(result.content).toBeUndefined();
+    if (result.outcome.kind === 'conflict') {
+      expect(result.outcome.reason).toContain('invalid');
+      expect(result.outcome.reason).toContain('fixed first');
+      expect(result.outcome.reason).toContain('deployments[0] (application billing)');
+      expect(result.outcome.reason).toContain('service_names or image_keys');
+    }
+  });
 });
