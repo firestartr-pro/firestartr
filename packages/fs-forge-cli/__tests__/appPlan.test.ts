@@ -588,7 +588,8 @@ describe('app plan (resolve, render, checks)', () => {
     expect(byId.get('claim-name')?.status).toBe('fail');
     expect(byId.get('registry-and-platforms')?.status).toBe('fail');
     expect(byId.get('image-types')?.status).toBe('fail');
-    expect(byId.get('vars-and-secrets')?.status).toBe('info');
+    expect(byId.get('vars-and-secrets')?.status).toBe('fail');
+    expect(result.files.claims[0].outcome.kind).toBe('conflict');
   });
 
   it('reports conflict when make_dispatches.yaml is unparsable', async () => {
@@ -663,5 +664,253 @@ describe('app plan (resolve, render, checks)', () => {
     expect(unparsable.checks.find((c) => c.id === 'build-images')?.status).toBe(
       'fail',
     );
+  });
+
+  it('free plan with existing app-<app> claim: does not edit it and fails on vars/secrets missing from the app claim', async () => {
+    const api = new MemoryGitHubApi();
+    const serviceWithVars = YAML.stringify({
+      kind: 'ComponentClaim',
+      version: '1.0',
+      name: 'payments-api',
+      owner: 'group:default/team',
+      system: 'system:default/billing',
+      type: 'service',
+      lifecycle: 'production',
+      providers: {
+        github: {
+          name: 'payments-api',
+          org: ORG,
+          vars: {
+            actions: [
+              { name: 'FS_STATE_APP_ID', value: '1' },
+              { name: 'FS_CHECKS_APP_ID', value: '2' },
+              { name: 'DOCKER_REGISTRY_RELEASES', value: 'r' },
+              { name: 'DOCKER_REGISTRY_SNAPSHOTS', value: 's' },
+              { name: 'DOCKER_REGISTRIES_BASE_PATHS', value: 'b' },
+              { name: 'AZURE_CLIENT_ID', value: 'a' },
+              { name: 'AZURE_SUBSCRIPTION_ID', value: 'b' },
+              { name: 'AZURE_TENANT_ID', value: 'c' },
+              { name: 'HELM_CHARTS_PUBLICATION_TYPE', value: 'oci' },
+            ],
+          },
+          secrets: {
+            actions: [
+              { name: 'FS_STATE_PEM_FILE', value: 'x' },
+              { name: 'FS_CHECKS_PEM_FILE', value: 'y' },
+            ],
+          },
+        },
+      },
+    });
+    seedBaseRepos(api, { orgPlan: 'free', serviceClaimYaml: serviceWithVars });
+
+    api.setFile(
+      CLAIMS_REPO,
+      'claims-map.json',
+      JSON.stringify({
+        headers: { sha: 'abc123' },
+        claims: {
+          'ComponentClaim-payments-api': {
+            filePath: 'components/payments-api.yaml',
+          },
+          'ComponentClaim-app-payments': {
+            filePath: 'components/app-payments.yaml',
+          },
+        },
+      }),
+    );
+    api.setFile(
+      CLAIMS_REPO,
+      'claims/components/app-payments.yaml',
+      YAML.stringify({
+        kind: 'ComponentClaim',
+        version: '1.0',
+        name: 'app-payments',
+        owner: 'group:default/team',
+        system: 'system:default/billing',
+        type: 'service',
+        lifecycle: 'production',
+        providers: {
+          github: {
+            name: 'app-payments',
+            org: ORG,
+            visibility: 'private',
+            allowAutoMerge: true,
+            deleteBranchOnMerge: true,
+            allowUpdateBranch: true,
+            actions: { oidc: { useDefault: true } },
+            branchStrategy: { name: 'none', defaultBranch: 'main' },
+            additionalBranches: [{ name: 'deployment', orphan: true }],
+            features: [{ name: 'state_repo_apps', ref: 'state_repo_apps-v3' }],
+          },
+        },
+      }),
+    );
+
+    const result = await planApp({
+      api,
+      featureSource: createFakeFeatureSource(),
+      inputs: BASE_INPUTS,
+      schemaDirs: SCHEMA_DIRS,
+    });
+
+    // Existing app-<app> claim is not edited (noop)
+    expect(result.files.claims[0].outcome).toEqual({ kind: 'noop' });
+
+    // Missing state-app vars and secrets are reported as fail with checklist pointing to app-<app>'s claim
+    const failIds = result.checks
+      .filter((c) => c.status === 'fail')
+      .map((c) => c.id);
+    expect(failIds).toContain('vars-state-app-FS_STATE_APP_ID');
+    expect(failIds).toContain('vars-state-app-AZURE_CLIENT_ID');
+    expect(failIds).toContain('secrets-state-app-FS_STATE_PEM_FILE');
+    const azureCheck = result.checks.find(
+      (c) => c.id === 'vars-state-app-AZURE_CLIENT_ID',
+    );
+    expect(azureCheck?.checklist?.[0]).toContain(
+      'claims/components/app-payments.yaml',
+    );
+  });
+
+  it('unknown org plan fails check mentioning paid shape, and orgPlan option overrides detection', async () => {
+    const api = new MemoryGitHubApi();
+    seedBaseRepos(api, { orgPlan: 'unknown' });
+
+    const unknownResult = await planApp({
+      api,
+      featureSource: createFakeFeatureSource(),
+      inputs: BASE_INPUTS,
+      schemaDirs: SCHEMA_DIRS,
+    });
+
+    const planCheck = unknownResult.checks.find(
+      (c) => c.id === 'vars-and-secrets',
+    );
+    expect(planCheck?.status).toBe('fail');
+    expect(planCheck?.message).toMatch(/paid/i);
+    expect(planCheck?.checklist?.[0]).toMatch(/org owner/i);
+    // Paid shape rendered (no vars/secrets block)
+    expect(unknownResult.files.claims[0].content).not.toMatch(/vars:/);
+
+    // Override with orgPlan: 'paid'
+    const paidOverride = await planApp({
+      api,
+      featureSource: createFakeFeatureSource(),
+      inputs: BASE_INPUTS,
+      orgPlan: 'paid',
+      schemaDirs: SCHEMA_DIRS,
+    });
+    expect(paidOverride.context.orgPlan).toBe('paid');
+    expect(
+      paidOverride.checks.find((c) => c.id === 'vars-and-secrets')?.status,
+    ).toBe('info');
+
+    // Override with orgPlan: 'free'
+    const freeOverride = await planApp({
+      api,
+      featureSource: createFakeFeatureSource(),
+      inputs: BASE_INPUTS,
+      orgPlan: 'free',
+      schemaDirs: SCHEMA_DIRS,
+    });
+    expect(freeOverride.context.orgPlan).toBe('free');
+    expect(freeOverride.files.claims[0].content).toMatch(/FS_STATE_APP_ID/);
+  });
+
+  it('reports conflict naming the file when state-argocd YAML is corrupt or multi-document', async () => {
+    for (const [label, content] of [
+      ['corrupt', '::: not yaml [ ['],
+      [
+        'multidoc',
+        `${YAML.stringify({ kind: 'ApplicationSet', metadata: { name: 'app-payments' } })}---\n${YAML.stringify({ kind: 'AppProject', metadata: { name: 'app-payments' } })}`,
+      ],
+    ] as const) {
+      const api = new MemoryGitHubApi();
+      seedBaseRepos(api, { orgPlan: 'paid' });
+      api.setFile(STATE_ARGOCD_REPO, 'apps/payments/x.yaml', content);
+
+      const result = await planApp({
+        api,
+        featureSource: createFakeFeatureSource(),
+        inputs: BASE_INPUTS,
+        schemaDirs: SCHEMA_DIRS,
+      });
+
+      expect(result.files.stateArgocd.length).toBeGreaterThanOrEqual(2);
+      for (const file of result.files.stateArgocd) {
+        expect(file.outcome.kind).toBe('conflict');
+        if (file.outcome.kind === 'conflict') {
+          expect(file.outcome.reason).toContain('apps/payments/x.yaml');
+        }
+      }
+      expect(label).toBeDefined();
+    }
+  });
+
+  it('reports conflict naming every file when state-argocd has duplicate kind and metadata.name', async () => {
+    const api = new MemoryGitHubApi();
+    seedBaseRepos(api, { orgPlan: 'paid' });
+    api.setFile(
+      STATE_ARGOCD_REPO,
+      'apps/payments/a.yaml',
+      YAML.stringify({
+        kind: 'ApplicationSet',
+        apiVersion: 'argoproj.io/v1alpha1',
+        metadata: { name: 'app-payments' },
+        spec: {},
+      }),
+    );
+    api.setFile(
+      STATE_ARGOCD_REPO,
+      'apps/payments/b.yaml',
+      YAML.stringify({
+        kind: 'ApplicationSet',
+        apiVersion: 'argoproj.io/v1alpha1',
+        metadata: { name: 'app-payments' },
+        spec: { extra: 1 },
+      }),
+    );
+
+    const result = await planApp({
+      api,
+      featureSource: createFakeFeatureSource(),
+      inputs: BASE_INPUTS,
+      schemaDirs: SCHEMA_DIRS,
+    });
+
+    const appSet = result.files.stateArgocd[0];
+    expect(appSet.outcome.kind).toBe('conflict');
+    if (appSet.outcome.kind === 'conflict') {
+      expect(appSet.outcome.reason).toContain('apps/payments/a.yaml');
+      expect(appSet.outcome.reason).toContain('apps/payments/b.yaml');
+    }
+  });
+
+  it('throws descriptive errors naming repo/path for unparsable Service claim and invalid claims-map.json', async () => {
+    const apiCorruptSvc = new MemoryGitHubApi();
+    seedBaseRepos(apiCorruptSvc, {
+      orgPlan: 'paid',
+      serviceClaimYaml: '::: [ [',
+    });
+    await expect(
+      planApp({
+        api: apiCorruptSvc,
+        featureSource: createFakeFeatureSource(),
+        inputs: BASE_INPUTS,
+        schemaDirs: SCHEMA_DIRS,
+      }),
+    ).rejects.toThrow(/claims\/components\/payments-api\.yaml/);
+
+    const apiBadMap = new MemoryGitHubApi();
+    seedBaseRepos(apiBadMap, { orgPlan: 'paid' });
+    apiBadMap.setFile(CLAIMS_REPO, 'claims-map.json', '{ invalid json');
+    await expect(
+      planApp({
+        api: apiBadMap,
+        featureSource: createFakeFeatureSource(),
+        inputs: BASE_INPUTS,
+        schemaDirs: SCHEMA_DIRS,
+      }),
+    ).rejects.toThrow(/acme\/claims.*claims-map\.json/);
   });
 });
