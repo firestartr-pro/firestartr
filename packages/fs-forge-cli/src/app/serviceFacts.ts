@@ -1,5 +1,6 @@
 import YAML from 'yaml';
 
+import { claimExists } from '../claims/claimsMap.js';
 import {
   claimsRepo,
   loadClaimsMap,
@@ -295,8 +296,8 @@ export async function readServiceFacts(
   const repo = claimsRepo(api, org, claimsRepoName);
   const map = await loadClaimsMap(repo);
 
-  const primaryRef = `component-${service}`;
-  if (!map.claims[primaryRef]) {
+  const primaryRef = `ComponentClaim-${service}`;
+  if (!claimExists(map, 'ComponentClaim', service)) {
     throw new Error(`Service claim not found: ${primaryRef}`);
   }
   const primaryFile = await resolveClaim(repo, map, primaryRef);
@@ -305,8 +306,8 @@ export async function readServiceFacts(
   const otherNames = appServices.filter((name) => name !== service);
   const otherServices: OtherServiceClaimSummary[] = await Promise.all(
     otherNames.map(async (name) => {
-      const ref = `component-${name}`;
-      if (!map.claims[ref]) {
+      const ref = `ComponentClaim-${name}`;
+      if (!claimExists(map, 'ComponentClaim', name)) {
         return { name, present: false };
       }
       const file = await resolveClaim(repo, map, ref);
