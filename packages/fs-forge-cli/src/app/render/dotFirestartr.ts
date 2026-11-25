@@ -36,7 +36,7 @@ function validateAppsDoc(data: unknown, schemasDir: string): void {
 }
 
 function preserveEol(rendered: string, existingContent: string): string {
-  if (existingContent.includes('\r\n')) {
+  if (existingContent.includes('\r\n') && !/(?<!\r)\n/.test(existingContent)) {
     return rendered.replace(/\r?\n/g, '\r\n');
   }
   return rendered;

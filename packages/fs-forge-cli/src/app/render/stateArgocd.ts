@@ -78,10 +78,35 @@ function validateVendorDoc(
 }
 
 function preserveEol(rendered: string, existingContent: string): string {
-  if (existingContent.includes('\r\n')) {
+  if (existingContent.includes('\r\n') && !/(?<!\r)\n/.test(existingContent)) {
     return rendered.replace(/\r?\n/g, '\r\n');
   }
   return rendered;
+}
+
+function extractExistingClusterValues(existingApplicationSet?: {
+  path: string;
+  content: string;
+}): Record<string, string> | undefined {
+  if (!existingApplicationSet) return undefined;
+  const doc = YAML.parseDocument(existingApplicationSet.content);
+  if (doc.errors.length > 0) return undefined;
+  const parsed: unknown = doc.toJS();
+  if (!isRecord(parsed)) return undefined;
+  const spec = isRecord(parsed.spec) ? parsed.spec : undefined;
+  const generators =
+    spec && Array.isArray(spec.generators) ? spec.generators : [];
+  const firstGen = isRecord(generators[0]) ? generators[0] : undefined;
+  const gitGen = firstGen && isRecord(firstGen.git) ? firstGen.git : undefined;
+  const values = gitGen && isRecord(gitGen.values) ? gitGen.values : undefined;
+  if (!values) return undefined;
+  const result: Record<string, string> = {};
+  for (const [k, v] of Object.entries(values)) {
+    if (typeof v === 'string') {
+      result[k] = v;
+    }
+  }
+  return result;
 }
 
 function collectClusterValues(
@@ -362,7 +387,10 @@ function renderApplicationSet(options: RenderStateArgocdOptions): RenderedFile {
   };
 }
 
-function renderAppProject(options: RenderStateArgocdOptions): RenderedFile {
+function renderAppProject(
+  options: RenderStateArgocdOptions,
+  existingClusterValues?: Record<string, string>,
+): RenderedFile {
   const { org, inputs, vendorDir, existingAppProject } = options;
   const app = inputs.app;
   const expectedName = `app-${app}`;
@@ -512,6 +540,24 @@ function renderAppProject(options: RenderStateArgocdOptions): RenderedFile {
     }
   }
 
+  if (existingClusterValues) {
+    for (const target of inputs.targets) {
+      const existingUrl = existingClusterValues[target.platform];
+      if (existingUrl !== undefined && existingUrl !== target.cluster_url) {
+        const namespace = `${target.tenant}-${app}-${target.env}`;
+        if (existingDestinations.has(`${namespace}\0${existingUrl}`)) {
+          return {
+            path,
+            outcome: {
+              kind: 'conflict',
+              reason: `Destination "${namespace}" for cluster "${target.platform}" has server "${existingUrl}", expected "${target.cluster_url}"`,
+            },
+          };
+        }
+      }
+    }
+  }
+
   const added: string[] = [];
   for (const dest of desiredDestinations) {
     const key = `${dest.namespace}\0${dest.server}`;
@@ -554,8 +600,11 @@ function renderAppProject(options: RenderStateArgocdOptions): RenderedFile {
 export function renderStateArgocd(
   options: RenderStateArgocdOptions,
 ): RenderedArgocdFiles {
+  const existingClusterValues = extractExistingClusterValues(
+    options.existingApplicationSet,
+  );
   return {
     applicationSet: renderApplicationSet(options),
-    appProject: renderAppProject(options),
+    appProject: renderAppProject(options, existingClusterValues),
   };
 }
