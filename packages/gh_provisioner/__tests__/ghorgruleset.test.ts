@@ -35,12 +35,53 @@ describe('EntityGHOrgRuleset entity', () => {
     expect(getEntity(entity.cr) instanceof EntityGHOrgRuleset).toBe(true);
   });
 
-  it('copies spec.ruleset to the module config', async () => {
+  it('copies spec.ruleset to the module config and resolves Team group refs', async () => {
     await entity.loadResources('apply');
 
-    expect(entity.document.config).toEqual(entity.cr.spec.ruleset);
-    expect(entity.document.config.bypass_actors[0].actor_slug).toBe(
-      'platform-team',
+    const { bypass_actors, ...rest } = entity.cr.spec.ruleset;
+
+    expect(entity.document.config).toEqual({
+      ...rest,
+      bypass_actors: [
+        { actor_type: 'Team', bypass_mode: 'always', actor_id: 19699572 },
+      ],
+    });
+    expect(entity.document.config.bypass_actors[0].ref).toBeUndefined();
+  });
+
+  it('fails before the plan when the group dependency is missing', async () => {
+    delete (entity as any)._deps[
+      'FirestartrGithubGroup-platform-team-7f3a2c1e-9b4d-4a6f-8c2e-1d5b7a9f0c3e'
+    ];
+
+    await expect(entity.loadResources('apply')).rejects.toThrow(
+      /could not resolve FirestartrGithubGroup\/platform-team/,
+    );
+  });
+
+  it('fails when a Team bypass actor references another CR kind', async () => {
+    entity.cr.spec.ruleset.bypass_actors[0].ref.kind =
+      'FirestartrGithubRepository';
+
+    await expect(entity.loadResources('apply')).rejects.toThrow(
+      /expected FirestartrGithubGroup/,
+    );
+  });
+
+  it('rejects a non-Team bypass actor with a ref', async () => {
+    entity.cr.spec.ruleset.bypass_actors = [
+      {
+        actor_type: 'Integration',
+        bypass_mode: 'always',
+        ref: {
+          kind: 'FirestartrGithubGroup',
+          name: 'platform-team-7f3a2c1e-9b4d-4a6f-8c2e-1d5b7a9f0c3e',
+        },
+      },
+    ];
+
+    await expect(entity.loadResources('apply')).rejects.toThrow(
+      /Integration bypass actors cannot reference another CR/,
     );
   });
 
@@ -105,7 +146,7 @@ describe('EntityGHOrgRuleset entity', () => {
 
       await expect(entity.loadResources('apply')).resolves.toBeUndefined();
 
-      expect(entity.document.config).toEqual(entity.cr.spec.ruleset);
+      expect(entity.document.config.bypass_actors[0].actor_id).toBe(19699572);
     });
   });
 

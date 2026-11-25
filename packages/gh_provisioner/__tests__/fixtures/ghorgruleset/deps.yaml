@@ -53,5 +53,21 @@ Secret-github-app-credentials:
       GITHUB_APP_INSTALLATION_ID: Njc4OTA=
       GITHUB_APP_PEM_FILE: c2VjcmV0LXBlbS1maWxl
       OWNER: ZmlyZXN0YXJ0ci10ZXN0
+FirestartrGithubGroup-platform-team-7f3a2c1e-9b4d-4a6f-8c2e-1d5b7a9f0c3e:
+  cr:
+    apiVersion: firestartr.dev/v1
+    kind: FirestartrGithubGroup
+    metadata:
+      name: platform-team-7f3a2c1e-9b4d-4a6f-8c2e-1d5b7a9f0c3e
+      annotations: {}
+    spec:
+      org: firestartr-test
+  secret:
+    apiVersion: v1
+    kind: Secret
+    metadata:
+      name: firestartrgithubgroup-platform-team-7f3a2c1e-9b4d-4a6f-8c2e-1d5b7a9f0c3e-outputs
+    data:
+      outputs: eyJ0ZWFtX2lkIjoxOTY5OTU3MiwidGVhbV9zbHVnIjoicGxhdGZvcm0tdGVhbSJ9
 self-outputs:
   cr: null

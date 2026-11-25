@@ -28,8 +28,11 @@ spec:
           required_approving_review_count: 1
     bypass_actors:
       - actor_type: Team
-        actor_slug: platform-team
         bypass_mode: always
+        ref:
+          kind: FirestartrGithubGroup
+          name: platform-team-7f3a2c1e-9b4d-4a6f-8c2e-1d5b7a9f0c3e
+          needsSecret: true
   context:
     backend:
       ref:

@@ -26,14 +26,50 @@ export class EntityGHOrgRuleset extends Entity {
 
     this.assertProviderForOrg();
 
-    // spec.ruleset already has the shape of the module's config
     this.patchData({
       path: '/config',
       op: PatchOperations.replace,
-      value: this.cr.spec.ruleset,
+      value: this.rulesetConfig(),
     });
 
     log.debug(`[gh-provisioner] ${this.k8sId} loaded its data`);
+  }
+
+  // Team bypass actors reference a FirestartrGithubGroup CR instead of
+  // carrying a GitHub slug or a numeric id. The renderer resolved the claim to
+  // that CR, so this execution only needs to turn the ref into the team id the
+  // module expects. Resolving here makes a missing group or outputs secret
+  // fail before the plan instead of inside a Terraform data source.
+  private rulesetConfig(): any {
+    const ruleset = this.cr.spec.ruleset;
+
+    if (!ruleset.bypass_actors) return ruleset;
+
+    return {
+      ...ruleset,
+      bypass_actors: ruleset.bypass_actors.map((actor: any) => {
+        if (!actor.ref) return actor;
+
+        if (actor.actor_type !== 'Team') {
+          throw new Error(
+            `[gh-provisioner] ${this.k8sId}: ${actor.actor_type} bypass actors cannot reference another CR`,
+          );
+        }
+
+        if (actor.ref.kind !== 'FirestartrGithubGroup') {
+          throw new Error(
+            `[gh-provisioner] ${this.k8sId}: Team bypass actor references ${actor.ref.kind}/${actor.ref.name}; expected FirestartrGithubGroup`,
+          );
+        }
+
+        const { ref, ...rest } = actor;
+
+        return {
+          ...rest,
+          actor_id: this.requireOutput(ref, 'id'),
+        };
+      }),
+    };
   }
 
   async postProvision(tfOp: string): Promise<void> {}
