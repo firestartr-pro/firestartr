@@ -85,8 +85,9 @@ stale branch is never reused silently.
 - **Prefapp-owned file schemas** (claims, `.firestartr`, `state_apps_env.json`,
   and action schemas) come from `@firestartr/firestartr-claims_schemas` (see
   [ADR 0015](./0015-claim-schemas-from-npm-package.md)).
-- **Third-party CRDs** (ArgoCD `ApplicationSet` and `AppProject`) are vendored
-  at build time with a pinned version and refresh script.
+- **Third-party CRDs** (ArgoCD `ApplicationSet` and `AppProject`) are
+  committed under `schemas/vendor/` at a pinned version and refreshed with
+  `npm run refresh-vendor-schemas`.
 
 ## Alternatives considered
 
