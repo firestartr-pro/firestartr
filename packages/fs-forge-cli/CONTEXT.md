@@ -353,3 +353,41 @@ A YAML annotation (`firestartr.dev/last-state-pr: <repo>#<number>`) on
 rendered CRs in state repos. Points to the PR that last modified the CR.
 Used by `watch-checks --current` to find the reconciliation history of an
 already-hydrated claim.
+
+**App**:
+A deployable application unit. It has one `.firestartr/apps/<app>.yaml` entry,
+one per-app State repo (`app-<app>`), and one ArgoCD `ApplicationSet`.
+See [ADR 0016](./docs/adr/0016-app-command-group.md).
+_Avoid_: workload, microservice
+
+**Service**:
+The code repository (a `ComponentClaim`) that builds the container images an
+App deploys.
+_Avoid_: repo, application
+
+**Deployment target**:
+One `(platform, tenant, env)` combination of an App, paired with a cluster URL
+and a build track (`snapshots`, `pre-releases`, or `releases`).
+_Avoid_: environment, cluster target
+
+**Inputs file** (`AppInputs`):
+The YAML file validated against `schemas/AppInputs.json` that holds the
+resolved inputs shared by `fs-forge app plan` and `fs-forge app apply`.
+_Avoid_: app config, deploy manifest
+
+**App plan**:
+The read-only output of `fs-forge app plan`. It groups rendered files, diffs,
+checks, and conflicts into three ordered steps: step 1 (`claims`, one Claim PR
+per claim through the Provision workflow), step 2 (`.firestartr`, `app-<app>`,
+and `state-argocd` in parallel), and step 3 (the Service repo).
+
+**App apply**:
+The opt-in `fs-forge app apply` command that executes an App plan in step
+order. It provisions step 1 through the Provision workflow and opens, without
+merging, the pull requests for steps 2 and 3.
+
+**Head branch** (`fs-forge/app-<app>`):
+The branch name `fs-forge app apply` uses for pull requests it opens in steps 2
+and 3 (`.firestartr`, `app-<app>`, `state-argocd`, and the Service repo).
+Claims in step 1 use `fs-forge/<Kind>-<name>` instead.
+_Avoid_: app branch, deploy branch
