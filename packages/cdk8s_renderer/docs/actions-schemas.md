@@ -1,6 +1,6 @@
 # Action schemas
 
-The existing `@firestartr/firestartr-claims_schemas` artifact publishes five
+The existing `@firestartr/firestartr-claims_schemas` artifact publishes six
 draft 2020-12 schemas through `actions` and `actions/*`:
 
 ```ts
@@ -13,6 +13,7 @@ Individual files use `actions/<name>.schema.json`:
 | Name                    | Source under `src/schemas/`                  |
 | ----------------------- | -------------------------------------------- |
 | `config`                | `actions/config.schema.ts`                   |
+| `build-images`          | `actions/build_images.schema.ts`             |
 | `build-images-results`  | `actions/build_images_results.schema.ts`     |
 | `firestartr-apps`       | `dot-firestartr/apps.schema.ts`              |
 | `firestartr-platforms`  | `dot-firestartr/platforms.schema.ts`         |
@@ -51,3 +52,12 @@ The action baseline is `prefapp/action-make-state-repos-dispatches` commit
 Build results and registry configuration share `registry-host.ts`, including
 the no-port rationale. Build summaries allow arbitrary extra metadata.
 Migration of the action repository is separate from this publication change.
+
+The `build-images` baseline is `prefapp/firestarter-workflows` tag `v4.0.1`
+(commit `7699996256ee49b415f5b18c701861e041ddea2e`,
+`firestarter/workflows/build_images/resources/schema.json`). One difference
+applies:
+
+- `$schema` is updated from draft-07 (`http://json-schema.org/draft-07/schema#`)
+  to draft 2020-12 (`https://json-schema.org/draft/2020-12/schema`), with no
+  `$id` and no semantic changes to accepted or rejected documents.

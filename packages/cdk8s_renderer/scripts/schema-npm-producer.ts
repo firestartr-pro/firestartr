@@ -395,6 +395,7 @@ import { stateAppsEnv } from './dot-firestartr/index.mjs';
 import { schemas as actions } from './actions/index.mjs';
 const actionApps = actions['firestartr-apps'];
 const actionConfig = actions.config;
+const buildImages = actions['build-images'];
 const buildImagesResults = actions['build-images-results'];
 
 const claims = [
@@ -433,8 +434,8 @@ if (!validateStateAppsEnv({ chart: 'oci/org/app', version: '1.0.0' })) {
 const actionFiles = readdirSync('./actions')
   .filter((name) => name.endsWith('.schema.json'))
   .sort();
-if (actionFiles.length !== 5) {
-  console.error('expected 5 action schemas, got: ' + actionFiles.join(', '));
+if (actionFiles.length !== 6) {
+  console.error('expected 6 action schemas, got: ' + actionFiles.join(', '));
   process.exit(1);
 }
 for (const file of actionFiles) {
@@ -477,6 +478,19 @@ if (
   ])
 ) {
   console.error(validateBuild.errors);
+  process.exit(1);
+}
+const validateBuildImages = actionsAjv.compile(buildImages);
+if (
+  !validateBuildImages({
+    snapshots: {
+      default: {
+        dockerfile: 'Dockerfile',
+      },
+    },
+  })
+) {
+  console.error(validateBuildImages.errors);
   process.exit(1);
 }
 
