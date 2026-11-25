@@ -23,6 +23,7 @@ export {
   buildPlanJsonOutput,
   buildPlanSteps,
   collectPlanConflicts,
+  formatPlanChecksAndConflicts,
   formatPlanText,
   writePlanOutputFiles,
 } from './steps.js';

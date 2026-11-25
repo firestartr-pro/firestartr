@@ -1,25 +1,13 @@
 import { Command, Flags } from '@oclif/core';
 
+import { loadAppCommandInputs } from '../../app/commandInputs.js';
 import {
   buildPlanJsonOutput,
   formatPlanText,
   planApp,
   writePlanOutputFiles,
 } from '../../app/plan/index.js';
-import {
-  orgFromContext,
-  resolveClaimsRepository,
-} from '../../context/resolve.js';
 import { createGitHubApi } from '../../github/index.js';
-import { actionsSchemasDir } from '../../schema/actionsSchemas.js';
-import {
-  appInputsSchemaDir,
-  loadAppInputsFile,
-  validateAppInputs,
-} from '../../schema/appInputs.js';
-import { claimSchemasDir } from '../../schema/claimSchemas.js';
-import { dotFirestartrSchemasDir } from '../../schema/dotFirestartrSchemas.js';
-import { vendorSchemasDir } from '../../schema/vendorSchemas.js';
 import {
   createFeatureSource,
   DEFAULT_FEATURE_SOURCE,
@@ -72,55 +60,30 @@ export default class AppPlan extends Command {
   async run(): Promise<void> {
     const { flags } = await this.parse(AppPlan);
 
-    const schemasDir = appInputsSchemaDir(this.config.root);
-    const loaded = await loadAppInputsFile(flags.inputs, schemasDir);
-    if (!loaded.valid) {
-      this.error(`Invalid inputs file:\n${loaded.errors.join('\n')}`, {
-        exit: 2,
+    let loaded;
+    try {
+      loaded = await loadAppCommandInputs({
+        inputsPath: flags.inputs,
+        configRoot: this.config.root,
+        app: flags.app,
+        org: flags.org,
+        claimsRepo: flags['claims-repo'],
       });
+    } catch (error) {
+      const message = error instanceof Error ? error.message : String(error);
+      this.error(message, { exit: 2 });
     }
-
-    const inputs = {
-      ...loaded.data,
-      ...(flags.app !== undefined ? { app: flags.app } : {}),
-    };
-
-    if (flags.app !== undefined) {
-      const revalidated = validateAppInputs(inputs, schemasDir);
-      if (!revalidated.valid) {
-        this.error(
-          `Invalid --app value "${flags.app}":\n${revalidated.errors.join('\n')}`,
-          { exit: 2 },
-        );
-      }
-    }
-
-    const org =
-      flags.org ?? inputs.org ?? process.env.FSCRT_ORG ?? orgFromContext();
-    if (!org) {
-      this.error(
-        'Organization is required: pass --org, set "org" in the inputs file, set FSCRT_ORG, or configure a default org.',
-        { exit: 2 },
-      );
-    }
-
-    const claimsTarget = resolveClaimsRepository(org, flags['claims-repo']);
 
     let planResult;
     try {
       planResult = await planApp({
         api: createGitHubApi(),
         featureSource: createFeatureSource(DEFAULT_FEATURE_SOURCE),
-        inputs,
-        org,
+        inputs: loaded.inputs,
+        org: loaded.org,
         orgPlan: flags['org-plan'] as 'free' | 'paid' | undefined,
-        claimsRepoName: claimsTarget.repo,
-        schemaDirs: {
-          claimSchemasDir: claimSchemasDir(this.config.root),
-          dotFirestartrSchemasDir: dotFirestartrSchemasDir(this.config.root),
-          actionsSchemasDir: actionsSchemasDir(this.config.root),
-          vendorDir: vendorSchemasDir(this.config.root),
-        },
+        claimsRepoName: loaded.claimsRepoName,
+        schemaDirs: loaded.schemaDirs,
       });
     } catch (error) {
       const message = error instanceof Error ? error.message : String(error);

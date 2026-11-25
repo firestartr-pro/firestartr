@@ -246,6 +246,56 @@ function formatFileLine(file: PlanStepFile): string {
   }
 }
 
+export function formatPlanChecksAndConflicts(
+  output: AppPlanJsonOutput,
+): string {
+  const lines: string[] = [];
+
+  if (output.conflicts.length > 0) {
+    lines.push(`Conflicts (${output.conflicts.length}):`);
+    for (const conflict of output.conflicts) {
+      lines.push(`  - ${conflict.repo}:${conflict.path}: ${conflict.reason}`);
+    }
+    lines.push('');
+  }
+
+  lines.push('Checks:');
+  const failChecks = output.checks.filter((c) => c.status === 'fail');
+  const infoChecks = output.checks.filter((c) => c.status === 'info');
+  const passChecks = output.checks.filter((c) => c.status === 'pass');
+
+  for (const check of failChecks) {
+    lines.push(`  [fail] ${check.id}: ${check.message}`);
+  }
+  for (const check of infoChecks) {
+    lines.push(`  [info] ${check.id}: ${check.message}`);
+  }
+  lines.push(`  [pass] ${passChecks.length} passed`);
+
+  const checklistItems: string[] = [];
+  for (const check of output.checks) {
+    if (check.checklist) {
+      checklistItems.push(...check.checklist);
+    }
+  }
+  if (checklistItems.length > 0) {
+    lines.push('');
+    lines.push('Checklist:');
+    for (const item of checklistItems) {
+      lines.push(`  - ${item}`);
+    }
+  }
+
+  lines.push('');
+  lines.push(
+    output.ready
+      ? 'Ready: apply can run.'
+      : 'Not ready: resolve failing checks or conflicts before running apply.',
+  );
+
+  return lines.join('\n');
+}
+
 export function formatPlanText(output: AppPlanJsonOutput): string {
   const lines: string[] = [];
   lines.push(
@@ -289,48 +339,8 @@ export function formatPlanText(output: AppPlanJsonOutput): string {
     }
   }
 
-  if (output.conflicts.length > 0) {
-    lines.push('');
-    lines.push(`Conflicts (${output.conflicts.length}):`);
-    for (const conflict of output.conflicts) {
-      lines.push(`  - ${conflict.repo}:${conflict.path}: ${conflict.reason}`);
-    }
-  }
-
   lines.push('');
-  lines.push('Checks:');
-  const failChecks = output.checks.filter((c) => c.status === 'fail');
-  const infoChecks = output.checks.filter((c) => c.status === 'info');
-  const passChecks = output.checks.filter((c) => c.status === 'pass');
-
-  for (const check of failChecks) {
-    lines.push(`  [fail] ${check.id}: ${check.message}`);
-  }
-  for (const check of infoChecks) {
-    lines.push(`  [info] ${check.id}: ${check.message}`);
-  }
-  lines.push(`  [pass] ${passChecks.length} passed`);
-
-  const checklistItems: string[] = [];
-  for (const check of output.checks) {
-    if (check.checklist) {
-      checklistItems.push(...check.checklist);
-    }
-  }
-  if (checklistItems.length > 0) {
-    lines.push('');
-    lines.push('Checklist:');
-    for (const item of checklistItems) {
-      lines.push(`  - ${item}`);
-    }
-  }
-
-  lines.push('');
-  lines.push(
-    output.ready
-      ? 'Ready: apply can run.'
-      : 'Not ready: resolve failing checks or conflicts before running apply.',
-  );
+  lines.push(formatPlanChecksAndConflicts(output));
 
   return lines.join('\n');
 }

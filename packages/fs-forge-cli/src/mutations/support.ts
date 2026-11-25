@@ -53,29 +53,37 @@ export const MUTATION_CONTROL_FLAGS = {
   }),
 };
 
+function buildAuditTrailFlags(dependsOnCommit: boolean) {
+  const commitDep = dependsOnCommit ? { dependsOn: ['commit'] } : {};
+  return {
+    issue: Flags.integer({
+      description:
+        'Link the commit to an existing claims-repo issue (adds "Closes #N" to the claim PR)',
+      ...commitDep,
+      exclusive: ['create-issue'],
+    }),
+    'create-issue': Flags.boolean({
+      description:
+        'Open an issue in the claims repo before committing, then link it to the claim PR',
+      ...commitDep,
+      exclusive: ['issue'],
+    }),
+    'issue-title': Flags.string({
+      description: 'Title for the issue opened by --create-issue',
+      dependsOn: ['create-issue'],
+    }),
+    'issue-body': Flags.string({
+      description: 'Body for the issue opened by --create-issue',
+      dependsOn: ['create-issue'],
+    }),
+  };
+}
+
 /** The audit-trail flags every `--commit` command carries. */
-export const AUDIT_TRAIL_FLAGS = {
-  issue: Flags.integer({
-    description:
-      'Link the commit to an existing claims-repo issue (adds "Closes #N" to the claim PR)',
-    dependsOn: ['commit'],
-    exclusive: ['create-issue'],
-  }),
-  'create-issue': Flags.boolean({
-    description:
-      'Open an issue in the claims repo before committing, then link it to the claim PR',
-    dependsOn: ['commit'],
-    exclusive: ['issue'],
-  }),
-  'issue-title': Flags.string({
-    description: 'Title for the issue opened by --create-issue',
-    dependsOn: ['create-issue'],
-  }),
-  'issue-body': Flags.string({
-    description: 'Body for the issue opened by --create-issue',
-    dependsOn: ['create-issue'],
-  }),
-};
+export const AUDIT_TRAIL_FLAGS = buildAuditTrailFlags(true);
+
+/** The audit-trail flags for commands that always commit without a `--commit` flag. */
+export const STANDALONE_AUDIT_TRAIL_FLAGS = buildAuditTrailFlags(false);
 
 /** Maps the parsed `--issue*` flags onto the audit-trail options. */
 export function auditTrailOptions(flags: {
