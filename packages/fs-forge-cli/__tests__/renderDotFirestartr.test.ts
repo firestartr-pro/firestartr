@@ -294,4 +294,19 @@ describe('renderDotFirestartrApp', () => {
     expect(result.content).toContain('\r\n');
     expect(result.content).not.toMatch(/(?<!\r)\n/);
   });
+
+  it('leaves output as LF when merging into a mixed-EOL file', () => {
+    const existing =
+      'name: billing\r\nstate_repo: acme/app-billing\nservices:\n  - repo: acme/other-svc\n    service_names: [other-svc]\n';
+
+    const result = renderDotFirestartrApp({
+      org: 'acme',
+      inputs: baseInputs(),
+      schemasDir: SCHEMAS_DIR,
+      existingContent: existing,
+    });
+
+    expect(result.outcome.kind).toBe('merge');
+    expect(result.content).not.toContain('\r\n');
+  });
 });

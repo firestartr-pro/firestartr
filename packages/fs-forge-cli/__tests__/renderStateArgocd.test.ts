@@ -343,7 +343,7 @@ describe('renderStateArgocd', () => {
     expect(mergedProject.spec.destinations).toHaveLength(2);
   });
 
-  it('reports conflict when same cluster has a different URL', () => {
+  it('reports conflict on both ApplicationSet and AppProject when same cluster has a different URL', () => {
     const created = renderStateArgocd({
       org: 'acme',
       inputs: baseInputs(),
@@ -378,10 +378,62 @@ describe('renderStateArgocd', () => {
 
     expect(conflict.applicationSet.outcome.kind).toBe('conflict');
     expect(conflict.applicationSet.content).toBeUndefined();
-    expect(conflict.appProject.outcome).toEqual({
+    expect(conflict.appProject.outcome.kind).toBe('conflict');
+    expect(conflict.appProject.content).toBeUndefined();
+  });
+
+  it('merges a second cluster for an existing env when inputs list only the new cluster', () => {
+    const created = renderStateArgocd({
+      org: 'acme',
+      inputs: baseInputs(),
+      platforms,
+      vendorDir: VENDOR_DIR,
+    });
+
+    const merged = renderStateArgocd({
+      org: 'acme',
+      inputs: baseInputs({
+        targets: [
+          {
+            platform: 'example-dev-b',
+            tenant: 'example-team',
+            env: 'dev',
+            cluster_url: 'https://eks-dev-b.example.com',
+            track: 'snapshots',
+          },
+        ],
+      }),
+      platforms,
+      vendorDir: VENDOR_DIR,
+      existingApplicationSet: {
+        path: created.applicationSet.path,
+        content: created.applicationSet.content ?? '',
+      },
+      existingAppProject: {
+        path: created.appProject.path,
+        content: created.appProject.content ?? '',
+      },
+    });
+
+    expect(merged.applicationSet.outcome).toEqual({
+      kind: 'merge',
+      added: ['value:example-dev-b'],
+    });
+    expect(merged.appProject.outcome).toEqual({
       kind: 'merge',
       added: ['destination:example-team-billing-dev'],
     });
+    const mergedProject = YAML.parse(merged.appProject.content ?? '');
+    expect(mergedProject.spec.destinations).toEqual([
+      {
+        namespace: 'example-team-billing-dev',
+        server: 'https://eks-dev.example.com',
+      },
+      {
+        namespace: 'example-team-billing-dev',
+        server: 'https://eks-dev-b.example.com',
+      },
+    ]);
   });
 
   it('reports conflict on mismatched kind, repoURL, project, or label', () => {
@@ -713,5 +765,59 @@ describe('renderStateArgocd', () => {
     expect(merged.appProject.outcome.kind).toBe('merge');
     expect(merged.appProject.content).toContain('\r\n');
     expect(merged.appProject.content).not.toMatch(/(?<!\r)\n/);
+  });
+
+  it('leaves output as LF when existing files have mixed line endings', () => {
+    const created = renderStateArgocd({
+      org: 'acme',
+      inputs: baseInputs(),
+      platforms,
+      vendorDir: VENDOR_DIR,
+    });
+    const mixedAppSet = (created.applicationSet.content ?? '').replace(
+      '\n',
+      '\r\n',
+    );
+    const mixedProject = (created.appProject.content ?? '').replace(
+      '\n',
+      '\r\n',
+    );
+
+    const merged = renderStateArgocd({
+      org: 'acme',
+      inputs: baseInputs({
+        targets: [
+          {
+            platform: 'example-dev',
+            tenant: 'example-team',
+            env: 'dev',
+            cluster_url: 'https://eks-dev.example.com',
+            track: 'snapshots',
+          },
+          {
+            platform: 'example-prod',
+            tenant: 'example-team',
+            env: 'pro',
+            cluster_url: 'https://eks-prod.example.com',
+            track: 'releases',
+          },
+        ],
+      }),
+      platforms,
+      vendorDir: VENDOR_DIR,
+      existingApplicationSet: {
+        path: created.applicationSet.path,
+        content: mixedAppSet,
+      },
+      existingAppProject: {
+        path: created.appProject.path,
+        content: mixedProject,
+      },
+    });
+
+    expect(merged.applicationSet.outcome.kind).toBe('merge');
+    expect(merged.applicationSet.content).not.toContain('\r\n');
+    expect(merged.appProject.outcome.kind).toBe('merge');
+    expect(merged.appProject.content).not.toContain('\r\n');
   });
 });
