@@ -323,21 +323,48 @@ export async function applyApp(
             number: existingPr.number,
             url: existingPr.htmlUrl,
           };
+          const plannedFiles = entry.files.filter(
+            (file) =>
+              (file.outcome.kind === 'create' ||
+                file.outcome.kind === 'merge') &&
+              file.content !== undefined,
+          );
+          const plannedPaths = new Set(plannedFiles.map((file) => file.path));
+          const prFiles = await api.listPullRequestFiles(
+            ref,
+            existingPr.number,
+          );
+          const extraPaths = prFiles
+            .map((file) => file.filename)
+            .filter((filename) => !plannedPaths.has(filename));
+          if (extraPaths.length > 0) {
+            const reason = `Open PR ${entry.repo}#${existingPr.number} (${existingPr.htmlUrl}) touches files outside the current plan: ${extraPaths.join(', ')}. Update or close the PR before applying again.`;
+            stepRepos.push({
+              repo: entry.repo,
+              branch: entry.headBranch,
+              pr,
+              state: 'failed',
+              reason,
+            });
+            return {
+              outcome: 'failed',
+              steps,
+              ...(auditIssue ? { auditIssue } : {}),
+              reason,
+            };
+          }
+
           const mismatched: string[] = [];
-          for (const file of entry.files) {
-            if (
-              (file.outcome.kind !== 'create' &&
-                file.outcome.kind !== 'merge') ||
-              file.content === undefined
-            ) {
-              continue;
-            }
+          for (const file of plannedFiles) {
             const onBranch = await api.readFile(
               ref,
               file.path,
               entry.headBranch,
             );
-            if (!onBranch || onBranch.content !== file.content) {
+            if (
+              !onBranch ||
+              normalizeEol(onBranch.content) !== normalizeEol(file.content!)
+            ) {
               mismatched.push(file.path);
             }
           }
@@ -500,4 +527,8 @@ export async function applyApp(
     steps,
     ...(auditIssue ? { auditIssue } : {}),
   };
+}
+
+function normalizeEol(content: string): string {
+  return content.replace(/\r\n/g, '\n');
 }
