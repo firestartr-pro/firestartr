@@ -22,6 +22,11 @@ export interface ExistingNamedFile {
   content: string;
 }
 
+export interface ArgocdFileConflict {
+  path: string;
+  reason: string;
+}
+
 export interface ExistingStateAppClaim {
   path: string;
   content: string;
@@ -57,6 +62,9 @@ export interface ResolvedPlanContext {
   existingDotFirestartrApp?: string;
   existingArgocdApplicationSet?: ExistingNamedFile;
   existingArgocdAppProject?: ExistingNamedFile;
+  argocdParseErrors?: ArgocdFileConflict[];
+  duplicateArgocdApplicationSets?: string[];
+  duplicateArgocdAppProjects?: string[];
   /** Map of relative path -> content for existing target files in `app-<app>`. */
   existingStateAppFiles: Record<string, string>;
   existingMakeDispatches?: string;

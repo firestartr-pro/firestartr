@@ -12,6 +12,7 @@ import { isRecord } from '../../utils/isRecord.js';
 import { parseRepoSlug, readDotFirestartr } from '../dotFirestartr.js';
 
 import type {
+  ArgocdFileConflict,
   ExistingNamedFile,
   ExistingStateAppClaim,
   ResolvedPlanContext,
@@ -40,6 +41,8 @@ export interface ResolvePlanOptions {
   inputs: AppInputs;
   /** Org override (from `--org` flag or context resolution). */
   org?: string;
+  /** Override GitHub org plan detection (`--org-plan`). */
+  orgPlan?: 'free' | 'paid';
   claimsRepoName?: string;
 }
 
@@ -83,8 +86,18 @@ function extractDefaultFilters(
 function parseServiceClaimDefaults(
   content: string,
   fallbackOrg: string,
+  repoSlug: string,
+  claimPath: string,
 ): ServiceClaimDefaults {
-  const parsed: unknown = YAML.parse(content);
+  let parsed: unknown;
+  try {
+    parsed = YAML.parse(content);
+  } catch (error) {
+    const detail = error instanceof Error ? error.message : String(error);
+    throw new Error(
+      `Failed to parse Service ComponentClaim in ${repoSlug} (${claimPath}): ${detail}`,
+    );
+  }
   if (!isRecord(parsed)) {
     return { githubOrg: fallbackOrg };
   }
@@ -142,13 +155,21 @@ async function readExistingArgocdFiles(
 ): Promise<{
   applicationSet?: ExistingNamedFile;
   appProject?: ExistingNamedFile;
+  parseErrors: ArgocdFileConflict[];
+  duplicateApplicationSets: string[];
+  duplicateAppProjects: string[];
 }> {
   const ref: RepoRef = { owner: org, repo: 'state-argocd' };
+  const empty = {
+    parseErrors: [] as ArgocdFileConflict[],
+    duplicateApplicationSets: [] as string[],
+    duplicateAppProjects: [] as string[],
+  };
   let defaultBranch: string;
   try {
     defaultBranch = await api.getDefaultBranch(ref);
   } catch (error) {
-    if (isNotFoundError(error)) return {};
+    if (isNotFoundError(error)) return empty;
     throw error;
   }
 
@@ -156,7 +177,7 @@ async function readExistingArgocdFiles(
   try {
     paths = await api.listBlobPaths(ref, defaultBranch);
   } catch (error) {
-    if (isNotFoundError(error)) return {};
+    if (isNotFoundError(error)) return empty;
     throw error;
   }
 
@@ -169,29 +190,58 @@ async function readExistingArgocdFiles(
     .sort();
 
   const expectedName = `app-${app}`;
-  let applicationSet: ExistingNamedFile | undefined;
-  let appProject: ExistingNamedFile | undefined;
+  const applicationSets: ExistingNamedFile[] = [];
+  const appProjects: ExistingNamedFile[] = [];
+  const parseErrors: ArgocdFileConflict[] = [];
 
   for (const filePath of yamlPaths) {
     const file = await api.readFile(ref, filePath, defaultBranch);
     if (!file) continue;
-    let parsed: unknown;
-    try {
-      parsed = YAML.parse(file.content);
-    } catch {
+    const docs = YAML.parseAllDocuments(file.content);
+    if (docs.length > 1) {
+      parseErrors.push({
+        path: filePath,
+        reason:
+          'Multi-document YAML is not supported (expected a single document)',
+      });
       continue;
     }
-    if (!isRecord(parsed)) continue;
+    if (docs.length === 0) continue;
+    const doc = docs[0];
+    if (doc.errors.length > 0) {
+      parseErrors.push({
+        path: filePath,
+        reason: `Malformed YAML: ${doc.errors[0].message}`,
+      });
+      continue;
+    }
+    const parsed: unknown = doc.toJS();
+    if (!isRecord(parsed)) {
+      parseErrors.push({
+        path: filePath,
+        reason: 'Expected a YAML mapping',
+      });
+      continue;
+    }
     const meta = isRecord(parsed.metadata) ? parsed.metadata : undefined;
     if (meta?.name !== expectedName) continue;
-    if (parsed.kind === 'ApplicationSet' && !applicationSet) {
-      applicationSet = { path: filePath, content: file.content };
-    } else if (parsed.kind === 'AppProject' && !appProject) {
-      appProject = { path: filePath, content: file.content };
+    if (parsed.kind === 'ApplicationSet') {
+      applicationSets.push({ path: filePath, content: file.content });
+    } else if (parsed.kind === 'AppProject') {
+      appProjects.push({ path: filePath, content: file.content });
     }
   }
 
-  return { applicationSet, appProject };
+  return {
+    applicationSet:
+      applicationSets.length === 1 ? applicationSets[0] : undefined,
+    appProject: appProjects.length === 1 ? appProjects[0] : undefined,
+    parseErrors,
+    duplicateApplicationSets:
+      applicationSets.length > 1 ? applicationSets.map((f) => f.path) : [],
+    duplicateAppProjects:
+      appProjects.length > 1 ? appProjects.map((f) => f.path) : [],
+  };
 }
 
 async function readExistingStateAppFiles(
@@ -260,10 +310,15 @@ export async function resolvePlanContext(
     existingArgocd,
     existingStateAppFiles,
   ] = await Promise.all([
-    loadClaimsMap(cRepo),
+    loadClaimsMap(cRepo).catch((error: unknown) => {
+      const detail = error instanceof Error ? error.message : String(error);
+      throw new Error(
+        `Invalid claims-map.json in ${org}/${claimsRepoName} (claims-map.json): ${detail}`,
+      );
+    }),
     featureSource.readFeatureIndex(),
     readDotFirestartr(api, org, inputs.app),
-    api.getOrgPlan(org),
+    options.orgPlan ? Promise.resolve(options.orgPlan) : api.getOrgPlan(org),
     api.getDefaultBranch(serviceRepoRef),
     readFileFromDefaultBranch(
       api,
@@ -285,6 +340,8 @@ export async function resolvePlanContext(
   const serviceClaimDefaults = parseServiceClaimDefaults(
     serviceClaim.content,
     org,
+    `${org}/${claimsRepoName}`,
+    serviceClaim.filePath,
   );
 
   // Resolve existing app-<app> ComponentClaim if present.
@@ -383,6 +440,9 @@ export async function resolvePlanContext(
     existingDotFirestartrApp,
     existingArgocdApplicationSet: existingArgocd.applicationSet,
     existingArgocdAppProject: existingArgocd.appProject,
+    argocdParseErrors: existingArgocd.parseErrors,
+    duplicateArgocdApplicationSets: existingArgocd.duplicateApplicationSets,
+    duplicateArgocdAppProjects: existingArgocd.duplicateAppProjects,
     existingStateAppFiles,
     existingMakeDispatches: makeDispatchesFile?.content,
     existingBuildImages: buildImagesFile?.content,

@@ -819,7 +819,7 @@ describe('app plan (resolve, render, checks)', () => {
 
   it('reports conflict naming the file when state-argocd YAML is corrupt or multi-document', async () => {
     for (const [label, content] of [
-      ['corrupt', '::: not yaml [ ['],
+      ['corrupt', 'a: [\n  invalid: yaml: : :'],
       [
         'multidoc',
         `${YAML.stringify({ kind: 'ApplicationSet', metadata: { name: 'app-payments' } })}---\n${YAML.stringify({ kind: 'AppProject', metadata: { name: 'app-payments' } })}`,
@@ -827,6 +827,7 @@ describe('app plan (resolve, render, checks)', () => {
     ] as const) {
       const api = new MemoryGitHubApi();
       seedBaseRepos(api, { orgPlan: 'paid' });
+      api.setBlobPaths(STATE_ARGOCD_REPO, ['apps/payments/x.yaml']);
       api.setFile(STATE_ARGOCD_REPO, 'apps/payments/x.yaml', content);
 
       const result = await planApp({
@@ -850,6 +851,10 @@ describe('app plan (resolve, render, checks)', () => {
   it('reports conflict naming every file when state-argocd has duplicate kind and metadata.name', async () => {
     const api = new MemoryGitHubApi();
     seedBaseRepos(api, { orgPlan: 'paid' });
+    api.setBlobPaths(STATE_ARGOCD_REPO, [
+      'apps/payments/a.yaml',
+      'apps/payments/b.yaml',
+    ]);
     api.setFile(
       STATE_ARGOCD_REPO,
       'apps/payments/a.yaml',

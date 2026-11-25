@@ -176,10 +176,10 @@ function checkVarsAndSecrets(context: ResolvedPlanContext): PlanCheck[] {
     return [
       {
         id: 'vars-and-secrets',
-        status: 'info',
-        message: `Could not detect GitHub plan for org "${context.org}" (API returned 403 or omitted plan). Ask an org owner to confirm whether the org is on a free or paid plan.`,
+        status: 'fail',
+        message: `Could not detect GitHub plan for org "${context.org}" (API returned 403 or omitted plan). Rendered files assume a paid plan; ask an org owner to confirm whether the org is on a free or paid plan and re-run with --org-plan.`,
         checklist: [
-          `Confirm GitHub plan for org "${context.org}" with an org owner.`,
+          `Ask an org owner to confirm whether "${context.org}" is on a free or paid GitHub plan, then re-run with --org-plan.`,
         ],
       },
     ];
@@ -244,37 +244,75 @@ function checkVarsAndSecrets(context: ResolvedPlanContext): PlanCheck[] {
     }
   }
 
-  // For app-<app>, core six are rendered automatically on a free plan; registry/cloud vars are copied from Service claim.
-  // If an existing app-<app> claim already has them, count that too.
-  const stateAppEntries = context.existingStateAppClaim
-    ? extractClaimVarsAndSecrets(context.existingStateAppClaim.content)
-    : { vars: new Map<string, string>(), secrets: new Map<string, string>() };
+  if (context.existingStateAppClaim) {
+    // Existing app-<app> claim is not edited for vars/secrets on a free plan:
+    // check every needed state-app var and secret against the existing app claim itself.
+    const stateAppEntries = extractClaimVarsAndSecrets(
+      context.existingStateAppClaim.content,
+    );
+    const neededStateAppVars = [
+      ...new Set([
+        ...CORE_STATE_APP_VAR_NAMES,
+        ...stateAppRegistryRequired.vars,
+      ]),
+    ];
+    const neededStateAppSecrets = [
+      ...new Set([
+        ...CORE_STATE_APP_SECRET_NAMES,
+        ...stateAppRegistryRequired.secrets,
+      ]),
+    ];
 
-  for (const name of stateAppRegistryRequired.vars) {
-    if (!serviceEntries.vars.has(name) && !stateAppEntries.vars.has(name)) {
-      checks.push({
-        id: `vars-state-app-${name}`,
-        status: 'fail',
-        message: `Missing Actions var "${name}" needed for app-${context.inputs.app} (not found on Service claim "${context.serviceRepoName}").`,
-        checklist: [
-          `Supply Actions var "${name}" for app-${context.inputs.app}.`,
-        ],
-      });
+    for (const name of neededStateAppVars) {
+      if (!stateAppEntries.vars.has(name)) {
+        checks.push({
+          id: `vars-state-app-${name}`,
+          status: 'fail',
+          message: `Missing Actions var "${name}" on existing ComponentClaim "app-${context.inputs.app}".`,
+          checklist: [
+            `Add Actions var "${name}" to ${context.existingStateAppClaim.path}.`,
+          ],
+        });
+      }
     }
-  }
-  for (const name of stateAppRegistryRequired.secrets) {
-    if (
-      !serviceEntries.secrets.has(name) &&
-      !stateAppEntries.secrets.has(name)
-    ) {
-      checks.push({
-        id: `secrets-state-app-${name}`,
-        status: 'fail',
-        message: `Missing Actions secret "${name}" needed for app-${context.inputs.app} (not found on Service claim "${context.serviceRepoName}").`,
-        checklist: [
-          `Supply Actions secret "${name}" for app-${context.inputs.app}.`,
-        ],
-      });
+    for (const name of neededStateAppSecrets) {
+      if (!stateAppEntries.secrets.has(name)) {
+        checks.push({
+          id: `secrets-state-app-${name}`,
+          status: 'fail',
+          message: `Missing Actions secret "${name}" on existing ComponentClaim "app-${context.inputs.app}".`,
+          checklist: [
+            `Add Actions secret "${name}" to ${context.existingStateAppClaim.path}.`,
+          ],
+        });
+      }
+    }
+  } else {
+    // Creating app-<app>: core six are rendered automatically on a free plan;
+    // registry/cloud vars are copied from the Service claim.
+    for (const name of stateAppRegistryRequired.vars) {
+      if (!serviceEntries.vars.has(name)) {
+        checks.push({
+          id: `vars-state-app-${name}`,
+          status: 'fail',
+          message: `Missing Actions var "${name}" needed for app-${context.inputs.app} (not found on Service claim "${context.serviceRepoName}").`,
+          checklist: [
+            `Supply Actions var "${name}" for app-${context.inputs.app}.`,
+          ],
+        });
+      }
+    }
+    for (const name of stateAppRegistryRequired.secrets) {
+      if (!serviceEntries.secrets.has(name)) {
+        checks.push({
+          id: `secrets-state-app-${name}`,
+          status: 'fail',
+          message: `Missing Actions secret "${name}" needed for app-${context.inputs.app} (not found on Service claim "${context.serviceRepoName}").`,
+          checklist: [
+            `Supply Actions secret "${name}" for app-${context.inputs.app}.`,
+          ],
+        });
+      }
     }
   }
 
