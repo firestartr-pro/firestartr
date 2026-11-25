@@ -4,12 +4,15 @@ import { join } from 'path';
 
 import {
   appPlanHeadBranch,
+  buildPlanJsonOutput,
   buildPlanSteps,
+  formatPlanText,
   writePlanOutputFiles,
   type AppPlanResult,
   type PlanStep,
   type ResolvedPlanContext,
 } from '../src/app/plan/index.js';
+import { claimBranchName } from '../src/claims/claimsRepo.js';
 import type { RenderedFile } from '../src/app/render/index.js';
 
 function makeContext(
@@ -130,17 +133,35 @@ describe('buildPlanSteps', () => {
     const head = appPlanHeadBranch('payments');
     expect(head).toBe('fs-forge/app-payments');
 
-    // Step 1: claims
+    // Step 1: claims (one entry per claim, app-<app> first then service)
     expect(steps[0].step).toBe(1);
     expect(steps[0].parallel).toBe(false);
     expect(steps[0].satisfied).toBe(false);
-    expect(steps[0].waitFor).toBe('merged, checks green, provisioned');
-    expect(steps[0].repos).toHaveLength(1);
-    expect(steps[0].repos[0].repo).toBe('acme/claims');
-    expect(steps[0].repos[0].baseBranch).toBe('main');
-    expect(steps[0].repos[0].headBranch).toBe(head);
-    expect(steps[0].repos[0].prTitle).toBeTruthy();
+    expect(steps[0].waitFor).toBe('each claim provisioned before the next');
+    expect(steps[0].repos).toHaveLength(2);
+    expect(steps[0].repos[0]).toMatchObject({
+      repo: 'acme/claims',
+      baseBranch: 'main',
+      headBranch: claimBranchName('ComponentClaim', 'app-payments'),
+      prTitle: 'ci: provision claim ComponentClaim/app-payments',
+      hasChanges: true,
+      claim: { kind: 'ComponentClaim', name: 'app-payments', hydrate: true },
+    });
+    expect(steps[0].repos[0].files).toHaveLength(1);
+    expect(steps[0].repos[0].files[0].path).toBe('components/app-payments.yaml');
     expect(steps[0].repos[0].files[0].content).toBe('k: v\n');
+
+    expect(steps[0].repos[1]).toMatchObject({
+      repo: 'acme/claims',
+      baseBranch: 'main',
+      headBranch: claimBranchName('ComponentClaim', 'payments-api'),
+      prTitle: 'ci: provision claim ComponentClaim/payments-api',
+      hasChanges: true,
+      claim: { kind: 'ComponentClaim', name: 'payments-api', hydrate: true },
+    });
+    expect(steps[0].repos[1].files).toHaveLength(1);
+    expect(steps[0].repos[1].files[0].path).toBe('components/payments-api.yaml');
+    expect(steps[0].repos[1].files[0].content).toBe('k: v\n');
 
     // Step 2: parallel (.firestartr, app-<app>, state-argocd)
     expect(steps[1].step).toBe(2);
@@ -191,11 +212,17 @@ describe('buildPlanSteps', () => {
       }),
     );
 
-    // Step 1 has 1 noop + 1 merge -> PR needed, noop file omits content
+    // Step 1 has 1 noop claim + 1 changed claim -> only the changed claim has a PR
     expect(steps[0].satisfied).toBe(false);
-    expect(steps[0].repos[0].hasChanges).toBe(true);
+    expect(steps[0].repos).toHaveLength(2);
+    expect(steps[0].repos[0].hasChanges).toBe(false);
+    expect(steps[0].repos[0].prTitle).toBeUndefined();
     expect(steps[0].repos[0].files[0].content).toBeUndefined();
-    expect(steps[0].repos[0].files[1].content).toBe('k: v\n');
+    expect(steps[0].repos[1].hasChanges).toBe(true);
+    expect(steps[0].repos[1].prTitle).toBe(
+      'ci: provision claim ComponentClaim/payments-api',
+    );
+    expect(steps[0].repos[1].files[0].content).toBe('k: v\n');
 
     // Step 2: .firestartr has no PR, others do
     expect(steps[1].satisfied).toBe(false);
@@ -257,6 +284,32 @@ describe('buildPlanSteps', () => {
     expect(steps[1].repos[1].hasChanges).toBe(true);
     expect(steps[1].repos[2].hasChanges).toBe(false);
     expect(steps[2].satisfied).toBe(true);
+  });
+
+  it('formats step 1 text output with per-claim branch, PR title, hydration, and waitFor', () => {
+    const json = buildPlanJsonOutput(
+      makePlanResult({
+        claims: [
+          createFile('components/app-payments.yaml'),
+          noopFile('components/payments-api.yaml'),
+        ],
+        dotFirestartr: [noopFile('apps/payments.yaml')],
+        stateApp: [noopFile('kubernetes/eks-main/core/dev.yaml')],
+        stateArgocd: [noopFile('apps/payments/argo-payments.ApplicationSet.yaml')],
+        service: [noopFile('.github/make_dispatches.yaml')],
+      }),
+    );
+
+    const text = formatPlanText(json);
+    expect(text).toContain(
+      'acme/claims (main <- fs-forge/ComponentClaim-app-payments) — PR: ci: provision claim ComponentClaim/app-payments (hydrates)',
+    );
+    expect(text).toContain(
+      'acme/claims (main) [ComponentClaim/payments-api]: nothing to change',
+    );
+    expect(text).toContain(
+      'Wait for: each claim provisioned before the next',
+    );
   });
 });
 

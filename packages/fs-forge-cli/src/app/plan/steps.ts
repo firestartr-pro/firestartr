@@ -1,9 +1,19 @@
 import { lstat, mkdir, realpath, writeFile } from 'fs/promises';
 import { dirname, isAbsolute, resolve, sep } from 'path';
 
+import { claimBranchName } from '../../claims/claimsRepo.js';
+import { KIND_REGISTRY } from '../../claims/kindRegistry.js';
+
 import type { AppPlanResult, PlanCheck } from './types.js';
+import type { ClaimKindName } from '../../claims/kinds.js';
 import type { OrgPlan } from '../../github/api.js';
 import type { RenderOutcome, RenderedFile } from '../render/index.js';
+
+export interface PlanClaimInfo {
+  kind: ClaimKindName;
+  name: string;
+  hydrate: boolean;
+}
 
 export interface PlanStepFile {
   path: string;
@@ -21,6 +31,7 @@ export interface PlanRepoEntry {
   prTitle?: string;
   hasChanges: boolean;
   summary: string;
+  claim?: PlanClaimInfo;
 }
 
 export interface PlanStep {
@@ -70,9 +81,11 @@ function buildRepoEntry(params: {
   headBranch: string;
   files: RenderedFile[];
   prTitle: string;
+  claim?: PlanClaimInfo;
 }): PlanRepoEntry {
   const stepFiles = params.files.map(toPlanStepFile);
   const allNoop = stepFiles.every((f) => f.outcome.kind === 'noop');
+  const claimField = params.claim ? { claim: params.claim } : {};
   if (allNoop) {
     return {
       repo: params.repo,
@@ -81,6 +94,7 @@ function buildRepoEntry(params: {
       files: stepFiles,
       hasChanges: false,
       summary: 'nothing to change',
+      ...claimField,
     };
   }
   return {
@@ -91,6 +105,7 @@ function buildRepoEntry(params: {
     prTitle: params.prTitle,
     hasChanges: true,
     summary: params.prTitle,
+    ...claimField,
   };
 }
 
@@ -101,12 +116,22 @@ export function buildPlanSteps(result: AppPlanResult): PlanStep[] {
   const headBranch = appPlanHeadBranch(app);
   const { defaultBranches } = context;
 
-  const claimsEntry = buildRepoEntry({
-    repo: `${org}/${context.claimsRepoName}`,
-    baseBranch: defaultBranches.claims,
-    headBranch,
-    files: files.claims,
-    prTitle: `feat(app): configure ${app} claims`,
+  const claimsEntries: PlanRepoEntry[] = files.claims.map((file, index) => {
+    const kind: ClaimKindName = 'ComponentClaim';
+    const isServiceClaim =
+      files.claims.length === 1
+        ? file.path === context.serviceClaimPath
+        : index === 1;
+    const name = isServiceClaim ? context.serviceRepoName : `app-${app}`;
+    const hydrate = KIND_REGISTRY[kind]?.catalogOnly !== true;
+    return buildRepoEntry({
+      repo: `${org}/${context.claimsRepoName}`,
+      baseBranch: defaultBranches.claims,
+      headBranch: claimBranchName(kind, name),
+      files: [file],
+      prTitle: `ci: provision claim ${kind}/${name}`,
+      claim: { kind, name, hydrate },
+    });
   });
 
   const dotFirestartrEntry = buildRepoEntry({
@@ -141,7 +166,7 @@ export function buildPlanSteps(result: AppPlanResult): PlanStep[] {
     prTitle: `feat(app): configure ${app} dispatches`,
   });
 
-  const step1Satisfied = !claimsEntry.hasChanges;
+  const step1Satisfied = claimsEntries.every((r) => !r.hasChanges);
   const step2Repos = [dotFirestartrEntry, stateAppEntry, stateArgocdEntry];
   const step2Satisfied = step2Repos.every((r) => !r.hasChanges);
   const step3Satisfied = !serviceEntry.hasChanges;
@@ -150,10 +175,10 @@ export function buildPlanSteps(result: AppPlanResult): PlanStep[] {
     {
       step: 1,
       parallel: false,
-      repos: [claimsEntry],
+      repos: claimsEntries,
       ...(step1Satisfied
         ? {}
-        : { waitFor: 'merged, checks green, provisioned' }),
+        : { waitFor: 'each claim provisioned before the next' }),
       satisfied: step1Satisfied,
     },
     {
@@ -239,10 +264,18 @@ export function formatPlanText(output: AppPlanJsonOutput): string {
     }
     for (const repo of step.repos) {
       if (!repo.hasChanges) {
-        lines.push(`  - ${repo.repo} (${repo.baseBranch}): nothing to change`);
-      } else {
+        const claimLabel = repo.claim
+          ? ` [${repo.claim.kind}/${repo.claim.name}]`
+          : '';
         lines.push(
-          `  - ${repo.repo} (${repo.baseBranch} <- ${repo.headBranch}) — PR: ${repo.prTitle}`,
+          `  - ${repo.repo} (${repo.baseBranch})${claimLabel}: nothing to change`,
+        );
+      } else {
+        const hydrateSuffix = repo.claim
+          ? ` (${repo.claim.hydrate ? 'hydrates' : 'catalog-only'})`
+          : '';
+        lines.push(
+          `  - ${repo.repo} (${repo.baseBranch} <- ${repo.headBranch}) — PR: ${repo.prTitle}${hydrateSuffix}`,
         );
       }
       for (const file of repo.files) {

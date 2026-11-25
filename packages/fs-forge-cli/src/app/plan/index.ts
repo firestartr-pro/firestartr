@@ -28,6 +28,7 @@ export {
 } from './steps.js';
 export type {
   AppPlanJsonOutput,
+  PlanClaimInfo,
   PlanConflict,
   PlanRepoEntry,
   PlanStep,

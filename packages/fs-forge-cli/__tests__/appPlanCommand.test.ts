@@ -237,10 +237,22 @@ describe('fs-forge app plan command', () => {
     expect(parsed.ready).toBe(true);
     expect(parsed.conflicts).toEqual([]);
     expect(parsed.steps).toHaveLength(3);
-    expect(parsed.steps[0].repos[0].headBranch).toBe('fs-forge/app-payments');
+    expect(parsed.steps[0].repos).toHaveLength(2);
+    expect(parsed.steps[0].repos[0].headBranch).toBe(
+      'fs-forge/ComponentClaim-app-payments',
+    );
+    expect(parsed.steps[0].repos[0].claim).toEqual({
+      kind: 'ComponentClaim',
+      name: 'app-payments',
+      hydrate: true,
+    });
+    expect(parsed.steps[0].repos[1].headBranch).toBe(
+      'fs-forge/ComponentClaim-payments-api',
+    );
     expect(parsed.steps[0].repos[0].files[0].content).toEqual(
       expect.any(String),
     );
+    expect(parsed.steps[1].repos[0].headBranch).toBe('fs-forge/app-payments');
     expect(parsed.checks.length).toBeGreaterThan(0);
     // Read-only: never mutates GitHub
     expect(api.committed).toHaveLength(0);
@@ -349,7 +361,10 @@ describe('fs-forge app plan command', () => {
     expect(parsed.org).toBe(overrideOrg);
     expect(parsed.app).toBe('billing');
     expect(parsed.orgPlan).toBe('paid');
-    expect(parsed.steps[0].repos[0].headBranch).toBe('fs-forge/app-billing');
+    expect(parsed.steps[0].repos[0].headBranch).toBe(
+      'fs-forge/ComponentClaim-app-billing',
+    );
+    expect(parsed.steps[1].repos[0].headBranch).toBe('fs-forge/app-billing');
   });
 
   it('exits with code 2 on an invalid inputs file', async () => {
