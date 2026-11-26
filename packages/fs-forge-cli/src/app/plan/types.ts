@@ -42,6 +42,12 @@ export interface PlanDefaultBranches {
   service: string;
 }
 
+export interface PlanTargetRepo {
+  exists: boolean;
+  /** True when the repository is read-only because GitHub archived it. */
+  archived: boolean;
+}
+
 export interface ResolvedPlanContext {
   org: string;
   claimsRepoName: string;
@@ -51,10 +57,10 @@ export interface ResolvedPlanContext {
   serviceRepoOwner: string;
   serviceRepoName: string;
   defaultBranches: PlanDefaultBranches;
-  repoExists: {
-    dotFirestartr: boolean;
-    stateArgocd: boolean;
-    service: boolean;
+  repoState: {
+    dotFirestartr: PlanTargetRepo;
+    stateArgocd: PlanTargetRepo;
+    service: PlanTargetRepo;
   };
   serviceClaimPath: string;
   serviceClaimContent: string;

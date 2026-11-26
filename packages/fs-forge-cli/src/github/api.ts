@@ -26,6 +26,13 @@ export interface RepoFile {
   sha: string;
 }
 
+/** A repository as one lookup reports it. */
+export interface RepoState {
+  defaultBranch: string;
+  /** True when GitHub reports the repository as archived, which makes it read-only. */
+  archived: boolean;
+}
+
 export interface PullRequestSummary {
   number: number;
   htmlUrl: string;
@@ -73,6 +80,8 @@ export interface GitHubApi {
   listBlobPaths(ref: RepoRef, gitRef: string): Promise<string[]>;
   downloadTarball(ref: RepoRef, gitRef?: string): Promise<Buffer>;
   getDefaultBranch(ref: RepoRef): Promise<string>;
+  /** One lookup for a repository, or `undefined` when it does not exist. */
+  getRepo(ref: RepoRef): Promise<RepoState | undefined>;
   getPrimaryLanguage(ref: RepoRef): Promise<string | null>;
 
   branchHeadSha(ref: RepoRef, branch: string): Promise<string>;

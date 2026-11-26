@@ -15,6 +15,7 @@ import {
 import type {
   PlanCheck,
   PlanSchemaDirs,
+  PlanTargetRepo,
   ResolvedPlanContext,
 } from './types.js';
 import type { AppTrack } from '../../schema/appInputs.js';
@@ -425,9 +426,17 @@ function checkBuildImages(
 function checkTargetRepo(
   id: string,
   repoSlug: string,
-  exists: boolean,
+  repo: PlanTargetRepo,
 ): PlanCheck {
-  if (exists) {
+  if (repo.archived) {
+    return {
+      id,
+      status: 'fail',
+      message: `Repository ${repoSlug} is archived and must be unarchived before applying this plan.`,
+      checklist: [`Unarchive repository ${repoSlug} before running app apply.`],
+    };
+  }
+  if (repo.exists) {
     return {
       id,
       status: 'pass',
@@ -450,17 +459,17 @@ export function runPlanChecks(
     checkTargetRepo(
       'dot-firestartr-repo',
       `${context.org}/.firestartr`,
-      context.repoExists.dotFirestartr,
+      context.repoState.dotFirestartr,
     ),
     checkTargetRepo(
       'state-argocd-repo',
       `${context.org}/state-argocd`,
-      context.repoExists.stateArgocd,
+      context.repoState.stateArgocd,
     ),
     checkTargetRepo(
       'service-repo',
       `${context.serviceRepoOwner}/${context.serviceRepoName}`,
-      context.repoExists.service,
+      context.repoState.service,
     ),
     checkClaimName(context),
     checkRegistryAndPlatforms(context),

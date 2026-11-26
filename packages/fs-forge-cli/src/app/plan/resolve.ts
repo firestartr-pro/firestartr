@@ -135,29 +135,30 @@ function isStateRepoComponentClaim(content: string): boolean {
 async function resolveRepoBranch(
   api: GitHubApi,
   ref: RepoRef,
-): Promise<{ defaultBranch: string; exists: boolean }> {
-  if (!(await api.repoExists(ref))) {
-    return { defaultBranch: 'main', exists: false };
-  }
-  try {
-    return { defaultBranch: await api.getDefaultBranch(ref), exists: true };
-  } catch (error) {
-    if (isNotFoundError(error)) {
-      return { defaultBranch: 'main', exists: false };
-    }
-    throw error;
-  }
+): Promise<{ defaultBranch: string; exists: boolean; archived: boolean }> {
+  const state = await api.getRepo(ref);
+  if (!state) return { defaultBranch: 'main', exists: false, archived: false };
+  return {
+    defaultBranch: state.defaultBranch,
+    exists: true,
+    archived: state.archived,
+  };
 }
 
 async function readFileFromDefaultBranch(
   api: GitHubApi,
   ref: RepoRef,
   path: string,
-): Promise<{ defaultBranch: string; exists: boolean; content?: string }> {
-  const { defaultBranch, exists } = await resolveRepoBranch(api, ref);
-  if (!exists) return { defaultBranch, exists: false };
+): Promise<{
+  defaultBranch: string;
+  exists: boolean;
+  archived: boolean;
+  content?: string;
+}> {
+  const { defaultBranch, exists, archived } = await resolveRepoBranch(api, ref);
+  if (!exists) return { defaultBranch, exists: false, archived };
   const file = await api.readFile(ref, path, defaultBranch);
-  return { defaultBranch, exists: true, content: file?.content };
+  return { defaultBranch, exists: true, archived, content: file?.content };
 }
 
 async function readExistingArgocdFiles(
@@ -167,6 +168,7 @@ async function readExistingArgocdFiles(
 ): Promise<{
   defaultBranch: string;
   exists: boolean;
+  archived: boolean;
   applicationSet?: ExistingNamedFile;
   appProject?: ExistingNamedFile;
   parseErrors: ArgocdFileConflict[];
@@ -177,11 +179,12 @@ async function readExistingArgocdFiles(
   const empty = {
     defaultBranch: 'main',
     exists: false,
+    archived: false,
     parseErrors: [] as ArgocdFileConflict[],
     duplicateApplicationSets: [] as string[],
     duplicateAppProjects: [] as string[],
   };
-  const { defaultBranch, exists } = await resolveRepoBranch(api, ref);
+  const { defaultBranch, exists, archived } = await resolveRepoBranch(api, ref);
   if (!exists) return empty;
 
   let paths: string[];
@@ -189,7 +192,7 @@ async function readExistingArgocdFiles(
     paths = await api.listBlobPaths(ref, defaultBranch);
   } catch (error) {
     if (isNotFoundError(error)) {
-      return { ...empty, defaultBranch, exists: true };
+      return { ...empty, defaultBranch, exists: true, archived };
     }
     throw error;
   }
@@ -248,6 +251,7 @@ async function readExistingArgocdFiles(
   return {
     defaultBranch,
     exists: true,
+    archived,
     applicationSet:
       applicationSets.length === 1 ? applicationSets[0] : undefined,
     appProject: appProjects.length === 1 ? appProjects[0] : undefined,
@@ -439,10 +443,19 @@ export async function resolvePlanContext(
       stateArgocd: existingArgocd.defaultBranch,
       service: serviceRepoBranch.defaultBranch,
     },
-    repoExists: {
-      dotFirestartr: existingDotFirestartrAppResult.exists,
-      stateArgocd: existingArgocd.exists,
-      service: serviceRepoBranch.exists,
+    repoState: {
+      dotFirestartr: {
+        exists: existingDotFirestartrAppResult.exists,
+        archived: existingDotFirestartrAppResult.archived,
+      },
+      stateArgocd: {
+        exists: existingArgocd.exists,
+        archived: existingArgocd.archived,
+      },
+      service: {
+        exists: serviceRepoBranch.exists,
+        archived: serviceRepoBranch.archived,
+      },
     },
     serviceClaimPath: serviceClaim.filePath,
     serviceClaimContent: serviceClaim.content,

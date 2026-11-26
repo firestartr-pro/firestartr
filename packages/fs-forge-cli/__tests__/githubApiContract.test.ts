@@ -8,6 +8,7 @@ import type { Octokit } from '@octokit/rest';
 
 const REF: RepoRef = { owner: 'example', repo: 'claims' };
 const OTHER_REF: RepoRef = { owner: 'example', repo: 'other' };
+const ARCHIVED_REF: RepoRef = { owner: 'example', repo: 'archived-repo' };
 
 function notFound(): Error {
   return Object.assign(new Error('Not Found'), { status: 404 });
@@ -77,7 +78,12 @@ function octokitScenario(): GitHubApi {
         ),
         get: jest.fn(async ({ repo }: { repo: string }) => {
           if (repo === 'missing-repo') throw notFound();
-          return { data: { default_branch: 'main' } };
+          return {
+            data: {
+              default_branch: 'main',
+              archived: repo === ARCHIVED_REF.repo,
+            },
+          };
         }),
         downloadTarballArchive: jest.fn(async ({ ref }: { ref: string }) => {
           octokitRequests.push(`repos.downloadTarballArchive ${ref}`);
@@ -344,6 +350,8 @@ function memoryScenario(): GitHubApi {
   );
   api.tarball = Buffer.from([1, 2, 3]);
   api.addRepo(REF);
+  api.addRepo(ARCHIVED_REF);
+  api.setArchived(ARCHIVED_REF);
   api.addTeam('example', 'platform');
   api.addMember('example', 'octocat');
   return api;
@@ -507,6 +515,22 @@ describe.each(ADAPTERS)('GitHubApi contract (%s)', (_name, makeApi) => {
         displayTitle: 'corr-1',
       },
     ]);
+  });
+
+  it('reports a repository in one lookup, or nothing when it is missing', async () => {
+    const api = makeApi();
+
+    await expect(api.getRepo(REF)).resolves.toEqual({
+      defaultBranch: 'main',
+      archived: false,
+    });
+    await expect(api.getRepo(ARCHIVED_REF)).resolves.toEqual({
+      defaultBranch: 'main',
+      archived: true,
+    });
+    await expect(
+      api.getRepo({ owner: 'example', repo: 'missing-repo' }),
+    ).resolves.toBeUndefined();
   });
 
   it('maps missing resources to false for the provider checks', async () => {

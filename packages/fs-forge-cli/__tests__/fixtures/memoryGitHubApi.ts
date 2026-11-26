@@ -10,6 +10,7 @@ import type {
   PullRequestSummary,
   RepoFile,
   RepoRef,
+  RepoState,
   WorkflowRunSummary,
 } from '../../src/github/api.js';
 
@@ -210,6 +211,15 @@ export class MemoryGitHubApi implements GitHubApi {
   async getDefaultBranch(ref: RepoRef): Promise<string> {
     this.calls.push(`getDefaultBranch ${this.key(ref)}`);
     return this.defaultBranches.get(this.key(ref)) ?? 'main';
+  }
+
+  async getRepo(ref: RepoRef): Promise<RepoState | undefined> {
+    this.calls.push(`getRepo ${this.key(ref)}`);
+    if (!this.existingRepos.has(this.key(ref))) return undefined;
+    return {
+      defaultBranch: this.defaultBranches.get(this.key(ref)) ?? 'main',
+      archived: this.archivedRepos.has(this.key(ref)),
+    };
   }
 
   async getPrimaryLanguage(ref: RepoRef): Promise<string | null> {
