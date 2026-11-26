@@ -10,12 +10,20 @@
 # firestartr.dev/ia-test: "true", under $FSF_HOME/fixtures/<org>/<id>/ and
 # schema-validates them with the CLI. It contacts nothing.
 #
-# teardown deletes both claims with `delete <kind> <name> --commit` through
+# teardown refuses an org that is not a registered pre org first, with the same
+# check `drive.sh --mode write` makes, so nothing is touched before that passes.
+# It then deletes both claims with `delete <kind> <name> --commit` through
 # drive.sh, waits for the team and the repo to disappear, removes leftover
-# fs-forge/*fsf-verify-<id>* branches and closes their PRs, deletes a leftover
-# fsf-verify-* repo, and then proves the org is clean with `gh api`: every
-# leftover is a FAIL that names it and teardown exits 1. Rerun it after a
-# half-failed run; a claim that is already gone is skipped.
+# fs-forge/* branches named exactly `fsf-verify-grp-<id>` or
+# `fsf-verify-cmp-<id>` and closes their PRs, deletes a leftover
+# `fsf-verify-cmp-<id>` repo, and then proves the org is clean with `gh api`:
+# every leftover is a FAIL that names it, a `gh api` error is a FAIL that names
+# the error, and teardown exits 1. Rerun it after a half-failed run; a claim
+# that is already gone is skipped.
+#
+# A delete that does not finish leaves its own deletion PR open: closing it
+# would throw away the only way forward. teardown names the PR to merge once PR
+# Verify is green, names the rerun, and exits 1.
 #
 # --issue N passes `--issue N` to the ComponentClaim delete, the audit-trail
 # path a write run has to prove. --wait bounds the poll for the operator's
@@ -54,6 +62,8 @@ done
 
 [ -n "$org" ] || { echo "ERROR: --org is required; never assume the org" >&2; exit 2; }
 [ -n "$id" ] || { echo "ERROR: --id is required; it names the run and keeps reruns idempotent" >&2; exit 2; }
+# The id is spliced into a regex below, so only characters that carry no regex
+# meaning are allowed.
 case "$id" in
   ""|*[!a-z0-9-]*) echo "ERROR: --id takes lowercase letters, digits and dashes only: $id" >&2; exit 2 ;;
 esac
@@ -154,6 +164,44 @@ INFO
 gh_api() { gh api --hostname github.com "$@"; }
 has_token() { fsf_token >/dev/null; }
 
+# The exact names this run owns. The id is anchored at the end, so `--id 1`
+# cannot match `fsf-verify-grp-11031126-a`; a name closes on end-of-string or on
+# any character outside [a-z0-9-], which covers `.yaml`, `/` and a trailing
+# space or quote.
+fixture_re() { printf 'fsf-verify-(grp|cmp)-%s([^a-z0-9-]|$)' "$id"; }
+
+# gh api GET with --paginate: the lines <jq filter> yields that match <pattern>.
+# Exit 0 with the matches (none is an empty list, and empty is clean), 1 when
+# GitHub answered a real 404, and 2 when the call failed for any other reason --
+# 401, 403, 429, 500, a dropped network -- because that must never read as
+# clean. api_error carries the reason for the caller's FAIL line.
+api_error=""
+api_lines() { # <path> <jq filter> <extended regex>
+  local path="$1" filter="$2" pattern="$3" out
+  api_error=""
+  if ! out="$(gh_api --paginate "$path" --jq "$filter" 2>&1)"; then
+    case "$out" in
+      *"HTTP 404"*) return 1 ;;
+    esac
+    api_error="$(printf '%s' "$out" | tr '\n' ' ' | cut -c1-200)"
+    return 2
+  fi
+  printf '%s' "$out" | grep -E -- "$pattern" || true
+}
+
+# The same distinction for one resource: 0 gone (a real 404), 1 still there,
+# 2 unreadable with api_error set.
+api_gone() { # <path>
+  local out
+  api_error=""
+  if out="$(gh_api "$1" 2>&1)"; then return 1; fi
+  case "$out" in
+    *"HTTP 404"*) return 0 ;;
+  esac
+  api_error="$(printf '%s' "$out" | tr '\n' ' ' | cut -c1-200)"
+  return 2
+}
+
 claim_path() { # <kind dir> <name> -> prints the claim's path in the claims repo
   case "$1" in
   group | groups) echo "claims/groups/$2.yaml" ;;
@@ -166,8 +214,8 @@ claim_exists() { # <kind dir in the claims repo> <name>
   gh_api "repos/$claims_repo/contents/$(claim_path "$1" "$2")" >/dev/null 2>&1
 }
 
-repo_gone() { ! gh_api "repos/$org/$component" >/dev/null 2>&1; }
-team_gone() { ! gh_api "orgs/$org/teams/$group" >/dev/null 2>&1; }
+repo_gone() { api_gone "repos/$org/$component"; }
+team_gone() { api_gone "orgs/$org/teams/$group"; }
 
 delete_claim() { # <kind> <name> [extra delete args...]
   local kind="$1" name="$2"
@@ -194,29 +242,45 @@ wait_for() { # <seconds> <command...>
 leftover_branches() { # branches in the claims repo that name this id, whatever the prefix
   # A delete publishes on automated-non-automerge/ when the claim cannot automerge, so
   # filtering on fs-forge/ alone would leave the branch that blocks the next delete.
-  gh_api "repos/$claims_repo/branches?per_page=100" --paginate --jq '.[].name' 2>/dev/null |
-    grep -F "fsf-verify-$id" || true
+  api_lines "repos/$claims_repo/branches?per_page=100" '.[].name' "$(fixture_re)"
 }
+
+# Closes and deletes only what names this run's two fixtures. A listing that
+# fails is a FAIL that names it, never "nothing left to sweep".
 sweep() {
-  local ref prs
+  local ref number head title out status
   # Branches first: a leftover branch would block the next create of that claim.
-  while IFS= read -r ref; do
-    [ -n "$ref" ] || continue
-    if gh_api -X DELETE "repos/$claims_repo/git/refs/heads/$ref" >/dev/null 2>&1; then
-      echo "SWEPT branch $ref"
-    else
-      echo "FAIL sweep: could not delete branch $ref"
-    fi
-  done < <(leftover_branches)
-  while IFS=$'\t' read -r number head; do
-    [ -n "$number" ] || continue
-    if gh_api -X PATCH "repos/$claims_repo/pulls/$number" -f state=closed >/dev/null 2>&1; then
-      echo "SWEPT PR #$number ($head)"
-    else
-      echo "FAIL sweep: could not close PR #$number"
-    fi
-  done < <(gh_api "repos/$claims_repo/pulls?state=open&per_page=100" --jq '.[] | [.number, .head.ref] | @tsv' 2>/dev/null | grep -E "fsf-verify-(grp|cmp)-$id")
-  if ! repo_gone; then
+  out="$(leftover_branches)"
+  status=$?
+  if [ "$status" = 2 ]; then
+    echo "FAIL sweep: could not list the $claims_repo branches: $api_error"
+  else
+    while IFS= read -r ref; do
+      [ -n "$ref" ] || continue
+      if gh_api -X DELETE "repos/$claims_repo/git/refs/heads/$ref" >/dev/null 2>&1; then
+        echo "SWEPT branch $ref"
+      else
+        echo "FAIL sweep: could not delete branch $ref"
+      fi
+    done <<< "$out"
+  fi
+  out="$(api_lines "repos/$claims_repo/pulls?state=open&per_page=100" '.[] | [.number, .head.ref] | @tsv' "$(fixture_re)")"
+  status=$?
+  if [ "$status" = 2 ]; then
+    echo "FAIL sweep: could not list the $claims_repo pull requests: $api_error"
+  else
+    while IFS=$'\t' read -r number head; do
+      [ -n "$number" ] || continue
+      if gh_api -X PATCH "repos/$claims_repo/pulls/$number" -f state=closed >/dev/null 2>&1; then
+        echo "SWEPT PR #$number ($head)"
+      else
+        echo "FAIL sweep: could not close PR #$number"
+      fi
+    done <<< "$out"
+  fi
+  repo_gone
+  status=$?
+  if [ "$status" = 1 ]; then
     if gh_api -X DELETE "repos/$org/$component" >/dev/null 2>&1; then
       echo "SWEPT repository $org/$component"
     else
@@ -225,65 +289,139 @@ sweep() {
       archived="$(gh_api "repos/$org/$component" --jq .archived 2>/dev/null)"
       [ "$archived" != true ] || echo "FAIL sweep: $org/$component is archived, so it survived the delete"
     fi
+  elif [ "$status" = 2 ]; then
+    echo "FAIL sweep: could not read $org/$component: $api_error"
   fi
-  while IFS=$'\t' read -r number title; do
-    [ -n "$number" ] || continue
-    if gh_api -X PATCH "repos/$claims_repo/issues/$number" -f state=closed >/dev/null 2>&1; then
-      echo "SWEPT issue #$number ($title)"
-    else
-      echo "FAIL sweep: could not close issue #$number"
-    fi
-  done < <(gh_api "repos/$claims_repo/issues?state=open&per_page=100" --jq '.[] | select(.pull_request == null) | [.number, .title] | @tsv' 2>/dev/null | grep -F "$id")
+  out="$(api_lines "repos/$claims_repo/issues?state=open&per_page=100" '.[] | select(.pull_request == null) | [.number, .title] | @tsv' "$(fixture_re)")"
+  status=$?
+  if [ "$status" = 2 ]; then
+    echo "FAIL sweep: could not list the $claims_repo issues: $api_error"
+  else
+    while IFS=$'\t' read -r number title; do
+      [ -n "$number" ] || continue
+      if gh_api -X PATCH "repos/$claims_repo/issues/$number" -f state=closed >/dev/null 2>&1; then
+        echo "SWEPT issue #$number ($title)"
+      else
+        echo "FAIL sweep: could not close issue #$number"
+      fi
+    done <<< "$out"
+  fi
 }
 
 fail_count=0
 pass() { echo "PASS $1: $2"; }
 fail() { echo "FAIL $1: $2"; fail_count=$((fail_count + 1)); }
 
+# One clean check: a listing's matches, a 404, or a failed call.
+verdict() { # <check> <pass message> <leftover noun> <status> <found lines> <path>
+  local name="$1" ok="$2" noun="$3" status="$4" found="$5" path="$6"
+  case "$status" in
+  0)
+    if [ -z "$found" ]; then
+      pass "$name" "$ok"
+    else
+      fail "$name" "$noun: $(printf '%s' "$found" | tr '\n' ' ')"
+    fi
+    ;;
+  1) pass "$name" "$ok (GitHub answered 404, so nothing is there)" ;;
+  *) fail "$name" "gh api $path failed: $api_error" ;;
+  esac
+}
+
 prove_clean() {
-  local paths refs prs state_paths repo_status team_status issues
-  paths="$(gh_api "repos/$claims_repo/git/trees/HEAD?recursive=1" --paginate --jq '.tree[].path' 2>/dev/null |
-    grep -E "^claims/(components|groups)/fsf-verify-(grp|cmp)-$id\.yaml$")"
-  [ -z "$paths" ] && pass claims-files "no $group or $component claim file in $claims_repo" ||
-    fail claims-files "claims left in $claims_repo: $(printf '%s' "$paths" | tr '\n' ' ')"
-  refs="$(leftover_branches)"
-  [ -z "$refs" ] && pass claims-branches "no $id branch in $claims_repo" ||
-    fail claims-branches "branches left in $claims_repo: $(printf '%s' "$refs" | tr '\n' ' ')"
-  prs="$(gh_api "repos/$claims_repo/pulls?state=open&per_page=100" --jq '.[] | "\(.number) \(.head.ref)"' 2>/dev/null |
-    grep -F "fsf-verify-$id")"
-  [ -z "$prs" ] && pass claims-prs "no open $id PR in $claims_repo" ||
-    fail claims-prs "open PRs left in $claims_repo: $(printf '%s' "$prs" | tr '\n' ' ')"
-  state_paths="$(for repo in state-github state-infra; do
-    gh_api "repos/$org/$repo/git/trees/HEAD?recursive=1" --paginate --jq '.tree[].path' 2>/dev/null | grep -F "$id" || true
-  done)"
-  [ -z "$state_paths" ] && pass state-crs "no $id CR left in $org/state-github or $org/state-infra" ||
-    fail state-crs "CRs left: $(printf '%s' "$state_paths" | tr '\n' ' ')"
-  if repo_gone; then pass github-repo "$org/$component is gone"; else fail github-repo "$org/$component still exists"; fi
-  if team_gone; then pass github-team "$org/$group team is gone"; else fail github-team "$org/$group team still exists"; fi
-  issues="$(gh_api "repos/$claims_repo/issues?state=open&per_page=100" --jq '.[] | select(.pull_request == null) | "\(.number) \(.title)"' 2>/dev/null |
-    grep -F "$id")"
-  [ -z "$issues" ] && pass claims-issues "no open $id issue in $claims_repo" ||
-    fail claims-issues "open issues left: $(printf '%s' "$issues" | tr '\n' ' ')"
+  local out status repo lines s state_path=""
+  out="$(api_lines "repos/$claims_repo/git/trees/HEAD?recursive=1" '.tree[].path' "^claims/(components|groups)/$(fixture_re)")"
+  status=$?
+  verdict claims-files "no $group or $component claim file in $claims_repo" \
+    "claims left in $claims_repo" "$status" "$out" "repos/$claims_repo/git/trees/HEAD"
+  out="$(leftover_branches)"
+  status=$?
+  verdict claims-branches "no $group or $component branch in $claims_repo" \
+    "branches left in $claims_repo" "$status" "$out" "repos/$claims_repo/branches"
+  out="$(api_lines "repos/$claims_repo/pulls?state=open&per_page=100" '.[] | "\(.number) \(.head.ref)"' "$(fixture_re)")"
+  status=$?
+  verdict claims-prs "no open $group or $component PR in $claims_repo" \
+    "open PRs left in $claims_repo" "$status" "$out" "repos/$claims_repo/pulls"
+  # The CRs of both state repos: one listing error fails the check, and the
+  # first one names itself.
+  out="" status=0
+  for repo in state-github state-infra; do
+    lines="$(api_lines "repos/$org/$repo/git/trees/HEAD?recursive=1" '.tree[].path' "$(fixture_re)")"
+    s=$?
+    [ -z "$lines" ] || out="$out$lines"$'\n'
+    if [ "$s" = 2 ]; then
+      status=2
+      state_path="repos/$org/$repo/git/trees/HEAD"
+      break
+    fi
+    if [ "$s" = 1 ] && [ "$status" = 0 ]; then status=1; fi
+  done
+  verdict state-crs "no $group or $component CR left in $org/state-github or $org/state-infra" \
+    "CRs left" "$status" "$out" "${state_path:-repos/$org/state-github/git/trees/HEAD}"
+  repo_gone
+  status=$?
+  case "$status" in
+  0) pass github-repo "$org/$component is gone" ;;
+  1) fail github-repo "$org/$component still exists" ;;
+  *) fail github-repo "gh api repos/$org/$component failed: $api_error" ;;
+  esac
+  team_gone
+  status=$?
+  case "$status" in
+  0) pass github-team "$org/$group team is gone" ;;
+  1) fail github-team "$org/$group team still exists" ;;
+  *) fail github-team "gh api orgs/$org/teams/$group failed: $api_error" ;;
+  esac
+  out="$(api_lines "repos/$claims_repo/issues?state=open&per_page=100" '.[] | select(.pull_request == null) | "\(.number) \(.title)"' "$(fixture_re)")"
+  status=$?
+  verdict claims-issues "no open $group or $component issue in $claims_repo" \
+    "open issues left" "$status" "$out" "repos/$claims_repo/issues"
+}
+
+# What a human has to do about a delete that did not finish. `delete --commit`
+# stops at PR Verify, so the PR it opened is the only way forward: it is left
+# open and named here with the rerun that finishes the job.
+merge_help() { # <what failed...>
+  local out status head url
+  # The URL alone carries no fixture name, so the head ref is what the filter
+  # matches and the URL is the field a human is told to merge.
+  out="$(api_lines "repos/$claims_repo/pulls?state=open&per_page=100" '.[] | [.number, .head.ref, .html_url] | @tsv' "$(fixture_re)")"
+  status=$?
+  if [ "$status" = 2 ]; then
+    echo "HUMAN: could not read the open $claims_repo PRs ($api_error); check the delete of $* and rerun teardown"
+  elif [ -z "$out" ]; then
+    echo "HUMAN: no open PR names $*; the delete failed before opening one, so read its DRIVE output above and rerun teardown"
+  else
+    while IFS=$'\t' read -r _ head url; do
+      [ -n "$url" ] || continue
+      echo "HUMAN: merge $url once PR Verify is green, then rerun teardown"
+    done <<< "$out"
+  fi
+  echo "HUMAN: rerun: $0 teardown --org $org --id $id"
 }
 
 teardown() {
+  # A teardown mutates the org, so it takes the gate a write drive takes. It is
+  # the first thing that happens: a non-pre org is refused before any read that
+  # could lead to a sweep, and long before any gh api write.
+  fsf_require_pre_org "$org" teardown
   has_token || fsf_die "no GH_TOKEN, GITHUB_TOKEN or 'gh auth token'"
   command -v gh >/dev/null 2>&1 || fsf_die "gh is required to read and sweep the org"
-  local failed=0
+  local failed=0 pending=""
   # Sweep first so a rerun after a half-failure starts from a claim that can be
   # published again instead of tripping over its own leftover branch or PR.
   sweep
   if claim_exists components "$component"; then
     if [ -n "$issue" ]; then
-      delete_claim component "$component" --issue "$issue" || failed=1
+      delete_claim component "$component" --issue "$issue" || { failed=1; pending="$pending $component"; }
     else
-      delete_claim component "$component" || failed=1
+      delete_claim component "$component" || { failed=1; pending="$pending $component"; }
     fi
   else
     echo "SKIP delete component $component: not in $claims_repo"
   fi
   if claim_exists groups "$group"; then
-    delete_claim group "$group" || failed=1
+    delete_claim group "$group" || { failed=1; pending="$pending $group"; }
   else
     echo "SKIP delete group $group: not in $claims_repo"
   fi
@@ -291,12 +429,19 @@ teardown() {
     wait_for "$wait_limit" repo_gone || echo "WAIT timeout after ${wait_limit}s: $org/$component still exists"
     wait_for "$wait_limit" team_gone || echo "WAIT timeout after ${wait_limit}s: the $group team still exists"
   fi
-  sweep
+  # A failed delete leaves the PR a human has to merge. Closing it here would
+  # throw away the only way forward, so the closing sweep waits for a rerun.
+  if [ "$failed" = 0 ]; then
+    sweep
+  fi
   prove_clean
-  if [ "$fail_count" = 0 ]; then
+  if [ "$failed" != 0 ]; then
+    merge_help "${pending# }"
+  fi
+  if [ "$fail_count" = 0 ] && [ "$failed" = 0 ]; then
     echo "TEARDOWN OK: $org is back to clean for id $id; fixture kept at $fixture_dir"
   else
-    echo "TEARDOWN FAILED: $fail_count leftover(s) above; rerun once they are resolved"
+    echo "TEARDOWN FAILED: $fail_count leftover(s) above and $([ "$failed" = 0 ] && echo no || echo some) delete(s) unfinished; rerun once they are resolved"
     return 1
   fi
 }
