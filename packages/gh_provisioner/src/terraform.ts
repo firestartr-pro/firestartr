@@ -34,6 +34,12 @@ const MODULES = {
     // github-org-webhook-v0.2.0
     ref: '12d72ba15780647b2f9c2905938913344bfeaa4d',
   },
+  FirestartrGithubOrgRuleset: {
+    module:
+      'git::https://github.com/prefapp/tfm.git//modules/github-org-ruleset',
+    // github-org-ruleset-v0.2.0
+    ref: '777fcbeefb46f865c88f183f53d884824fe1acfd',
+  },
   FirestartrGithubOrganizationSettings: {
     module:
       'git::https://github.com/prefapp/tfm.git//modules/github-org-settings',

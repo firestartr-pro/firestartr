@@ -216,6 +216,25 @@ describe('pullRequestPlan', () => {
     );
   });
 
+  it('plans GitHub organization rulesets with gh_provisioner', async () => {
+    const cr = resource('FirestartrGithubOrgRuleset', 'org-ruleset');
+
+    githubMock.pulls.getPrFiles.mockResolvedValue({
+      data: [{ filename: 'org-ruleset.yaml', status: 'modified' }],
+    });
+    githubMock.repo.getContent.mockResolvedValue(JSON.stringify(cr));
+
+    await pullRequestPlan(opts);
+
+    expect(ghProvisioner.runGhProvisioner).toHaveBeenCalledWith(
+      {
+        mainCr: cr,
+        deps: withSelfOutputs({ dep: true }),
+      },
+      { plan: true },
+    );
+  });
+
   it('plans GitHub organization secret sections with gh_provisioner', async () => {
     const cr = resource(
       'FirestartrGithubOrganizationSecretSection',
