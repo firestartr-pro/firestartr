@@ -2,9 +2,12 @@ import { watchCheckRuns } from './checkRuns.js';
 import { findCrOnMainBranch } from './stateRepo.js';
 import { findWetPr } from './wetPr.js';
 
+import type { AggregatedCheckResult, CheckRunResult } from './checkRuns.js';
 import type { LastStatePrRedirect } from './wetPr.js';
 
 import type { GitHubApi, RepoRef } from '../github/api.js';
+
+const PASSING_CONCLUSIONS = new Set(['success', 'skipped', 'neutral']);
 
 export class WetPrTimeoutError extends Error {
   readonly prUrl?: string;
@@ -24,6 +27,27 @@ export interface WetPrCheckWatch {
   pollIntervalMs?: number;
   now?: () => number;
   sleep?: (ms: number) => Promise<void>;
+}
+
+function failedCheck(run: CheckRunResult): boolean {
+  return !PASSING_CONCLUSIONS.has(run.conclusion ?? '');
+}
+
+/**
+ * Names the wet PR and the checks that failed, so a user can go straight to
+ * the red check run instead of reading the CLI source.
+ */
+function describeWetPrFailure(
+  conclusion: string,
+  target: LastStatePrRedirect,
+  result: AggregatedCheckResult,
+): string {
+  const pr = `${target.repo}#${target.number} https://github.com/${target.repo}/pull/${target.number}`;
+  const checks = result.checkRuns
+    .filter(failedCheck)
+    .map((run) => (run.htmlUrl ? `${run.name} ${run.htmlUrl}` : run.name))
+    .join(', ');
+  return `Wet PR checks failed: ${conclusion} (${checks ? `${pr}, ${checks}` : pr})`;
 }
 
 /**
@@ -98,7 +122,9 @@ export async function watchWetPrChecks(
       );
     }
     if (result.overallConclusion !== 'success') {
-      throw new Error(`Wet PR checks failed: ${result.overallConclusion}`);
+      throw new Error(
+        describeWetPrFailure(result.overallConclusion, target, result),
+      );
     }
   }
   diagnostic('All checks passed ✓\n');
