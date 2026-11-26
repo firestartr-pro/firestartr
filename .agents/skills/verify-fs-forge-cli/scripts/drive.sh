@@ -54,7 +54,11 @@ for arg in "$@"; do
     --commit|--commit=*) has_commit=1 ;;
     --org=*) arg_org="${arg#--org=}" ;;
   esac
-  # `app apply` writes too, but it has no --commit flag to say so.
+  # `app apply` writes too, but it has no --commit flag to say so. oclif
+  # resolves the colon form and the spaced form to the same command id (the
+  # package sets `topicSeparator: " "`, and `app:apply` is collated as one id),
+  # so both spellings must trip the guard.
+  case "$arg" in app:apply) app_apply=1 ;; esac
   [ "$prev" = "app" ] && [ "$arg" = "apply" ] && app_apply=1
   [ "$prev" = "--org" ] && arg_org="$arg"
   prev="$arg"
