@@ -60,6 +60,11 @@ drive="$FSF_SKILL_DIR/scripts/drive.sh"
 [ $? = 2 ] && pass guard-commit "drive.sh refuses --commit outside --mode write" || fail guard-commit "drive.sh let --commit through in offline mode"
 "$drive" --mode read -- kinds >/dev/null 2>&1
 [ $? = 2 ] && pass guard-org "drive.sh refuses an org-bound drive with no --org" || fail guard-org "drive.sh ran an org-bound drive without a named org"
+# app apply writes without --commit, so only --mode write may run it.
+"$drive" -- app apply --inputs inputs.yaml >/dev/null 2>&1
+[ $? = 2 ] && pass guard-app-offline "drive.sh refuses app apply outside --mode write" || fail guard-app-offline "drive.sh let app apply through in offline mode"
+"$drive" --mode read --org fsf-guard-test -- app apply --inputs inputs.yaml >/dev/null 2>&1
+[ $? = 2 ] && pass guard-app-read "drive.sh refuses app apply in read mode" || fail guard-app-read "drive.sh let app apply through in read mode"
 
 guard_dir="$(mktemp -d)"
 mkdir -p "$guard_dir/bin" "$guard_dir/verify-fs-forge-cli/run/evidence" "$guard_dir/verify-fs-forge-cli/run/work"

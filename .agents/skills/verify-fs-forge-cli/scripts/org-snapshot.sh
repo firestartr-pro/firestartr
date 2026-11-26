@@ -3,12 +3,14 @@
 # Read-only: it only calls `gh api` GETs.
 #
 # Usage:
-#   org-snapshot.sh snap <org> <out.json>
+#   org-snapshot.sh snap <org> <out.json> [owner/repo]...
 #   org-snapshot.sh diff <before.json> <after.json>   (exit 1 when they differ, 2 when unreadable)
 #
 # A snapshot holds the fs-forge/* branches, the claims PRs from fs-forge/*
 # heads, the provision/unprovision workflow runs, and the newest PR numbers of
-# the state repos (the provision workflow opens its PRs there).
+# the state repos (the provision workflow opens its PRs there). Extra repos are
+# watched the same way for `app apply`, which opens `fs-forge/*` branches and
+# PRs in .firestartr, state-argocd, app-<app> and the service repo.
 set -euo pipefail
 
 # GET <path> <jq filter> as one JSON value. Every page `gh api --paginate`
@@ -30,23 +32,46 @@ get() {
 }
 
 snap() {
-  local org="$1" out="$2" runs_p runs_u state
+  local org="$1" out="$2" runs_p runs_u state extra='{}' repo
+  shift 2
   runs_p="$(get "repos/$org/claims/actions/workflows/provision-claim.yaml/runs?per_page=100" '[.[].workflow_runs[] | {id,status,conclusion,head_branch}]' optional)"
   runs_u="$(get "repos/$org/claims/actions/workflows/unprovision-claim.yaml/runs?per_page=100" '[.[].workflow_runs[] | {id,status,conclusion,head_branch}]' optional)"
   state="$(for repo in state-github state-infra; do
     get "repos/$org/$repo/pulls?state=all&per_page=100" 'add // []' | jq --arg repo "$repo" '{($repo): [.[].number]}' || exit 1
   done | jq -s add)"
+  for repo in "$@"; do
+    # A bare name means one of the org's own repos, like state-github.
+    case "$repo" in */*) ;; *) repo="$org/$repo" ;; esac
+    extra="$(printf '%s' "$extra" | jq --arg repo "$repo" --argjson state "$(watched_repo "$org" "$repo")" '. + {($repo): $state}')"
+  done
   jq -n \
     --arg org "$org" \
     --arg at "$(date -u +%FT%TZ)" \
     --argjson branches "$(get "repos/$org/claims/git/matching-refs/heads/fs-forge/" 'add // [] | [.[] | {ref, sha: .object.sha}]')" \
     --argjson prs "$(get "repos/$org/claims/pulls?state=all&per_page=100" 'add // [] | [.[] | select(.head.ref | startswith("fs-forge/")) | {number, head: .head.ref, state, merged: (.merged_at != null)}]')" \
-    --argjson runs_p "$runs_p" --argjson runs_u "$runs_u" --argjson state "$state" \
-    '{org: $org, takenAt: $at, branches: $branches, claimsPrs: $prs, runs: {provision: $runs_p, unprovision: $runs_u}, statePrs: $state}' > "$out"
+    --argjson runs_p "$runs_p" --argjson runs_u "$runs_u" --argjson state "$state" --argjson extra "$extra" \
+    '{org: $org, takenAt: $at, branches: $branches, claimsPrs: $prs, runs: {provision: $runs_p, unprovision: $runs_u}, statePrs: $state, watchedRepos: $extra}' > "$out"
+}
+
+# One extra repo's fs-forge branches and PRs. A repo that does not exist yet is
+# recorded as such instead of aborting, so the snapshot still sees the others.
+watched_repo() {
+  local org="$1" repo="$2" exists branches prs
+  exists="$(gh api --hostname github.com "repos/$repo" >/dev/null 2>&1 && echo true || echo false)"
+  if [ "$exists" = false ]; then
+    jq -n '{exists: false, branches: [], prs: []}'
+    return
+  fi
+  branches="$(get "repos/$repo/git/matching-refs/heads/fs-forge/" 'add // [] | [.[] | {ref, sha: .object.sha}]')"
+  prs="$(get "repos/$repo/pulls?state=all&per_page=100" 'add // [] | [.[] | select(.head.ref | startswith("fs-forge/")) | {number, head: .head.ref, state, merged: (.merged_at != null)}]')"
+  jq -n --argjson branches "$branches" --argjson prs "$prs" '{exists: true, branches: $branches, prs: $prs}'
 }
 
 case "${1:-}" in
-  snap) [ $# = 3 ] || { echo "usage: $0 snap <org> <out.json>" >&2; exit 2; }; snap "$2" "$3" ;;
+  snap)
+    [ $# -ge 3 ] || { echo "usage: $0 snap <org> <out.json> [owner/repo]..." >&2; exit 2; }
+    snap "$2" "$3" "${@:4}"
+    ;;
   diff)
     [ $# = 3 ] || { echo "usage: $0 diff <before.json> <after.json>" >&2; exit 2; }
     # An unreadable snapshot would compare as empty and fake a change or a no-op.
@@ -57,5 +82,5 @@ case "${1:-}" in
       exit 1
     fi
     ;;
-  *) echo "usage: $0 snap <org> <out.json> | diff <before.json> <after.json>" >&2; exit 2 ;;
+  *) echo "usage: $0 snap <org> <out.json> [owner/repo]... | diff <before.json> <after.json>" >&2; exit 2 ;;
 esac
