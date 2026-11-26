@@ -158,10 +158,7 @@ function entryIdentityKey(entry: {
  * `flowCollectionPadding: false` keeps untouched flow sequences such as
  * `service_names: [other-svc]` compact, which is also what `yamllint` wants.
  */
-function toStringBlock(
-  doc: Document.Parsed,
-  deploymentsSeq: YAMLSeq,
-): string {
+function toStringBlock(doc: Document.Parsed, deploymentsSeq: YAMLSeq): string {
   doc.directives.docStart = true;
   const root = doc.contents;
   if (root instanceof YAMLMap) root.flow = false;

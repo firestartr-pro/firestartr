@@ -9,6 +9,9 @@ import type { GitHubApi, RepoRef } from '../github/api.js';
 
 const PASSING_CONCLUSIONS = new Set(['success', 'skipped', 'neutral']);
 
+/** A failing check names a run; a wide red PR must not produce a wall of text. */
+const MAX_NAMED_FAILING_CHECKS = 5;
+
 export class WetPrTimeoutError extends Error {
   readonly prUrl?: string;
 
@@ -43,10 +46,13 @@ export function describeWetPrFailure(
   result: AggregatedCheckResult,
 ): string {
   const pr = `${target.repo}#${target.number} https://github.com/${target.repo}/pull/${target.number}`;
-  const checks = result.checkRuns
+  const failing = result.checkRuns
     .filter(failedCheck)
-    .map((run) => (run.htmlUrl ? `${run.name} ${run.htmlUrl}` : run.name))
-    .join(', ');
+    .map((run) => (run.htmlUrl ? `${run.name} ${run.htmlUrl}` : run.name));
+  const named = failing.slice(0, MAX_NAMED_FAILING_CHECKS);
+  const rest = failing.length - named.length;
+  const checks =
+    rest > 0 ? `${named.join(', ')}, and +${rest} more` : named.join(', ');
   return `Wet PR checks failed: ${conclusion} (${checks ? `${pr}, ${checks}` : pr})`;
 }
 
