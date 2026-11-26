@@ -12,6 +12,24 @@ import {
 
 const SCHEMA_ID = 'firestartr.dev://common/OrgRulesetClaim';
 
+const COMPONENT_CLAIM = `kind: ComponentClaim
+version: '1.0'
+type: service
+lifecycle: production
+system: 'system:system_a'
+owner: 'group:group_a'
+platformOwner: 'group:group_a'
+name: orgruleset_component
+providers:
+  github:
+    name: orgruleset-component-repo
+    org: firestartr-test
+    visibility: private
+    branchStrategy:
+      name: none
+      defaultBranch: main
+`;
+
 function findRulesetCr(
   renderedMap: Record<string, any>,
   displayName: string,
@@ -38,6 +56,12 @@ describe('GitHub organization ruleset rendering', () => {
         'domain_a',
       ],
     });
+
+    // Kept out of base_claims so the shared claims-map fixture stays stable.
+    await context.addSupportFile(
+      'components/orgruleset_component.yaml',
+      COMPONENT_CLAIM,
+    );
   });
 
   afterEach(async () => {
@@ -135,6 +159,119 @@ describe('GitHub organization ruleset rendering', () => {
       ],
       exclude: [],
     });
+  });
+
+  it('resolves component refs in repository_name.include', async () => {
+    await context.applyPatches('orgruleset_a', [
+      {
+        op: 'replace',
+        path: '/providers/github/conditions/repository_name',
+        value: {
+          include: ['component:orgruleset_component', 'test-*'],
+          exclude: ['legacy-*'],
+        },
+      },
+    ]);
+
+    const { renderedMap } = await render();
+
+    const cr = findRulesetCr(
+      renderedMap,
+      'Standard - Default Branch Protection',
+    );
+
+    expect(cr.spec.ruleset.conditions.repository_name).toEqual({
+      include: ['orgruleset-component-repo', 'test-*'],
+      exclude: ['legacy-*'],
+    });
+  });
+
+  it('resolves component refs in repository_name.exclude', async () => {
+    await context.applyPatches('orgruleset_a', [
+      {
+        op: 'replace',
+        path: '/providers/github/conditions/repository_name',
+        value: {
+          include: ['test-*'],
+          exclude: ['component:orgruleset_component'],
+        },
+      },
+    ]);
+
+    const { renderedMap } = await render();
+
+    const cr = findRulesetCr(
+      renderedMap,
+      'Standard - Default Branch Protection',
+    );
+
+    expect(cr.spec.ruleset.conditions.repository_name).toEqual({
+      include: ['test-*'],
+      exclude: ['orgruleset-component-repo'],
+    });
+  });
+
+  it('rejects a repository component from another organization', async () => {
+    await context.applyPatches('orgruleset_component', [
+      { op: 'replace', path: '/providers/github/org', value: 'other-org' },
+    ]);
+    await context.applyPatches('orgruleset_a', [
+      {
+        op: 'replace',
+        path: '/providers/github/conditions/repository_name',
+        value: { include: ['component:orgruleset_component'], exclude: [] },
+      },
+    ]);
+
+    await expect(render()).rejects.toThrow(
+      /Referenced component "orgruleset_component" belongs to organization "other-org"/,
+    );
+  });
+
+  it('rejects a repository component that does not exist', async () => {
+    await context.applyPatches('orgruleset_a', [
+      {
+        op: 'replace',
+        path: '/providers/github/conditions/repository_name',
+        value: { include: ['component:missing_component'], exclude: [] },
+      },
+    ]);
+
+    await expect(render()).rejects.toMatch(
+      /ComponentClaim-missing_component not found/,
+    );
+  });
+
+  it('loads a repository component when only the ruleset claim is selected', async () => {
+    await context.applyPatches('orgruleset_a', [
+      {
+        op: 'replace',
+        path: '/providers/github/conditions/repository_name',
+        value: { include: ['component:orgruleset_component'], exclude: [] },
+      },
+    ]);
+
+    const { renderedMap } = await context.renderClaims(
+      { claimRefs: ['OrgRulesetClaim-orgruleset_a'] },
+      { crsPath: rendererTestFixtures.noCrs },
+    );
+
+    const cr = findRulesetCr(
+      renderedMap,
+      'Standard - Default Branch Protection',
+    );
+
+    expect(cr.spec.ruleset.conditions.repository_name.include).toEqual([
+      'orgruleset-component-repo',
+    ]);
+    expect(
+      Object.values(renderedMap).some(
+        (entry: any) =>
+          entry.kind === 'FirestartrGithubRepository' &&
+          entry.metadata.annotations?.['firestartr.dev/external-name'] ===
+            'orgruleset-component-repo',
+      ),
+    ).toBe(true);
   });
 
   it('does not bring back list entries removed from the claim when a previous CR exists', async () => {

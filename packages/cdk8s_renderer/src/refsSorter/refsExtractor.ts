@@ -165,6 +165,19 @@ export function extractAllRefs(claimData: string) {
         }
       }
 
+      const repositoryName =
+        parsedClaim.providers?.github?.conditions?.repository_name;
+      for (const key of ['include', 'exclude'] as const) {
+        const values = repositoryName?.[key];
+        if (!Array.isArray(values)) continue;
+        for (const ref of values) {
+          const match = String(ref).match(/^component:(.+)$/);
+          if (match) {
+            refs.push(`ComponentClaim-${match[1]}`);
+          }
+        }
+      }
+
       break;
     }
   }

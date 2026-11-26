@@ -5,6 +5,7 @@ import {
 import { IUnitializedStateKey } from '../../claims/base';
 import { IGithubOrgRulesetClaim } from '../../claims/github/orgRuleset';
 import { resolveStringReference } from '../../utils/claimUtils';
+import { resolveComponentRepository } from '../../utils/repositoryClaimUtils';
 import { ChartRenderError } from '../base';
 import { BaseGithubChart } from './base';
 
@@ -29,7 +30,7 @@ export class GithubOrgRulesetChart extends BaseGithubChart {
           name: github.name,
           target: github.target,
           enforcement: github.enforcement,
-          conditions: github.conditions,
+          conditions: this.renderConditions(claim),
           rules: github.rules,
           bypassActors: github.bypass_actors
             ? this.renderBypassActors(claim)
@@ -90,6 +91,71 @@ export class GithubOrgRulesetChart extends BaseGithubChart {
           needsSecret: true,
         },
       };
+    });
+  }
+
+  private renderConditions(claim: IGithubOrgRulesetClaim): any {
+    const conditions = claim.providers.github.conditions;
+    const repositoryName = (conditions as any)?.repository_name;
+
+    if (!repositoryName) return conditions;
+
+    return {
+      ...conditions,
+      repository_name: {
+        ...repositoryName,
+        ...(repositoryName.include !== undefined
+          ? {
+              include: this.renderRepositoryNames(
+                claim,
+                repositoryName.include,
+              ),
+            }
+          : {}),
+        ...(repositoryName.exclude !== undefined
+          ? {
+              exclude: this.renderRepositoryNames(
+                claim,
+                repositoryName.exclude,
+              ),
+            }
+          : {}),
+      },
+    };
+  }
+
+  private renderRepositoryNames(
+    claim: IGithubOrgRulesetClaim,
+    refs: string[],
+  ): string[] {
+    const github = claim.providers.github;
+
+    return (refs ?? []).map((ref) => {
+      const match = String(ref).match(/^component:(.+)$/);
+      if (!match) return ref;
+
+      const { org, repoName } = resolveComponentRepository(
+        match[1],
+        this.refResolver,
+      );
+
+      if (!org || !repoName) {
+        throw new ChartRenderError(
+          'OrgRulesetClaim',
+          claim.name,
+          `Referenced component "${match[1]}" has no GitHub provider configured`,
+        );
+      }
+
+      if (org !== github.org) {
+        throw new ChartRenderError(
+          'OrgRulesetClaim',
+          claim.name,
+          `Referenced component "${match[1]}" belongs to organization "${org}" but the ruleset targets "${github.org}"`,
+        );
+      }
+
+      return repoName;
     });
   }
 

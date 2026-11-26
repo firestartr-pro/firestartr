@@ -124,6 +124,23 @@ describe('The reference extractor', () => {
     expect(refs).toContain('GroupClaim-group_b');
   });
 
+  it('can extract component refs from OrgRulesetClaim repository_name', async () => {
+    await context.applyPatches('orgruleset_a', [
+      {
+        op: 'replace',
+        path: '/providers/github/conditions/repository_name',
+        value: {
+          include: ['component:component_a', 'test-*'],
+          exclude: ['component:component_a'],
+        },
+      },
+    ]);
+
+    const refs = extractAllRefs(await context.getFile('orgruleset_a'));
+
+    expect(refs).toContain('ComponentClaim-component_a');
+  });
+
   it('can extract secret refs from OrgSettingsClaim org_secrets', async () => {
     const refs = extractAllRefs(
       await context.getFile('orgsettings_selected_repos'),
