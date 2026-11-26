@@ -55,10 +55,8 @@ const SINGLE_TARGET_INPUTS: AppInputs = {
   targets: [BASE_INPUTS.targets[0]],
 };
 
-/** Block style, `---` first: what `yamllint -d default` accepts. */
-const BLOCK_SINGLE_DEPLOYMENT = [
-  '---',
-  'deployments:',
+/** The single target as a block-style sequence item (the create path body). */
+const BILLING_BLOCK_ENTRY = [
   '  - application: billing',
   '    platform: eks-eu',
   '    tenant: core',
@@ -70,6 +68,69 @@ const BLOCK_SINGLE_DEPLOYMENT = [
   '      - billing-api',
   '',
 ].join('\n');
+
+/** Block style, `---` first: what `yamllint -d default` accepts. */
+const BLOCK_SINGLE_DEPLOYMENT = `---\ndeployments:\n${BILLING_BLOCK_ENTRY}`;
+
+const OTHER_BLOCK_ENTRY = [
+  '  - application: other-app',
+  '    platform: eks-eu',
+  '    tenant: core',
+  '    env: dev',
+  '    type: snapshots',
+  '    version: $branch_main',
+  '    flavor: default',
+].join('\n');
+
+/** Every base below passes `yamllint -d default` before the merge. */
+const YAMLLINT_VALID_BASES: Array<[string, string]> = [
+  ['top-level flow map', '---\n{deployments: []}\n'],
+  [
+    'flow entry that gets a new service name',
+    [
+      '---',
+      'deployments:',
+      '  - {application: billing, platform: eks-eu, tenant: core, env: dev,',
+      '     type: snapshots, version: $branch_main, flavor: default,',
+      '     service_names: [other-svc]}',
+      '',
+    ].join('\n'),
+  ],
+  [
+    'untouched entry with flow service_names',
+    [
+      '---',
+      'deployments:',
+      OTHER_BLOCK_ENTRY,
+      '    service_names: [other-svc]',
+      '',
+    ].join('\n'),
+  ],
+  ['empty flow sequence', 'deployments: []\n'],
+  [
+    'existing block entries',
+    [
+      '# Existing dispatches',
+      'deployments:',
+      OTHER_BLOCK_ENTRY,
+      '    service_names:',
+      '      - other-svc',
+      '',
+    ].join('\n'),
+  ],
+  ['comments', '# header comment\ndeployments: [] # empty list\n'],
+  ['leading document start', '---\ndeployments: []\n'],
+  [
+    'untouched flow entry inside a flow document',
+    [
+      '---',
+      '{deployments: [{application: other-app, platform: eks-eu, tenant: core,',
+      '                env: dev, type: snapshots, version: $branch_main,',
+      '                flavor: default, service_names: [other-svc]}]}',
+      '',
+    ].join('\n'),
+  ],
+];
 
 describe('renderMakeDispatches', () => {
   it('creates a valid make_dispatches.yaml for all three tracks', () => {
@@ -207,6 +268,110 @@ describe('renderMakeDispatches', () => {
         '',
       ].join('\n'),
     );
+  });
+
+  it('renders a flow-style base as block style, so the merge no longer breaks `yamllint -d default`', () => {
+    const expected: Record<string, string> = {
+      'top-level flow map': BLOCK_SINGLE_DEPLOYMENT,
+      'empty flow sequence': BLOCK_SINGLE_DEPLOYMENT,
+      'leading document start': BLOCK_SINGLE_DEPLOYMENT,
+      'flow entry that gets a new service name': [
+        '---',
+        'deployments:',
+        '  - application: billing',
+        '    platform: eks-eu',
+        '    tenant: core',
+        '    env: dev',
+        '    type: snapshots',
+        '    version: $branch_main',
+        '    flavor: default',
+        '    service_names:',
+        '      - other-svc',
+        '      - billing-api',
+        '',
+      ].join('\n'),
+      'untouched entry with flow service_names': [
+        '---',
+        'deployments:',
+        OTHER_BLOCK_ENTRY,
+        '    service_names: [other-svc]',
+        BILLING_BLOCK_ENTRY,
+      ].join('\n'),
+      comments: [
+        '---',
+        '# header comment',
+        'deployments:',
+        BILLING_BLOCK_ENTRY,
+        '  # empty list',
+        '',
+      ].join('\n'),
+      'existing block entries': [
+        '---',
+        '# Existing dispatches',
+        'deployments:',
+        OTHER_BLOCK_ENTRY,
+        '    service_names:',
+        '      - other-svc',
+        BILLING_BLOCK_ENTRY,
+      ].join('\n'),
+      'untouched flow entry inside a flow document': [
+        '---',
+        'deployments:',
+        OTHER_BLOCK_ENTRY,
+        '    service_names: [other-svc]',
+        BILLING_BLOCK_ENTRY,
+      ].join('\n'),
+    };
+
+    for (const [name, base] of YAMLLINT_VALID_BASES) {
+      const result = renderMakeDispatches({
+        org: 'acme',
+        inputs: SINGLE_TARGET_INPUTS,
+        defaultBranch: 'main',
+        actionsSchemasDir: ACTIONS_SCHEMAS_DIR,
+        existingContent: base,
+      });
+
+      expect([name, result.outcome.kind]).toEqual([name, 'merge']);
+      expect([name, result.content]).toEqual([name, expected[name]]);
+      expect([name, result.content!.startsWith('---\n')]).toEqual([name, true]);
+      expect([name, result.content!.split('---\n').length - 1]).toEqual([
+        name,
+        1,
+      ]);
+    }
+  });
+
+  it('leaves an empty base file alone with a clear reason', () => {
+    const result = renderMakeDispatches({
+      org: 'acme',
+      inputs: SINGLE_TARGET_INPUTS,
+      defaultBranch: 'main',
+      actionsSchemasDir: ACTIONS_SCHEMAS_DIR,
+      existingContent: '',
+    });
+
+    expect(result.outcome).toEqual({
+      kind: 'conflict',
+      reason: 'Expected YAML mapping in .github/make_dispatches.yaml',
+    });
+    expect(result.content).toBeUndefined();
+  });
+
+  it('leaves a comments-only base file alone with a clear reason', () => {
+    const result = renderMakeDispatches({
+      org: 'acme',
+      inputs: SINGLE_TARGET_INPUTS,
+      defaultBranch: 'main',
+      actionsSchemasDir: ACTIONS_SCHEMAS_DIR,
+      existingContent: '# just a comment\n',
+    });
+
+    expect(result.outcome).toEqual({
+      kind: 'conflict',
+      reason: 'Expected YAML mapping in .github/make_dispatches.yaml',
+    });
+    expect(result.content).toBeUndefined();
   });
 
   it('is idempotent (noop) on its own output', () => {
