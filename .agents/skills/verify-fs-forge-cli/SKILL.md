@@ -119,19 +119,24 @@ when the CLI behaved.
 
 `read` mode was exercised live against `pre-vieitesss`, and so were these
 `write` paths, on `firestartr.dev/ia-test` claims from `$V/fixture.sh setup`:
-`create`, `edit`, `features add|edit|remove --commit` and `create --commit
---create-issue`. `delete --commit --issue` on a fresh claim whose CR still
-exists dispatched `unprovision-claim.yaml` and removed the claim's CR, repo and
-team, but exited 2: the run created both PRs and merged the CR PR, then failed
-at `Merge claims PR` with `Merge state: UNSTABLE` because it merged without
-waiting for that PR's `PR Verify`, which passed a minute later
-(`provision-claim.yaml` waits for `PR Verify` first, `unprovision-claim.yaml`
-does not). A delete of a claim whose CR is already gone fails earlier still,
-in `delete-github-claim.yaml`. Both leave the deletion PR for a human merge, so
-a clean delete is not yet proven. `$V/fixture.sh teardown` names that PR and
-the rerun when a delete stops there. That proves the mechanism, not the next
-org: keep reading `org-before.json`, `org-after.json` and `org-diff.txt` next
-to the verdict, and report anything surprising.
+`create`, `edit`, `features add|edit|remove --commit`, `create --commit
+--create-issue` and both `delete` legs (`delete component --commit --issue`,
+then `delete group --commit`). The delete leg needs `claims_repo` >= 3.2.0 in
+the org's `claims` repo: 3.0.1 created the deletion PR without waiting for its
+`PR Verify`, failed at `Merge claims PR` with `Merge state: UNSTABLE` and left
+the PR for a human. 3.2.0 runs `Wait for PR Verify (claims PR)` before
+`Merge claims PR`; both deletes then exit 0 with the deletion PR merged, and
+`$V/fixture.sh teardown` reaches `TEARDOWN OK` with seven `PASS`. Upgrade by
+pinning the version on the `claims` ComponentClaim (`features edit claims
+--name claims_repo --version 3.2.0 --commit`): `provision-claim.yaml`
+dispatched from `main` cannot re-provision (`gh pr create` needs a non-`main`
+head) and `hydrate-github-claim.yaml` alone keeps rendering the old pin. One
+case still needs a human: deleting a claim whose CR is already gone fails
+inside `delete-github-claim.yaml` at `Fail if any pull request could not be
+created`, so its deletion PR stays open; merge it, or delete while the CR is
+still live. That proves the mechanism, not the next org: keep reading
+`org-before.json`, `org-after.json` and `org-diff.txt` next to the verdict,
+and report anything surprising.
 
 ## Evidence
 
