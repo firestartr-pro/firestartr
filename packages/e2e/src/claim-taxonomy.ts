@@ -28,6 +28,7 @@ export const CLAIM_KIND_TO_CR_KIND = {
   TFWorkspaceClaim: 'FirestartrTerraformWorkspace',
   OrgWebhookClaim: 'FirestartrGithubOrgWebhook',
   OrgSettingsClaim: 'FirestartrGithubOrganizationSettings',
+  OrgRulesetClaim: 'FirestartrGithubOrgRuleset',
 } as const satisfies Record<string, string>;
 
 const CLAIM_KIND_TO_RELATED_CR_KINDS = {
@@ -45,6 +46,7 @@ const CLAIM_KIND_TO_RELATED_CR_KINDS = {
     'FirestartrGithubOrganizationVariableSection',
     'FirestartrGithubOrganizationSecretSection',
   ],
+  OrgRulesetClaim: ['FirestartrGithubOrgRuleset'],
 } as const satisfies Record<string, readonly string[]>;
 
 export type ClaimKind = keyof typeof CLAIM_KIND_TO_CR_KIND;

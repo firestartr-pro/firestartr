@@ -13,6 +13,7 @@ const ONE_WAY_DEFINITIONS = [
   '/spec/repo/labels',
   '/spec/actionsVariables',
   '/spec/secrets',
+  '/spec/ruleset',
 ];
 
 export function applyOneWayDefs(crSpecs: any) {

@@ -9,7 +9,7 @@ import { OperationType, WorkItem } from '../definitions';
 import { deletionWaitsForDependants } from '../dependants';
 import log from '../logger';
 import {
-  getParentRef,
+  getParentRefs,
   isDependentKind,
   isProvisioned,
 } from '../parentDependency';
@@ -210,13 +210,10 @@ const planTerraformWorkspace: Planner = async (
 function assertParentProvisioned(item: any, deps: any) {
   if (!isDependentKind(item.kind)) return;
 
-  const parent = getParentRef({ item } as WorkItem);
-
-  if (!parent) return;
-
-  const key = `${parent.kind}-${parent.name}`;
-
-  if (!isProvisioned(deps[key]?.cr)) throw new ResolverError(key);
+  for (const parent of getParentRefs({ item } as WorkItem)) {
+    const key = `${parent.kind}-${parent.name}`;
+    if (!isProvisioned(deps[key]?.cr)) throw new ResolverError(key);
+  }
 }
 
 const resolveGithubDependencies: DependencyResolver = async (

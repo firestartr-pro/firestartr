@@ -38,6 +38,8 @@ export const INITIALIZERS_BY_FILE_NAME: any = {
   defaults_github_orgwebhook: InitializerDefault,
 
   defaults_github_orgsettings: InitializerDefault,
+
+  defaults_github_orgruleset: InitializerDefault,
 };
 
 export const SCHEMAS_BY_INITIALIZER_NAME: any = {

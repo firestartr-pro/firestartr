@@ -1,5 +1,5 @@
 import common from 'catalog_common';
-import { waitForOrgWebhookState } from '../../..';
+import { waitForOrgRulesetState, waitForOrgWebhookState } from '../../..';
 
 import type { E2EApi } from '../../../src/types';
 
@@ -113,5 +113,77 @@ describe('waitForOrgWebhookState', () => {
 
     expect(orgWebhookExists).toHaveBeenCalledTimes(2);
     expect(common.generic.sleep).toHaveBeenCalledWith(250);
+  });
+});
+
+describe('waitForOrgRulesetState', () => {
+  let nowMs = 0;
+
+  beforeEach(() => {
+    nowMs = 0;
+
+    jest.spyOn(Date, 'now').mockImplementation(() => nowMs);
+    jest.spyOn(common.generic, 'sleep').mockImplementation(async (delay) => {
+      nowMs += delay;
+    });
+    jest.spyOn(common.logger, 'warn').mockImplementation(() => undefined);
+  });
+
+  afterEach(() => {
+    jest.restoreAllMocks();
+  });
+
+  it('polls until the org ruleset reaches the requested existence state', async () => {
+    const orgRulesetExists = jest
+      .fn()
+      .mockResolvedValueOnce(true)
+      .mockResolvedValueOnce(false);
+    const client = { gh: { orgRulesetExists } } as unknown as E2EApi;
+
+    await expect(
+      waitForOrgRulesetState(client, 'ruleset-a', false, {
+        timeoutMs: 1000,
+        intervalMs: 250,
+      }),
+    ).resolves.toBeUndefined();
+
+    expect(orgRulesetExists).toHaveBeenCalledTimes(2);
+    expect(orgRulesetExists).toHaveBeenCalledWith('ruleset-a');
+    expect(common.generic.sleep).toHaveBeenCalledWith(250);
+  });
+
+  it('includes the ruleset name and last observed state in timeout errors', async () => {
+    const client = {
+      gh: { orgRulesetExists: jest.fn().mockResolvedValue(false) },
+    } as unknown as E2EApi;
+
+    await expect(
+      waitForOrgRulesetState(client, 'ruleset-missing', true, {
+        timeoutMs: 1000,
+        intervalMs: 500,
+      }),
+    ).rejects.toThrow(
+      "Timed out waiting for org ruleset 'ruleset-missing' to exist. Last observed exists=false.",
+    );
+  });
+
+  it('retries transient GitHub probe errors within the polling window', async () => {
+    const orgRulesetExists = jest
+      .fn()
+      .mockRejectedValueOnce({ status: 429, message: 'rate limited' })
+      .mockResolvedValueOnce(true);
+    const client = { gh: { orgRulesetExists } } as unknown as E2EApi;
+
+    await expect(
+      waitForOrgRulesetState(client, 'ruleset-a', true, {
+        timeoutMs: 1000,
+        intervalMs: 250,
+      }),
+    ).resolves.toBeUndefined();
+
+    expect(orgRulesetExists).toHaveBeenCalledTimes(2);
+    expect(common.logger.warn).toHaveBeenCalledWith(
+      'Retrying org ruleset wait after 250ms due to: rate limited',
+    );
   });
 });

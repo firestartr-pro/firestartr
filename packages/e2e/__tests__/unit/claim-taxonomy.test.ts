@@ -44,4 +44,10 @@ describe('getRelatedCrKindsForClaimKind', () => {
       'FirestartrTerraformWorkspace',
     ]);
   });
+
+  it('returns the org ruleset CR kind for org ruleset claims', () => {
+    expect(getRelatedCrKindsForClaimKind('OrgRulesetClaim')).toEqual([
+      'FirestartrGithubOrgRuleset',
+    ]);
+  });
 });

@@ -1,0 +1,30 @@
+---
+kind: OrgRulesetClaim
+version: "1.0"
+name: orgruleset_property_a
+system: "system:system_a"
+owner: "group:group_a"
+providers:
+  github:
+    name: Strict - Main Branch (regulated repos)
+    org: firestartr-test
+    target: branch
+    enforcement: evaluate
+    conditions:
+      ref_name:
+        include: ["refs/heads/main"]
+        exclude: []
+      repository_property:
+        include:
+          - name: data-classification
+            source: custom
+            property_values: ["regulated", "pci"]
+        exclude: []
+    rules:
+      - type: required_signatures
+      - type: required_status_checks
+        parameters:
+          strict_required_status_checks_policy: true
+          required_status_checks:
+            - context: ci / test
+              integration_id: 15368

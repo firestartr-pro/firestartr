@@ -26,6 +26,7 @@ alongside the provider's managed resources.
 | `SecretsClaim` | `Resource` | `type: secret-set`, `owner`, `system`, `secrets` |
 | `ArgoDeployClaim` | `Resource` | `type` (`type` or `argodeploy`) |
 | `OrgWebhookClaim` | `Resource` | `type: webhook`, `owner`, `system` |
+| `OrgRulesetClaim` | `Resource` | `type: ruleset`, `owner`, `system` |
 
 All entities use `apiVersion: backstage.io/v1alpha1`. Annotations on the claim
 are copied onto the entity. `OrgSettingsClaim` does **not** produce a catalog

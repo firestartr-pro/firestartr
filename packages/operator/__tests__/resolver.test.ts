@@ -1,6 +1,8 @@
 import {
   ResolverError,
+  outputsSecretName,
   resolve,
+  withoutDestroyDependencies,
   withoutPlaintextSecrets,
 } from '../src/resolver';
 import { getItemByItemPathMockFn, getSecretMockFn } from './fixtures/utils';
@@ -513,5 +515,97 @@ describe('Resolver', () => {
     expect(withoutPlaintextSecrets(cr).spec.actionsVariables).toEqual([
       { name: 'PLAIN', value: 'true', visibility: 'all' },
     ]);
+  });
+
+  it('does not resolve referenced groups when destroying an org ruleset', async () => {
+    const cr = {
+      kind: 'FirestartrGithubOrgRuleset',
+      metadata: { name: 'ruleset', namespace: 'default' },
+      spec: {
+        provider: {
+          ref: { kind: 'FirestartrProviderConfig', name: 'github' },
+        },
+        ruleset: {
+          bypass_actors: [
+            {
+              actor_type: 'Team',
+              ref: { kind: 'FirestartrGithubGroup', name: 'team-a' },
+            },
+          ],
+        },
+      },
+    };
+    const getItemByItemPath = jest.fn(async (itemPath: string) =>
+      itemPath.endsWith('/providerconfigs/github')
+        ? {
+            kind: 'FirestartrProviderConfig',
+            metadata: { name: 'github', namespace: 'default' },
+            spec: {},
+          }
+        : undefined,
+    );
+
+    const dependencies = await resolve(
+      withoutDestroyDependencies(cr),
+      getItemByItemPath,
+      jest.fn(),
+    );
+
+    expect(Object.keys(dependencies)).toEqual([
+      'FirestartrProviderConfig-github',
+    ]);
+    expect(getItemByItemPath).toHaveBeenCalledTimes(1);
+  });
+});
+
+describe('outputsSecretName', () => {
+  const longName = 'a'.repeat(240);
+
+  it('derives the name from kind and metadata.name', () => {
+    expect(
+      outputsSecretName({
+        kind: 'FirestartrGithubOrgRuleset',
+        metadata: { name: 'ruleset-a-uuid' },
+        spec: {
+          writeConnectionSecretToRef: { name: 'recorded-name-outputs' },
+        },
+      }),
+    ).toBe('firestartrgithuborgruleset-ruleset-a-uuid-outputs');
+  });
+
+  it('keeps the derived name for kinds that record a different one', () => {
+    expect(
+      outputsSecretName({
+        kind: 'FirestartrGithubOrganizationSecretSection',
+        metadata: { name: 'section-uuid' },
+        spec: {
+          writeConnectionSecretToRef: {
+            name: 'firestartrgithuborganizationsecretsection-section-secrets-outputs',
+          },
+        },
+      }),
+    ).toBe('firestartrgithuborganizationsecretsection-section-uuid-outputs');
+  });
+
+  it('uses the recorded name when the derived one exceeds 253 characters', () => {
+    const recorded = `firestartrgithuborgruleset-${'a'.repeat(100)}-uuid-outputs`;
+
+    const name = outputsSecretName({
+      kind: 'FirestartrGithubOrgRuleset',
+      metadata: { name: longName },
+      spec: { writeConnectionSecretToRef: { name: recorded } },
+    });
+
+    expect(name).toBe(recorded);
+  });
+
+  it('falls back to the derived name when a long one has no recorded name', () => {
+    expect(
+      outputsSecretName({
+        kind: 'FirestartrGithubOrgRuleset',
+        metadata: { name: longName },
+        spec: {},
+      }),
+    ).toBe(`firestartrgithuborgruleset-${longName}-outputs`);
   });
 });

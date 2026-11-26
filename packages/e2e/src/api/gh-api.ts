@@ -9,6 +9,7 @@ import { E2EState } from './state';
 import type {
   GhApi,
   GhFeatureRepoRateLimit,
+  GhOrgRuleset,
   GhOrgSecret,
   GhOrgSecretSection,
   GhOrgSettings,
@@ -87,6 +88,15 @@ type RawOrgWebhook = {
   };
 };
 
+type RawOrgRuleset = {
+  id?: unknown;
+  name?: unknown;
+  target?: unknown;
+  enforcement?: unknown;
+  rules?: unknown;
+  conditions?: { repository_name?: { include?: unknown } };
+};
+
 type RawRepoInfo = {
   description?: unknown;
   topics?: unknown;
@@ -157,6 +167,38 @@ function normalizeOrgSecret(raw: RawOrgSecret): GhOrgSecret | null {
   };
 }
 
+function asStringArray(value: unknown): string[] {
+  return Array.isArray(value)
+    ? value.filter((item): item is string => typeof item === 'string')
+    : [];
+}
+
+function normalizeOrgRuleset(raw: RawOrgRuleset): GhOrgRuleset | null {
+  if (
+    typeof raw.id !== 'number' ||
+    typeof raw.name !== 'string' ||
+    typeof raw.target !== 'string' ||
+    typeof raw.enforcement !== 'string'
+  ) {
+    return null;
+  }
+
+  const rules = Array.isArray(raw.rules) ? raw.rules : [];
+
+  return {
+    id: raw.id,
+    name: raw.name,
+    target: raw.target,
+    enforcement: raw.enforcement,
+    ruleTypes: rules
+      .map((rule) => rule?.type)
+      .filter((type): type is string => typeof type === 'string'),
+    repositoryNameInclude: asStringArray(
+      raw.conditions?.repository_name?.include,
+    ),
+  };
+}
+
 function normalizeOrgWebhook(rawWebhook: RawOrgWebhook): GhOrgWebhook | null {
   if (typeof rawWebhook.id !== 'number') {
     return null;
@@ -189,6 +231,25 @@ async function listOrgWebhooksForOrg(org: string): Promise<GhOrgWebhook[]> {
   return rawWebhooks
     .map((rawWebhook) => normalizeOrgWebhook(rawWebhook as RawOrgWebhook))
     .filter((webhook): webhook is GhOrgWebhook => webhook !== null);
+}
+
+// The list endpoint returns summaries without rules or conditions, so callers
+// that need those fetch each ruleset by id.
+async function listOrgRulesetSummariesForOrg(
+  org: string,
+  name: string,
+): Promise<number[]> {
+  const octokit = await github.getOctokitForOrg(org, true);
+  const rawRulesets = await octokit.paginate('GET /orgs/{org}/rulesets', {
+    org,
+    per_page: 100,
+  });
+
+  return (rawRulesets as RawOrgRuleset[])
+    .filter(
+      (ruleset) => ruleset.name === name && typeof ruleset.id === 'number',
+    )
+    .map((ruleset) => ruleset.id as number);
 }
 
 async function findOrgVariableByName(
@@ -355,6 +416,59 @@ export function createGhApi(state: E2EState): GhApi {
         company: asStringOrNull(info.company),
         hasOrganizationProjects: asBoolOrNull(info.has_organization_projects),
       };
+    },
+
+    async findOrgRulesetByName(name: string): Promise<GhOrgRuleset | null> {
+      const [rulesetId] = await listOrgRulesetSummariesForOrg(state.org, name);
+
+      if (rulesetId === undefined) {
+        return null;
+      }
+
+      try {
+        const octokit = await github.getOctokitForOrg(state.org, true);
+        const response = await octokit.request(
+          'GET /orgs/{org}/rulesets/{ruleset_id}',
+          { org: state.org, ruleset_id: rulesetId },
+        );
+
+        return normalizeOrgRuleset(response.data as RawOrgRuleset);
+      } catch (err) {
+        if (isNotFound(err as GithubError)) {
+          return null;
+        }
+
+        throw err;
+      }
+    },
+
+    async orgRulesetExists(name: string): Promise<boolean> {
+      return (await listOrgRulesetSummariesForOrg(state.org, name)).length > 0;
+    },
+
+    async destroyOrgRulesetByName(name: string): Promise<void> {
+      const rulesetIds = await listOrgRulesetSummariesForOrg(state.org, name);
+
+      if (rulesetIds.length === 0) {
+        return;
+      }
+
+      const octokit = await github.getOctokitForOrg(state.org);
+
+      for (const rulesetId of rulesetIds) {
+        try {
+          await octokit.request('DELETE /orgs/{org}/rulesets/{ruleset_id}', {
+            org: state.org,
+            ruleset_id: rulesetId,
+          });
+        } catch (err) {
+          if (isNotFound(err as GithubError)) {
+            continue;
+          }
+
+          throw err;
+        }
+      }
     },
 
     async destroyRepo(name: string): Promise<void> {
