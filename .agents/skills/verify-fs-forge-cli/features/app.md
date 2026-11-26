@@ -29,6 +29,25 @@ Preconditions:
 - Read drives (`app-discover`, `app-plan`) need `$V/doctor.sh --org ORG` and an org the user named and approved in this conversation.
 - Write drives (`app-apply`) need a pre org registered under `firestartr-pre/app-firestartr` at `kubernetes/firestartr-pre/<org>/`, `$V/doctor.sh --org ORG`, and explicit user approval for every drive, just like `ob-write`.
 
+## What `ready` needs on an org with no apps yet
+
+`app plan` exits 1 with `ready: false` until every check passes. On an org that has
+never had an App, these are the checks that fail and the setup each one wants:
+
+| Check | Fails when | Smallest setup |
+|---|---|---|
+| `dot-firestartr-repo` | `<org>/.firestartr` is missing | provision the `dot-firestartr` claim |
+| `state-argocd-repo` | `<org>/state-argocd` is missing | `create component --name state-argocd --feature 'state_argocd@<version>:{"client_name":"argocd",...}' --commit`, the way the sibling `state-github`/`state-infra` claims make those repos |
+| `service-repo` | the Service repository is missing | unarchive or create it; an archived repository still passes (see Gotchas) |
+| `registry-and-platforms` | the `chart.registry` alias is absent from `.firestartr/docker_registries/`, or a target platform, tenant or env is absent from `.firestartr/platforms/` | land one file in each directory, valid against `packages/cdk8s_renderer/src/schemas/dot-firestartr/` ([docker_registries.schema.ts](../../../../packages/cdk8s_renderer/src/schemas/dot-firestartr/docker_registries.schema.ts), [platforms.schema.ts](../../../../packages/cdk8s_renderer/src/schemas/dot-firestartr/platforms.schema.ts)) |
+| `image-types` | the registry does not list the `snapshots`/`releases` type the targets' tracks need | add the type to the registry file |
+| `build-images` | `.github/build_images.yaml` is absent from the Service repository, or lacks a `<type>.<flavor>` one of the targets needs | add it, valid against [build_images.schema.ts](../../../../packages/cdk8s_renderer/src/schemas/actions/build_images.schema.ts) |
+
+While the registry alias is missing, `conflicts` also names the Service claim and the
+`app-<app>` target file, so `ready` stays false even when the checks are read alone and
+the `--out` render skips both files. `argo-notifications-app` and `vars-and-secrets`
+are `info` checks: they never block `ready`.
+
 - **Schema (offline).** Run `$V/drive.sh --label app-schema-list -- schema list`: `stdout.txt` includes `AppInputs`. Run `$V/drive.sh --label app-schema-show -- schema show AppInputs`: `stdout.txt` is valid JSON with `"title": "AppInputs"` and required keys `["app", "service", "targets", "chart"]`.
 - **Help (offline).** Run `$V/drive.sh --label app-discover-help -- app discover --help`, `$V/drive.sh --label app-plan-help -- app plan --help`, and `$V/drive.sh --label app-apply-help -- app apply --help`. Each exits 0 and prints its flags (`--app` on `discover`, `--inputs` and `--out` on `plan`, `--inputs`, `--no-wait`, `--timeout`, `--issue`, and `--create-issue` on `apply`).
 - **Missing inputs file (offline).** Run `$V/drive.sh --label app-plan-missing --expect-exit 2 -- app plan --inputs missing.yaml` and `$V/drive.sh --label app-apply-missing --expect-exit 2 -- app apply --inputs missing.yaml`. Both exit 2 with `Invalid inputs file:` in `stderr.txt`.
@@ -46,3 +65,4 @@ Preconditions:
 - `app apply` exits 3 when a step is still pending (for example with `--no-wait` or on `--timeout`).
 - `app apply` writes without a `--commit` flag; `drive.sh --mode write` currently checks for `--commit`, so check `drive.sh` before running a live `app-apply` write drive.
 - `app plan --out <dir>` writes only non-noop, non-conflict files, so an up-to-date App writes nothing.
+- An archived Service repository passes the `service-repo` check because it only asks whether the repository exists, but `app apply` cannot open a PR in it (`ERROR: This repository was archived so it is read-only`) after the earlier steps already landed. Unarchive it before `app apply` (firestartr-pro/firestartr#262).
