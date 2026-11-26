@@ -117,6 +117,7 @@ import {
   getUserRoleInOrg,
   getOrgInfo,
   getOrgPlanName,
+  getRulesetList,
 } from "../src/organization";
 import { Octokit } from '@octokit/rest';
 
@@ -169,5 +170,17 @@ describe("#github.org", () => {
   it("Should be able to get the name of an organization's plan", async () => {
     const result = await getOrgPlanName(mockedOrgName);
     expect(result).toEqual(mockedOrgInfo.data.plan.name);
+  });
+
+  it("Should be able to get the list of rulesets from the organization", async () => {
+    const rulesets = [{ id: 1, name: "ruleset-a" }];
+    const merge = jest.fn((options: any) => options);
+    const octokit = {
+      repos: { getOrgRulesets: { endpoint: { merge } } },
+      paginate: jest.fn(async () => rulesets),
+    };
+
+    expect(await getRulesetList(mockedOrgName, octokit)).toBe(rulesets);
+    expect(merge).toHaveBeenCalledWith({ org: mockedOrgName, per_page: 100 });
   });
 });

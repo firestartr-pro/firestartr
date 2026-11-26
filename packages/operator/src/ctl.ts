@@ -9,6 +9,7 @@ import {
 } from './pr-annotation';
 import { getOperatorEnvSnapshot } from './operator-env';
 import log from './logger';
+import { outputsSecretName } from './resolver';
 import { getConnection as getCtlConnection } from './connection';
 import { withApiReadSlot } from './utils/api-read-limiter';
 import { assertWriteAllowed } from './plan-mode/write-gateway';
@@ -898,7 +899,7 @@ export function writeConnectionSecret(
     kind: 'Secret',
 
     metadata: {
-      name: `${item.kind}-${item.metadata.name}-outputs`,
+      name: outputsSecretName(item),
 
       namespace: item.metadata.namespace,
 

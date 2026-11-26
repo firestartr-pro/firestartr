@@ -17,6 +17,7 @@ import { EntityGHOrgSettings } from './ghorgsettings';
 import { EntityGHOrgVarsSection } from './ghorgvarsection';
 import { EntityGHOrgSecretSection } from './ghorgsecretsection';
 import { EntityGHOrgWebHook } from './ghorgwebhook';
+import { EntityGHOrgRuleset } from './ghorgruleset';
 
 import log from '../logger';
 
@@ -51,6 +52,8 @@ function getEntityClass(kind: string): EntityConstructor {
       return EntityGHMembership as EntityConstructor;
     case 'FirestartrGithubOrgWebhook':
       return EntityGHOrgWebHook as EntityConstructor;
+    case 'FirestartrGithubOrgRuleset':
+      return EntityGHOrgRuleset as EntityConstructor;
     case 'FirestartrGithubOrganizationSettings':
       return EntityGHOrgSettings as EntityConstructor;
     case 'FirestartrGithubOrganizationVariableSection':

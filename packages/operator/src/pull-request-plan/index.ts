@@ -44,6 +44,7 @@ const GITHUB_RESOURCE_KINDS = [
   'FirestartrGithubRepositoryFeature',
   'FirestartrGithubRepositorySecretsSection',
   'FirestartrGithubOrgWebhook',
+  'FirestartrGithubOrgRuleset',
   'FirestartrGithubOrganizationSettings',
   'FirestartrGithubOrganizationVariableSection',
   'FirestartrGithubOrganizationSecretSection',

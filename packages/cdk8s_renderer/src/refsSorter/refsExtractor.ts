@@ -151,6 +151,35 @@ export function extractAllRefs(claimData: string) {
 
       break;
     }
+    case 'OrgRulesetClaim': {
+      const bypassActors = parsedClaim.providers?.github?.bypass_actors;
+      if (Array.isArray(bypassActors)) {
+        for (const actor of bypassActors) {
+          if (actor?.actor_type !== 'Team' || typeof actor.group !== 'string') {
+            continue;
+          }
+          const match = actor.group.match(/^group:(.+)$/);
+          if (match) {
+            refs.push(`GroupClaim-${match[1]}`);
+          }
+        }
+      }
+
+      const repositoryName =
+        parsedClaim.providers?.github?.conditions?.repository_name;
+      for (const key of ['include', 'exclude'] as const) {
+        const values = repositoryName?.[key];
+        if (!Array.isArray(values)) continue;
+        for (const ref of values) {
+          const match = String(ref).match(/^component:(.+)$/);
+          if (match) {
+            refs.push(`ComponentClaim-${match[1]}`);
+          }
+        }
+      }
+
+      break;
+    }
   }
 
   log.info(

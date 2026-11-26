@@ -1,6 +1,9 @@
 import { WorkItem, WorkStatus, OperationType } from '../src/definitions';
 import { sortQueue } from '../src/queueSort';
-import { hasActiveParent, buildDeferredParentKeys } from '../src/parentDependency';
+import {
+  hasActiveParent,
+  buildDeferredParentKeys,
+} from '../src/parentDependency';
 
 const KIND_PARENT = 'FirestartrGithubRepository';
 const KIND_CHILD_FEAT = 'FirestartrGithubRepositoryFeature';
@@ -9,6 +12,9 @@ const KIND_CHILD_GRSS = 'FirestartrGithubRepositorySecretsSection';
 const KIND_DUMMY_A = 'FirestartrDummyA';
 const KIND_DUMMY_B = 'FirestartrDummyB';
 const KIND_DUMMY_C = 'FirestartrDummyC';
+
+const KIND_ORG_RULESET = 'FirestartrGithubOrgRuleset';
+const KIND_GROUP = 'FirestartrGithubGroup';
 
 const KIND_OTHER = 'SomeUnrelatedKind';
 
@@ -44,6 +50,37 @@ function makeWorkItem(
     workStatus: WorkStatus.PENDING,
     onDelete: () => {},
     upsertTime,
+  } as any as WorkItem;
+}
+
+function makeRulesetWorkItem(
+  groupName?: string | string[],
+  groupKind: string = KIND_GROUP,
+): WorkItem {
+  const item: any = {
+    metadata: { name: 'ruleset', namespace: 'default' },
+    kind: KIND_ORG_RULESET,
+  };
+
+  if (groupName) {
+    const groupNames = Array.isArray(groupName) ? groupName : [groupName];
+    item.spec = {
+      ruleset: {
+        bypass_actors: groupNames.map((name) => ({
+            actor_type: 'Team',
+            bypass_mode: 'always',
+            ref: { kind: groupKind, name, needsSecret: true },
+          })),
+      },
+    };
+  }
+
+  return {
+    item,
+    operation: OperationType.CREATED,
+    workStatus: WorkStatus.PENDING,
+    onDelete: () => {},
+    upsertTime: 0,
   } as any as WorkItem;
 }
 
@@ -116,6 +153,24 @@ describe('sortQueue — creation ordering', () => {
     const sorted = sortQueue([parent, child]);
     expect(sorted[0].item.metadata.name).toBe('child');
     expect(sorted[1].item.metadata.name).toBe('parent');
+  });
+
+  it('deletes org rulesets before the groups they reference', () => {
+    const group = makeWorkItem(
+      KIND_GROUP,
+      OperationType.MARKED_TO_DELETION,
+      100,
+      'group',
+    );
+    const ruleset = makeWorkItem(
+      KIND_ORG_RULESET,
+      OperationType.MARKED_TO_DELETION,
+      0,
+      'ruleset',
+    );
+    const sorted = sortQueue([group, ruleset]);
+    expect(sorted[0].item.metadata.name).toBe('ruleset');
+    expect(sorted[1].item.metadata.name).toBe('group');
   });
 
   it('sorts by operation weight when operations differ', () => {
@@ -619,6 +674,19 @@ describe('hasActiveParent — parent-identity dependency check', () => {
     const deferredKeys = new Set<string>();
     expect(hasActiveParent(child, activeKeys, deferredKeys)).toBe(false);
   });
+
+  it('blocks an org ruleset while its bypass group is PENDING', () => {
+    const group = makeWorkItem(KIND_GROUP, OperationType.CREATED, 0, 'mygroup');
+    const ruleset = makeRulesetWorkItem('mygroup');
+
+    expect(hasActiveParent(ruleset, [group, ruleset])).toBe(true);
+  });
+
+  it('does NOT block an org ruleset without a group bypass actor', () => {
+    const ruleset = makeRulesetWorkItem();
+
+    expect(hasActiveParent(ruleset, [ruleset])).toBe(false);
+  });
 });
 
 describe('buildDeferredParentKeys — cluster existence and provisioning check', () => {
@@ -634,7 +702,9 @@ describe('buildDeferredParentKeys — cluster existence and provisioning check',
     status: { conditions: [] },
   });
 
-  const mockGetItemNotFound = async (path: string) => { throw new Error('Not found'); };
+  const mockGetItemNotFound = async (path: string) => {
+    throw new Error('Not found');
+  };
 
   it('returns empty set when all parents are in the active set', async () => {
     const child = makeWorkItem(
@@ -645,7 +715,11 @@ describe('buildDeferredParentKeys — cluster existence and provisioning check',
       'myrepo',
     );
     const activeKeys = new Set(['FirestartrGithubRepository/myrepo']);
-    const result = await buildDeferredParentKeys([child], activeKeys, mockGetItemProvisioned);
+    const result = await buildDeferredParentKeys(
+      [child],
+      activeKeys,
+      mockGetItemProvisioned,
+    );
     expect(result.size).toBe(0);
   });
 
@@ -658,7 +732,11 @@ describe('buildDeferredParentKeys — cluster existence and provisioning check',
       'myrepo',
     );
     const activeKeys = new Set<string>();
-    const result = await buildDeferredParentKeys([child], activeKeys, mockGetItemProvisioned);
+    const result = await buildDeferredParentKeys(
+      [child],
+      activeKeys,
+      mockGetItemProvisioned,
+    );
     expect(result.size).toBe(0);
   });
 
@@ -671,9 +749,15 @@ describe('buildDeferredParentKeys — cluster existence and provisioning check',
       'unprovisioned-repo',
     );
     const activeKeys = new Set<string>();
-    const result = await buildDeferredParentKeys([child], activeKeys, mockGetItemNotProvisioned);
+    const result = await buildDeferredParentKeys(
+      [child],
+      activeKeys,
+      mockGetItemNotProvisioned,
+    );
     expect(result.size).toBe(1);
-    expect(result.has('FirestartrGithubRepository/unprovisioned-repo')).toBe(true);
+    expect(result.has('FirestartrGithubRepository/unprovisioned-repo')).toBe(
+      true,
+    );
   });
 
   it('adds parent key when parent does not exist in cluster', async () => {
@@ -685,9 +769,15 @@ describe('buildDeferredParentKeys — cluster existence and provisioning check',
       'nonexistent-repo',
     );
     const activeKeys = new Set<string>();
-    const result = await buildDeferredParentKeys([child], activeKeys, mockGetItemNotFound);
+    const result = await buildDeferredParentKeys(
+      [child],
+      activeKeys,
+      mockGetItemNotFound,
+    );
     expect(result.size).toBe(1);
-    expect(result.has('FirestartrGithubRepository/nonexistent-repo')).toBe(true);
+    expect(result.has('FirestartrGithubRepository/nonexistent-repo')).toBe(
+      true,
+    );
   });
 
   it('deduplicates multiple children referencing the same missing parent', async () => {
@@ -707,7 +797,11 @@ describe('buildDeferredParentKeys — cluster existence and provisioning check',
     );
     const activeKeys = new Set<string>();
     const getItemMock = jest.fn().mockRejectedValue(new Error('Not found'));
-    const result = await buildDeferredParentKeys([child1, child2], activeKeys, getItemMock);
+    const result = await buildDeferredParentKeys(
+      [child1, child2],
+      activeKeys,
+      getItemMock,
+    );
     expect(result.size).toBe(1);
     expect(result.has('FirestartrGithubRepository/missing-repo')).toBe(true);
     expect(getItemMock).toHaveBeenCalledTimes(1);
@@ -716,7 +810,11 @@ describe('buildDeferredParentKeys — cluster existence and provisioning check',
   it('skips non-dependent kinds', async () => {
     const other = makeWorkItem(KIND_OTHER, OperationType.CREATED, 0, 'other');
     const activeKeys = new Set<string>();
-    const result = await buildDeferredParentKeys([other], activeKeys, mockGetItemNotFound);
+    const result = await buildDeferredParentKeys(
+      [other],
+      activeKeys,
+      mockGetItemNotFound,
+    );
     expect(result.size).toBe(0);
   });
 
@@ -729,7 +827,11 @@ describe('buildDeferredParentKeys — cluster existence and provisioning check',
       'missing-repo',
     );
     const activeKeys = new Set<string>();
-    const result = await buildDeferredParentKeys([child], activeKeys, mockGetItemNotFound);
+    const result = await buildDeferredParentKeys(
+      [child],
+      activeKeys,
+      mockGetItemNotFound,
+    );
     expect(result.size).toBe(0);
   });
 
@@ -746,7 +848,9 @@ describe('buildDeferredParentKeys — cluster existence and provisioning check',
     const activeKeys = new Set<string>();
     const getItemMock = jest.fn().mockRejectedValue(new Error('Not found'));
     await buildDeferredParentKeys([child], activeKeys, getItemMock);
-    expect(getItemMock).toHaveBeenCalledWith('test-ns/githubrepositories/test-repo');
+    expect(getItemMock).toHaveBeenCalledWith(
+      'test-ns/githubrepositories/test-repo',
+    );
   });
 
   it('handles dummy B blocked when parent DummyA is missing from cluster', async () => {
@@ -758,7 +862,11 @@ describe('buildDeferredParentKeys — cluster existence and provisioning check',
       'missing-a',
     );
     const activeKeys = new Set<string>();
-    const result = await buildDeferredParentKeys([child], activeKeys, mockGetItemNotFound);
+    const result = await buildDeferredParentKeys(
+      [child],
+      activeKeys,
+      mockGetItemNotFound,
+    );
     expect(result.size).toBe(1);
     expect(result.has('FirestartrDummyA/missing-a')).toBe(true);
   });
@@ -773,7 +881,11 @@ describe('buildDeferredParentKeys — cluster existence and provisioning check',
     );
     const activeKeys = new Set(['FirestartrGithubRepository/active-repo']);
     const getItemMock = jest.fn();
-    const result = await buildDeferredParentKeys([child], activeKeys, getItemMock);
+    const result = await buildDeferredParentKeys(
+      [child],
+      activeKeys,
+      getItemMock,
+    );
     expect(result.size).toBe(0);
     expect(getItemMock).not.toHaveBeenCalled();
   });
@@ -787,9 +899,15 @@ describe('buildDeferredParentKeys — cluster existence and provisioning check',
       'unprovisioned-repo',
     );
     const activeKeys = new Set<string>();
-    const result = await buildDeferredParentKeys([child], activeKeys, mockGetItemNotProvisioned);
+    const result = await buildDeferredParentKeys(
+      [child],
+      activeKeys,
+      mockGetItemNotProvisioned,
+    );
     expect(result.size).toBe(1);
-    expect(result.has('FirestartrGithubRepository/unprovisioned-repo')).toBe(true);
+    expect(result.has('FirestartrGithubRepository/unprovisioned-repo')).toBe(
+      true,
+    );
   });
 
   it('allows GRSS when parent GHRepo is provisioned', async () => {
@@ -801,7 +919,49 @@ describe('buildDeferredParentKeys — cluster existence and provisioning check',
       'provisioned-repo',
     );
     const activeKeys = new Set<string>();
-    const result = await buildDeferredParentKeys([child], activeKeys, mockGetItemProvisioned);
+    const result = await buildDeferredParentKeys(
+      [child],
+      activeKeys,
+      mockGetItemProvisioned,
+    );
     expect(result.size).toBe(0);
+  });
+
+  it('defers an org ruleset whose bypass group is not provisioned', async () => {
+    const ruleset = makeRulesetWorkItem('unprovisioned-group');
+    const activeKeys = new Set<string>();
+
+    const result = await buildDeferredParentKeys(
+      [ruleset],
+      activeKeys,
+      mockGetItemNotProvisioned,
+    );
+
+    expect(result.has('FirestartrGithubGroup/unprovisioned-group')).toBe(true);
+  });
+
+  it('defers a ruleset when its second bypass group is not provisioned', async () => {
+    const ruleset = makeRulesetWorkItem(['provisioned-group', 'pending-group']);
+    const activeKeys = new Set<string>();
+    const getItemByItemPath = jest.fn(async (path: string) => ({
+      status: {
+        conditions:
+          path.endsWith('/provisioned-group')
+            ? [{ type: 'PROVISIONED', status: 'True' }]
+            : [{ type: 'PROVISIONED', status: 'False' }],
+      },
+    }));
+
+    const deferred = await buildDeferredParentKeys(
+      [ruleset],
+      activeKeys,
+      getItemByItemPath,
+    );
+
+    expect(getItemByItemPath).toHaveBeenCalledTimes(2);
+    expect(deferred).toEqual(
+      new Set(['FirestartrGithubGroup/pending-group']),
+    );
+    expect(hasActiveParent(ruleset, activeKeys, deferred)).toBe(true);
   });
 });

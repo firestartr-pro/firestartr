@@ -8,6 +8,8 @@ import GithubOrgWebhookClaimSchema from './orgwebhook.schema';
 
 import GithubOrgSettingsClaimSchema from './orgsettings.schema';
 
+import GithubOrgRulesetClaimSchema from './orgruleset.schema';
+
 import GithubComponentFeatureClaim from './feature.schema';
 
 import GithubComponentSecretsAndVars from './component.secrets-vars.schema';
@@ -30,6 +32,8 @@ export const GithubSchemas = [
   GithubOrgWebhookClaimSchema,
 
   GithubOrgSettingsClaimSchema,
+
+  GithubOrgRulesetClaimSchema,
 
   GithubComponentSecretsAndVars,
 

@@ -45,6 +45,10 @@ describe('generateClaimsMap', () => {
         'base_claims/orgSettings/orgsettings_selected_repos.yaml',
       'OrgWebhookClaim-orgwebhook_a':
         'base_claims/orgWebhook/orgwebhook_a.yaml',
+      'OrgRulesetClaim-orgruleset_a':
+        'base_claims/orgrulesets/orgruleset_a.yaml',
+      'OrgRulesetClaim-orgruleset_property_a':
+        'base_claims/orgrulesets/orgruleset_property_a.yaml',
       'SystemClaim-system_a': 'base_claims/systems/system_a.yaml',
       'SecretsClaim-secret_a': 'base_claims/secrets/secret_a.yaml',
       'DomainClaim-domain_a': 'base_claims/domains/domain_a.yaml',

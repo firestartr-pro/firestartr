@@ -627,6 +627,45 @@ describe('Plan mode: GitHub kinds', () => {
     },
   );
 
+  it('skips a ruleset plan when its second bypass group is not provisioned', async () => {
+    const item = {
+      kind: 'FirestartrGithubOrgRuleset',
+      metadata: { name: 'ruleset', namespace: 'default' },
+      spec: {
+        ruleset: {
+          bypass_actors: ['team-a', 'team-b'].map((name) => ({
+            actor_type: 'Team',
+            ref: { kind: 'FirestartrGithubGroup', name },
+          })),
+        },
+      },
+    };
+    const h = handler({
+      resolveReferences: jest.fn(async () => ({
+        'FirestartrGithubGroup-team-a': {
+          cr: {
+            status: { conditions: [{ type: 'PROVISIONED', status: 'True' }] },
+          },
+        },
+        'FirestartrGithubGroup-team-b': {
+          cr: {
+            status: { conditions: [{ type: 'PROVISIONED', status: 'False' }] },
+          },
+        },
+      })),
+    });
+
+    await drain(planGithubOperation(item, OperationType.CREATED, h));
+
+    expect(mockGh).not.toHaveBeenCalled();
+    expect(
+      readArtifacts('FirestartrGithubOrgRuleset', 'ruleset').json.result,
+    ).toMatchObject({
+      status: 'SKIPPED',
+      reason: 'parent FirestartrGithubGroup/team-b not provisioned',
+    });
+  });
+
   it('records NOTHING without running the provisioner', async () => {
     await drain(planGithubOperation(ghItem(), OperationType.NOTHING, handler()));
 
