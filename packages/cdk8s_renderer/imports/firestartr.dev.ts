@@ -2727,6 +2727,459 @@ export enum FirestartrGithubOrganizationVariableSectionSpecContextProviderRefKin
 
 
 /**
+ * A resource to handle a GitHub organization ruleset.
+ *
+ * @schema FirestartrGithubOrgRuleset
+ */
+export class FirestartrGithubOrgRuleset extends ApiObject {
+  /**
+   * Returns the apiVersion and kind for "FirestartrGithubOrgRuleset"
+   */
+  public static readonly GVK: GroupVersionKind = {
+    apiVersion: 'firestartr.dev/v1',
+    kind: 'FirestartrGithubOrgRuleset',
+  }
+
+  /**
+   * Renders a Kubernetes manifest for "FirestartrGithubOrgRuleset".
+   *
+   * This can be used to inline resource manifests inside other objects (e.g. as templates).
+   *
+   * @param props initialization props
+   */
+  public static manifest(props: FirestartrGithubOrgRulesetProps): any {
+    return {
+      ...FirestartrGithubOrgRuleset.GVK,
+      ...toJson_FirestartrGithubOrgRulesetProps(props),
+    };
+  }
+
+  /**
+   * Defines a "FirestartrGithubOrgRuleset" API object
+   * @param scope the scope in which to define this object
+   * @param id a scope-local name for the object
+   * @param props initialization props
+   */
+  public constructor(scope: Construct, id: string, props: FirestartrGithubOrgRulesetProps) {
+    super(scope, id, {
+      ...FirestartrGithubOrgRuleset.GVK,
+      ...props,
+    });
+  }
+
+  /**
+   * Renders the object to Kubernetes JSON.
+   */
+  public override toJson(): any {
+    const resolved = super.toJson();
+
+    return {
+      ...FirestartrGithubOrgRuleset.GVK,
+      ...toJson_FirestartrGithubOrgRulesetProps(resolved),
+    };
+  }
+}
+
+/**
+ * A resource to handle a GitHub organization ruleset.
+ *
+ * @schema FirestartrGithubOrgRuleset
+ */
+export interface FirestartrGithubOrgRulesetProps {
+  /**
+   * @schema FirestartrGithubOrgRuleset#metadata
+   */
+  readonly metadata: ApiObjectMetadata;
+
+  /**
+   * @schema FirestartrGithubOrgRuleset#spec
+   */
+  readonly spec: FirestartrGithubOrgRulesetSpec;
+}
+
+/**
+ * Converts an object of type 'FirestartrGithubOrgRulesetProps' to JSON representation.
+ */
+/* eslint-disable max-len, @stylistic/max-len, quote-props, @stylistic/quote-props */
+export function toJson_FirestartrGithubOrgRulesetProps(obj: FirestartrGithubOrgRulesetProps | undefined): Record<string, any> | undefined {
+  if (obj === undefined) { return undefined; }
+  const result = {
+    'metadata': obj.metadata,
+    'spec': toJson_FirestartrGithubOrgRulesetSpec(obj.spec),
+  };
+  // filter undefined values
+  return Object.entries(result).reduce((r, i) => (i[1] === undefined) ? r : ({ ...r, [i[0]]: i[1] }), {});
+}
+/* eslint-enable max-len, @stylistic/max-len, quote-props, @stylistic/quote-props */
+
+/**
+ * @schema FirestartrGithubOrgRulesetSpec
+ */
+export interface FirestartrGithubOrgRulesetSpec {
+  /**
+   * GitHub organization targeted by this resource
+   *
+   * @schema FirestartrGithubOrgRulesetSpec#org
+   */
+  readonly org: string;
+
+  /**
+   * GitHub ruleset payload, in the shape of the prefapp/tfm github-org-ruleset config
+   *
+   * @schema FirestartrGithubOrgRulesetSpec#ruleset
+   */
+  readonly ruleset: FirestartrGithubOrgRulesetSpecRuleset;
+
+  /**
+   * @schema FirestartrGithubOrgRulesetSpec#context
+   */
+  readonly context: FirestartrGithubOrgRulesetSpecContext;
+
+  /**
+   * @schema FirestartrGithubOrgRulesetSpec#firestartr
+   */
+  readonly firestartr: FirestartrGithubOrgRulesetSpecFirestartr;
+
+  /**
+   * @schema FirestartrGithubOrgRulesetSpec#writeConnectionSecretToRef
+   */
+  readonly writeConnectionSecretToRef: FirestartrGithubOrgRulesetSpecWriteConnectionSecretToRef;
+}
+
+/**
+ * Converts an object of type 'FirestartrGithubOrgRulesetSpec' to JSON representation.
+ */
+/* eslint-disable max-len, @stylistic/max-len, quote-props, @stylistic/quote-props */
+export function toJson_FirestartrGithubOrgRulesetSpec(obj: FirestartrGithubOrgRulesetSpec | undefined): Record<string, any> | undefined {
+  if (obj === undefined) { return undefined; }
+  const result = {
+    'org': obj.org,
+    'ruleset': toJson_FirestartrGithubOrgRulesetSpecRuleset(obj.ruleset),
+    'context': toJson_FirestartrGithubOrgRulesetSpecContext(obj.context),
+    'firestartr': toJson_FirestartrGithubOrgRulesetSpecFirestartr(obj.firestartr),
+    'writeConnectionSecretToRef': toJson_FirestartrGithubOrgRulesetSpecWriteConnectionSecretToRef(obj.writeConnectionSecretToRef),
+  };
+  // filter undefined values
+  return Object.entries(result).reduce((r, i) => (i[1] === undefined) ? r : ({ ...r, [i[0]]: i[1] }), {});
+}
+/* eslint-enable max-len, @stylistic/max-len, quote-props, @stylistic/quote-props */
+
+/**
+ * GitHub ruleset payload, in the shape of the prefapp/tfm github-org-ruleset config
+ *
+ * @schema FirestartrGithubOrgRulesetSpecRuleset
+ */
+export interface FirestartrGithubOrgRulesetSpecRuleset {
+  /**
+   * Ruleset name shown in GitHub
+   *
+   * @schema FirestartrGithubOrgRulesetSpecRuleset#name
+   */
+  readonly name: string;
+
+  /**
+   * @schema FirestartrGithubOrgRulesetSpecRuleset#target
+   */
+  readonly target: FirestartrGithubOrgRulesetSpecRulesetTarget;
+
+  /**
+   * @schema FirestartrGithubOrgRulesetSpecRuleset#enforcement
+   */
+  readonly enforcement: FirestartrGithubOrgRulesetSpecRulesetEnforcement;
+
+  /**
+   * @schema FirestartrGithubOrgRulesetSpecRuleset#conditions
+   */
+  readonly conditions?: any;
+
+  /**
+   * @schema FirestartrGithubOrgRulesetSpecRuleset#rules
+   */
+  readonly rules?: any[];
+
+  /**
+   * @schema FirestartrGithubOrgRulesetSpecRuleset#bypass_actors
+   */
+  readonly bypassActors?: any[];
+}
+
+/**
+ * Converts an object of type 'FirestartrGithubOrgRulesetSpecRuleset' to JSON representation.
+ */
+/* eslint-disable max-len, @stylistic/max-len, quote-props, @stylistic/quote-props */
+export function toJson_FirestartrGithubOrgRulesetSpecRuleset(obj: FirestartrGithubOrgRulesetSpecRuleset | undefined): Record<string, any> | undefined {
+  if (obj === undefined) { return undefined; }
+  const result = {
+    'name': obj.name,
+    'target': obj.target,
+    'enforcement': obj.enforcement,
+    'conditions': obj.conditions,
+    'rules': obj.rules?.map(y => y),
+    'bypass_actors': obj.bypassActors?.map(y => y),
+  };
+  // filter undefined values
+  return Object.entries(result).reduce((r, i) => (i[1] === undefined) ? r : ({ ...r, [i[0]]: i[1] }), {});
+}
+/* eslint-enable max-len, @stylistic/max-len, quote-props, @stylistic/quote-props */
+
+/**
+ * @schema FirestartrGithubOrgRulesetSpecContext
+ */
+export interface FirestartrGithubOrgRulesetSpecContext {
+  /**
+   * @schema FirestartrGithubOrgRulesetSpecContext#backend
+   */
+  readonly backend: FirestartrGithubOrgRulesetSpecContextBackend;
+
+  /**
+   * @schema FirestartrGithubOrgRulesetSpecContext#provider
+   */
+  readonly provider: FirestartrGithubOrgRulesetSpecContextProvider;
+}
+
+/**
+ * Converts an object of type 'FirestartrGithubOrgRulesetSpecContext' to JSON representation.
+ */
+/* eslint-disable max-len, @stylistic/max-len, quote-props, @stylistic/quote-props */
+export function toJson_FirestartrGithubOrgRulesetSpecContext(obj: FirestartrGithubOrgRulesetSpecContext | undefined): Record<string, any> | undefined {
+  if (obj === undefined) { return undefined; }
+  const result = {
+    'backend': toJson_FirestartrGithubOrgRulesetSpecContextBackend(obj.backend),
+    'provider': toJson_FirestartrGithubOrgRulesetSpecContextProvider(obj.provider),
+  };
+  // filter undefined values
+  return Object.entries(result).reduce((r, i) => (i[1] === undefined) ? r : ({ ...r, [i[0]]: i[1] }), {});
+}
+/* eslint-enable max-len, @stylistic/max-len, quote-props, @stylistic/quote-props */
+
+/**
+ * @schema FirestartrGithubOrgRulesetSpecFirestartr
+ */
+export interface FirestartrGithubOrgRulesetSpecFirestartr {
+  /**
+   * @schema FirestartrGithubOrgRulesetSpecFirestartr#tfStateKey
+   */
+  readonly tfStateKey: string;
+}
+
+/**
+ * Converts an object of type 'FirestartrGithubOrgRulesetSpecFirestartr' to JSON representation.
+ */
+/* eslint-disable max-len, @stylistic/max-len, quote-props, @stylistic/quote-props */
+export function toJson_FirestartrGithubOrgRulesetSpecFirestartr(obj: FirestartrGithubOrgRulesetSpecFirestartr | undefined): Record<string, any> | undefined {
+  if (obj === undefined) { return undefined; }
+  const result = {
+    'tfStateKey': obj.tfStateKey,
+  };
+  // filter undefined values
+  return Object.entries(result).reduce((r, i) => (i[1] === undefined) ? r : ({ ...r, [i[0]]: i[1] }), {});
+}
+/* eslint-enable max-len, @stylistic/max-len, quote-props, @stylistic/quote-props */
+
+/**
+ * @schema FirestartrGithubOrgRulesetSpecWriteConnectionSecretToRef
+ */
+export interface FirestartrGithubOrgRulesetSpecWriteConnectionSecretToRef {
+  /**
+   * @schema FirestartrGithubOrgRulesetSpecWriteConnectionSecretToRef#name
+   */
+  readonly name: string;
+
+  /**
+   * @schema FirestartrGithubOrgRulesetSpecWriteConnectionSecretToRef#outputs
+   */
+  readonly outputs: FirestartrGithubOrgRulesetSpecWriteConnectionSecretToRefOutputs[];
+}
+
+/**
+ * Converts an object of type 'FirestartrGithubOrgRulesetSpecWriteConnectionSecretToRef' to JSON representation.
+ */
+/* eslint-disable max-len, @stylistic/max-len, quote-props, @stylistic/quote-props */
+export function toJson_FirestartrGithubOrgRulesetSpecWriteConnectionSecretToRef(obj: FirestartrGithubOrgRulesetSpecWriteConnectionSecretToRef | undefined): Record<string, any> | undefined {
+  if (obj === undefined) { return undefined; }
+  const result = {
+    'name': obj.name,
+    'outputs': obj.outputs?.map(y => toJson_FirestartrGithubOrgRulesetSpecWriteConnectionSecretToRefOutputs(y)),
+  };
+  // filter undefined values
+  return Object.entries(result).reduce((r, i) => (i[1] === undefined) ? r : ({ ...r, [i[0]]: i[1] }), {});
+}
+/* eslint-enable max-len, @stylistic/max-len, quote-props, @stylistic/quote-props */
+
+/**
+ * @schema FirestartrGithubOrgRulesetSpecRulesetTarget
+ */
+export enum FirestartrGithubOrgRulesetSpecRulesetTarget {
+  /** branch */
+  BRANCH = "branch",
+  /** tag */
+  TAG = "tag",
+  /** push */
+  PUSH = "push",
+}
+
+/**
+ * @schema FirestartrGithubOrgRulesetSpecRulesetEnforcement
+ */
+export enum FirestartrGithubOrgRulesetSpecRulesetEnforcement {
+  /** active */
+  ACTIVE = "active",
+  /** evaluate */
+  EVALUATE = "evaluate",
+  /** disabled */
+  DISABLED = "disabled",
+}
+
+/**
+ * @schema FirestartrGithubOrgRulesetSpecContextBackend
+ */
+export interface FirestartrGithubOrgRulesetSpecContextBackend {
+  /**
+   * @schema FirestartrGithubOrgRulesetSpecContextBackend#ref
+   */
+  readonly ref: FirestartrGithubOrgRulesetSpecContextBackendRef;
+}
+
+/**
+ * Converts an object of type 'FirestartrGithubOrgRulesetSpecContextBackend' to JSON representation.
+ */
+/* eslint-disable max-len, @stylistic/max-len, quote-props, @stylistic/quote-props */
+export function toJson_FirestartrGithubOrgRulesetSpecContextBackend(obj: FirestartrGithubOrgRulesetSpecContextBackend | undefined): Record<string, any> | undefined {
+  if (obj === undefined) { return undefined; }
+  const result = {
+    'ref': toJson_FirestartrGithubOrgRulesetSpecContextBackendRef(obj.ref),
+  };
+  // filter undefined values
+  return Object.entries(result).reduce((r, i) => (i[1] === undefined) ? r : ({ ...r, [i[0]]: i[1] }), {});
+}
+/* eslint-enable max-len, @stylistic/max-len, quote-props, @stylistic/quote-props */
+
+/**
+ * @schema FirestartrGithubOrgRulesetSpecContextProvider
+ */
+export interface FirestartrGithubOrgRulesetSpecContextProvider {
+  /**
+   * @schema FirestartrGithubOrgRulesetSpecContextProvider#ref
+   */
+  readonly ref: FirestartrGithubOrgRulesetSpecContextProviderRef;
+}
+
+/**
+ * Converts an object of type 'FirestartrGithubOrgRulesetSpecContextProvider' to JSON representation.
+ */
+/* eslint-disable max-len, @stylistic/max-len, quote-props, @stylistic/quote-props */
+export function toJson_FirestartrGithubOrgRulesetSpecContextProvider(obj: FirestartrGithubOrgRulesetSpecContextProvider | undefined): Record<string, any> | undefined {
+  if (obj === undefined) { return undefined; }
+  const result = {
+    'ref': toJson_FirestartrGithubOrgRulesetSpecContextProviderRef(obj.ref),
+  };
+  // filter undefined values
+  return Object.entries(result).reduce((r, i) => (i[1] === undefined) ? r : ({ ...r, [i[0]]: i[1] }), {});
+}
+/* eslint-enable max-len, @stylistic/max-len, quote-props, @stylistic/quote-props */
+
+/**
+ * @schema FirestartrGithubOrgRulesetSpecWriteConnectionSecretToRefOutputs
+ */
+export interface FirestartrGithubOrgRulesetSpecWriteConnectionSecretToRefOutputs {
+  /**
+   * @schema FirestartrGithubOrgRulesetSpecWriteConnectionSecretToRefOutputs#key
+   */
+  readonly key: string;
+}
+
+/**
+ * Converts an object of type 'FirestartrGithubOrgRulesetSpecWriteConnectionSecretToRefOutputs' to JSON representation.
+ */
+/* eslint-disable max-len, @stylistic/max-len, quote-props, @stylistic/quote-props */
+export function toJson_FirestartrGithubOrgRulesetSpecWriteConnectionSecretToRefOutputs(obj: FirestartrGithubOrgRulesetSpecWriteConnectionSecretToRefOutputs | undefined): Record<string, any> | undefined {
+  if (obj === undefined) { return undefined; }
+  const result = {
+    'key': obj.key,
+  };
+  // filter undefined values
+  return Object.entries(result).reduce((r, i) => (i[1] === undefined) ? r : ({ ...r, [i[0]]: i[1] }), {});
+}
+/* eslint-enable max-len, @stylistic/max-len, quote-props, @stylistic/quote-props */
+
+/**
+ * @schema FirestartrGithubOrgRulesetSpecContextBackendRef
+ */
+export interface FirestartrGithubOrgRulesetSpecContextBackendRef {
+  /**
+   * @schema FirestartrGithubOrgRulesetSpecContextBackendRef#kind
+   */
+  readonly kind: FirestartrGithubOrgRulesetSpecContextBackendRefKind;
+
+  /**
+   * @schema FirestartrGithubOrgRulesetSpecContextBackendRef#name
+   */
+  readonly name: string;
+}
+
+/**
+ * Converts an object of type 'FirestartrGithubOrgRulesetSpecContextBackendRef' to JSON representation.
+ */
+/* eslint-disable max-len, @stylistic/max-len, quote-props, @stylistic/quote-props */
+export function toJson_FirestartrGithubOrgRulesetSpecContextBackendRef(obj: FirestartrGithubOrgRulesetSpecContextBackendRef | undefined): Record<string, any> | undefined {
+  if (obj === undefined) { return undefined; }
+  const result = {
+    'kind': obj.kind,
+    'name': obj.name,
+  };
+  // filter undefined values
+  return Object.entries(result).reduce((r, i) => (i[1] === undefined) ? r : ({ ...r, [i[0]]: i[1] }), {});
+}
+/* eslint-enable max-len, @stylistic/max-len, quote-props, @stylistic/quote-props */
+
+/**
+ * @schema FirestartrGithubOrgRulesetSpecContextProviderRef
+ */
+export interface FirestartrGithubOrgRulesetSpecContextProviderRef {
+  /**
+   * @schema FirestartrGithubOrgRulesetSpecContextProviderRef#kind
+   */
+  readonly kind: FirestartrGithubOrgRulesetSpecContextProviderRefKind;
+
+  /**
+   * @schema FirestartrGithubOrgRulesetSpecContextProviderRef#name
+   */
+  readonly name: string;
+}
+
+/**
+ * Converts an object of type 'FirestartrGithubOrgRulesetSpecContextProviderRef' to JSON representation.
+ */
+/* eslint-disable max-len, @stylistic/max-len, quote-props, @stylistic/quote-props */
+export function toJson_FirestartrGithubOrgRulesetSpecContextProviderRef(obj: FirestartrGithubOrgRulesetSpecContextProviderRef | undefined): Record<string, any> | undefined {
+  if (obj === undefined) { return undefined; }
+  const result = {
+    'kind': obj.kind,
+    'name': obj.name,
+  };
+  // filter undefined values
+  return Object.entries(result).reduce((r, i) => (i[1] === undefined) ? r : ({ ...r, [i[0]]: i[1] }), {});
+}
+/* eslint-enable max-len, @stylistic/max-len, quote-props, @stylistic/quote-props */
+
+/**
+ * @schema FirestartrGithubOrgRulesetSpecContextBackendRefKind
+ */
+export enum FirestartrGithubOrgRulesetSpecContextBackendRefKind {
+  /** FirestartrProviderConfig */
+  FIRESTARTR_PROVIDER_CONFIG = "FirestartrProviderConfig",
+}
+
+/**
+ * @schema FirestartrGithubOrgRulesetSpecContextProviderRefKind
+ */
+export enum FirestartrGithubOrgRulesetSpecContextProviderRefKind {
+  /** FirestartrProviderConfig */
+  FIRESTARTR_PROVIDER_CONFIG = "FirestartrProviderConfig",
+}
+
+
+/**
  * A resource to handle GitHub Organization Webhooks
  *
  * @schema FirestartrGithubOrgWebhook

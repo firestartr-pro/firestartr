@@ -12,6 +12,7 @@ const kindPluralMap: any = {
   githubrepositorysecretssections: 'FirestartrGithubRepositorySecretsSection',
   terraformmodules: 'FirestartrTerraformModule',
   githuborgwebhooks: 'FirestartrGithubOrgWebhook',
+  githuborgrulesets: 'FirestartrGithubOrgRuleset',
   githuborganizationsettings: 'FirestartrGithubOrganizationSettings',
   githuborganizationvariablesections:
     'FirestartrGithubOrganizationVariableSection',

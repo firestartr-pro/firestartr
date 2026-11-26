@@ -80,3 +80,44 @@ export async function waitForOrgWebhookState(
     },
   );
 }
+
+export async function waitForOrgRulesetState(
+  client: E2EApi,
+  name: string,
+  exists: boolean,
+  options: {
+    timeoutMs?: number;
+    intervalMs?: number;
+  } = {},
+): Promise<void> {
+  await pollUntil(
+    async () => {
+      try {
+        return await client.gh.orgRulesetExists(name);
+      } catch (error) {
+        if (isRetryableGitHubError(error)) {
+          throw createRetryableError(error);
+        }
+
+        throw error;
+      }
+    },
+    {
+      timeoutMs: options.timeoutMs ?? WAIT_FOR_CR_TIMEOUT_SECONDS * 1000,
+      intervalMs: options.intervalMs ?? DEFAULT_GITHUB_POLL_INTERVAL_MS,
+      isDone: (value) => value === exists,
+      shouldRetryError: isRetryableError,
+      onRetryError: (error, intervalMs) => {
+        common.logger.warn(
+          `Retrying org ruleset wait after ${intervalMs}ms due to: ${getErrorMessage(error)}`,
+        );
+      },
+      createTimeoutError: (lastValue) =>
+        new Error(
+          `Timed out waiting for org ruleset '${name}' to ${
+            exists ? 'exist' : 'be deleted'
+          }. Last observed exists=${String(lastValue)}.`,
+        ),
+    },
+  );
+}

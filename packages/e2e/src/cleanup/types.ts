@@ -10,6 +10,11 @@ export interface DestroyOrgResourcesOptions {
   // Additional org webhook delivery URLs to delete explicitly.
   // Useful for fixtures whose webhook URL is patched at test runtime.
   orgWebhookUrls?: string[];
+
+  // Additional org ruleset names to delete explicitly.
+  // Org rulesets are not derived from the claim name, so tests that patch the
+  // GitHub name at runtime list it here.
+  orgRulesetNames?: string[];
 }
 
 export interface DestroyFixtureResourcesOptions extends DestroyOrgResourcesOptions {

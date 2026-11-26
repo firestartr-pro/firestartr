@@ -1,0 +1,31 @@
+---
+kind: OrgRulesetClaim
+version: "1.0"
+name: orgruleset_a
+system: "system:system_a"
+owner: "group:group_a"
+providers:
+  github:
+    name: Standard - Default Branch Protection
+    org: firestartr-test
+    target: branch
+    enforcement: active
+    conditions:
+      ref_name:
+        include: ["~DEFAULT_BRANCH"]
+        exclude: []
+      repository_name:
+        include: ["~ALL"]
+        exclude: ["legacy-*"]
+    rules:
+      - type: deletion
+      - type: pull_request
+        parameters:
+          required_approving_review_count: 1
+          dismiss_stale_reviews_on_push: true
+    bypass_actors:
+      - actor_type: Team
+        group: "group:group_b"
+        bypass_mode: always
+      - actor_type: OrganizationAdmin
+        bypass_mode: pull_request

@@ -60,6 +60,7 @@ const CLAIM_TYPE_DIRS = new Set([
   'tfworkspaces',
   'argocd',
   'orgWebhook',
+  'orgrulesets',
   'features',
 ]);
 

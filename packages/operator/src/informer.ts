@@ -28,7 +28,7 @@ import {
   getTimeoutForOperation,
   retryOpForReason,
 } from './definitions';
-import { Dependencies, resolve, withoutPlaintextSecrets } from './resolver';
+import { Dependencies, resolve, withoutDestroyDependencies } from './resolver';
 
 import { setSyncStatus, getSyncStatus } from './syncCtl';
 
@@ -61,6 +61,7 @@ const kindsWithFinalizer = [
   'FirestartrGithubRepository',
   'FirestartrGithubRepositoryFeature',
   'FirestartrGithubOrgWebhook',
+  'FirestartrGithubOrgRuleset',
   'FirestartrGithubOrganizationSettings',
   'FirestartrGithubOrganizationVariableSection',
   'FirestartrGithubOrganizationSecretSection',
@@ -364,7 +365,9 @@ function enqueue(
 
     resolveReferences: (opts?: { destroy?: boolean }) =>
       resolve(
-        opts?.destroy ? withoutPlaintextSecrets(workItem.item) : workItem.item,
+        opts?.destroy
+          ? withoutDestroyDependencies(workItem.item)
+          : workItem.item,
         getItemByItemPath,
         getSecret,
       ),

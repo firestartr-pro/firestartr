@@ -17,6 +17,7 @@ const CLAIM_KIND_TO_GITHUB_ORG_FIELD = {
   ComponentClaim: 'org',
   OrgWebhookClaim: 'orgName',
   OrgSettingsClaim: 'org',
+  OrgRulesetClaim: 'org',
 } as const satisfies Partial<Record<ClaimKind, 'org' | 'orgName'>>;
 
 const CLAIM_KIND_TO_PROVIDER_NAME_FIELD = {
@@ -26,6 +27,7 @@ const CLAIM_KIND_TO_PROVIDER_NAME_FIELD = {
   TFWorkspaceClaim: '/providers/terraform/name',
   OrgWebhookClaim: '/providers/github/name',
   OrgSettingsClaim: '/providers/github/name',
+  OrgRulesetClaim: '/providers/github/name',
 } as const satisfies Partial<Record<ClaimKind, string>>;
 
 function hasOwnKey<T extends object>(

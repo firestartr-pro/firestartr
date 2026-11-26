@@ -16,6 +16,17 @@ describe('definitions', () => {
   });
 });
 
+describe('definitions (org ruleset)', () => {
+  it('maps GitHub organization ruleset kind and plural', () => {
+    expect(getKindFromPlural('githuborgrulesets')).toBe(
+      'FirestartrGithubOrgRuleset',
+    );
+    expect(getPluralFromKind('FirestartrGithubOrgRuleset')).toBe(
+      'githuborgrulesets',
+    );
+  });
+});
+
 describe('retryOpForReason', () => {
   it('returns RETRY when reason is undefined', () => {
     expect(retryOpForReason(undefined)).toBe(OperationType.RETRY);

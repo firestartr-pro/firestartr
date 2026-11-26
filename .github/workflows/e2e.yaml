@@ -72,7 +72,7 @@ on:
       chart_version:
         description: "Firestartr controller chart version"
         required: false
-        default: "4.2.0"
+        default: "4.4.0"
       crd_upgrade_baseline_version:
         description: "Baseline CRD version for CRD upgrade e2e test"
         required: false
@@ -320,7 +320,7 @@ jobs:
       E2E_IMAGE_TAG: e2e-local
       E2E_IMAGE_PLATFORM: linux/amd64
       E2E_KIND_CLUSTER_NAME: e2e-${{ matrix.suite }}
-      E2E_CHART_VERSION: ${{ github.event_name == 'workflow_dispatch' && inputs.chart_version || '4.2.0' }}
+      E2E_CHART_VERSION: ${{ github.event_name == 'workflow_dispatch' && inputs.chart_version || '4.4.0' }}
       E2E_INPUT_SUITES: ${{ github.event_name == 'workflow_dispatch' && inputs.suites || '' }}
       E2E_RUN_CRD_UPGRADE_ONLY: ${{ github.event_name == 'workflow_dispatch' && inputs.run_crd_upgrade_only || false }}
       E2E_RUN_MASSIVE_TEST: ${{ github.event_name == 'workflow_dispatch' && inputs.run_massive_test || false }}
