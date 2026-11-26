@@ -94,4 +94,55 @@ describe('destroyOrgResources', () => {
     expect(destroyGroup).not.toHaveBeenCalled();
     expect(destroyRepo).not.toHaveBeenCalled();
   });
+
+  it('deletes explicit org ruleset names without touching groups or repos', async () => {
+    const destroyGroup = jest.fn().mockResolvedValue(undefined);
+    const destroyRepo = jest.fn().mockResolvedValue(undefined);
+    const destroyOrgRulesetByName = jest.fn().mockResolvedValue(undefined);
+    const client = {
+      gh: {
+        destroyGroup,
+        destroyRepo,
+        destroyOrgRulesetByName,
+      },
+    } as unknown as E2EApi;
+
+    await destroyOrgResources(client, [], {
+      orgRulesetNames: ['ruleset a', 'ruleset a', 'ruleset-b'],
+    });
+
+    expect(destroyOrgRulesetByName).toHaveBeenCalledTimes(2);
+    expect(destroyOrgRulesetByName).toHaveBeenNthCalledWith(1, 'ruleset-b');
+    expect(destroyOrgRulesetByName).toHaveBeenNthCalledWith(2, 'ruleset a');
+    expect(destroyGroup).not.toHaveBeenCalled();
+    expect(destroyRepo).not.toHaveBeenCalled();
+  });
+
+  it('keeps cleaning up after a ruleset deletion fails, then reports the failure', async () => {
+    const destroyGroup = jest.fn().mockResolvedValue(undefined);
+    const destroyRepo = jest.fn().mockResolvedValue(undefined);
+    const destroyOrgRulesetByName = jest
+      .fn()
+      .mockRejectedValueOnce({ status: 403, message: 'forbidden' })
+      .mockResolvedValue(undefined);
+    const client = {
+      gh: {
+        destroyGroup,
+        destroyRepo,
+        destroyOrgRulesetByName,
+      },
+    } as unknown as E2EApi;
+
+    await expect(
+      destroyOrgResources(client, ['demo'], {
+        orgRulesetNames: ['ruleset-a', 'ruleset-b'],
+        strict: true,
+      }),
+    ).rejects.toThrow("delete org ruleset 'ruleset-b'");
+
+    expect(destroyOrgRulesetByName).toHaveBeenCalledTimes(2);
+    expect(destroyOrgRulesetByName).toHaveBeenCalledWith('ruleset-a');
+    expect(destroyGroup).toHaveBeenCalledWith('demo');
+    expect(destroyRepo).toHaveBeenCalledWith('demo');
+  });
 });

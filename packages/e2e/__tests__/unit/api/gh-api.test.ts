@@ -557,6 +557,123 @@ describe('createGhApi org webhook helpers', () => {
   });
 });
 
+describe('createGhApi org ruleset helpers', () => {
+  afterEach(() => {
+    jest.restoreAllMocks();
+  });
+
+  const summaries = [
+    { id: 11, name: 'other', target: 'branch', enforcement: 'active' },
+    { id: 12, name: 'ruleset-a', target: 'branch', enforcement: 'active' },
+  ];
+
+  it('reads a ruleset by name with its rules and repository conditions', async () => {
+    const request = jest.fn().mockResolvedValue({
+      data: {
+        id: 12,
+        name: 'ruleset-a',
+        target: 'branch',
+        enforcement: 'active',
+        rules: [{ type: 'deletion' }, { type: 'pull_request', parameters: {} }],
+        conditions: { repository_name: { include: ['ruleset-a-*'] } },
+      },
+    });
+    const { paginate } = mockOctokit({ paginateData: summaries, request });
+
+    const api = createGhApi(createState());
+
+    await expect(api.findOrgRulesetByName('ruleset-a')).resolves.toEqual({
+      id: 12,
+      name: 'ruleset-a',
+      target: 'branch',
+      enforcement: 'active',
+      ruleTypes: ['deletion', 'pull_request'],
+      repositoryNameInclude: ['ruleset-a-*'],
+    });
+    expect(paginate).toHaveBeenCalledWith('GET /orgs/{org}/rulesets', {
+      org: 'demo-org',
+      per_page: 100,
+    });
+    expect(request).toHaveBeenCalledWith(
+      'GET /orgs/{org}/rulesets/{ruleset_id}',
+      { org: 'demo-org', ruleset_id: 12 },
+    );
+  });
+
+  it('returns null without fetching details when no ruleset matches', async () => {
+    const request = jest.fn();
+    mockOctokit({ paginateData: summaries, request });
+
+    const api = createGhApi(createState());
+
+    await expect(api.findOrgRulesetByName('missing')).resolves.toBeNull();
+    expect(request).not.toHaveBeenCalled();
+  });
+
+  it('returns null when the ruleset disappears before its details are read', async () => {
+    const request = jest
+      .fn()
+      .mockRejectedValue({ status: 404, message: 'not found' });
+    mockOctokit({ paginateData: summaries, request });
+
+    const api = createGhApi(createState());
+
+    await expect(api.findOrgRulesetByName('ruleset-a')).resolves.toBeNull();
+  });
+
+  it('reports org ruleset existence by name', async () => {
+    mockOctokit({ paginateData: summaries });
+
+    const api = createGhApi(createState());
+
+    await expect(api.orgRulesetExists('ruleset-a')).resolves.toBe(true);
+    await expect(api.orgRulesetExists('missing')).resolves.toBe(false);
+  });
+
+  it('deletes every ruleset with the name and ignores not-found deletes', async () => {
+    const request = jest
+      .fn()
+      .mockRejectedValueOnce({ status: 404, message: 'not found' })
+      .mockResolvedValueOnce({ data: {} });
+    mockOctokit({
+      paginateData: [
+        ...summaries,
+        { id: 13, name: 'ruleset-a', target: 'branch', enforcement: 'active' },
+      ],
+      request,
+    });
+
+    const api = createGhApi(createState());
+
+    await expect(
+      api.destroyOrgRulesetByName('ruleset-a'),
+    ).resolves.toBeUndefined();
+
+    expect(request).toHaveBeenNthCalledWith(
+      1,
+      'DELETE /orgs/{org}/rulesets/{ruleset_id}',
+      { org: 'demo-org', ruleset_id: 12 },
+    );
+    expect(request).toHaveBeenNthCalledWith(
+      2,
+      'DELETE /orgs/{org}/rulesets/{ruleset_id}',
+      { org: 'demo-org', ruleset_id: 13 },
+    );
+  });
+
+  it('does not delete anything when the ruleset is absent', async () => {
+    const request = jest.fn();
+    mockOctokit({ paginateData: summaries, request });
+
+    const api = createGhApi(createState());
+
+    await expect(
+      api.destroyOrgRulesetByName('missing'),
+    ).resolves.toBeUndefined();
+    expect(request).not.toHaveBeenCalled();
+  });
+});
+
 describe('createGhApi org variable helpers', () => {
   afterEach(() => {
     jest.restoreAllMocks();
