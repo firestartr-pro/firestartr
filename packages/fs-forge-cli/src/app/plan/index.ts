@@ -44,6 +44,7 @@ export type {
   PlanDefaultBranches,
   PlanRepoFiles,
   PlanSchemaDirs,
+  PlanTargetRepo,
   ResolvedPlanContext,
 } from './types.js';
 
