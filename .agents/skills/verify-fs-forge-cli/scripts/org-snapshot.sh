@@ -32,7 +32,7 @@ get() {
 }
 
 snap() {
-  local org="$1" out="$2" runs_p runs_u state extra='{}' repo
+  local org="$1" out="$2" runs_p runs_u state extra='{}' repo watched
   shift 2
   runs_p="$(get "repos/$org/claims/actions/workflows/provision-claim.yaml/runs?per_page=100" '[.[].workflow_runs[] | {id,status,conclusion,head_branch}]' optional)"
   runs_u="$(get "repos/$org/claims/actions/workflows/unprovision-claim.yaml/runs?per_page=100" '[.[].workflow_runs[] | {id,status,conclusion,head_branch}]' optional)"
@@ -42,7 +42,8 @@ snap() {
   for repo in "$@"; do
     # A bare name means one of the org's own repos, like state-github.
     case "$repo" in */*) ;; *) repo="$org/$repo" ;; esac
-    extra="$(printf '%s' "$extra" | jq --arg repo "$repo" --argjson state "$(watched_repo "$org" "$repo")" '. + {($repo): $state}')"
+    watched="$(watched_repo "$org" "$repo")" || exit 1
+    extra="$(printf '%s' "$extra" | jq --arg repo "$repo" --argjson state "$watched" '. + {($repo): $state}')"
   done
   jq -n \
     --arg org "$org" \
@@ -55,9 +56,19 @@ snap() {
 
 # One extra repo's fs-forge branches and PRs. A repo that does not exist yet is
 # recorded as such instead of aborting, so the snapshot still sees the others.
+# Only a 404 means "does not exist": a 401, 403, 429, 500 or a dropped network
+# must abort and name the repo, or both snapshots would record the same empty
+# repo and the diff would hide every change in it.
 watched_repo() {
-  local org="$1" repo="$2" exists branches prs
-  exists="$(gh api --hostname github.com "repos/$repo" >/dev/null 2>&1 && echo true || echo false)"
+  local org="$1" repo="$2" exists branches prs out
+  if out="$(gh api --hostname github.com "repos/$repo" 2>&1)"; then
+    exists=true
+  else
+    case "$out" in
+      *"HTTP 404"*) exists=false ;;
+      *) echo "gh api repos/$repo failed: $out" >&2; return 1 ;;
+    esac
+  fi
   if [ "$exists" = false ]; then
     jq -n '{exists: false, branches: [], prs: []}'
     return
