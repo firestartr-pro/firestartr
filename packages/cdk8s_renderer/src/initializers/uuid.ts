@@ -10,6 +10,7 @@ export class UUIDInitializer extends InitializerPatches {
     'TFWorkspaceClaim',
     'OrgWebhookClaim',
     'OrgSettingsClaim',
+    'OrgRulesetClaim',
   ];
 
   applicableProviders = ['github', 'terraform'];
@@ -28,12 +29,32 @@ export class UUIDInitializer extends InitializerPatches {
 
     const uuid: any = false;
 
+    // Kubernetes object names are DNS subdomains capped at 253 characters.
+    const maxResourceNameLength = 253;
+
     const fBuildWriteConnectionSecretToRef = (
       cr: any,
 
       crKind: string,
+
+      tfStateKey: string,
     ) => {
-      return `${crKind}-${cr.metadata.name}-outputs`.toLowerCase();
+      const suffix = '-outputs';
+
+      const name = `${crKind}-${cr.metadata.name}${suffix}`.toLowerCase();
+
+      if (name.length <= maxResourceNameLength) {
+        return name;
+      }
+
+      // The state UUID keeps claims with long, identical name prefixes apart,
+      // so keep the tail and trim the display name instead of the UUID.
+      const tail = `-${tfStateKey}${suffix}`.toLowerCase();
+      const headLength = Math.max(0, maxResourceNameLength - tail.length);
+
+      return `${name.slice(0, headLength)}${tail}`.slice(
+        -maxResourceNameLength,
+      );
     };
 
     return [
@@ -67,7 +88,7 @@ export class UUIDInitializer extends InitializerPatches {
 
           if (cr.spec.writeConnectionSecretToRef) {
             cr.spec.writeConnectionSecretToRef.name =
-              fBuildWriteConnectionSecretToRef(cr, ctx.kind);
+              fBuildWriteConnectionSecretToRef(cr, ctx.kind, uuid);
           }
           return cr;
         },

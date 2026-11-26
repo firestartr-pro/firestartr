@@ -9,6 +9,7 @@ import { isPlanMode } from './plan-mode/config';
 const PARENT_KIND_MAP: Record<string, string> = {
   FirestartrGithubRepositoryFeature: 'FirestartrGithubRepository',
   FirestartrGithubRepositorySecretsSection: 'FirestartrGithubRepository',
+  FirestartrGithubOrgRuleset: 'FirestartrGithubGroup',
   FirestartrDummyB: 'FirestartrDummyA',
   FirestartrDummyC: 'FirestartrDummyB',
 };
@@ -33,20 +34,28 @@ export function isRelevantKind(kind: string): boolean {
   return RELEVANT_KINDS.has(kind);
 }
 
-export function getParentRef(
+export function getParentRefs(
   workItem: WorkItem,
-): { kind: string; name: string } | null {
+): { kind: string; name: string }[] {
   const ref = workItem.item.spec?.repositoryTarget?.ref;
   if (ref?.kind && ref?.name) {
-    return { kind: ref.kind, name: ref.name };
+    return [{ kind: ref.kind, name: ref.name }];
   }
 
   const needs = workItem.item.spec?.needs;
   if (needs?.kind && needs?.name) {
-    return { kind: needs.kind, name: needs.name };
+    return [{ kind: needs.kind, name: needs.name }];
   }
 
-  return null;
+  // Org rulesets can reference a group for a Team bypass actor. Defer them
+  // until that group is provisioned so the provisioner can read its id from
+  // the outputs secret on the first attempt.
+  return (workItem.item.spec?.ruleset?.bypass_actors ?? [])
+    .map((actor: any) => actor?.ref)
+    .filter(
+      (actor: any) => actor?.kind === 'FirestartrGithubGroup' && actor.name,
+    )
+    .map((actor: any) => ({ kind: actor.kind, name: actor.name }));
 }
 
 export function isProvisioned(cr: any): boolean {
@@ -99,24 +108,24 @@ export async function buildDeferredParentKeys(
   for (const w of queue) {
     if (w.operation !== OperationType.CREATED) continue;
     if (!isDependentKind(w.item.kind)) continue;
-    const parentRef = getParentRef(w);
-    if (!parentRef) continue;
-    const parentKey = `${parentRef.kind}/${parentRef.name}`;
-    if (checked.has(parentKey)) continue;
-    checked.add(parentKey);
-    if (activeParentKeys.has(parentKey)) continue;
-    const namespace = w.item.metadata?.namespace || 'default';
-    const pluralKind = getPluralFromKind(parentRef.kind);
-    if (!pluralKind) continue;
-    try {
-      const parentCr = await getItemByItemPath(
-        `${namespace}/${pluralKind}/${parentRef.name}`,
-      );
-      if (!isProvisioned(parentCr)) {
+    for (const parentRef of getParentRefs(w)) {
+      const parentKey = `${parentRef.kind}/${parentRef.name}`;
+      if (checked.has(parentKey)) continue;
+      checked.add(parentKey);
+      if (activeParentKeys.has(parentKey)) continue;
+      const namespace = w.item.metadata?.namespace || 'default';
+      const pluralKind = getPluralFromKind(parentRef.kind);
+      if (!pluralKind) continue;
+      try {
+        const parentCr = await getItemByItemPath(
+          `${namespace}/${pluralKind}/${parentRef.name}`,
+        );
+        if (!isProvisioned(parentCr)) {
+          deferred.add(parentKey);
+        }
+      } catch {
         deferred.add(parentKey);
       }
-    } catch {
-      deferred.add(parentKey);
     }
   }
   return deferred;
@@ -130,25 +139,23 @@ export function hasActiveParent(
   if (workItem.operation !== OperationType.CREATED) return false;
   if (!DEPENDENT_KINDS.has(workItem.item.kind)) return false;
 
-  const parentRef = getParentRef(workItem);
-  if (!parentRef) return false;
+  return getParentRefs(workItem).some(({ kind, name }) => {
+    const parentKey = `${kind}/${name}`;
 
-  const { kind: parentKind, name: parentName } = parentRef;
-  const parentKey = `${parentKind}/${parentName}`;
+    if (queueOrKeys instanceof Set) {
+      return (
+        queueOrKeys.has(parentKey) ||
+        deferredParentKeys?.has(parentKey) === true
+      );
+    }
 
-  if (queueOrKeys instanceof Set) {
-    if (queueOrKeys.has(parentKey)) return true;
-    if (deferredParentKeys?.has(parentKey)) return true;
-    return false;
-  }
-
-  const parentActive = queueOrKeys.some(
-    (w: WorkItem) =>
-      w.item.kind === parentKind &&
-      w.item.metadata?.name === parentName &&
-      (w.workStatus === WorkStatus.PENDING || w.isPicked),
-  );
-  if (parentActive) return true;
-  if (deferredParentKeys?.has(parentKey)) return true;
-  return false;
+    return (
+      queueOrKeys.some(
+        (w: WorkItem) =>
+          w.item.kind === kind &&
+          w.item.metadata?.name === name &&
+          (w.workStatus === WorkStatus.PENDING || w.isPicked),
+      ) || deferredParentKeys?.has(parentKey) === true
+    );
+  });
 }

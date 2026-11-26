@@ -314,6 +314,15 @@ export interface GhApi {
   // Read the current organization settings for the current org.
   getOrgSettings: () => Promise<GhOrgSettings>;
 
+  // Find a single organization ruleset by name, with its rules and conditions.
+  findOrgRulesetByName: (name: string) => Promise<GhOrgRuleset | null>;
+
+  // Check if an organization ruleset exists by name.
+  orgRulesetExists: (name: string) => Promise<boolean>;
+
+  // Delete every organization ruleset with this name in current org.
+  destroyOrgRulesetByName: (name: string) => Promise<void>;
+
   // Delete repository by name in current org.
   destroyRepo: (name: string) => Promise<void>;
 
@@ -470,6 +479,16 @@ export interface GhOrgSettings {
   description: string | null;
   company: string | null;
   hasOrganizationProjects: boolean | null;
+}
+
+// Subset of a GitHub organization ruleset that e2e assertions read back.
+export interface GhOrgRuleset {
+  id: number;
+  name: string;
+  target: string;
+  enforcement: string;
+  ruleTypes: string[];
+  repositoryNameInclude: string[];
 }
 
 export interface GhRepoLabel {

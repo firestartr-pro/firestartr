@@ -366,3 +366,23 @@ export function extractRepoSecretRef(ref: string): RepoSecretRef {
     key: parts[3],
   };
 }
+
+/**
+ * Resolves a `component:<name>` reference to the GitHub repository it
+ * represents. The component CR carries the repository name in the
+ * `firestartr.dev/external-name` annotation; the UUID suffix on
+ * metadata.name is only a fallback for older CRs.
+ */
+export function resolveComponentRepository(
+  componentName: string,
+  refResolver: (kind: string, name: string) => any,
+): { org?: string; repoName?: string } {
+  const resolvedCr = refResolver('ComponentClaim', componentName);
+
+  const org = resolvedCr?.spec?.org;
+  const repoName =
+    resolvedCr?.metadata?.annotations?.['firestartr.dev/external-name'] ||
+    resolvedCr?.metadata?.name?.replace(/-[0-9a-f-]{36}$/, '');
+
+  return { org, repoName };
+}

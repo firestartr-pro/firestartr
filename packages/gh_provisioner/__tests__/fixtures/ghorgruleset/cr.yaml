@@ -1,0 +1,49 @@
+apiVersion: firestartr.dev/v1
+kind: FirestartrGithubOrgRuleset
+metadata:
+  annotations:
+    firestartr.dev/claim-ref: OrgRulesetClaim/orgruleset_a
+    firestartr.dev/external-name: Standard - Default Branch Protection
+    firestartr.dev/revision: "1"
+  labels:
+    claim-ref: orgruleset-a
+  name: standard-default-branch-protection-3b1e7d1c-7a54-4d44-a39b-0c9c7a0f8c11
+spec:
+  org: firestartr-test
+  ruleset:
+    name: Standard - Default Branch Protection
+    target: branch
+    enforcement: active
+    conditions:
+      ref_name:
+        include: ["~DEFAULT_BRANCH"]
+        exclude: []
+      repository_name:
+        include: ["~ALL"]
+        exclude: ["legacy-*"]
+    rules:
+      - type: deletion
+      - type: pull_request
+        parameters:
+          required_approving_review_count: 1
+    bypass_actors:
+      - actor_type: Team
+        bypass_mode: always
+        ref:
+          kind: FirestartrGithubGroup
+          name: platform-team-7f3a2c1e-9b4d-4a6f-8c2e-1d5b7a9f0c3e
+          needsSecret: true
+  context:
+    backend:
+      ref:
+        kind: FirestartrProviderConfig
+        name: kubernetes-provider
+    provider:
+      ref:
+        kind: FirestartrProviderConfig
+        name: github
+  firestartr:
+    tfStateKey: 3b1e7d1c-7a54-4d44-a39b-0c9c7a0f8c11
+  writeConnectionSecretToRef:
+    name: firestartrgithuborgruleset-standard-default-branch-protection-outputs
+    outputs: []

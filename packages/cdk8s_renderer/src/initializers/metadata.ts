@@ -32,6 +32,7 @@ export class MetadataInitializer extends InitializerPatches {
     'UserClaim',
     'TFWorkspaceClaim',
     'OrgWebhookClaim',
+    'OrgRulesetClaim',
   ];
 
   async __validate() {

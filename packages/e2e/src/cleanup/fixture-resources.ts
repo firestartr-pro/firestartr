@@ -176,6 +176,7 @@ export async function destroyFixtureResources(
           destroyOrgResources(client, orgResourceNames, {
             includePrefixed: options.includePrefixed,
             orgWebhookUrls: options.orgWebhookUrls,
+            orgRulesetNames: options.orgRulesetNames,
             strict: options.strict,
           }),
       );

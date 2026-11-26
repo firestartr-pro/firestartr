@@ -28,6 +28,9 @@ const DELETION_WEIGHTS: any = {
   FirestartrGithubMembership: 1,
   FirestartrTerraformWorkspace: 1,
   FirestartrGithubOrgWebhook: 1,
+  // A ruleset can reference a group, and resolving that ref reads the group's
+  // outputs secret. Delete the ruleset before the group, like a repository.
+  FirestartrGithubOrgRuleset: 3,
 };
 
 const CREATION_WEIGHTS: any = {

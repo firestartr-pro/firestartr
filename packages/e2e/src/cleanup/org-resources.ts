@@ -5,6 +5,7 @@ import type { E2EApi } from '../types';
 import { retryAsync } from '../utils/async-control';
 import { isTransientError } from '../utils/transient-errors';
 import { getDeletionOrder, resolveFixtureResources } from './fixture-plan';
+import { CleanupRunner } from './runner';
 import { normalizeResourceNames } from './resource-names';
 import type { DestroyOrgResourcesOptions, FixtureResourceInput } from './types';
 
@@ -125,7 +126,12 @@ export async function destroyOrgResources(
 ): Promise<void> {
   const baseNames = normalizeResourceNames(resourceNames);
   const orgWebhookUrls = normalizeResourceNames(options.orgWebhookUrls ?? []);
-  if (baseNames.length < 1 && orgWebhookUrls.length < 1) {
+  const orgRulesetNames = normalizeResourceNames(options.orgRulesetNames ?? []);
+  if (
+    baseNames.length < 1 &&
+    orgWebhookUrls.length < 1 &&
+    orgRulesetNames.length < 1
+  ) {
     return;
   }
 
@@ -148,12 +154,28 @@ export async function destroyOrgResources(
   const destroyedGroups = new Set<string>();
   const destroyedRepos = new Set<string>();
   const destroyedOrgWebhooks = new Set<string>();
+  const destroyedOrgRulesets = new Set<string>();
 
   for (const url of getDeletionOrder(orgWebhookUrls)) {
     if (destroyedOrgWebhooks.has(url)) continue;
     await tryDestroyDirect(() => client.gh.destroyOrgWebhookByUrl(url), strict);
     destroyedOrgWebhooks.add(url);
   }
+
+  // A failed ruleset deletion must not skip the remaining rulesets or the
+  // group/repo cleanup below: collect the errors, log them right away, and
+  // fail once everything has been attempted.
+  const rulesetCleanup = new CleanupRunner();
+
+  for (const name of getDeletionOrder(orgRulesetNames)) {
+    if (destroyedOrgRulesets.has(name)) continue;
+    await rulesetCleanup.run(`delete org ruleset '${name}'`, () =>
+      tryDestroyDirect(() => client.gh.destroyOrgRulesetByName(name), strict),
+    );
+    destroyedOrgRulesets.add(name);
+  }
+
+  rulesetCleanup.warnOnErrors('destroyOrgResources', 'org ruleset cleanup');
 
   // Delete in reverse declaration order so dependent resources are removed
   // before their parents (e.g. child groups before parent groups).
@@ -187,6 +209,8 @@ export async function destroyOrgResources(
       destroyedRepos.add(name);
     }
   }
+
+  rulesetCleanup.throwOnErrors();
 }
 
 export async function destroyOrgFixtureResources(

@@ -10,6 +10,7 @@ import ArgoDeployClaim from './argodeploy.schema';
 import SecretsClaim from './secrets.schema';
 import OrgWebhookClaim from './orgwebhook.schema';
 import OrgSettingsClaim from './orgsettings.schema';
+import OrgRulesetClaim from './orgruleset.schema';
 
 import { GithubSchemas } from '../../github';
 import { TerraformSchemas } from '../../tfworkspaces';
@@ -49,6 +50,8 @@ const schemas = {
     OrgWebhookClaim,
 
     OrgSettingsClaim,
+
+    OrgRulesetClaim,
   ],
 };
 
