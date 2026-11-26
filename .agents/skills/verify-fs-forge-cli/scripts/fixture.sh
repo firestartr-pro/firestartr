@@ -174,16 +174,17 @@ fixture_re() { printf 'fsf-verify-(grp|cmp)-%s([^a-z0-9-]|$)' "$id"; }
 # Exit 0 with the matches (none is an empty list, and empty is clean), 1 when
 # GitHub answered a real 404, and 2 when the call failed for any other reason --
 # 401, 403, 429, 500, a dropped network -- because that must never read as
-# clean. api_error carries the reason for the caller's FAIL line.
+# clean. Every caller runs this in $(...), where an api_error assignment would
+# die with the subshell, so a status of 2 prints the reason on stdout and the
+# caller prints that as its FAIL text: the FAIL names the real gh error.
 api_error=""
 api_lines() { # <path> <jq filter> <extended regex>
   local path="$1" filter="$2" pattern="$3" out
-  api_error=""
   if ! out="$(gh_api --paginate "$path" --jq "$filter" 2>&1)"; then
     case "$out" in
       *"HTTP 404"*) return 1 ;;
     esac
-    api_error="$(printf '%s' "$out" | tr '\n' ' ' | cut -c1-200)"
+    printf '%s' "$out" | tr '\n' ' ' | cut -c1-200
     return 2
   fi
   printf '%s' "$out" | grep -E -- "$pattern" || true
@@ -253,7 +254,7 @@ sweep() {
   out="$(leftover_branches)"
   status=$?
   if [ "$status" = 2 ]; then
-    echo "FAIL sweep: could not list the $claims_repo branches: $api_error"
+    echo "FAIL sweep: could not list the $claims_repo branches: $out"
   else
     while IFS= read -r ref; do
       [ -n "$ref" ] || continue
@@ -267,7 +268,7 @@ sweep() {
   out="$(api_lines "repos/$claims_repo/pulls?state=open&per_page=100" '.[] | [.number, .head.ref] | @tsv' "$(fixture_re)")"
   status=$?
   if [ "$status" = 2 ]; then
-    echo "FAIL sweep: could not list the $claims_repo pull requests: $api_error"
+    echo "FAIL sweep: could not list the $claims_repo pull requests: $out"
   else
     while IFS=$'\t' read -r number head; do
       [ -n "$number" ] || continue
@@ -295,7 +296,7 @@ sweep() {
   out="$(api_lines "repos/$claims_repo/issues?state=open&per_page=100" '.[] | select(.pull_request == null) | [.number, .title] | @tsv' "$(fixture_re)")"
   status=$?
   if [ "$status" = 2 ]; then
-    echo "FAIL sweep: could not list the $claims_repo issues: $api_error"
+    echo "FAIL sweep: could not list the $claims_repo issues: $out"
   else
     while IFS=$'\t' read -r number title; do
       [ -n "$number" ] || continue
@@ -312,9 +313,11 @@ fail_count=0
 pass() { echo "PASS $1: $2"; }
 fail() { echo "FAIL $1: $2"; fail_count=$((fail_count + 1)); }
 
-# One clean check: a listing's matches, a 404, or a failed call.
-verdict() { # <check> <pass message> <leftover noun> <status> <found lines> <path>
-  local name="$1" ok="$2" noun="$3" status="$4" found="$5" path="$6"
+# One clean check: a listing's matches, a 404, or a failed call. On a failed
+# call <found lines> holds the gh error api_lines printed, unless the caller
+# passes its own text as <error>.
+verdict() { # <check> <pass message> <leftover noun> <status> <found lines> <path> [error]
+  local name="$1" ok="$2" noun="$3" status="$4" found="$5" path="$6" err="${7:-$5}"
   case "$status" in
   0)
     if [ -z "$found" ]; then
@@ -324,7 +327,7 @@ verdict() { # <check> <pass message> <leftover noun> <status> <found lines> <pat
     fi
     ;;
   1) pass "$name" "$ok (GitHub answered 404, so nothing is there)" ;;
-  *) fail "$name" "gh api $path failed: $api_error" ;;
+  *) fail "$name" "gh api $path failed: $err" ;;
   esac
 }
 
@@ -388,7 +391,7 @@ merge_help() { # <what failed...>
   out="$(api_lines "repos/$claims_repo/pulls?state=open&per_page=100" '.[] | [.number, .head.ref, .html_url] | @tsv' "$(fixture_re)")"
   status=$?
   if [ "$status" = 2 ]; then
-    echo "HUMAN: could not read the open $claims_repo PRs ($api_error); check the delete of $* and rerun teardown"
+    echo "HUMAN: could not read the open $claims_repo PRs ($out); check the delete of $* and rerun teardown"
   elif [ -z "$out" ]; then
     echo "HUMAN: no open PR names $*; the delete failed before opening one, so read its DRIVE output above and rerun teardown"
   else
