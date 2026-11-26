@@ -34,6 +34,10 @@ export const FAILURE_CHECK: CheckRunSummary = {
   },
 };
 
+/** What the CLI must report for FAILURE_CHECK on the wet PR (issue #263). */
+export const WET_PR_FAILURE_MESSAGE =
+  'Wet PR checks failed: failure (my-org/custom-state#42 https://github.com/my-org/custom-state/pull/42, apply https://github.com/my-org/custom-state/checks/1)';
+
 function matchingWetPr(claimName: string): PullRequestSummary {
   return {
     number: WET_PR_NUMBER,

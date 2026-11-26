@@ -17,6 +17,7 @@ import CreateUser from '../src/commands/create/user';
 import {
   FAILURE_CHECK,
   SUCCESS_CHECK,
+  WET_PR_FAILURE_MESSAGE,
   WET_PR_NUMBER,
   closeIssueBeforeWetChecks,
   expectAuditWetCheckOutcome,
@@ -309,7 +310,7 @@ describe('create --wait-for-checks forwarding', () => {
     expectAuditWetCheckOutcome(
       api,
       fails,
-      'The create of ComponentClaim-example failed.\n\nWet PR checks failed: failure',
+      `The create of ComponentClaim-example failed.\n\n${WET_PR_FAILURE_MESSAGE}`,
     );
   });
 

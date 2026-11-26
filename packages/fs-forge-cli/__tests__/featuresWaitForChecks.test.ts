@@ -20,6 +20,7 @@ import FeaturesRemove from '../src/commands/features/remove';
 import {
   FAILURE_CHECK,
   SUCCESS_CHECK,
+  WET_PR_FAILURE_MESSAGE,
   WET_PR_NUMBER,
   closeIssueBeforeWetChecks,
   expectAuditWetCheckOutcome,
@@ -181,7 +182,7 @@ describe('features add --commit wait-for-checks', () => {
     expectAuditWetCheckOutcome(
       api,
       fails,
-      'Add feature feature_a to component my-component failed.\n\nWet PR checks failed: failure',
+      `Add feature feature_a to component my-component failed.\n\n${WET_PR_FAILURE_MESSAGE}`,
     );
   });
 

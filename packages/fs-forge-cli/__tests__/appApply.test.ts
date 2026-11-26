@@ -303,6 +303,51 @@ describe('applyApp', () => {
     expect(dispatchesCommit?.sha).toBe('dispatches-sha');
   });
 
+  it('names the state-repo PR and the failing checks when a step 1 claim fails its wet PR checks', async () => {
+    const api = makeApi();
+    const clock = makeFakeClock();
+    const state = { owner: 'acme', repo: 'state-github' };
+    api.setPullRequests(state, [
+      {
+        number: 7,
+        htmlUrl: 'https://github.com/acme/state-github/pull/7',
+        state: 'open',
+        headRef: 'automated-component-app-payments',
+        baseSha: 'base-sha',
+        updatedAt: '2026-01-01T00:00:00Z',
+      },
+    ]);
+    api.setCheckRuns(state, 7, [
+      {
+        name: 'FirestartrGithubRepository - apply',
+        conclusion: 'failure',
+        status: 'completed',
+        output: {
+          title: null,
+          summary: 'ComponentClaim/app-payments: failure',
+          text: null,
+        },
+        htmlUrl: 'https://github.com/acme/state-github/runs/1',
+      },
+    ]);
+
+    const result = await applyApp(api, makeFullPlan(), {
+      now: clock.now,
+      sleep: clock.sleep,
+    });
+
+    const expected =
+      'Wet PR checks failed: failure (acme/state-github#7 https://github.com/acme/state-github/pull/7, FirestartrGithubRepository - apply https://github.com/acme/state-github/runs/1)';
+    expect(result.outcome).toBe('failed');
+    expect(result.reason).toBe(expected);
+    expect(result.steps[0].repos[0]).toEqual({
+      repo: 'acme/claims',
+      branch: 'fs-forge/ComponentClaim-app-payments',
+      state: 'failed',
+      reason: `ComponentClaim/app-payments: ${expected}`,
+    });
+  });
+
   it('writes nothing when the plan is not ready (failing check or conflict)', async () => {
     const api1 = makeApi();
     const res1 = await applyApp(

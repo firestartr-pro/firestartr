@@ -258,7 +258,9 @@ describe('publishClaimAndWait', () => {
         }),
         harness.pulse,
       ),
-    ).rejects.toThrow('Wet PR checks failed: failure');
+    ).rejects.toThrow(
+      'Wet PR checks failed: failure (my-org/state-github#42 https://github.com/my-org/state-github/pull/42, apply)',
+    );
     expect(harness.diagnosticLines[0]).toBe(
       'Watching wet PR my-org/state-github#42...\n',
     );
