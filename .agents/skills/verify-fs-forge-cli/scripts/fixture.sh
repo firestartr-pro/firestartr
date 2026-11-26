@@ -345,22 +345,25 @@ prove_clean() {
   status=$?
   verdict claims-prs "no open $group or $component PR in $claims_repo" \
     "open PRs left in $claims_repo" "$status" "$out" "repos/$claims_repo/pulls"
-  # The CRs of both state repos: one listing error fails the check, and the
-  # first one names itself.
-  out="" status=0
+  # The CRs of both state repos. A 404 on one repo means "no CRs in that repo",
+  # nothing more: only a 404 on both skips the check, leftover CRs in the other
+  # repo still FAIL, and any other error FAILs and names the gh error.
+  out="" status=0 gone=0 state_error=""
   for repo in state-github state-infra; do
     lines="$(api_lines "repos/$org/$repo/git/trees/HEAD?recursive=1" '.tree[].path' "$(fixture_re)")"
     s=$?
-    [ -z "$lines" ] || out="$out$lines"$'\n'
     if [ "$s" = 2 ]; then
       status=2
       state_path="repos/$org/$repo/git/trees/HEAD"
+      state_error="$lines"
       break
     fi
-    if [ "$s" = 1 ] && [ "$status" = 0 ]; then status=1; fi
+    [ -z "$lines" ] || out="$out$lines"$'\n'
+    [ "$s" = 1 ] && gone=$((gone + 1))
   done
+  [ "$gone" = 2 ] && [ "$status" = 0 ] && status=1
   verdict state-crs "no $group or $component CR left in $org/state-github or $org/state-infra" \
-    "CRs left" "$status" "$out" "${state_path:-repos/$org/state-github/git/trees/HEAD}"
+    "CRs left" "$status" "$out" "${state_path:-repos/$org/state-github/git/trees/HEAD}" "$state_error"
   repo_gone
   status=$?
   case "$status" in
