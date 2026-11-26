@@ -315,8 +315,7 @@ describe('buildPlanSteps', () => {
     expect(steps[2].satisfied).toBe(true);
   });
 
-  it('formats step 1 text output with per-claim branch, PR title, hydration, and waitFor', () => {
-    const json = buildPlanJsonOutput(
+  it('formats step 1 text output with per-claim branch, PR title, hydration, and waitFor', () => {    const json = buildPlanJsonOutput(
       makePlanResult({
         claims: [
           createFile('components/app-payments.yaml'),
@@ -339,6 +338,42 @@ describe('buildPlanSteps', () => {
     expect(text).toContain(
       'Wait for: each claim provisioned before the next',
     );
+  });
+
+  it('tells the user to merge .firestartr first in step 2 text output', () => {
+    const json = buildPlanJsonOutput(
+      makePlanResult({
+        claims: [noopFile('components/app-payments.yaml')],
+        dotFirestartr: [createFile('apps/payments.yaml')],
+        stateApp: [createFile('kubernetes/eks-main/core/dev.yaml')],
+        stateArgocd: [
+          createFile('apps/payments/argo-payments.ApplicationSet.yaml'),
+        ],
+        service: [noopFile('.github/make_dispatches.yaml')],
+      }),
+    );
+
+    const text = formatPlanText(json);
+    expect(text).toContain(
+      'Merge first: acme/.firestartr — the acme/app-payments validate-changes check reads the app name from .firestartr apps/payments.yaml.',
+    );
+  });
+
+  it('omits the merge-first note when .firestartr has no changes', () => {
+    const json = buildPlanJsonOutput(
+      makePlanResult({
+        claims: [noopFile('components/app-payments.yaml')],
+        dotFirestartr: [noopFile('apps/payments.yaml')],
+        stateApp: [createFile('kubernetes/eks-main/core/dev.yaml')],
+        stateArgocd: [
+          createFile('apps/payments/argo-payments.ApplicationSet.yaml'),
+        ],
+        service: [noopFile('.github/make_dispatches.yaml')],
+      }),
+    );
+
+    const text = formatPlanText(json);
+    expect(text).not.toContain('Merge first:');
   });
 });
 

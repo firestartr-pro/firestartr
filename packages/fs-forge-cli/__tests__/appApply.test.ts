@@ -195,6 +195,9 @@ function makeFakeClock() {
   };
 }
 
+const FIRESTARTR_FIRST_HINT =
+  'Merge acme/.firestartr#1 (https://github.com/acme/.firestartr/pull/1) first: the acme/app-payments validate-changes check reads the app name from .firestartr apps/payments.yaml.';
+
 function makeApi(): ApplyTestGitHubApi {
   const api = new ApplyTestGitHubApi();
   api.autoCompleteDispatches = true;
@@ -413,6 +416,7 @@ describe('applyApp', () => {
       'app-payments',
       'state-argocd',
     ]);
+    expect(res2.reason).toContain(FIRESTARTR_FIRST_HINT);
   });
 
   it('returns pending with pending PRs listed on timeout without real time', async () => {
@@ -438,6 +442,36 @@ describe('applyApp', () => {
     expect(result.reason).toContain('acme/.firestartr#1');
     expect(result.steps[1].repos.every((r) => r.state === 'open')).toBe(true);
     expect(result.steps[1].repos[0].reason).toBe('timed out waiting for merge');
+    expect(result.reason).toContain(FIRESTARTR_FIRST_HINT);
+  });
+
+  it('drops the merge-first hint once the .firestartr PR is merged', async () => {
+    const api = makeApi();
+    const clock = makeFakeClock();
+    const plan = makeFullPlan({
+      claims: [
+        noopFile('claims/components/app-payments.yaml'),
+        noopFile('claims/components/payments-api.yaml'),
+      ],
+    });
+
+    api.onGetPullRequest = (ref, pr) => {
+      if (ref.repo === '.firestartr') {
+        api.setPrState(ref, pr, 'closed', true);
+      }
+    };
+
+    const result = await applyApp(api, plan, {
+      timeoutMs: 10_000,
+      pollIntervalMs: 5_000,
+      now: clock.now,
+      sleep: clock.sleep,
+    });
+
+    expect(result.outcome).toBe('pending');
+    expect(result.reason).toContain('Timed out');
+    expect(result.reason).toContain('acme/app-payments#2');
+    expect(result.reason).not.toContain('first');
   });
 
   it('fails and names the PR when a PR is closed without merging', async () => {
