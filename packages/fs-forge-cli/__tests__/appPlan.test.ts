@@ -1,6 +1,7 @@
 import { join } from 'path';
 import YAML from 'yaml';
 
+import { applyApp } from '../src/app/apply/index.js';
 import { planApp } from '../src/app/plan/index.js';
 import type { PlanSchemaDirs } from '../src/app/plan/index.js';
 import { actionsSchemasDir } from '../src/schema/actionsSchemas.js';
@@ -955,5 +956,67 @@ describe('app plan (resolve, render, checks)', () => {
       expect(check?.message).toContain(slug);
       expect(check?.message).toMatch(/must exist/i);
     }
+  });
+
+  it('reports failing checks when state-argocd, .firestartr, or service repo is archived', async () => {
+    const cases = [
+      {
+        repo: STATE_ARGOCD_REPO,
+        checkId: 'state-argocd-repo',
+        slug: 'acme/state-argocd',
+      },
+      {
+        repo: DOT_FIRESTARTR_REPO,
+        checkId: 'dot-firestartr-repo',
+        slug: 'acme/.firestartr',
+      },
+      {
+        repo: SERVICE_REPO,
+        checkId: 'service-repo',
+        slug: 'acme/payments-api',
+      },
+    ];
+
+    for (const { repo, checkId, slug } of cases) {
+      const api = new MemoryGitHubApi();
+      seedBaseRepos(api, { orgPlan: 'paid' });
+      api.setArchived(repo);
+
+      const result = await planApp({
+        api,
+        featureSource: createFakeFeatureSource(),
+        inputs: BASE_INPUTS,
+        schemaDirs: SCHEMA_DIRS,
+      });
+
+      const check = result.checks.find((c) => c.id === checkId);
+      expect(check?.status).toBe('fail');
+      expect(check?.message).toContain(slug);
+      expect(check?.message).toMatch(/archived/i);
+      expect(check?.message).toMatch(/unarchiv/i);
+    }
+  });
+
+  it('refuses to apply a plan whose target repository is archived', async () => {
+    const api = new MemoryGitHubApi();
+    seedBaseRepos(api, { orgPlan: 'paid' });
+    api.setArchived(SERVICE_REPO);
+
+    const result = await planApp({
+      api,
+      featureSource: createFakeFeatureSource(),
+      inputs: BASE_INPUTS,
+      schemaDirs: SCHEMA_DIRS,
+    });
+
+    const applied = await applyApp(api, result, { noWait: true });
+
+    expect(applied.outcome).toBe('not_ready');
+    expect(api.committed).toHaveLength(0);
+    expect(api.createdPulls).toHaveLength(0);
+    expect(api.issues).toHaveLength(0);
+    expect(
+      api.calls.filter((c) => c.startsWith('createBranch ')),
+    ).toHaveLength(0);
   });
 });

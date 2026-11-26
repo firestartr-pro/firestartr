@@ -70,6 +70,7 @@ export class MemoryGitHubApi implements GitHubApi {
   readonly defaultBranches = new Map<string, string>();
   readonly primaryLanguages = new Map<string, string | null>();
   readonly existingRepos = new Set<string>();
+  readonly archivedRepos = new Set<string>();
   readonly existingTeams = new Set<string>();
   readonly members = new Set<string>();
   readonly orgPlans = new Map<string, OrgPlan>();
@@ -146,6 +147,11 @@ export class MemoryGitHubApi implements GitHubApi {
 
   addRepo(ref: RepoRef): void {
     this.existingRepos.add(this.key(ref));
+  }
+
+  setArchived(ref: RepoRef, archived = true): void {
+    if (archived) this.archivedRepos.add(this.key(ref));
+    else this.archivedRepos.delete(this.key(ref));
   }
 
   addTeam(org: string, teamSlug: string): void {
