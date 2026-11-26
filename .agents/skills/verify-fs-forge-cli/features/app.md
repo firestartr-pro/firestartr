@@ -74,6 +74,14 @@ on `fs-forge/app-fsf-verify-app`.
   `ready: true`, `conflicts: []` and `nothing to change` in every repo.
 - Merging the last step 3 PR is also what proves the resume path: a fully satisfied
   plan touches nothing, so that write drive trips the no-change guard (see Gotchas).
+- Teardown was proven on the same org: 21 minutes of writes, 13:48:55Z to 14:10:33Z,
+  reversing the setup bottom up — `features remove --commit` per Feature `apply`
+  attached, `delete component --commit` per claim it created (which unprovisions the
+  state CRs and leaves the repository to `gh repo delete`), one merged PR per plain
+  file the setup had written, and the Service repository re-archived last. Afterwards
+  `app plan` fails the same checks and conflicts it failed before the setup, and
+  `.firestartr` plus the Service repository's `.github/` are byte-identical to their
+  pre-setup trees.
 
 ## Gotchas
 
@@ -95,4 +103,14 @@ on `fs-forge/app-fsf-verify-app`.
 - An archived Service repository passes the `service-repo` check because it only asks whether the repository exists, but `app apply` cannot open a PR in it (`ERROR: This repository was archived so it is read-only`) after the earlier steps already landed. Unarchive it before `app apply` (firestartr-pro/firestartr#262).
 - Step 1 does not end at the provision run. After each claim's dispatch succeeds, `app apply` also watches that claim's **wet PR** — the PR the operator opened in `state-github`/`state-infra` — so a red operator check there stops the whole run with exit 1 even though the claims PR merged and the provision run is green. It is reported as `Wet PR checks failed: failure`, naming neither the state PR nor the failing check: look for the newest `automated-non-automerge/ComponentClaim-<name>` PR in `state-github`, then read the check runs on its `merge_commit_sha`, not its head SHA (firestartr-pro/firestartr#263).
 - Steps 2 and 3 wait for a human merge, so a live run that must not merge PRs ends `pending` (exit 3) after `--timeout` at step 2 and never opens the step 3 PR; once the step 2 PRs are merged, the same run goes straight to step 3 and ends `pending` there with that PR open. Expect `Timed out waiting for PRs to merge: …` in the JSON `reason`.
+- `delete component --commit` merges the claims PR and the unprovision workflow then
+  merges away the claim's state CRs, but the GitHub repository the claim created
+  survives: `gh repo delete` it after the delete exits 0 and the claim is gone.
+- `features remove` of the last remaining Feature re-serializes the whole claim, so
+  the key order changes even though the content is back to `features: []`. A
+  byte-identical restore needs a plain commit of the original file.
+- `features remove` and `delete` run the same wet-PR watch step 1 of `apply` does, so
+  a pre-existing red state-repo reconcile (for example `422 … name already exists`)
+  exits **2** with `Wet PR checks failed: failure` even though the claims PR merged
+  and the unprovision ran: read the claims log instead of the exit code.
 - A resume is idempotent: reusing every open PR changes nothing in the org, and `drive.sh --mode write` requires a change, so it reports `FAIL - write drive changed nothing in <org>/claims` on that drive. Read `exit-code.txt`, `stdout.txt` and `org-diff.txt` — all three still prove the reuse — instead of the verdict line.
