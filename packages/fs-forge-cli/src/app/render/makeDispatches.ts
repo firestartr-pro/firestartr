@@ -1,5 +1,6 @@
 import type { ErrorObject } from 'ajv';
 import YAML, { YAMLMap, YAMLSeq } from 'yaml';
+import type { Document } from 'yaml';
 
 import { loadActionsValidator } from '../../schema/actionsSchemas.js';
 import { formatAjvErrors } from '../../utils/ajvValidation.js';
@@ -146,6 +147,18 @@ function entryIdentityKey(entry: {
   ].join('/');
 }
 
+/**
+ * Renders a document the way `yamllint -d default` expects it: an explicit
+ * document start and block collections only. The `yaml` package keeps the flow
+ * flag of a collection that came from the base file (`deployments: []`) and
+ * hands it down to the nodes added to it, so a merge would otherwise render
+ * `deployments: [ { ... } ]` and fail the linter.
+ */
+function toStringBlock(doc: Document.Parsed): string {
+  doc.directives.docStart = true;
+  return doc.toString();
+}
+
 export function renderMakeDispatches(
   options: RenderMakeDispatchesOptions,
 ): RenderedFile {
@@ -182,7 +195,7 @@ export function renderMakeDispatches(
     }
     return {
       path,
-      content: YAML.stringify(obj),
+      content: `---\n${YAML.stringify(obj)}`,
       outcome: { kind: 'create' },
     };
   }
@@ -238,6 +251,7 @@ export function renderMakeDispatches(
     doc.set('deployments', deploymentsNode);
   }
   const deploymentsSeq = deploymentsNode as YAMLSeq;
+  deploymentsSeq.flow = false;
 
   const added: string[] = [];
   const notes: string[] = [];
@@ -261,7 +275,9 @@ export function renderMakeDispatches(
     }
 
     if (!existingEntry) {
-      deploymentsSeq.add(doc.createNode(desired));
+      const entryNode = doc.createNode(desired);
+      if (entryNode instanceof YAMLMap) entryNode.flow = false;
+      deploymentsSeq.add(entryNode);
       added.push(`deployment:${targetKey}`);
       continue;
     }
@@ -309,6 +325,7 @@ export function renderMakeDispatches(
       namesSeq = doc.createNode([]);
       existingEntry.set('service_names', namesSeq);
     }
+    namesSeq.flow = false;
 
     const existingNames = new Set(
       namesSeq.items.map((item) =>
@@ -348,7 +365,7 @@ export function renderMakeDispatches(
 
   return {
     path,
-    content: preserveEol(doc.toString(), existingContent),
+    content: preserveEol(toStringBlock(doc), existingContent),
     outcome: { kind: 'merge', added },
     ...(notes.length > 0 ? { notes } : {}),
   };
