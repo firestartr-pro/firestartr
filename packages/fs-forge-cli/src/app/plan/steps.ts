@@ -337,6 +337,16 @@ export function formatPlanText(output: AppPlanJsonOutput): string {
     if (step.waitFor) {
       lines.push(`  Wait for: ${step.waitFor}`);
     }
+    if (step.step === 2 && !step.satisfied) {
+      const dotFirestartr = step.repos.find(
+        (repo) => repo.repo === `${output.org}/.firestartr`,
+      );
+      if (dotFirestartr?.hasChanges) {
+        lines.push(
+          `  Merge first: ${dotFirestartr.repo} — the ${output.org}/app-${output.app} validate-changes check reads the app name from .firestartr apps/${output.app}.yaml.`,
+        );
+      }
+    }
   }
 
   lines.push('');

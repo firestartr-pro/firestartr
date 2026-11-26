@@ -43,7 +43,10 @@ Both `plan` and `apply` use the same three-step order:
    `.github/make_dispatches.yaml` when adding the feature.
 2. **Step 2 (`.firestartr`, `app-<app>`, `state-argocd`)**: once step 1 is
    provisioned, open PRs in parallel for `apps/<app>.yaml`, the state-repo
-   scaffold, and the ArgoCD `ApplicationSet` and `AppProject`.
+   scaffold, and the ArgoCD `ApplicationSet` and `AppProject`. Merge the
+   `.firestartr` PR first: the `app-<app>` PR's `validate-changes` check finds
+   the app name by reading `apps/<app>.yaml` from `.firestartr`, so it only
+   passes once that PR is merged. `state-argocd` has no such dependency.
 3. **Step 3 (Service repo)**: once all step 2 PRs are merged, open the PR for
    `.github/make_dispatches.yaml` so the first image dispatch targets a wired
    application.

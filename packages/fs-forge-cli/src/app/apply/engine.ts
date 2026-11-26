@@ -54,6 +54,18 @@ function errorMessage(error: unknown): string {
   return error instanceof Error ? error.message : String(error);
 }
 
+function step2MergeFirstHint(params: {
+  org: string;
+  app: string;
+  repos: ApplyRepoResult[];
+}): string | undefined {
+  const dotFirestartr = params.repos.find(
+    (repo) => repo.repo === `${params.org}/.firestartr`,
+  );
+  if (!dotFirestartr?.pr || dotFirestartr.state !== 'open') return undefined;
+  return `Merge ${dotFirestartr.repo}#${dotFirestartr.pr.number} (${dotFirestartr.pr.url}) first: the ${params.org}/app-${params.app} validate-changes check reads the app name from .firestartr apps/${params.app}.yaml.`;
+}
+
 export async function applyApp(
   api: GitHubApi,
   plan: AppPlanResult,
@@ -459,10 +471,16 @@ export async function applyApp(
     }
 
     if (noWait) {
+      const hint = step2MergeFirstHint({
+        org,
+        app: plan.context.inputs.app,
+        repos: stepRepos,
+      });
       return {
         outcome: 'pending',
         steps,
         ...(auditIssue ? { auditIssue } : {}),
+        ...(hint ? { reason: hint } : {}),
       };
     }
 
@@ -510,11 +528,17 @@ export async function applyApp(
             return `${item.repo}#${item.pr.number} (${item.pr.url})`;
           })
           .join(', ');
+        const hint = step2MergeFirstHint({
+          org,
+          app: plan.context.inputs.app,
+          repos: stepRepos,
+        });
+        const timedOut = `Timed out waiting for PRs to merge: ${pendingList}`;
         return {
           outcome: 'pending',
           steps,
           ...(auditIssue ? { auditIssue } : {}),
-          reason: `Timed out waiting for PRs to merge: ${pendingList}`,
+          reason: hint ? `${timedOut}. ${hint}` : timedOut,
         };
       }
 
