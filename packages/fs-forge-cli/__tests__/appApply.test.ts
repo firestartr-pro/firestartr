@@ -474,6 +474,56 @@ describe('applyApp', () => {
     expect(result.reason).not.toContain('first');
   });
 
+  it('omits the merge-first hint when the app state repo has no changes', async () => {
+    const api = makeApi();
+    const plan = makeFullPlan({
+      claims: [
+        noopFile('claims/components/app-payments.yaml'),
+        noopFile('claims/components/payments-api.yaml'),
+      ],
+      stateApp: [noopFile('kubernetes/eks-main/core/dev.yaml')],
+    });
+
+    const result = await applyApp(api, plan, { noWait: true });
+
+    expect(result.outcome).toBe('pending');
+    expect(result.reason).toBeUndefined();
+    expect(api.createdPulls.map((p) => p.ref.repo)).toEqual([
+      '.firestartr',
+      'state-argocd',
+    ]);
+  });
+
+  it('omits the merge-first hint when the app state repo PR is already merged', async () => {
+    const api = makeApi();
+    const clock = makeFakeClock();
+    const plan = makeFullPlan({
+      claims: [
+        noopFile('claims/components/app-payments.yaml'),
+        noopFile('claims/components/payments-api.yaml'),
+      ],
+    });
+
+    api.onGetPullRequest = (ref, pr) => {
+      if (ref.repo === 'app-payments') {
+        api.setPrState(ref, pr, 'closed', true);
+      }
+    };
+
+    const result = await applyApp(api, plan, {
+      timeoutMs: 10_000,
+      pollIntervalMs: 5_000,
+      now: clock.now,
+      sleep: clock.sleep,
+    });
+
+    expect(result.outcome).toBe('pending');
+    expect(result.reason).toContain('Timed out');
+    expect(result.reason).toContain('acme/.firestartr#1');
+    expect(result.reason).toContain('acme/state-argocd#3');
+    expect(result.reason).not.toContain('first');
+  });
+
   it('fails and names the PR when a PR is closed without merging', async () => {
     const api = makeApi();
     const clock = makeFakeClock();

@@ -375,6 +375,23 @@ describe('buildPlanSteps', () => {
     const text = formatPlanText(json);
     expect(text).not.toContain('Merge first:');
   });
+
+  it('omits the merge-first note when the app state repo has no changes', () => {
+    const json = buildPlanJsonOutput(
+      makePlanResult({
+        claims: [noopFile('components/app-payments.yaml')],
+        dotFirestartr: [createFile('apps/payments.yaml')],
+        stateApp: [noopFile('kubernetes/eks-main/core/dev.yaml')],
+        stateArgocd: [
+          createFile('apps/payments/argo-payments.ApplicationSet.yaml'),
+        ],
+        service: [noopFile('.github/make_dispatches.yaml')],
+      }),
+    );
+
+    const text = formatPlanText(json);
+    expect(text).not.toContain('Merge first:');
+  });
 });
 
 describe('writePlanOutputFiles', () => {
