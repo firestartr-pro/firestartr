@@ -7,6 +7,7 @@ import { schema as TFWorkspaceClaimSchema } from './workspace';
 import { schema as ArgoDeployClaimSchema } from './deploy';
 import { schema as OrgWebhookClaimSchema } from './orgWebhook';
 import { schema as OrgSettingsClaimSchema } from './orgSettings';
+import { schema as OrgRulesetClaimSchema } from './orgRuleset';
 import { schema as SecretsClaimSchema } from './secrets';
 /**
  * All Claims should implement this interface
@@ -51,5 +52,6 @@ export default {
   ArgoDeployClaimSchema,
   OrgWebhookClaimSchema,
   OrgSettingsClaimSchema,
+  OrgRulesetClaimSchema,
   SecretsClaimSchema,
 };
