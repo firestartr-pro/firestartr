@@ -42,6 +42,7 @@ Preconditions:
 ## Gotchas
 
 - Usage text marks only some flags required. A kind's schema can require more, and `create` then fails with exit 2 and the schema paths. Orgwebhook needs `owner`, `providers.github.name`, `orgName` and the whole `webhook` block; secrets needs `owner`, `secretStore`, `externalSecrets` and `pushSecrets`; group, user and component need `providers.github.name` and `org`.
+- `create` builds the claim from its flags and the schema defaults only. The org's `<org>/claims/.config/claims_defaults.yaml` is not merged, not even with `--commit`, so a field that only the defaults list sets (`GroupClaim` `privacy`, `ComponentClaim` `branchStrategy`) still has to be a flag: `create component` without `--providers.github.branchStrategy.name` exits 2 with `/providers/github must have required property 'branchStrategy'` against `pre-vieitesss`. `defaults apply` merges the defaults into a claim that already exists.
 - `providers.github.webhook.secretRef` must match `ref:secretsclaim:<name>:<key>`; any other string fails with exit 2.
 - Array flags repeat (`--providers.github.webhook.events push --providers.github.webhook.events pull_request`). The `.json` flags take a JSON string, so quote it for the shell.
 - A failed `create` leaves `stdout.txt` empty. Seeding it into `validate` then fails on the empty file; that is the seed, not a `validate` bug.

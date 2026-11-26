@@ -69,53 +69,37 @@ drive="$FSF_SKILL_DIR/scripts/drive.sh"
 # --- setup ------------------------------------------------------------------
 write_seeds() {
   mkdir -p "$fixture_dir" || fsf_die "could not create $fixture_dir"
+  # These are the claims the printed create commands build: `create` fills a
+  # claim from its flags and the schema defaults, not from the org's
+  # .config/claims_defaults.yaml (that is what `defaults apply` is for), so a
+  # seed that carried extra fields would not match what lands in the org.
   cat > "$fixture_dir/group.yaml" <<YAML
 kind: GroupClaim
-version: "1.0"
 name: $group
-description: fs-forge write-drive fixture ($id)
 type: business-unit
+annotations:
+  firestartr.dev/ia-test: "true"
 profile:
   displayName: $group
-members: []
 providers:
   github:
     name: $group
     org: $org
     privacy: closed
-annotations:
-  firestartr.dev/ia-test: "true"
+description: fs-forge verification $id
 YAML
   cat > "$fixture_dir/component.yaml" <<YAML
 kind: ComponentClaim
-version: "1.0"
 name: $component
-type: service
-lifecycle: production
-description: fs-forge write-drive fixture ($id)
 owner: group:firestartr
-system: system:pre-vieitesss-system
-maintainedBy: []
-platformOwner: group:firestartr
 providers:
   github:
     name: $component
     org: $org
     visibility: private
-    description: fs-forge write-drive fixture ($id)
-    sync:
-      enabled: true
-      period: 24h
     branchStrategy:
       name: none
-      defaultBranch: main
-    allowAutoMerge: true
-    deleteBranchOnMerge: true
-    orgPermissions: contribute
-    technology:
-      stack: none
-      version: none
-    features: []
+description: fs-forge verification $id
 annotations:
   firestartr.dev/ia-test: "true"
 YAML
@@ -153,12 +137,12 @@ Create them with (each needs --mode write and the user's approval):
     --providers.github.name $group --providers.github.org $org --providers.github.privacy closed \\
     --annotations.json '{"firestartr.dev/ia-test":"true"}' --commit
 
-  $drive --mode write --org $org --label ob-create-component --seed $fixture_dir/component.yaml \\
+  $drive --mode write --org $org --label ob-create-component-issue --seed $fixture_dir/component.yaml \\
     -- create component --name $component --owner group:firestartr \\
     --description "fs-forge verification $id" \\
     --providers.github.name $component --providers.github.org $org \\
-    --providers.github.visibility private --providers.github.description "fs-forge verification $id" \\
-    --annotations.json '{"firestartr.dev/ia-test":"true"}' --commit
+    --providers.github.visibility private --providers.github.branchStrategy.name none \\
+    --annotations.json '{"firestartr.dev/ia-test":"true"}' --commit --create-issue
 
 Then tear both down with:
 
