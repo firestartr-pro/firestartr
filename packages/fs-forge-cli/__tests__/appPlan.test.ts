@@ -994,6 +994,10 @@ describe('app plan (resolve, render, checks)', () => {
       expect(check?.message).toContain(slug);
       expect(check?.message).toMatch(/archived/i);
       expect(check?.message).toMatch(/unarchiv/i);
+
+      const checklistItem = check?.checklist?.join('\n');
+      expect(checklistItem).toContain(slug);
+      expect(checklistItem).toMatch(/unarchiv/i);
     }
   });
 
