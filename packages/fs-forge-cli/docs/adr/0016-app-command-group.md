@@ -58,6 +58,24 @@ Claims in step 1 land one at a time through the Provision workflow on
 claims into one PR would merge both claims in the claims repo while hydrating
 only one.
 
+### Resume trusts the claim files, not the earlier run (user decision)
+
+On a rerun, `apply` counts step 1 as done when every claim file on the claims
+repo's `main` matches the plan, and reports it `skipped`. That is the whole
+test: the CLI does not re-check whether the claim's last provisioning
+succeeded.
+
+The consequence is that a provisioning failure from an earlier run is
+reported only by that run. A rerun skips step 1, goes on, and can reach `done`
+over a claim that never provisioned.
+
+The failed run's reason still names the state-repo PR and the failing checks.
+Read it, fix the claim or the org, confirm the provisioning succeeded, and
+only then rerun.
+
+Resume stays this narrow because it is simple and cheap, and because an
+org-side failure is knowable and can be accepted.
+
 ### Steps 2 and 3 are opened, never merged, by `apply` (user decision)
 
 `fs-forge app apply` opens or reuses pull requests for steps 2 and 3 and waits
@@ -126,6 +144,8 @@ ArgoCD access, and Service repository workflows.
 - Step 1 remains compatible with the existing Provision workflow and audit
   issue flags (`--issue`, `--create-issue`).
 - Partial `apply` runs are resumable: rerunning with the same inputs file skips
-  already-landed work and reuses matching open PRs.
+  already-landed work and reuses matching open PRs. Skipping step 1 trusts the
+  claim files on `main`, not the earlier run (see
+  [Resume trusts the claim files](#resume-trusts-the-claim-files-not-the-earlier-run-user-decision)).
 - Third-party ArgoCD CRD updates require running the vendor refresh script,
   while Prefapp schema updates arrive through `@firestartr/firestartr-claims_schemas`.
