@@ -37,7 +37,7 @@ function failedCheck(run: CheckRunResult): boolean {
  * Names the wet PR and the checks that failed, so a user can go straight to
  * the red check run instead of reading the CLI source.
  */
-function describeWetPrFailure(
+export function describeWetPrFailure(
   conclusion: string,
   target: LastStatePrRedirect,
   result: AggregatedCheckResult,
