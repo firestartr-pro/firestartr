@@ -341,7 +341,10 @@ export function formatPlanText(output: AppPlanJsonOutput): string {
       const dotFirestartr = step.repos.find(
         (repo) => repo.repo === `${output.org}/.firestartr`,
       );
-      if (dotFirestartr?.hasChanges) {
+      const stateApp = step.repos.find(
+        (repo) => repo.repo === `${output.org}/app-${output.app}`,
+      );
+      if (dotFirestartr?.hasChanges && stateApp?.hasChanges) {
         lines.push(
           `  Merge first: ${dotFirestartr.repo} — the ${output.org}/app-${output.app} validate-changes check reads the app name from .firestartr apps/${output.app}.yaml.`,
         );

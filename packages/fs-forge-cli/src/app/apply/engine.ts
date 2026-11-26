@@ -62,7 +62,11 @@ function step2MergeFirstHint(params: {
   const dotFirestartr = params.repos.find(
     (repo) => repo.repo === `${params.org}/.firestartr`,
   );
+  const stateApp = params.repos.find(
+    (repo) => repo.repo === `${params.org}/app-${params.app}`,
+  );
   if (!dotFirestartr?.pr || dotFirestartr.state !== 'open') return undefined;
+  if (!stateApp?.pr || stateApp.state !== 'open') return undefined;
   return `Merge ${dotFirestartr.repo}#${dotFirestartr.pr.number} (${dotFirestartr.pr.url}) first: the ${params.org}/app-${params.app} validate-changes check reads the app name from .firestartr apps/${params.app}.yaml.`;
 }
 
@@ -287,6 +291,14 @@ export async function applyApp(
 
     const stepRepos: ApplyRepoResult[] = [];
     steps.push({ step: stepPlan.step, repos: stepRepos });
+    const mergeFirstHint = () =>
+      stepPlan.step === 2
+        ? step2MergeFirstHint({
+            org,
+            app: plan.context.inputs.app,
+            repos: stepRepos,
+          })
+        : undefined;
     const pending: Array<{
       index: number;
       ref: RepoRef;
@@ -471,11 +483,7 @@ export async function applyApp(
     }
 
     if (noWait) {
-      const hint = step2MergeFirstHint({
-        org,
-        app: plan.context.inputs.app,
-        repos: stepRepos,
-      });
+      const hint = mergeFirstHint();
       return {
         outcome: 'pending',
         steps,
@@ -528,11 +536,7 @@ export async function applyApp(
             return `${item.repo}#${item.pr.number} (${item.pr.url})`;
           })
           .join(', ');
-        const hint = step2MergeFirstHint({
-          org,
-          app: plan.context.inputs.app,
-          repos: stepRepos,
-        });
+        const hint = mergeFirstHint();
         const timedOut = `Timed out waiting for PRs to merge: ${pendingList}`;
         return {
           outcome: 'pending',
