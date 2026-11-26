@@ -155,7 +155,11 @@ gh_api() { gh api --hostname github.com "$@"; }
 has_token() { fsf_token >/dev/null; }
 
 claim_path() { # <kind dir> <name> -> prints the claim's path in the claims repo
-  case "$1" in group) echo "claims/groups/$2.yaml" ;; *) echo "claims/components/$2.yaml" ;; esac
+  case "$1" in
+  group | groups) echo "claims/groups/$2.yaml" ;;
+  component | components) echo "claims/components/$2.yaml" ;;
+  *) fsf_die "claim_path: unknown kind dir $1" ;;
+  esac
 }
 
 claim_exists() { # <kind dir in the claims repo> <name>
@@ -187,17 +191,23 @@ wait_for() { # <seconds> <command...>
   return 1
 }
 
+leftover_branches() { # branches in the claims repo that name this id, whatever the prefix
+  # A delete publishes on automated-non-automerge/ when the claim cannot automerge, so
+  # filtering on fs-forge/ alone would leave the branch that blocks the next delete.
+  gh_api "repos/$claims_repo/branches?per_page=100" --paginate --jq '.[].name' 2>/dev/null |
+    grep -F "fsf-verify-$id" || true
+}
 sweep() {
   local ref prs
   # Branches first: a leftover branch would block the next create of that claim.
   while IFS= read -r ref; do
     [ -n "$ref" ] || continue
-    if gh_api -X DELETE "repos/$claims_repo/git/refs/heads/${ref#refs/heads/}" >/dev/null 2>&1; then
-      echo "SWEPT branch ${ref#refs/heads/}"
+    if gh_api -X DELETE "repos/$claims_repo/git/refs/heads/$ref" >/dev/null 2>&1; then
+      echo "SWEPT branch $ref"
     else
-      echo "FAIL sweep: could not delete branch ${ref#refs/heads/}"
+      echo "FAIL sweep: could not delete branch $ref"
     fi
-  done < <(gh_api "repos/$claims_repo/git/matching-refs/heads/fs-forge/" --jq '.[].ref' 2>/dev/null | grep -E "fsf-verify-(grp|cmp)-$id")
+  done < <(leftover_branches)
   while IFS=$'\t' read -r number head; do
     [ -n "$number" ] || continue
     if gh_api -X PATCH "repos/$claims_repo/pulls/$number" -f state=closed >/dev/null 2>&1; then
@@ -236,13 +246,12 @@ prove_clean() {
     grep -E "^claims/(components|groups)/fsf-verify-(grp|cmp)-$id\.yaml$")"
   [ -z "$paths" ] && pass claims-files "no $group or $component claim file in $claims_repo" ||
     fail claims-files "claims left in $claims_repo: $(printf '%s' "$paths" | tr '\n' ' ')"
-  refs="$(gh_api "repos/$claims_repo/git/matching-refs/heads/fs-forge/" --jq '.[].ref' 2>/dev/null |
-    grep -E "fsf-verify-(grp|cmp)-$id")"
-  [ -z "$refs" ] && pass claims-branches "no fs-forge/*fsf-verify-$id* branch in $claims_repo" ||
+  refs="$(leftover_branches)"
+  [ -z "$refs" ] && pass claims-branches "no $id branch in $claims_repo" ||
     fail claims-branches "branches left in $claims_repo: $(printf '%s' "$refs" | tr '\n' ' ')"
   prs="$(gh_api "repos/$claims_repo/pulls?state=open&per_page=100" --jq '.[] | "\(.number) \(.head.ref)"' 2>/dev/null |
-    grep -E "fsf-verify-(grp|cmp)-$id")"
-  [ -z "$prs" ] && pass claims-prs "no open fs-forge/*fsf-verify-$id* PR in $claims_repo" ||
+    grep -F "fsf-verify-$id")"
+  [ -z "$prs" ] && pass claims-prs "no open $id PR in $claims_repo" ||
     fail claims-prs "open PRs left in $claims_repo: $(printf '%s' "$prs" | tr '\n' ' ')"
   state_paths="$(for repo in state-github state-infra; do
     gh_api "repos/$org/$repo/git/trees/HEAD?recursive=1" --paginate --jq '.tree[].path' 2>/dev/null | grep -F "$id" || true
@@ -261,6 +270,9 @@ teardown() {
   has_token || fsf_die "no GH_TOKEN, GITHUB_TOKEN or 'gh auth token'"
   command -v gh >/dev/null 2>&1 || fsf_die "gh is required to read and sweep the org"
   local failed=0
+  # Sweep first so a rerun after a half-failure starts from a claim that can be
+  # published again instead of tripping over its own leftover branch or PR.
+  sweep
   if claim_exists components "$component"; then
     if [ -n "$issue" ]; then
       delete_claim component "$component" --issue "$issue" || failed=1
