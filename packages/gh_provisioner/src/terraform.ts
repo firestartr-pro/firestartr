@@ -37,9 +37,8 @@ const MODULES = {
   FirestartrGithubOrgRuleset: {
     module:
       'git::https://github.com/prefapp/tfm.git//modules/github-org-ruleset',
-    // prefapp/tfm#1476 (repository_property and bypass actor slugs), not
-    // released yet: bump to the github-org-ruleset release that includes it
-    ref: 'dce11d80a2a3cb642abfc53288803d4927e5e6b7',
+    // github-org-ruleset-v0.2.0
+    ref: '777fcbeefb46f865c88f183f53d884824fe1acfd',
   },
   FirestartrGithubOrganizationSettings: {
     module:
