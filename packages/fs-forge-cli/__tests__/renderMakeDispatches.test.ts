@@ -50,6 +50,27 @@ const BASE_INPUTS: AppInputs = {
   },
 };
 
+const SINGLE_TARGET_INPUTS: AppInputs = {
+  ...BASE_INPUTS,
+  targets: [BASE_INPUTS.targets[0]],
+};
+
+/** Block style, `---` first: what `yamllint -d default` accepts. */
+const BLOCK_SINGLE_DEPLOYMENT = [
+  '---',
+  'deployments:',
+  '  - application: billing',
+  '    platform: eks-eu',
+  '    tenant: core',
+  '    env: dev',
+  '    type: snapshots',
+  '    version: $branch_main',
+  '    flavor: default',
+  '    service_names:',
+  '      - billing-api',
+  '',
+].join('\n');
+
 describe('renderMakeDispatches', () => {
   it('creates a valid make_dispatches.yaml for all three tracks', () => {
     const result = renderMakeDispatches({
@@ -101,6 +122,91 @@ describe('renderMakeDispatches', () => {
 
     const validate = loadActionsValidator('make_dispatches', ACTIONS_SCHEMAS_DIR);
     expect(validate(parsed)).toBe(true);
+  });
+
+  it('creates the file in block style with a document start', () => {
+    const result = renderMakeDispatches({
+      org: 'acme',
+      inputs: SINGLE_TARGET_INPUTS,
+      defaultBranch: 'main',
+      actionsSchemasDir: ACTIONS_SCHEMAS_DIR,
+    });
+
+    expect(result.content).toBe(BLOCK_SINGLE_DEPLOYMENT);
+  });
+
+  it('merges into an empty flow-style base as block style, matching the create path', () => {
+    const created = renderMakeDispatches({
+      org: 'acme',
+      inputs: SINGLE_TARGET_INPUTS,
+      defaultBranch: 'main',
+      actionsSchemasDir: ACTIONS_SCHEMAS_DIR,
+    });
+
+    const merged = renderMakeDispatches({
+      org: 'acme',
+      inputs: SINGLE_TARGET_INPUTS,
+      defaultBranch: 'main',
+      actionsSchemasDir: ACTIONS_SCHEMAS_DIR,
+      existingContent: 'deployments: []\n',
+    });
+
+    expect(merged.outcome.kind).toBe('merge');
+    expect(merged.content).toBe(BLOCK_SINGLE_DEPLOYMENT);
+    expect(merged.content).toBe(created.content);
+  });
+
+  it('merges into a base with existing entries without flow collections', () => {
+    const existing = [
+      '# Existing dispatches',
+      'deployments:',
+      '  - application: other-app',
+      '    platform: eks-eu',
+      '    tenant: core',
+      '    env: dev',
+      '    type: snapshots',
+      '    version: $branch_main',
+      '    flavor: default',
+      '    service_names:',
+      '      - other-svc',
+      '',
+    ].join('\n');
+
+    const result = renderMakeDispatches({
+      org: 'acme',
+      inputs: SINGLE_TARGET_INPUTS,
+      defaultBranch: 'main',
+      actionsSchemasDir: ACTIONS_SCHEMAS_DIR,
+      existingContent: existing,
+    });
+
+    expect(result.outcome.kind).toBe('merge');
+    expect(result.content).toBe(
+      [
+        '---',
+        '# Existing dispatches',
+        'deployments:',
+        '  - application: other-app',
+        '    platform: eks-eu',
+        '    tenant: core',
+        '    env: dev',
+        '    type: snapshots',
+        '    version: $branch_main',
+        '    flavor: default',
+        '    service_names:',
+        '      - other-svc',
+        '  - application: billing',
+        '    platform: eks-eu',
+        '    tenant: core',
+        '    env: dev',
+        '    type: snapshots',
+        '    version: $branch_main',
+        '    flavor: default',
+        '    service_names:',
+        '      - billing-api',
+        '',
+      ].join('\n'),
+    );
   });
 
   it('is idempotent (noop) on its own output', () => {
