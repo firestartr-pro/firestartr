@@ -39,7 +39,9 @@ drive's output can feed the next (`create` then `validate`).
 
 `read` and `write` only run against an org you name, and an agent must ask you
 before each write. Both modes were driven live against `pre-vieitesss`;
-`fixture.sh` sets up and tears down the claims those drives use.
+`fixture.sh` sets up the `ia-test` claims and tears them down again, and a
+delete that stops before its deletion PR merges leaves that PR open for a human
+(see [`SKILL.md`](./SKILL.md#drive)).
 
 ## Where things live
 

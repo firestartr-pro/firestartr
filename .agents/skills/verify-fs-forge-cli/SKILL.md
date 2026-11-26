@@ -76,9 +76,9 @@ reaches the real keychain. Pick the feature in
 
 | Mode | Lets through | Observed before the verdict | Refused with exit 2 |
 |---|---|---|---|
-| `offline` (default) | local commands, no token, outbound connects blocked | `net.log` must stay empty | `--org`, `--commit`, `app apply` |
-| `read` | org-bound reads, token set, connects logged | `fs-forge/*` branches, PRs and workflow runs in `<org>/claims`, and in every `--watch-repo`, unchanged | no `--org`, `--commit`, `app apply` |
-| `write` | `--commit` or `app apply`; `delete` and every other command write only with `--commit`, while `app apply` has no `--commit` flag | claims-repo diff recorded in `org-diff.txt` | no `--org`, neither `--commit` nor `app apply` in the command, org not registered under `firestartr-pre/app-firestartr` `kubernetes/firestartr-pre/` |
+| `offline` (default) | local commands, no token, outbound connects blocked | `net.log` must stay empty | `--org`, `--commit`, `app apply`/`app:apply` |
+| `read` | org-bound reads, token set, connects logged | `fs-forge/*` branches, PRs and workflow runs in `<org>/claims`, and in every `--watch-repo`, unchanged | no `--org`, `--commit`, `app apply`/`app:apply` |
+| `write` | `--commit` or `app apply`; `delete` and every other command write only with `--commit`, while `app apply` has no `--commit` flag | claims-repo diff recorded in `org-diff.txt` | no `--org`, neither `--commit` nor `app apply`/`app:apply` in the command, org not registered under `firestartr-pre/app-firestartr` `kubernetes/firestartr-pre/` |
 
 Org-bound drives need an org the user named in this conversation. Take it from
 nothing else: not `FSCRT_ORG`, not `gh`'s defaults, not a fixture. Get the
@@ -96,7 +96,12 @@ Other skills own the surrounding steps:
 
 - `smoke-test-renderer` defines pre-org registration and the `ia-test`
   annotation for test claims; `$V/fixture.sh setup` writes the two `ia-test`
-  claims and `$V/fixture.sh teardown` removes them and proves the org clean.
+  claims, and `$V/fixture.sh teardown` deletes them, sweeps their leftover
+  branches, PRs and issues, and proves the org clean with seven `PASS` checks
+  (claim files, branches, PRs, state CRs, repo, team, issues). A `delete
+  --commit` that stops before its deletion PR merges keeps that PR open:
+  teardown prints `HUMAN: merge <url> once PR Verify is green, then rerun
+  teardown`, names the rerun and exits 1.
 - `publish-cli-snapshot-on-pre` publishes the CLI snapshot a pre org's
   workflows run (`FIRESTARTR_CLI_VERSION`); use it before a write drive that
   must exercise this branch's CLI.
@@ -112,7 +117,17 @@ redaction fails, the drive stops without printing the transcript). Read the
 final `DRIVE <NN>-<label> verdict=...` line; exit 4 means the proof is void even
 when the CLI behaved.
 
-`read` mode was exercised live against `pre-vieitesss`. `write` mode was exercised live there too (`create`, `edit`, `features add|edit|remove`, `delete --commit`, with and without `--issue`/`--create-issue`), on `firestartr.dev/ia-test` claims that `fixture.sh teardown` removed again; that proves the mechanism, not the next org. Keep reading `org-before.json`, `org-after.json` and `org-diff.txt` next to the verdict, and report anything surprising.
+`read` mode was exercised live against `pre-vieitesss`, and so were these
+`write` paths, on `firestartr.dev/ia-test` claims from `$V/fixture.sh setup`:
+`create`, `edit`, `features add|edit|remove --commit` and `create --commit
+--create-issue`. `delete --commit --issue` dispatched `unprovision-claim.yaml`
+and removed the claim's CR, repo and team, but its deletion PR needed a human
+merge, because `delete-github-claim.yaml` fails when the claim's CR is already
+gone; a clean delete of a fresh claim is not yet proven. `$V/fixture.sh
+teardown` names that PR and the rerun when a delete stops there. That proves
+the mechanism, not the next org. Keep reading `org-before.json`,
+`org-after.json` and `org-diff.txt` next to the verdict, and report anything
+surprising.
 
 ## Evidence
 

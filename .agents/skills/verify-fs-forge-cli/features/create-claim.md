@@ -9,7 +9,7 @@
 - `create-required-flag` rejects a missing required flag before building anything.
 - `create-kinds` covers every kind `kinds` lists: argodeploy, component, domain, group, orgsettings, orgwebhook, secrets, system, tfworkspace, user.
 - `create-then-validate` checks that what `create` prints passes `validate`.
-- `create-commit` is the write path (`--commit`); it lives in [`org-bound.md`](./org-bound.md).
+- `create-commit` is the write path (`--commit`); it lives in [`org-bound.md`](./org-bound.md). It passed live against `pre-vieitesss`, both plain and with `--create-issue`.
 
 ## How to get to it (user POV)
 
