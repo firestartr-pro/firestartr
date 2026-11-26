@@ -150,13 +150,26 @@ function entryIdentityKey(entry: {
 /**
  * Renders a document the way `yamllint -d default` expects it: an explicit
  * document start and block collections only. The `yaml` package keeps the flow
- * flag of a collection that came from the base file (`deployments: []`) and
- * hands it down to the nodes added to it, so a merge would otherwise render
- * `deployments: [ { ... } ]` and fail the linter.
+ * flag of a collection that came from the base file (`{deployments: []}`,
+ * `deployments: []`) and hands it down to the nodes added to it, so a merge
+ * would otherwise render `deployments: [ { ... } ]` and fail the linter. A flow
+ * entry cannot be re-printed validly either: past ~80 columns `yaml` folds it
+ * with an indentation `yamllint` rejects, so entries are block style too.
+ * `flowCollectionPadding: false` keeps untouched flow sequences such as
+ * `service_names: [other-svc]` compact, which is also what `yamllint` wants.
  */
-function toStringBlock(doc: Document.Parsed): string {
+function toStringBlock(
+  doc: Document.Parsed,
+  deploymentsSeq: YAMLSeq,
+): string {
   doc.directives.docStart = true;
-  return doc.toString();
+  const root = doc.contents;
+  if (root instanceof YAMLMap) root.flow = false;
+  deploymentsSeq.flow = false;
+  for (const item of deploymentsSeq.items) {
+    if (item instanceof YAMLMap) item.flow = false;
+  }
+  return doc.toString({ flowCollectionPadding: false });
 }
 
 export function renderMakeDispatches(
@@ -365,7 +378,7 @@ export function renderMakeDispatches(
 
   return {
     path,
-    content: preserveEol(toStringBlock(doc), existingContent),
+    content: preserveEol(toStringBlock(doc, deploymentsSeq), existingContent),
     outcome: { kind: 'merge', added },
     ...(notes.length > 0 ? { notes } : {}),
   };

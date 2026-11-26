@@ -301,7 +301,7 @@ describe('renderMakeDispatches', () => {
         '---',
         '# header comment',
         'deployments:',
-        BILLING_BLOCK_ENTRY,
+        BILLING_BLOCK_ENTRY.trimEnd(),
         '  # empty list',
         '',
       ].join('\n'),
