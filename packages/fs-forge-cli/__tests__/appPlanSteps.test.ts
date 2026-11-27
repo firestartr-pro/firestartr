@@ -360,6 +360,25 @@ describe('buildPlanSteps', () => {
     );
   });
 
+  it('names the existing .yml app path in the step 2 merge-first hint', () => {
+    const json = buildPlanJsonOutput(
+      makePlanResult({
+        claims: [noopFile('components/app-payments.yaml')],
+        dotFirestartr: [createFile('apps/payments.yml')],
+        stateApp: [createFile('kubernetes/eks-main/core/dev.yaml')],
+        stateArgocd: [
+          createFile('apps/payments/argo-payments.ApplicationSet.yaml'),
+        ],
+        service: [noopFile('.github/make_dispatches.yaml')],
+      }),
+    );
+
+    const text = formatPlanText(json);
+    expect(text).toContain(
+      'Merge first: acme/.firestartr — the acme/app-payments validate-changes check reads the app name from .firestartr apps/payments.yml.',
+    );
+  });
+
   it('omits the merge-first note when .firestartr has no changes', () => {
     const json = buildPlanJsonOutput(
       makePlanResult({

@@ -345,8 +345,10 @@ export function formatPlanText(output: AppPlanJsonOutput): string {
         (repo) => repo.repo === `${output.org}/app-${output.app}`,
       );
       if (dotFirestartr?.hasChanges && stateApp?.hasChanges) {
+        const appPath =
+          dotFirestartr.files[0]?.path ?? `apps/${output.app}.yaml`;
         lines.push(
-          `  Merge first: ${dotFirestartr.repo} — the ${output.org}/app-${output.app} validate-changes check reads the app name from .firestartr apps/${output.app}.yaml.`,
+          `  Merge first: ${dotFirestartr.repo} — the ${output.org}/app-${output.app} validate-changes check reads the app name from .firestartr ${appPath}.`,
         );
       }
     }
