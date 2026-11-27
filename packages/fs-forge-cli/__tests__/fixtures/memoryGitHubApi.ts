@@ -5,10 +5,12 @@ import type {
   CheckRunSummary,
   CreatedItem,
   GitHubApi,
+  OrgPlan,
   PullRequestFile,
   PullRequestSummary,
   RepoFile,
   RepoRef,
+  RepoState,
   WorkflowRunSummary,
 } from '../../src/github/api.js';
 
@@ -67,9 +69,12 @@ export class MemoryGitHubApi implements GitHubApi {
   readonly pullBodyUpdates: Array<{ ref: RepoRef; pr: number; body: string }> =
     [];
   readonly defaultBranches = new Map<string, string>();
+  readonly primaryLanguages = new Map<string, string | null>();
   readonly existingRepos = new Set<string>();
+  readonly archivedRepos = new Set<string>();
   readonly existingTeams = new Set<string>();
   readonly members = new Set<string>();
+  readonly orgPlans = new Map<string, OrgPlan>();
   tarball = Buffer.alloc(0);
   /** When true, dispatched workflows report a completed run. */
   autoCompleteDispatches = false;
@@ -97,6 +102,10 @@ export class MemoryGitHubApi implements GitHubApi {
     this.files.set(`${this.key(ref)}#${path}`, { content, sha });
   }
 
+  deleteFile(ref: RepoRef, path: string): void {
+    this.files.delete(`${this.key(ref)}#${path}`);
+  }
+
   setBlobPaths(ref: RepoRef, paths: string[]): void {
     this.blobPaths.set(this.key(ref), paths);
   }
@@ -107,6 +116,10 @@ export class MemoryGitHubApi implements GitHubApi {
 
   setDefaultBranch(ref: RepoRef, branch = 'main'): void {
     this.defaultBranches.set(this.key(ref), branch);
+  }
+
+  setPrimaryLanguage(ref: RepoRef, language: string | null): void {
+    this.primaryLanguages.set(this.key(ref), language);
   }
 
   setWorkflowRuns(
@@ -139,6 +152,11 @@ export class MemoryGitHubApi implements GitHubApi {
 
   addRepo(ref: RepoRef): void {
     this.existingRepos.add(this.key(ref));
+  }
+
+  setArchived(ref: RepoRef, archived = true): void {
+    if (archived) this.archivedRepos.add(this.key(ref));
+    else this.archivedRepos.delete(this.key(ref));
   }
 
   addTeam(org: string, teamSlug: string): void {
@@ -197,6 +215,20 @@ export class MemoryGitHubApi implements GitHubApi {
   async getDefaultBranch(ref: RepoRef): Promise<string> {
     this.calls.push(`getDefaultBranch ${this.key(ref)}`);
     return this.defaultBranches.get(this.key(ref)) ?? 'main';
+  }
+
+  async getRepo(ref: RepoRef): Promise<RepoState | undefined> {
+    this.calls.push(`getRepo ${this.key(ref)}`);
+    if (!this.existingRepos.has(this.key(ref))) return undefined;
+    return {
+      defaultBranch: this.defaultBranches.get(this.key(ref)) ?? 'main',
+      archived: this.archivedRepos.has(this.key(ref)),
+    };
+  }
+
+  async getPrimaryLanguage(ref: RepoRef): Promise<string | null> {
+    this.calls.push(`getPrimaryLanguage ${this.key(ref)}`);
+    return this.primaryLanguages.get(this.key(ref)) ?? null;
   }
 
   async branchHeadSha(ref: RepoRef, branch: string): Promise<string> {
@@ -459,5 +491,14 @@ export class MemoryGitHubApi implements GitHubApi {
   async userIsOrgMember(org: string, username: string): Promise<boolean> {
     this.calls.push(`userIsOrgMember ${org}/${username}`);
     return this.members.has(`${org}/${username}`);
+  }
+
+  setOrgPlan(org: string, plan: OrgPlan): void {
+    this.orgPlans.set(org, plan);
+  }
+
+  async getOrgPlan(org: string): Promise<OrgPlan> {
+    this.calls.push(`getOrgPlan ${org}`);
+    return this.orgPlans.get(org) ?? 'paid';
   }
 }

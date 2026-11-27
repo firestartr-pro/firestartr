@@ -6,6 +6,7 @@ import { waitForDispatch } from '../utils/waitForDispatch.js';
 import type { AuditTrail } from './auditIssue.js';
 import type { ClaimsRepo } from '../claims/claimsRepo.js';
 import type { ClaimKindName } from '../claims/kinds.js';
+import type { DispatchPresentation } from '../utils/waitForDispatch.js';
 
 export interface ClaimPublishRequest {
   repo: ClaimsRepo;
@@ -21,6 +22,16 @@ export interface ClaimPublishRequest {
   audit?: AuditTrail;
   /** Create only: reject a claim that already exists in the claims map. */
   rejectExistingClaim?: boolean;
+  /** Optional overall timeout in ms for dispatch polling and wet PR check watch. */
+  timeoutMs?: number;
+  /** Optional poll interval in ms for dispatch polling and wet PR check watch. */
+  pollIntervalMs?: number;
+  /** Optional clock for deterministic timeout testing. */
+  now?: () => number;
+  /** Optional sleeper for deterministic timeout testing. */
+  sleep?: (ms: number) => Promise<void>;
+  /** Overrides how the provision workflow run is presented. */
+  presentation?: Partial<DispatchPresentation>;
 }
 
 export interface Pulse {
@@ -53,7 +64,15 @@ export async function publishClaimAndWait(
     stateRepos,
     audit,
     rejectExistingClaim,
+    timeoutMs,
+    pollIntervalMs,
+    now,
+    sleep,
+    presentation,
   } = request;
+
+  const clock = now ?? Date.now;
+  const deadline = timeoutMs !== undefined ? clock() + timeoutMs : undefined;
 
   pulse.output(output);
 
@@ -81,12 +100,34 @@ export async function publishClaimAndWait(
     audit,
   );
 
+  const hasPollOverrides =
+    timeoutMs !== undefined ||
+    pollIntervalMs !== undefined ||
+    now !== undefined ||
+    sleep !== undefined;
+
+  const dispatchTimeoutMs =
+    deadline !== undefined ? Math.max(0, deadline - clock()) : undefined;
+
   const publishUrl = await waitForDispatch(repo.api, repo.ref, dispatch, {
     noWait,
     claimType: kind,
     claimName: name,
     label: 'Provisioning',
     extra: audit?.result(),
+    ...(presentation ? { presentation } : {}),
+    ...(hasPollOverrides
+      ? {
+          pollOptions: {
+            ...(dispatchTimeoutMs !== undefined
+              ? { timeoutMs: dispatchTimeoutMs }
+              : {}),
+            ...(pollIntervalMs !== undefined ? { pollIntervalMs } : {}),
+            ...(now ? { now } : {}),
+            ...(sleep ? { sleep } : {}),
+          },
+        }
+      : {}),
   });
 
   // Only a successful publish has a run to record; failures are reported by
@@ -94,10 +135,20 @@ export async function publishClaimAndWait(
   await audit?.commentRunUrl(publishUrl);
 
   if (waitForChecks && !noWait) {
+    const remainingMs =
+      deadline !== undefined ? Math.max(0, deadline - clock()) : undefined;
     await watchWetPrChecks(
       repo.api,
       repo.ref,
-      { claimType: kind, claimName: name, stateRepos },
+      {
+        claimType: kind,
+        claimName: name,
+        stateRepos,
+        ...(remainingMs !== undefined ? { timeoutMs: remainingMs } : {}),
+        ...(pollIntervalMs !== undefined ? { pollIntervalMs } : {}),
+        ...(now ? { now } : {}),
+        ...(sleep ? { sleep } : {}),
+      },
       pulse.diagnostic,
     );
   }

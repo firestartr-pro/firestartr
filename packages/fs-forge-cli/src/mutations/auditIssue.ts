@@ -46,7 +46,11 @@ interface AuditRef {
 /** The audit actions a commit step performs while it runs. */
 export interface AuditTrail {
   /** Opens the claims PR with a `Closes #N` footer, or adds it to the open one. */
-  linkPullRequest(input: { head: string; base: string }): Promise<void>;
+  linkPullRequest(input: {
+    head: string;
+    base: string;
+    title?: string;
+  }): Promise<void>;
   /** Marks the workflow as dispatched: its failure may follow a merged claims PR. */
   recordDispatch(): void;
   /** Comments the dispatched workflow run on the issue, best effort. */
@@ -175,7 +179,7 @@ async function openAudit(
   let dispatched = false;
 
   const trail: AuditTrail = {
-    async linkPullRequest({ head, base }) {
+    async linkPullRequest({ head, base, title }) {
       if (!issue) return;
       const existing = await api.findOpenPullRequest(repoRef, { head, base });
       if (existing) {
@@ -192,7 +196,7 @@ async function openAudit(
       const opened = await api.createPullRequest(repoRef, {
         head,
         base,
-        title: `ci: provision claim ${context.kind}/${context.name}`,
+        title: title ?? `ci: provision claim ${context.kind}/${context.name}`,
         body: closesFooter('', issue.number),
       });
       pullRequest = { number: opened.number, url: opened.htmlUrl };

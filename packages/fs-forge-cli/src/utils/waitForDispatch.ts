@@ -13,6 +13,16 @@ export interface DispatchPresentation {
   stdout: (line: string) => void;
 }
 
+export class DispatchTimeoutError extends Error {
+  readonly runUrl?: string;
+
+  constructor(message: string, runUrl?: string) {
+    super(message);
+    this.name = 'DispatchTimeoutError';
+    this.runUrl = runUrl;
+  }
+}
+
 export interface WaitForDispatchOptions {
   noWait?: boolean;
   claimType: string;
@@ -125,7 +135,13 @@ export async function waitForDispatch(
       if (outcome.runUrl) payload.runUrl = outcome.runUrl;
       presentation.stdout(`${JSON.stringify(payload)}\n`);
     }
-    throw waitFailure(new Error(message), action, presentation);
+    if (presentation.isTty) {
+      presentation.stderr('\n');
+    }
+    throw new DispatchTimeoutError(
+      `${action} wait failed: ${message}`,
+      outcome.runUrl,
+    );
   }
 
   if (presentation.isTty) {

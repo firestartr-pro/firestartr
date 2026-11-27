@@ -1,0 +1,153 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "AppInputs",
+  "description": "Resolved inputs file for fs-forge app plan and fs-forge app apply.",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["app", "service", "targets", "chart"],
+  "properties": {
+    "org": {
+      "title": "Organization",
+      "description": "GitHub organization name. Optional when resolved from CLI context.",
+      "type": "string",
+      "minLength": 1
+    },
+    "app": {
+      "title": "Application",
+      "description": "Application name. Capped at Helm's 53-character release-name limit.",
+      "type": "string",
+      "minLength": 1,
+      "maxLength": 53,
+      "pattern": "^[a-z0-9]([a-z0-9-]*[a-z0-9])?$"
+    },
+    "service": {
+      "title": "Service",
+      "description": "Source code repository and release settings for the application's service.",
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["repo", "release_type"],
+      "properties": {
+        "repo": {
+          "title": "Service Repository",
+          "description": "Service repository name.",
+          "type": "string",
+          "minLength": 1
+        },
+        "release_type": {
+          "title": "Release Type",
+          "description": "Release-please release type for the service.",
+          "type": "string",
+          "minLength": 1
+        },
+        "service_names": {
+          "title": "Service Names",
+          "description": "Optional override for service names in apps/<app>.yaml and make_dispatches.yaml. Defaults to [<service.repo>].",
+          "type": "array",
+          "minItems": 1,
+          "items": {
+            "title": "Service Name",
+            "description": "A service name entry.",
+            "type": "string",
+            "minLength": 1
+          }
+        }
+      }
+    },
+    "targets": {
+      "title": "Deployment Targets",
+      "description": "Deployment targets for the application.",
+      "type": "array",
+      "minItems": 1,
+      "items": {
+        "title": "Deployment Target",
+        "description": "A single (platform, tenant, env) deployment target.",
+        "type": "object",
+        "additionalProperties": false,
+        "required": ["platform", "tenant", "env", "cluster_url", "track"],
+        "properties": {
+          "platform": {
+            "title": "Platform",
+            "description": "Target platform (cluster) name.",
+            "type": "string",
+            "minLength": 1
+          },
+          "tenant": {
+            "title": "Tenant",
+            "description": "Target tenant name.",
+            "type": "string",
+            "minLength": 1
+          },
+          "env": {
+            "title": "Environment",
+            "description": "Target environment name.",
+            "type": "string",
+            "minLength": 1
+          },
+          "cluster_url": {
+            "title": "Cluster URL",
+            "description": "Confirmed Kubernetes cluster API server URL for ArgoCD.",
+            "type": "string",
+            "minLength": 1
+          },
+          "track": {
+            "title": "Track",
+            "description": "Build track that this deployment target receives.",
+            "type": "string",
+            "enum": ["snapshots", "pre-releases", "releases"]
+          },
+          "flavor": {
+            "title": "Flavor",
+            "description": "Optional build flavor override for make_dispatches.yaml. Defaults to default.",
+            "type": "string",
+            "minLength": 1
+          }
+        }
+      }
+    },
+    "chart": {
+      "title": "Chart",
+      "description": "Helm chart reference for the application.",
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["name", "version", "registry"],
+      "properties": {
+        "name": {
+          "title": "Chart Name",
+          "description": "Helm chart name.",
+          "type": "string",
+          "minLength": 1
+        },
+        "version": {
+          "title": "Chart Version",
+          "description": "Helm chart version.",
+          "type": "string",
+          "minLength": 1
+        },
+        "registry": {
+          "title": "Registry Alias",
+          "description": "Registry alias defined in .firestartr/docker_registries/.",
+          "type": "string",
+          "minLength": 1
+        }
+      }
+    },
+    "slack_channel": {
+      "title": "Slack Channel",
+      "description": "Optional confirmed Slack notification channel for ArgoCD AppProject annotations.",
+      "type": "string",
+      "minLength": 1
+    },
+    "owner": {
+      "title": "Owner",
+      "description": "Optional owner override used when services of the app disagree.",
+      "type": "string",
+      "minLength": 1
+    },
+    "system": {
+      "title": "System",
+      "description": "Optional system override used when services of the app disagree.",
+      "type": "string",
+      "minLength": 1
+    }
+  }
+}

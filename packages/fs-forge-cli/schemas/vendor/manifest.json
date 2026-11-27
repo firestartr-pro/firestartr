@@ -1,0 +1,18 @@
+{
+  "schemas": [
+    {
+      "name": "argocd-applicationset",
+      "output": "argocd-applicationset.schema.json",
+      "format": "crd-openapi",
+      "ref": "v3.4.5",
+      "url": "https://raw.githubusercontent.com/argoproj/argo-cd/v3.4.5/manifests/crds/applicationset-crd.yaml"
+    },
+    {
+      "name": "argocd-appproject",
+      "output": "argocd-appproject.schema.json",
+      "format": "crd-openapi",
+      "ref": "v3.4.5",
+      "url": "https://raw.githubusercontent.com/argoproj/argo-cd/v3.4.5/manifests/crds/appproject-crd.yaml"
+    }
+  ]
+}

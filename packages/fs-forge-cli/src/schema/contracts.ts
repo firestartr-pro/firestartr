@@ -2,6 +2,7 @@ export const SCHEMA_CONTRACTS = [
   'CommandHelpJson',
   'RelationGraph',
   'MutationDiff',
+  'AppInputs',
 ] as const;
 
 export type SchemaContractName = (typeof SCHEMA_CONTRACTS)[number];

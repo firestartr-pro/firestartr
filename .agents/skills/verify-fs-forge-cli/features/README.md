@@ -48,5 +48,6 @@ Each feature file starts with an H1 title and one paragraph describing the user-
 | [Introspect the CLI](./introspection.md) | offline | `kinds`, `schema`, `--help --json`, `diagram print` |
 | [Resolve the org context](./context.md) | offline | `context`, the config path match, error codes, the `--org` fallback |
 | [Org-bound commands](./org-bound.md) | read, write | `defaults`, `discovery map/org-elements`, `preflight`, `watch-checks`, `edit`, `delete`, and every `--commit` path |
+| [App command group](./app.md) | offline, read, write | `schema` (`AppInputs`), `app discover`, `app plan`, `app apply` |
 
 Both org-bound modes were exercised live against `pre-vieitesss`; a write drive still needs the user's approval and a fresh reading of its diff.

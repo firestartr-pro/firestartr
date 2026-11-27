@@ -258,7 +258,9 @@ describe('publishClaimAndWait', () => {
         }),
         harness.pulse,
       ),
-    ).rejects.toThrow('Wet PR checks failed: failure');
+    ).rejects.toThrow(
+      'Wet PR checks failed: failure (my-org/state-github#42 https://github.com/my-org/state-github/pull/42, apply)',
+    );
     expect(harness.diagnosticLines[0]).toBe(
       'Watching wet PR my-org/state-github#42...\n',
     );
@@ -278,6 +280,45 @@ describe('publishClaimAndWait', () => {
     expect(harness.diagnosticLines).toEqual([
       'No wet PR found for this claim; skipping check watch.\n',
     ]);
+  });
+
+  it('passes the remaining apply budget to the dispatch poller', async () => {
+    const harness = createHarness();
+    harness.api.listWorkflowRuns = async () => [
+      {
+        id: 1,
+        htmlUrl: 'https://github.com/my-org/claims/actions/runs/1',
+        status: 'in_progress',
+        conclusion: null,
+        displayTitle: String(harness.api.dispatched[0].inputs.correlationId),
+      },
+    ];
+
+    let clock = 0;
+    const commitFile = harness.api.commitFile.bind(harness.api);
+    harness.api.commitFile = async (ref, input) => {
+      // Publishing the claim consumes 4s of the 10s overall budget.
+      clock = 4_000;
+      await commitFile(ref, input);
+    };
+
+    const outcome = await captureOutput(() =>
+      publishClaimAndWait(
+        request(harness, {
+          timeoutMs: 10_000,
+          pollIntervalMs: 1_000,
+          now: () => clock,
+          sleep: async (ms: number) => {
+            clock += ms;
+          },
+        }),
+        harness.pulse,
+      ),
+    );
+
+    expect(outcome.error?.message).toBe(
+      'Provision wait failed: Workflow timed out after 6s',
+    );
   });
 
   it('passes --state-repos through to the wet PR search', async () => {

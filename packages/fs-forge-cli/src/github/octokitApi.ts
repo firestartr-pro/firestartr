@@ -60,6 +60,11 @@ export function createOctokitApi(octokit: Octokit): GitHubApi {
         tree_sha: gitRef,
         recursive: '1',
       });
+      if (data.truncated) {
+        throw new Error(
+          `Git tree response truncated for ${ref.owner}/${ref.repo}@${gitRef}`,
+        );
+      }
       return (data.tree ?? [])
         .filter((entry) => entry.type === 'blob')
         .map((entry) => entry.path ?? '');
@@ -80,6 +85,35 @@ export function createOctokitApi(octokit: Octokit): GitHubApi {
         repo: ref.repo,
       });
       return data.default_branch;
+    },
+
+    async getRepo(ref) {
+      try {
+        const { data } = await octokit.rest.repos.get({
+          owner: ref.owner,
+          repo: ref.repo,
+        });
+        return {
+          defaultBranch: data.default_branch,
+          archived: data.archived,
+        };
+      } catch (error) {
+        if (isNotFoundError(error)) return undefined;
+        throw error;
+      }
+    },
+
+    async getPrimaryLanguage(ref) {
+      try {
+        const { data } = await octokit.rest.repos.get({
+          owner: ref.owner,
+          repo: ref.repo,
+        });
+        return data.language ?? null;
+      } catch (error) {
+        if (isNotFoundError(error)) return null;
+        throw error;
+      }
     },
 
     async branchHeadSha(ref, branch) {
@@ -379,6 +413,22 @@ export function createOctokitApi(octokit: Octokit): GitHubApi {
         return (status as number) === 204;
       } catch (error) {
         if (isNotFoundError(error)) return false;
+        throw error;
+      }
+    },
+
+    async getOrgPlan(org) {
+      try {
+        const { data } = await octokit.rest.orgs.get({ org });
+        const planName = data.plan?.name;
+        if (!planName) return 'unknown';
+        return planName.toLowerCase() === 'free' ? 'free' : 'paid';
+      } catch (error) {
+        const status =
+          typeof error === 'object' && error !== null && 'status' in error
+            ? (error as { status?: unknown }).status
+            : undefined;
+        if (status === 403 || status === 404) return 'unknown';
         throw error;
       }
     },

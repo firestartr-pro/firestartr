@@ -21,7 +21,11 @@ export interface WorkflowDispatch {
   branch: string;
 }
 
-function isBranchAlreadyExists(error: unknown): boolean {
+export function claimBranchName(kind: string, name: string): string {
+  return `fs-forge/${kind}-${name}`;
+}
+
+export function isBranchAlreadyExists(error: unknown): boolean {
   return (
     typeof error === 'object' &&
     error !== null &&
@@ -146,7 +150,7 @@ export async function publishClaim(
   const correlationId = randomUUID();
   const defaultBranch = await repo.api.getDefaultBranch(repo.ref);
   const baseSha = await repo.api.branchHeadSha(repo.ref, defaultBranch);
-  const branch = `fs-forge/${kind}-${name}`;
+  const branch = claimBranchName(kind, name);
 
   try {
     await repo.api.createBranch(repo.ref, branch, baseSha);
@@ -168,7 +172,11 @@ export async function publishClaim(
   });
   // Before the workflow starts: it reuses the PR on this head branch and merges
   // it, which is what closes the audit issue.
-  await audit?.linkPullRequest({ head: branch, base: defaultBranch });
+  await audit?.linkPullRequest({
+    head: branch,
+    base: defaultBranch,
+    title: `ci: provision claim ${kind}/${name}`,
+  });
   await repo.api.dispatchWorkflow(repo.ref, {
     workflowId: 'provision-claim.yaml',
     gitRef: branch,

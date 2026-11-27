@@ -1,8 +1,24 @@
+import type { ErrorObject } from 'ajv';
 import Ajv2020 from 'ajv/dist/2020.js';
 
 import { loadClaimSchema } from '../schema/claimSchemas.js';
 
+// Draft 2020-12 Ajv with custom x-fs-forge-unique-item-property claim keyword; kept separate from schema/appInputs.ts (plain Draft 2020-12) and schema/vendorSchemas.ts (Draft-07 + strict: false).
 const ajv = new Ajv2020({ allErrors: true });
+
+export function formatAjvErrors(
+  errors: ErrorObject[] | null | undefined,
+): string[] {
+  return (errors ?? []).map((err) => {
+    const path = err.instancePath || '/';
+    const extra =
+      err.keyword === 'additionalProperties' &&
+      typeof err.params?.additionalProperty === 'string'
+        ? ` (${err.params.additionalProperty})`
+        : '';
+    return `${path} ${err.message ?? 'is invalid'}${extra}`.trim();
+  });
+}
 
 type UniqueItemPropertyValidator = {
   (propertyName: string, data: unknown): boolean;
@@ -123,10 +139,7 @@ export function createClaimValidator(
         return { valid: true, errors: [] };
       }
 
-      const errors = (validate.errors ?? []).map((err) =>
-        `${err.instancePath} ${err.message}`.trim(),
-      );
-      return { valid: false, errors };
+      return { valid: false, errors: formatAjvErrors(validate.errors) };
     },
   };
 }
