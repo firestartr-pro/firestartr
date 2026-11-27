@@ -350,16 +350,20 @@ describe('renderStateAppClaim', () => {
         '  github:',
         `    name: ${name}`,
         `    org: ${org}`,
+        '    visibility: private',
+        '    branchStrategy:',
+        '      name: none',
+        '      defaultBranch: main',
         '    features:',
         '      - name: state_repo_apps',
         '        ref: state_repo_apps-v3',
         '',
       ].join('\n');
 
-    for (const existing of [
-      existingWith('other-repo', 'acme'),
-      existingWith('app-billing', 'other-org'),
-    ]) {
+    for (const [existing, mismatched] of [
+      [existingWith('other-repo', 'acme'), 'other-repo'],
+      [existingWith('app-billing', 'other-org'), 'other-org'],
+    ] as const) {
       const result = await renderStateAppClaim({
         inputs: BASE_INPUTS,
         org: 'acme',
@@ -371,6 +375,9 @@ describe('renderStateAppClaim', () => {
 
       expect(result.outcome.kind).toBe('conflict');
       expect(result.content).toBeUndefined();
+      if (result.outcome.kind === 'conflict') {
+        expect(result.outcome.reason).toContain(mismatched);
+      }
     }
   });
 
