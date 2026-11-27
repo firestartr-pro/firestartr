@@ -78,7 +78,7 @@ describe('fs-forge app discover', () => {
       'Service claim not found: ComponentClaim-ghost-svc',
     );
     expect(document.error.message).toContain(
-      'fs-forge create component --name ghost-svc',
+      'fs-forge create component --name ghost-svc --owner <owner>',
     );
     expect((error as CommandError | undefined)?.oclif?.exit).toBe(1);
   });
@@ -101,7 +101,7 @@ describe('fs-forge app discover', () => {
       'Service claim not found: ComponentClaim-ghost-svc',
     );
     expect(failure?.message).toContain(
-      'fs-forge create component --name ghost-svc',
+      'fs-forge create component --name ghost-svc --owner <owner>',
     );
     expect(failure?.oclif?.exit).toBe(1);
   });

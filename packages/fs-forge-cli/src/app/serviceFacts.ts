@@ -301,7 +301,7 @@ export async function readServiceFacts(
   if (!claimExists(map, 'ComponentClaim', service)) {
     throw new AppError(
       'NO_SERVICE_CLAIM',
-      `Service claim not found: ${primaryRef}. Create the Service claim first (\`fs-forge create component --name ${service}\`).`,
+      `Service claim not found: ${primaryRef}. Create the Service claim first (\`fs-forge create component --name ${service} --owner <owner>\`).`,
     );
   }
   const primaryFile = await resolveClaim(repo, map, primaryRef);

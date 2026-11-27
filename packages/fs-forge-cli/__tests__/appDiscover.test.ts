@@ -421,7 +421,7 @@ describe('discoverApp', () => {
       'Service claim not found: ComponentClaim-ghost-svc',
     );
     expect(failure.message).toContain(
-      'fs-forge create component --name ghost-svc',
+      'fs-forge create component --name ghost-svc --owner <owner>',
     );
   });
 
