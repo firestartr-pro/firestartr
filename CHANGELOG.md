@@ -1,5 +1,36 @@
 # Changelog
 
+## [3.2.0](https://github.com/firestartr-pro/firestartr/compare/v3.1.1...v3.2.0) (2026-11-26)
+
+
+### Features
+
+* **`cdk8s_renderer`:** add .firestartrignore logic ([#172](https://github.com/firestartr-pro/firestartr/issues/172)) ([e3c6529](https://github.com/firestartr-pro/firestartr/commit/e3c6529dba3735adec1ef6b62480ac2650a60add))
+* accept secretsclaim refs in organization action variables ([#214](https://github.com/firestartr-pro/firestartr/issues/214)) ([#234](https://github.com/firestartr-pro/firestartr/issues/234)) ([d440eea](https://github.com/firestartr-pro/firestartr/commit/d440eeabb10ab5359a17278c56c7a7cbc45bf475))
+* add lacking org-secrets impl ([#193](https://github.com/firestartr-pro/firestartr/issues/193)) ([1271b17](https://github.com/firestartr-pro/firestartr/commit/1271b177e2d19c2a7e47c9de151979038ada1483))
+* add plan mode for the operator ([#157](https://github.com/firestartr-pro/firestartr/issues/157)) ([a05ae02](https://github.com/firestartr-pro/firestartr/commit/a05ae0204ff5730401b81d2919def9367d34f0de))
+* **cdk8s_renderer:** add build-images schema to actions view ([#256](https://github.com/firestartr-pro/firestartr/issues/256)) ([#258](https://github.com/firestartr-pro/firestartr/issues/258)) ([24fb469](https://github.com/firestartr-pro/firestartr/commit/24fb469119ca57ed3b7b28027b25f265b40d750a))
+* **cdk8s_renderer:** add state_apps_env schema to dot-firestartr ([#254](https://github.com/firestartr-pro/firestartr/issues/254)) ([8ccbfbb](https://github.com/firestartr-pro/firestartr/commit/8ccbfbb80cef2cb8b132a9cfcfe0f03cf23a3f22))
+* **e2e:** register FirestartrGithubOrgRuleset in status and e2e taxonomy ([#240](https://github.com/firestartr-pro/firestartr/issues/240)) ([34f69c9](https://github.com/firestartr-pro/firestartr/commit/34f69c9dc3a61bee6c45bea37711a5a735971b01))
+* **fs-forge-cli:** consume the claims schemas from the published package ([#216](https://github.com/firestartr-pro/firestartr/issues/216)) ([068df4e](https://github.com/firestartr-pro/firestartr/commit/068df4e6cb2d212cae063c266359f5e6b5672415))
+* **gh_provisioner:** pin github-org-secrets-section v0.2.0 and adopt repository bindings ([#209](https://github.com/firestartr-pro/firestartr/issues/209)) ([05ef82b](https://github.com/firestartr-pro/firestartr/commit/05ef82bca6be6c8f0ff376bef826b54fdaf7bd61))
+* initial schema unification ([#204](https://github.com/firestartr-pro/firestartr/issues/204)) ([0a4e7a2](https://github.com/firestartr-pro/firestartr/commit/0a4e7a2f58761ea49b49057a8848638282729d07))
+* **operator:** make source/version optional on FirestartrProviderConfig ([#211](https://github.com/firestartr-pro/firestartr/issues/211)) ([4b922bf](https://github.com/firestartr-pro/firestartr/commit/4b922bf171880c041c644794bf0e9c5abe590cb3))
+* **operator:** start the diagnostic flight recorder at operator startup ([#124](https://github.com/firestartr-pro/firestartr/issues/124)) ([b50469c](https://github.com/firestartr-pro/firestartr/commit/b50469c6214f635046f69bfc381bef893078c88a))
+* **provisioner:** provision FirestartrGithubOrgRuleset with gh_provisioner ([#239](https://github.com/firestartr-pro/firestartr/issues/239)) ([fedf662](https://github.com/firestartr-pro/firestartr/commit/fedf662ef97523cb98096ed02005b2b5f8f00637))
+* publish core docs, CRDs and claims schema with docs_publisher ([#236](https://github.com/firestartr-pro/firestartr/issues/236)) ([97444d6](https://github.com/firestartr-pro/firestartr/commit/97444d6b3d2f7be270007693334e064bed1df378))
+* **renderer:** add OrgRulesetClaim and FirestartrGithubOrgRuleset CR ([#237](https://github.com/firestartr-pro/firestartr/issues/237)) ([c915655](https://github.com/firestartr-pro/firestartr/commit/c915655ae0ac7df2840b9cd105886d721c3d955b))
+
+
+### Bug Fixes
+
+* **cdk8s_renderer:** omit empty vars from rendered repository CRs ([#184](https://github.com/firestartr-pro/firestartr/issues/184)) ([c88c3ec](https://github.com/firestartr-pro/firestartr/commit/c88c3ecccd8556324657e07377fa5117ecbccb0f))
+* groups pagination issue ([#178](https://github.com/firestartr-pro/firestartr/issues/178)) ([3e9eca0](https://github.com/firestartr-pro/firestartr/commit/3e9eca0c622e97c6444c3a2323754d11f8e9690b))
+* **handle-dependabot-pr:** multiple skill improvements ([#189](https://github.com/firestartr-pro/firestartr/issues/189)) ([4c2e764](https://github.com/firestartr-pro/firestartr/commit/4c2e764a5c65196b094a0c86589cb9495657e769))
+* missing .gitconfig file when refreshing GitHub App token ([#180](https://github.com/firestartr-pro/firestartr/issues/180)) ([c2911cd](https://github.com/firestartr-pro/firestartr/commit/c2911cdfb66abe1002cf1a809cb33ade8750dba1))
+* **operator:** inject self-outputs when planning GitHub resources ([#128](https://github.com/firestartr-pro/firestartr/issues/128)) ([2751e79](https://github.com/firestartr-pro/firestartr/commit/2751e799cfadda988a6cc06fea04ffe4760c4d92))
+* unprocessed CRs being treated as SYNC operations ([#179](https://github.com/firestartr-pro/firestartr/issues/179)) ([f2b093c](https://github.com/firestartr-pro/firestartr/commit/f2b093c72271b53fba481245a06d2f545cdacb36))
+
 ## [3.1.1](https://github.com/firestartr-pro/firestartr/compare/v3.1.0...v3.1.1) (2026-10-23)
 
 
