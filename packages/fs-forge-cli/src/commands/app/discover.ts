@@ -1,6 +1,7 @@
 import { Command, Flags } from '@oclif/core';
 
 import { discoverApp, formatDiscoverSummary } from '../../app/discover.js';
+import { AppError } from '../../app/errors.js';
 import { resolveClaimsRepository } from '../../context/resolve.js';
 import { createGitHubApi } from '../../github/index.js';
 import { ORG_FLAG, requireOrg } from '../../mutations/support.js';
@@ -8,6 +9,11 @@ import {
   createFeatureSource,
   DEFAULT_FEATURE_SOURCE,
 } from '../../utils/featureSource.js';
+
+import type {
+  AppDiscoverResult,
+  DiscoverAppOptions,
+} from '../../app/discover.js';
 
 function writeLine(value: string): void {
   process.stdout.write(`${value}\n`);
@@ -50,14 +56,17 @@ export default class AppDiscover extends Command {
     const org = requireOrg(flags.org);
     const claimsTarget = resolveClaimsRepository(org, flags['claims-repo']);
 
-    const result = await discoverApp({
-      api: createGitHubApi(),
-      org,
-      claimsRepoName: claimsTarget.repo,
-      app: flags.app,
-      service: flags.service,
-      featureSource: createFeatureSource(DEFAULT_FEATURE_SOURCE),
-    });
+    const result = await this.discover(
+      {
+        api: createGitHubApi(),
+        org,
+        claimsRepoName: claimsTarget.repo,
+        app: flags.app,
+        service: flags.service,
+        featureSource: createFeatureSource(DEFAULT_FEATURE_SOURCE),
+      },
+      flags.json,
+    );
 
     if (flags.json) {
       writeLine(JSON.stringify(result, null, 2));
@@ -65,5 +74,25 @@ export default class AppDiscover extends Command {
     }
 
     writeLine(formatDiscoverSummary(result));
+  }
+
+  private async discover(
+    options: DiscoverAppOptions,
+    json: boolean,
+  ): Promise<AppDiscoverResult> {
+    try {
+      return await discoverApp(options);
+    } catch (error) {
+      if (!(error instanceof AppError)) throw error;
+      this.fail(json, error);
+    }
+  }
+
+  private fail(json: boolean, error: AppError): never {
+    if (!json) this.error(error.message, { code: error.code, exit: 1 });
+    process.stderr.write(
+      `${JSON.stringify({ error: { code: error.code, message: error.message } })}\n`,
+    );
+    this.exit(1);
   }
 }

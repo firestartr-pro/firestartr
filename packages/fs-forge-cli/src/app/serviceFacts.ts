@@ -8,6 +8,7 @@ import {
 } from '../claims/claimsRepo.js';
 import { getFeatureReferences } from '../utils/features.js';
 import { isRecord } from '../utils/isRecord.js';
+import { AppError } from './errors.js';
 
 import type { GitHubApi } from '../github/api.js';
 import type { AppTrack } from '../schema/appInputs.js';
@@ -298,7 +299,10 @@ export async function readServiceFacts(
 
   const primaryRef = `ComponentClaim-${service}`;
   if (!claimExists(map, 'ComponentClaim', service)) {
-    throw new Error(`Service claim not found: ${primaryRef}`);
+    throw new AppError(
+      'NO_SERVICE_CLAIM',
+      `Service claim not found: ${primaryRef}. Create the Service claim first (\`fs-forge create component --name ${service}\`).`,
+    );
   }
   const primaryFile = await resolveClaim(repo, map, primaryRef);
   const primary = parseClaimOwnerSystem(primaryFile.content);
