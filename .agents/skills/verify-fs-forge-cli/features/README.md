@@ -49,4 +49,4 @@ Each feature file starts with an H1 title and one paragraph describing the user-
 | [Resolve the org context](./context.md) | offline | `context`, the config path match, error codes, the `--org` fallback |
 | [Org-bound commands](./org-bound.md) | read, write | `defaults`, `discovery map/org-elements`, `preflight`, `watch-checks`, `edit`, `delete`, and every `--commit` path |
 
-Org-bound modes were exercised against a stand-in `gh` only; the first live run of `org-bound.md` is unproven.
+Both org-bound modes were exercised live against `pre-vieitesss`; a write drive still needs the user's approval and a fresh reading of its diff.

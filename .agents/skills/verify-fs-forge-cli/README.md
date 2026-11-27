@@ -35,17 +35,21 @@ drive's output can feed the next (`create` then `validate`).
 |---|---|---|
 | `offline` (default) | local commands | no token; connects are blocked and fail the drive |
 | `read` | org-bound reads | needs `--org`; the org's `claims` repo must not change |
-| `write` | `--commit` | needs `--org` of a registered pre org; the org must change, and the diff is saved |
+| `write` | `--commit` and `app apply` | needs `--org` of a registered pre org; the org must change, and the diff is saved |
 
 `read` and `write` only run against an org you name, and an agent must ask you
-before each write. They have only been tested against a fake `gh` so far.
+before each write. Both modes were driven live against `pre-vieitesss`;
+`fixture.sh` sets up the `ia-test` claims and tears them down again, and a
+delete that stops before its deletion PR merges leaves that PR open for a human
+(see [`SKILL.md`](./SKILL.md#drive)).
 
 ## Where things live
 
 ```text
 SKILL.md      the agent's instructions: launch, doctor, drive, evidence, cleanup
-scripts/      launch.sh, doctor.sh, drive.sh, cleanup.sh, org-snapshot.sh;
-              lib.sh is shared; net-canary.cjs blocks and logs connects
+scripts/      launch.sh, doctor.sh, drive.sh, fixture.sh, cleanup.sh,
+              org-snapshot.sh; lib.sh is shared; net-canary.cjs blocks and
+              logs connects
 features/     one recipe per CLI feature; README.md is the index
 fixtures/     extra inputs the recipes use
 ```

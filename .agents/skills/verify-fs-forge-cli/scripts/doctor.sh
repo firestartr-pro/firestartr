@@ -60,6 +60,44 @@ drive="$FSF_SKILL_DIR/scripts/drive.sh"
 [ $? = 2 ] && pass guard-commit "drive.sh refuses --commit outside --mode write" || fail guard-commit "drive.sh let --commit through in offline mode"
 "$drive" --mode read -- kinds >/dev/null 2>&1
 [ $? = 2 ] && pass guard-org "drive.sh refuses an org-bound drive with no --org" || fail guard-org "drive.sh ran an org-bound drive without a named org"
+# app apply writes without --commit, so only --mode write may run it. The probe
+# asserts the guard's own message, not just exit 2: a missing run dir or an
+# unreadable snapshot also exits 2, so a guard that silently disappeared would
+# still pass. oclif resolves both `app apply` and its colon form, so both are
+# probed; FSF_RUN names no run and the stand-in gh exits 97, so a missing guard
+# reaches neither the CLI nor GitHub.
+guard_probe="$(mktemp -d)"
+mkdir -p "$guard_probe/bin"
+printf '#!/bin/sh\necho "doctor guard probe: gh must not be reached" >&2\nexit 97\n' > "$guard_probe/bin/gh"
+chmod +x "$guard_probe/bin/gh"
+app_guard_refused() { # <expected refusal> <drive args...>
+  local message="$1" out status
+  shift
+  out="$(FSF_HOME="$guard_probe" FSF_RUN="$guard_probe/no-run" PATH="$guard_probe/bin:$PATH" \
+    GH_TOKEN=doctor-guard-probe GITHUB_TOKEN=doctor-guard-probe "$drive" "$@" 2>&1)"
+  status=$?
+  [ "$status" = 2 ] && [[ "$out" == *"$message"* ]]
+}
+app_guard_check() { # <check> <when> <expected refusal> <drive args...>
+  local check="$1" when="$2" message="$3" missed="" form
+  local -a app_args
+  shift 3
+  for form in "app apply" "app:apply"; do
+    read -r -a app_args <<< "$form --inputs inputs.yaml"
+    app_guard_refused "$message" "$@" -- "${app_args[@]}" || missed="$missed $form"
+  done
+  if [ -z "$missed" ]; then
+    pass "$check" "drive.sh refuses app apply and app:apply $when"
+  else
+    fail "$check" "drive.sh did not refuse$missed with its app apply guard $when"
+  fi
+}
+app_guard_check guard-app-offline "outside --mode write" \
+  "app apply needs --mode write with an explicitly named pre org"
+app_guard_check guard-app-read "in read mode" \
+  "app apply writes without --commit; drive it with --mode write" \
+  --mode read --org fsf-guard-test
+rm -rf "$guard_probe"
 
 guard_dir="$(mktemp -d)"
 mkdir -p "$guard_dir/bin" "$guard_dir/verify-fs-forge-cli/run/evidence" "$guard_dir/verify-fs-forge-cli/run/work"

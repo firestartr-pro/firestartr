@@ -21,6 +21,14 @@ fsf_die() {
   exit 2
 }
 
+# The gate every org-writing path passes: ORG must be registered as a pre org
+# under firestartr-pre/app-firestartr. Defined once, so a write drive and the
+# teardown that undoes it can never disagree about which orgs are safe to write.
+fsf_require_pre_org() { # <org> <caller, e.g. write mode or teardown>
+  gh api --hostname github.com "repos/firestartr-pre/app-firestartr/contents/kubernetes/firestartr-pre/$1" >/dev/null 2>&1 ||
+    fsf_die "$2 refused: $1 is not registered under firestartr-pre/app-firestartr kubernetes/firestartr-pre/"
+}
+
 # fs-forge needs node >=22. A bare PATH may lack node (nvm loads lazily in
 # interactive shells), so fall back to the newest nvm install that qualifies.
 # Exported node/npm/npx functions (lazy nvm loaders) are dropped first: bash

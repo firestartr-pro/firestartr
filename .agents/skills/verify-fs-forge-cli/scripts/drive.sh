@@ -3,7 +3,8 @@
 #
 # Usage:
 #   drive.sh [--label L] [--mode offline|read|write] [--org ORG] [--expect-exit N]
-#            [--seed SRC[=DEST]]... [--allow-connect HOST:PORT]... [--stub-token] -- <fs-forge args>
+#            [--seed SRC[=DEST]]... [--watch-repo REPO]...
+#            [--allow-connect HOST:PORT]... [--stub-token] -- <fs-forge args>
 #
 # Modes (offline is the default):
 #   offline  no token, no org, outbound connects blocked. Any attempted connect
@@ -11,10 +12,12 @@
 #            --allow-connect names it (still blocked, only tolerated).
 #            --stub-token sets a fake GITHUB_TOKEN for commands that check
 #            auth before acting; it reaches no server.
-#   read     needs --org ORG. Token set, connects logged, --commit refused. The
-#            drive fails if fs-forge/* branches, PRs or workflow runs changed.
+#   read     needs --org ORG. Token set, connects logged, --commit and
+#            `app apply` refused. The drive fails if fs-forge/* branches, PRs or
+#            workflow runs changed.
 #   write    needs --org ORG, and ORG must be a firestartr-pre org. The only mode
-#            that lets --commit through; the claims-repo before/after diff is
+#            that lets --commit through, and the only one that runs `app apply`,
+#            which writes without --commit; the claims-repo before/after diff is
 #            the evidence.
 #
 # Exit: 0 verdict PASS | 1 CLI exit differs from --expect-exit | 2 refused or
@@ -22,10 +25,10 @@
 set -uo pipefail
 source "$(dirname "${BASH_SOURCE[0]}")/lib.sh"
 
-label=drive mode=offline org="" expect=0 seeds=() allowed=() stub_token=0
+label=drive mode=offline org="" expect=0 seeds=() allowed=() stub_token=0 watch_repos=()
 while [ $# -gt 0 ]; do
   case "$1" in
-    --label|--mode|--org|--expect-exit|--seed|--allow-connect) [ $# -ge 2 ] || fsf_die "$1 needs a value" ;;
+    --label|--mode|--org|--expect-exit|--seed|--watch-repo|--allow-connect) [ $# -ge 2 ] || fsf_die "$1 needs a value" ;;
   esac
   case "$1" in
     --label) label="$2"; shift 2 ;;
@@ -33,6 +36,7 @@ while [ $# -gt 0 ]; do
     --org) org="$2"; shift 2 ;;
     --expect-exit) expect="$2"; shift 2 ;;
     --seed) seeds+=("$2"); shift 2 ;;
+    --watch-repo) watch_repos+=("$2"); shift 2 ;;
     --allow-connect) allowed+=("$2"); shift 2 ;;
     --stub-token) stub_token=1; shift ;;
     --) shift; break ;;
@@ -43,13 +47,19 @@ done
 label="$(printf '%s' "$label" | tr -c 'A-Za-z0-9._-' '-')"
 
 # --- refusals: decided before anything runs ---------------------------------
-has_commit=0 arg_org=""
+has_commit=0 arg_org="" app_apply=0
 prev=""
 for arg in "$@"; do
   case "$arg" in
     --commit|--commit=*) has_commit=1 ;;
     --org=*) arg_org="${arg#--org=}" ;;
   esac
+  # `app apply` writes too, but it has no --commit flag to say so. oclif
+  # resolves the colon form and the spaced form to the same command id (the
+  # package sets `topicSeparator: " "`, and `app:apply` is collated as one id),
+  # so both spellings must trip the guard.
+  case "$arg" in app:apply) app_apply=1 ;; esac
+  [ "$prev" = "app" ] && [ "$arg" = "apply" ] && app_apply=1
   [ "$prev" = "--org" ] && arg_org="$arg"
   prev="$arg"
 done
@@ -59,6 +69,7 @@ case "$mode" in
     [ -z "$org" ] || fsf_die "offline mode takes no --org; use --mode read or write for an org-bound command"
     [ -z "$arg_org" ] || fsf_die "offline mode refuses --org in the command; use --mode read or write"
     [ "$has_commit" = 0 ] || fsf_die "--commit needs --mode write with an explicitly named pre org"
+    [ "$app_apply" = 0 ] || fsf_die "app apply needs --mode write with an explicitly named pre org"
     ;;
   read|write)
     [ ${#allowed[@]} = 0 ] || fsf_die "--allow-connect is for offline drives; $mode drives log connects without blocking"
@@ -66,9 +77,11 @@ case "$mode" in
     [ -n "$org" ] || fsf_die "$mode mode needs --org <org> named explicitly; there is no default"
     [ -z "$arg_org" ] || [ "$arg_org" = "$org" ] || fsf_die "the command targets --org $arg_org but the drive names $org"
     [ "$mode" = write ] || [ "$has_commit" = 0 ] || fsf_die "--commit needs --mode write"
+    # app apply has no --commit flag, but it opens branches and PRs in the org.
+    [ "$mode" = write ] || [ "$app_apply" = 0 ] || fsf_die "app apply writes without --commit; drive it with --mode write"
     # Without --commit the CLI takes its dry-run path and the org diff is empty,
     # which would pass as a write proof.
-    [ "$mode" = read ] || [ "$has_commit" = 1 ] || fsf_die "--mode write needs --commit in the command; drive a dry run with --mode read"
+    [ "$mode" = read ] || [ "$has_commit" = 1 ] || [ "$app_apply" = 1 ] || fsf_die "--mode write needs --commit (or app apply) in the command; drive a dry run with --mode read"
     command -v gh >/dev/null 2>&1 || fsf_die "gh is required by org-snapshot.sh"
     ;;
   *) fsf_die "unknown mode $mode (offline, read or write)" ;;
@@ -135,8 +148,7 @@ JS
   fi
   token="$(fsf_token)" || fsf_die "no GH_TOKEN, GITHUB_TOKEN or 'gh auth token'"
   if [ "$mode" = write ]; then
-    gh api --hostname github.com "repos/firestartr-pre/app-firestartr/contents/kubernetes/firestartr-pre/$org" >/dev/null 2>&1 ||
-      fsf_die "write mode refused: $org is not registered under firestartr-pre/app-firestartr kubernetes/firestartr-pre/"
+    fsf_require_pre_org "$org" "write mode"
   fi
 fi
 
@@ -146,14 +158,28 @@ list_files > "$evid/files-before.txt" || fsf_die "could not fingerprint the work
 
 {
   echo "mode=$mode org=${org:-<none>} expect-exit=$expect"
+  echo "watch-repos=${watch_repos[*]:-<none>}"
   echo "cwd=$work"
   printf 'cmd=node %s' "$FSF_BIN"; printf ' %q' "$@"; echo
 } > "$evid/cmd.txt"
 
+# A bare repo name is one of the org's own, like state-github; anything with a
+# slash is taken as owner/repo, as app apply writes the service repo too.
+for i in ${watch_repos[@]+"${!watch_repos[@]}"}; do
+  case "${watch_repos[$i]}" in
+    */*) ;;
+    *)
+      [ -n "$org" ] || fsf_die "--watch-repo ${watch_repos[$i]} has no owner and offline mode names no org"
+      watch_repos[$i]="$org/${watch_repos[$i]}"
+      ;;
+  esac
+done
+
 # --- before: claims-repo state for org-bound drives -------------------------
 snap="$FSF_SKILL_DIR/scripts/org-snapshot.sh"
 if [ "$mode" != offline ]; then
-  "$snap" snap "$org" "$evid/org-before.json" || fsf_die "could not snapshot $org/claims before the drive"
+  "$snap" snap "$org" "$evid/org-before.json" ${watch_repos[@]+"${watch_repos[@]}"} ||
+    fsf_die "could not snapshot $org/claims before the drive"
 fi
 
 # --- run --------------------------------------------------------------------
@@ -179,7 +205,7 @@ echo "$code" > "$evid/exit-code.txt"
 # --- after: observe, don't trust --------------------------------------------
 verdict=PASS reason="" status=0
 if [ "$mode" != offline ]; then
-  "$snap" snap "$org" "$evid/org-after.json" || { verdict=FAIL reason="could not snapshot $org/claims after the drive"; status=4; }
+  "$snap" snap "$org" "$evid/org-after.json" ${watch_repos[@]+"${watch_repos[@]}"} || { verdict=FAIL reason="could not snapshot $org/claims after the drive"; status=4; }
   if [ -f "$evid/org-after.json" ]; then
     "$snap" diff "$evid/org-before.json" "$evid/org-after.json" > "$evid/org-diff.txt"
     diff_status=$?

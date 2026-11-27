@@ -58,13 +58,16 @@ or similar; drives scrub them.
 
 ```sh
 $V/drive.sh [--label L] [--mode offline|read|write] [--org ORG] [--expect-exit N] \
-            [--seed SRC[=DEST]]... [--allow-connect HOST:PORT]... [--stub-token] -- <fs-forge args>
+            [--seed SRC[=DEST]]... [--watch-repo REPO]... \
+            [--allow-connect HOST:PORT]... [--stub-token] -- <fs-forge args>
 ```
 
 `--seed` copies a file or directory into the drive's work dir (`DEST` is
 relative to it; a seed that is or holds a symlink is refused); a previous drive's `stdout.txt` makes a good seed for chaining
 `create` into `validate`. `--expect-exit` is for commands that should fail
-(`validate` exits 1 on an invalid claim). Offline only: `--allow-connect` tolerates a
+(`validate` exits 1 on an invalid claim). `--watch-repo` adds a repo (`name` or
+`owner/name`) to the org snapshot, for commands that write outside
+`<org>/claims`. Offline only: `--allow-connect` tolerates a
 blocked connect the command is expected to try, and `--stub-token` sets a fake
 `GITHUB_TOKEN` for commands that check auth first. Every drive puts a stand-in
 `gh` with no account on `PATH`, so the CLI's `gh auth token` fallback never
@@ -73,9 +76,9 @@ reaches the real keychain. Pick the feature in
 
 | Mode | Lets through | Observed before the verdict | Refused with exit 2 |
 |---|---|---|---|
-| `offline` (default) | local commands, no token, outbound connects blocked | `net.log` must stay empty | `--org`, `--commit` |
-| `read` | org-bound reads, token set, connects logged | `fs-forge/*` branches, PRs and workflow runs in `<org>/claims` unchanged | no `--org`, `--commit` |
-| `write` | `--commit` (required; `delete` and every other command write only with it) | claims-repo diff recorded in `org-diff.txt` | no `--org`, no `--commit` in the command, org not registered under `firestartr-pre/app-firestartr` `kubernetes/firestartr-pre/` |
+| `offline` (default) | local commands, no token, outbound connects blocked | `net.log` must stay empty | `--org`, `--commit`, `app apply`/`app:apply` |
+| `read` | org-bound reads, token set, connects logged | `fs-forge/*` branches, PRs and workflow runs in `<org>/claims`, and in every `--watch-repo`, unchanged | no `--org`, `--commit`, `app apply`/`app:apply` |
+| `write` | `--commit` or `app apply`; `delete` and every other command write only with `--commit`, while `app apply` has no `--commit` flag | claims-repo diff recorded in `org-diff.txt` | no `--org`, neither `--commit` nor `app apply`/`app:apply` in the command, org not registered under `firestartr-pre/app-firestartr` `kubernetes/firestartr-pre/` |
 
 Org-bound drives need an org the user named in this conversation. Take it from
 nothing else: not `FSCRT_ORG`, not `gh`'s defaults, not a fixture. Get the
@@ -83,13 +86,22 @@ user's OK before the first drive against it; `write` needs approval for every
 drive, because `--commit` creates a branch `fs-forge/<Kind>-<name>` in
 `<org>/claims` and dispatches `provision-claim.yaml` (or
 `unprovision-claim.yaml`), and the provision workflow then opens, merges and
-hydrates PRs in `state-github` and `state-infra`. A command that targets a
+hydrates PRs in `state-github` and `state-infra`. `app apply` writes without a
+`--commit` flag: it opens `fs-forge/app-<app>` PRs in `claims`, `.firestartr`,
+`state-argocd`, `app-<app>` and the service repo, so name those with
+`--watch-repo` or the snapshot cannot see them. A command that targets a
 different `--org` than the drive names is refused.
 
 Other skills own the surrounding steps:
 
 - `smoke-test-renderer` defines pre-org registration and the `ia-test`
-  annotation for test claims.
+  annotation for test claims; `$V/fixture.sh setup` writes the two `ia-test`
+  claims, and `$V/fixture.sh teardown` deletes them, sweeps their leftover
+  branches, PRs and issues, and proves the org clean with seven `PASS` checks
+  (claim files, branches, PRs, state CRs, repo, team, issues). A `delete
+  --commit` that stops before its deletion PR merges keeps that PR open:
+  teardown prints `HUMAN: merge <url> once PR Verify is green, then rerun
+  teardown`, names the rerun and exits 1.
 - `publish-cli-snapshot-on-pre` publishes the CLI snapshot a pre org's
   workflows run (`FIRESTARTR_CLI_VERSION`); use it before a write drive that
   must exercise this branch's CLI.
@@ -105,8 +117,26 @@ redaction fails, the drive stops without printing the transcript). Read the
 final `DRIVE <NN>-<label> verdict=...` line; exit 4 means the proof is void even
 when the CLI behaved.
 
-Org-bound modes were exercised against a stand-in `gh` only, never a live org.
-Treat the first live drive as unproven and report anything surprising.
+`read` mode was exercised live against `pre-vieitesss`, and so were these
+`write` paths, on `firestartr.dev/ia-test` claims from `$V/fixture.sh setup`:
+`create`, `edit`, `features add|edit|remove --commit`, `create --commit
+--create-issue` and both `delete` legs (`delete component --commit --issue`,
+then `delete group --commit`). The delete leg needs `claims_repo` >= 3.2.0 in
+the org's `claims` repo: 3.0.1 created the deletion PR without waiting for its
+`PR Verify`, failed at `Merge claims PR` with `Merge state: UNSTABLE` and left
+the PR for a human. 3.2.0 runs `Wait for PR Verify (claims PR)` before
+`Merge claims PR`; both deletes then exit 0 with the deletion PR merged, and
+`$V/fixture.sh teardown` reaches `TEARDOWN OK` with seven `PASS`. Upgrade by
+pinning the version on the `claims` ComponentClaim (`features edit claims
+--name claims_repo --version 3.2.0 --commit`): `provision-claim.yaml`
+dispatched from `main` cannot re-provision (`gh pr create` needs a non-`main`
+head) and `hydrate-github-claim.yaml` alone keeps rendering the old pin. One
+case still needs a human: deleting a claim whose CR is already gone fails
+inside `delete-github-claim.yaml` at `Fail if any pull request could not be
+created`, so its deletion PR stays open; merge it, or delete while the CR is
+still live. That proves the mechanism, not the next org: keep reading
+`org-before.json`, `org-after.json` and `org-diff.txt` next to the verdict,
+and report anything surprising.
 
 ## Evidence
 
@@ -122,7 +152,7 @@ it alone. Per drive:
 | `stdout.txt`, `stderr.txt`, `exit-code.txt` | the transcript |
 | `net.log` | JSONL of every connect attempted: `host`, `port`, `blocked` |
 | `files-before.txt`, `files.txt`, `files-changed.txt` | sha256 of the work dir's files (seeds included) before and after the command, and their diff, leaving out the drive's own `.feature-cache/` and `.xdg/` dirs; an empty `files-changed.txt` means the command wrote nothing else in the work dir |
-| `org-before.json`, `org-after.json`, `org-diff.txt` | claims-repo state around org-bound drives |
+| `org-before.json`, `org-after.json`, `org-diff.txt` | claims-repo state around org-bound drives, plus every `--watch-repo` |
 | `verdict.txt` | `PASS` or `FAIL - <reason>` |
 
 A proof earns its verdict like this:
@@ -162,7 +192,8 @@ drive (with approval) or the user removes them.
 | `launch.sh` | `$V/launch.sh [--no-build]` | build and open a run |
 | `doctor.sh` | `$V/doctor.sh [--org <org>]` | trust check before driving |
 | `drive.sh` | `$V/drive.sh [opts] -- <fs-forge args>` | one isolated, observed drive |
+| `fixture.sh` | `$V/fixture.sh setup --org ORG --id ID`; `$V/fixture.sh teardown --org ORG --id ID [--issue N] [--wait SECONDS]` | the `ia-test` claims a `write` run uses, and the teardown that puts the org back |
 | `cleanup.sh` | `$V/cleanup.sh [--purge-evidence]` | remove scratch, keep evidence |
-| `org-snapshot.sh` | `$V/org-snapshot.sh snap <org> <out.json>`; `$V/org-snapshot.sh diff <before> <after>` | read-only `gh api` snapshot of `fs-forge/*` branches, claims PRs, workflow runs and state-repo PR numbers; `diff` exits 1 on a change |
+| `org-snapshot.sh` | `$V/org-snapshot.sh snap <org> <out.json> [owner/repo]...`; `$V/org-snapshot.sh diff <before> <after>` | read-only `gh api` snapshot of `fs-forge/*` branches, claims PRs, workflow runs and state-repo PR numbers, plus any named repo; `diff` exits 1 on a change |
 | `net-canary.cjs` | `NODE_OPTIONS="--require $V/net-canary.cjs" FSF_CANARY=strict\|log FSF_CANARY_LOG=<file> node packages/fs-forge-cli/bin/run.js ...` | what `drive.sh` preloads to block and log connects |
 | `lib.sh` | sourced by the scripts | repo, node and run-dir resolution |
