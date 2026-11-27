@@ -189,6 +189,42 @@ describe('renderStateAppTargets', () => {
     }
   });
 
+  it('returns conflict when the derived namespace is not a DNS-1123 label', () => {
+    const cases = [
+      { tenant: 'Core_Team', env: 'DEV' },
+      { tenant: '-core', env: 'dev' },
+    ];
+
+    for (const { tenant, env } of cases) {
+      const files = renderStateAppTargets({
+        inputs: baseInputs({
+          targets: [
+            {
+              platform: 'example-dev',
+              tenant,
+              env,
+              cluster_url: 'https://eks-dev.example.com',
+              track: 'snapshots',
+            },
+          ],
+        }),
+        registries,
+        schemasDir: SCHEMAS_DIR,
+      });
+
+      expect(files[0].path).toBe(
+        `kubernetes/example-dev/${tenant}/${env}.yaml`,
+      );
+      expect(files[0].outcome.kind).toBe('conflict');
+      expect(files[0].content).toBeUndefined();
+      if (files[0].outcome.kind === 'conflict') {
+        expect(files[0].outcome.reason).toContain(
+          `${tenant}-billing-${env}`,
+        );
+      }
+    }
+  });
+
   it('returns a single conflict entry when two targets produce the same env file path', () => {
     const files = renderStateAppTargets({
       inputs: baseInputs({

@@ -10,6 +10,7 @@ import type { DiscoveredRegistry } from '../dotFirestartr.js';
 
 /** Kubernetes namespace names are DNS-1123 labels, capped at 63 characters. */
 const K8S_LABEL_MAX_LENGTH = 63;
+const K8S_LABEL_PATTERN = /^[a-z0-9]([a-z0-9-]*[a-z0-9])?$/;
 
 export interface RenderStateAppOptions {
   inputs: AppInputs;
@@ -77,6 +78,16 @@ function renderTargetEnvFile(
       outcome: {
         kind: 'conflict',
         reason: `Derived namespace "${expectedNamespace}" is ${expectedNamespace.length} characters, exceeding the ${K8S_LABEL_MAX_LENGTH}-character Kubernetes namespace limit`,
+      },
+    };
+  }
+
+  if (!K8S_LABEL_PATTERN.test(expectedNamespace)) {
+    return {
+      path,
+      outcome: {
+        kind: 'conflict',
+        reason: `Derived namespace "${expectedNamespace}" is not a DNS-1123 label: it must be lowercase alphanumeric characters or "-", starting and ending with an alphanumeric character`,
       },
     };
   }
