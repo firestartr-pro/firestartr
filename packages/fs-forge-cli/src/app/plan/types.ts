@@ -60,6 +60,7 @@ export interface ResolvedPlanContext {
   repoState: {
     dotFirestartr: PlanTargetRepo;
     stateArgocd: PlanTargetRepo;
+    stateApp: PlanTargetRepo;
     service: PlanTargetRepo;
   };
   serviceClaimPath: string;
@@ -79,6 +80,10 @@ export interface ResolvedPlanContext {
   defaultFilters: DefaultTrackFilters;
   dotFirestartr: DotFirestartrFacts;
   existingDotFirestartrApp?: string;
+  /** Path of the existing app file, which may be `apps/<app>.yaml` or `.yml`. */
+  existingDotFirestartrAppPath?: string;
+  /** Both `apps/<app>.yaml` and `apps/<app>.yml` exist; the plan is a conflict. */
+  existingDotFirestartrAppDuplicates?: string[];
   existingArgocdApplicationSet?: ExistingNamedFile;
   existingArgocdAppProject?: ExistingNamedFile;
   argocdParseErrors?: ArgocdFileConflict[];
@@ -109,4 +114,6 @@ export interface AppPlanResult {
   context: ResolvedPlanContext;
   files: PlanRepoFiles;
   checks: PlanCheck[];
+  /** Schema locations the plan was built with, reused to reconcile at apply. */
+  schemaDirs?: PlanSchemaDirs;
 }

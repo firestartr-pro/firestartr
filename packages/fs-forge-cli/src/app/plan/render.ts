@@ -1,4 +1,5 @@
 import {
+  MAKE_DISPATCHES_PATH,
   renderDotFirestartrApp,
   renderMakeDispatches,
   renderServiceClaimFeatures,
@@ -130,6 +131,8 @@ export async function renderPlanFiles(
     inputs,
     schemasDir: schemaDirs.dotFirestartrSchemasDir,
     existingContent: context.existingDotFirestartrApp,
+    existingPath: context.existingDotFirestartrAppPath,
+    duplicatePaths: context.existingDotFirestartrAppDuplicates,
   });
 
   let stateAppFiles: RenderedFile[];
@@ -233,4 +236,26 @@ export async function renderPlanFiles(
     stateArgocd: stateArgocdFiles,
     service: [makeDispatchesFile],
   };
+}
+
+/**
+ * Re-renders a planned file against content that appeared after the plan was
+ * built. Step 1 provisioning seeds `.github/make_dispatches.yaml`, so the
+ * plan sees it as a `create` while `apply` finds an existing file. Returns
+ * `undefined` when the path has no reconciler.
+ */
+export function reconcilePlanFile(
+  context: ResolvedPlanContext,
+  schemaDirs: PlanSchemaDirs,
+  path: string,
+  existingContent: string,
+): RenderedFile | undefined {
+  if (path !== MAKE_DISPATCHES_PATH) return undefined;
+  return renderMakeDispatches({
+    org: context.org,
+    inputs: context.inputs,
+    defaultBranch: context.defaultBranches.service,
+    actionsSchemasDir: schemaDirs.actionsSchemasDir,
+    existingContent,
+  });
 }

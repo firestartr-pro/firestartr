@@ -43,6 +43,7 @@ function makeContext(
     repoState: {
       dotFirestartr: { exists: true, archived: false },
       stateArgocd: { exists: true, archived: false },
+      stateApp: { exists: true, archived: false },
       service: { exists: true, archived: false },
     },
     defaultBranches: {

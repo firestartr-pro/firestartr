@@ -308,6 +308,7 @@ describe('app plan (resolve, render, checks)', () => {
       first.files.dotFirestartr[0].path,
       first.files.dotFirestartr[0].content ?? '',
     );
+    api.existingRepos.add(api.key(STATE_APP_REPO));
     api.setDefaultBranch(STATE_APP_REPO, 'main');
     for (const file of first.files.stateApp) {
       api.setFile(STATE_APP_REPO, file.path, file.content ?? '');
@@ -386,6 +387,7 @@ describe('app plan (resolve, render, checks)', () => {
       first.files.dotFirestartr[0].path,
       first.files.dotFirestartr[0].content ?? '',
     );
+    api.existingRepos.add(api.key(STATE_APP_REPO));
     api.setDefaultBranch(STATE_APP_REPO, 'main');
     for (const file of first.files.stateApp) {
       api.setFile(STATE_APP_REPO, file.path, file.content ?? '');
@@ -998,6 +1000,104 @@ describe('app plan (resolve, render, checks)', () => {
       const checklistItem = check?.checklist?.join('\n');
       expect(checklistItem).toContain(slug);
       expect(checklistItem).toMatch(/unarchiv/i);
+    }
+  });
+
+  it('allows a missing app-<app> repository because step 1 creates it', async () => {
+    const api = new MemoryGitHubApi();
+    seedBaseRepos(api, { orgPlan: 'paid' });
+
+    const result = await planApp({
+      api,
+      featureSource: createFakeFeatureSource(),
+      inputs: BASE_INPUTS,
+      schemaDirs: SCHEMA_DIRS,
+    });
+
+    const check = result.checks.find((c) => c.id === 'state-app-repo');
+    expect(check?.status).toBe('pass');
+    expect(check?.message).toContain('acme/app-payments');
+    expect(check?.message).toMatch(/step 1 creates it/i);
+  });
+
+  it('fails the plan when the existing app-<app> repository is archived', async () => {
+    const api = new MemoryGitHubApi();
+    seedBaseRepos(api, { orgPlan: 'paid' });
+    api.existingRepos.add(api.key(STATE_APP_REPO));
+    api.setArchived(STATE_APP_REPO);
+
+    const result = await planApp({
+      api,
+      featureSource: createFakeFeatureSource(),
+      inputs: BASE_INPUTS,
+      schemaDirs: SCHEMA_DIRS,
+    });
+
+    const check = result.checks.find((c) => c.id === 'state-app-repo');
+    expect(check?.status).toBe('fail');
+    expect(check?.message).toContain('acme/app-payments');
+    expect(check?.message).toMatch(/archived/i);
+    expect(check?.checklist?.join('\n')).toMatch(/unarchiv/i);
+  });
+
+  it('merges into an existing apps/<app>.yml instead of creating a duplicate YAML', async () => {
+    const api = new MemoryGitHubApi();
+    seedBaseRepos(api, { orgPlan: 'paid' });
+    api.setFile(
+      DOT_FIRESTARTR_REPO,
+      'apps/payments.yml',
+      [
+        'name: payments',
+        'state_repo: acme/app-payments',
+        'services:',
+        '  - repo: acme/other-svc',
+        '    service_names: [other-svc]',
+        '',
+      ].join('\n'),
+    );
+
+    const result = await planApp({
+      api,
+      featureSource: createFakeFeatureSource(),
+      inputs: BASE_INPUTS,
+      schemaDirs: SCHEMA_DIRS,
+    });
+
+    expect(result.context.existingDotFirestartrAppPath).toBe('apps/payments.yml');
+    expect(result.files.dotFirestartr[0].path).toBe('apps/payments.yml');
+    expect(result.files.dotFirestartr[0].outcome).toEqual({
+      kind: 'merge',
+      added: ['service:acme/payments-api'],
+    });
+  });
+
+  it('reports a conflict when both apps/<app>.yaml and apps/<app>.yml exist', async () => {
+    const api = new MemoryGitHubApi();
+    seedBaseRepos(api, { orgPlan: 'paid' });
+    api.setFile(
+      DOT_FIRESTARTR_REPO,
+      'apps/payments.yaml',
+      'name: payments\nstate_repo: acme/app-payments\nservices: []\n',
+    );
+    api.setFile(
+      DOT_FIRESTARTR_REPO,
+      'apps/payments.yml',
+      'name: payments\nstate_repo: acme/app-payments\nservices: []\n',
+    );
+
+    const result = await planApp({
+      api,
+      featureSource: createFakeFeatureSource(),
+      inputs: BASE_INPUTS,
+      schemaDirs: SCHEMA_DIRS,
+    });
+
+    const dotFirestartr = result.files.dotFirestartr[0];
+    expect(dotFirestartr.outcome.kind).toBe('conflict');
+    expect(dotFirestartr.content).toBeUndefined();
+    if (dotFirestartr.outcome.kind === 'conflict') {
+      expect(dotFirestartr.outcome.reason).toContain('apps/payments.yaml');
+      expect(dotFirestartr.outcome.reason).toContain('apps/payments.yml');
     }
   });
 

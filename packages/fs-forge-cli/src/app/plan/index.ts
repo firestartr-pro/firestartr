@@ -59,5 +59,5 @@ export async function planApp(options: PlanAppOptions): Promise<AppPlanResult> {
     renderPlanFiles(context, schemaDirs),
     Promise.resolve(runPlanChecks(context, schemaDirs)),
   ]);
-  return { context, files, checks };
+  return { context, files, checks, schemaDirs };
 }

@@ -145,20 +145,43 @@ async function resolveRepoBranch(
   };
 }
 
-async function readFileFromDefaultBranch(
+async function readExistingDotFirestartrApp(
   api: GitHubApi,
-  ref: RepoRef,
-  path: string,
+  org: string,
+  app: string,
 ): Promise<{
   defaultBranch: string;
   exists: boolean;
   archived: boolean;
+  path?: string;
   content?: string;
+  duplicatePaths?: string[];
 }> {
+  const ref: RepoRef = { owner: org, repo: '.firestartr' };
   const { defaultBranch, exists, archived } = await resolveRepoBranch(api, ref);
   if (!exists) return { defaultBranch, exists: false, archived };
-  const file = await api.readFile(ref, path, defaultBranch);
-  return { defaultBranch, exists: true, archived, content: file?.content };
+
+  const paths = [`apps/${app}.yaml`, `apps/${app}.yml`];
+  const files = await Promise.all(
+    paths.map((path) => api.readFile(ref, path, defaultBranch)),
+  );
+  const present = files.filter((f): f is NonNullable<typeof f> => f !== null);
+  if (present.length > 1) {
+    return {
+      defaultBranch,
+      exists: true,
+      archived,
+      duplicatePaths: present.map((f) => f.path),
+    };
+  }
+  if (present.length === 0) return { defaultBranch, exists: true, archived };
+  return {
+    defaultBranch,
+    exists: true,
+    archived,
+    path: present[0].path,
+    content: present[0].content,
+  };
 }
 
 async function readExistingArgocdFiles(
@@ -267,14 +290,16 @@ async function readExistingStateAppFiles(
   api: GitHubApi,
   org: string,
   inputs: AppInputs,
-): Promise<{ defaultBranch: string; files: Record<string, string> }> {
+): Promise<{
+  defaultBranch: string;
+  exists: boolean;
+  archived: boolean;
+  files: Record<string, string>;
+}> {
   const ref: RepoRef = { owner: org, repo: `app-${inputs.app}` };
-  let defaultBranch: string;
-  try {
-    defaultBranch = await api.getDefaultBranch(ref);
-  } catch (error) {
-    if (isNotFoundError(error)) return { defaultBranch: 'main', files: {} };
-    throw error;
+  const { defaultBranch, exists, archived } = await resolveRepoBranch(api, ref);
+  if (!exists) {
+    return { defaultBranch, exists: false, archived: false, files: {} };
   }
 
   const files: Record<string, string> = {};
@@ -293,7 +318,7 @@ async function readExistingStateAppFiles(
       files[pathsToRead[i]] = file.content;
     }
   }
-  return { defaultBranch, files };
+  return { defaultBranch, exists: true, archived, files };
 }
 
 export async function resolvePlanContext(
@@ -341,11 +366,7 @@ export async function resolvePlanContext(
     readDotFirestartr(api, org, inputs.app),
     options.orgPlan ? Promise.resolve(options.orgPlan) : api.getOrgPlan(org),
     resolveRepoBranch(api, serviceRepoRef),
-    readFileFromDefaultBranch(
-      api,
-      { owner: org, repo: '.firestartr' },
-      `apps/${inputs.app}.yaml`,
-    ),
+    readExistingDotFirestartrApp(api, org, inputs.app),
     readExistingArgocdFiles(api, org, inputs.app),
     readExistingStateAppFiles(api, org, inputs),
   ]);
@@ -452,6 +473,10 @@ export async function resolvePlanContext(
         exists: existingArgocd.exists,
         archived: existingArgocd.archived,
       },
+      stateApp: {
+        exists: existingStateAppResult.exists,
+        archived: existingStateAppResult.archived,
+      },
       service: {
         exists: serviceRepoBranch.exists,
         archived: serviceRepoBranch.archived,
@@ -483,6 +508,9 @@ export async function resolvePlanContext(
     defaultFilters: extractDefaultFilters(buildSchema),
     dotFirestartr,
     existingDotFirestartrApp: existingDotFirestartrAppResult.content,
+    existingDotFirestartrAppPath: existingDotFirestartrAppResult.path,
+    existingDotFirestartrAppDuplicates:
+      existingDotFirestartrAppResult.duplicatePaths,
     existingArgocdApplicationSet: existingArgocd.applicationSet,
     existingArgocdAppProject: existingArgocd.appProject,
     argocdParseErrors: existingArgocd.parseErrors,

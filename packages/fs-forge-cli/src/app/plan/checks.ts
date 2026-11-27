@@ -427,6 +427,7 @@ function checkTargetRepo(
   id: string,
   repoSlug: string,
   repo: PlanTargetRepo,
+  options: { allowMissing?: boolean } = {},
 ): PlanCheck {
   if (repo.archived) {
     return {
@@ -441,6 +442,13 @@ function checkTargetRepo(
       id,
       status: 'pass',
       message: `Repository ${repoSlug} exists.`,
+    };
+  }
+  if (options.allowMissing) {
+    return {
+      id,
+      status: 'pass',
+      message: `Repository ${repoSlug} does not exist yet; step 1 creates it.`,
     };
   }
   return {
@@ -465,6 +473,12 @@ export function runPlanChecks(
       'state-argocd-repo',
       `${context.org}/state-argocd`,
       context.repoState.stateArgocd,
+    ),
+    checkTargetRepo(
+      'state-app-repo',
+      `${context.org}/app-${context.inputs.app}`,
+      context.repoState.stateApp,
+      { allowMissing: true },
     ),
     checkTargetRepo(
       'service-repo',
