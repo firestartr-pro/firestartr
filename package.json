@@ -49,7 +49,7 @@
     "ts-node": "10.9.2",
     "tsx": "^4.23.15",
     "typescript": "5.0.4",
-    "uuid": "^9.0.0"
+    "uuid": "^14.0.3"
   },
   "dependencies": {
     "ajv": "^8.20.0",
