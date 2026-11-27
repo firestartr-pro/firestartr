@@ -427,9 +427,11 @@ export async function applyApp(
           continue;
         }
 
-        const baseSha = await api.branchHeadSha(ref, entry.baseBranch);
-        await api.createBranch(ref, entry.headBranch, baseSha);
-
+        // Reconcile every planned file against baseBranch before creating the
+        // branch, so a conflict or an all-noop reconciliation leaves no
+        // orphaned branch behind.
+        const writes: Array<{ path: string; content: string; sha?: string }> =
+          [];
         for (const file of entry.files) {
           if (
             (file.outcome.kind !== 'create' && file.outcome.kind !== 'merge') ||
@@ -468,12 +470,28 @@ export async function applyApp(
             content = reconciled.content ?? content;
             sha = existing.sha;
           }
-          await api.commitFile(ref, {
-            path: file.path,
+          writes.push({ path: file.path, content, ...(sha ? { sha } : {}) });
+        }
+
+        if (writes.length === 0) {
+          stepRepos.push({
+            repo: entry.repo,
             branch: entry.headBranch,
-            message: `${entry.prTitle ?? 'chore: apply app'} (${file.path})`,
-            content,
-            ...(sha ? { sha } : {}),
+            state: 'skipped',
+          });
+          continue;
+        }
+
+        const baseSha = await api.branchHeadSha(ref, entry.baseBranch);
+        await api.createBranch(ref, entry.headBranch, baseSha);
+
+        for (const write of writes) {
+          await api.commitFile(ref, {
+            path: write.path,
+            branch: entry.headBranch,
+            message: `${entry.prTitle ?? 'chore: apply app'} (${write.path})`,
+            content: write.content,
+            ...(write.sha ? { sha: write.sha } : {}),
           });
         }
 
@@ -511,7 +529,7 @@ export async function applyApp(
       }
     }
 
-    if (noWait) {
+    if (noWait && pending.length > 0) {
       const hint = mergeFirstHint();
       return {
         outcome: 'pending',

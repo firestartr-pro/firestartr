@@ -213,6 +213,21 @@ function makeFakeClock() {
   };
 }
 
+const DISPATCHES_WITH_PAYMENTS = [
+  '---',
+  'deployments:',
+  '  - application: payments',
+  '    platform: eks-main',
+  '    tenant: core',
+  '    env: dev',
+  '    type: snapshots',
+  '    version: $branch_main',
+  '    flavor: default',
+  '    service_names:',
+  '      - payments-api',
+  '',
+].join('\n');
+
 const FIRESTARTR_FIRST_HINT =
   'Merge acme/.firestartr#1 (https://github.com/acme/.firestartr/pull/1) first: the acme/app-payments validate-changes check reads the app name from .firestartr apps/payments.yaml.';
 
@@ -1067,6 +1082,106 @@ describe('applyApp', () => {
         },
       ],
     });
+  });
+
+  it('skips the branch and PR when every planned step 3 file already matches', async () => {
+    const api = makeApi();
+    const clock = makeFakeClock();
+    api.setFile(
+      { owner: 'acme', repo: 'payments-api' },
+      '.github/make_dispatches.yaml',
+      DISPATCHES_WITH_PAYMENTS,
+      'dispatches-sha',
+    );
+
+    const plan: AppPlanResult = {
+      ...makeFullPlan({
+        claims: [
+          noopFile('claims/components/app-payments.yaml'),
+          noopFile('claims/components/payments-api.yaml'),
+        ],
+        dotFirestartr: [noopFile('apps/payments.yaml')],
+        stateApp: [noopFile('kubernetes/eks-main/core/dev.yaml')],
+        stateArgocd: [
+          noopFile('apps/payments/argo-payments.ApplicationSet.yaml'),
+        ],
+        service: [
+          createFile('.github/make_dispatches.yaml', DISPATCHES_WITH_PAYMENTS),
+        ],
+      }),
+      schemaDirs: SCHEMA_DIRS,
+    };
+
+    const result = await applyApp(api, plan, {
+      now: clock.now,
+      sleep: clock.sleep,
+      noWait: true,
+    });
+
+    expect(result.outcome).toBe('done');
+    expect(result.steps[2].repos).toEqual([
+      {
+        repo: 'acme/payments-api',
+        branch: 'fs-forge/app-payments',
+        state: 'skipped',
+      },
+    ]);
+    expect(
+      api.calls.filter((call) =>
+        call.startsWith('createBranch acme/payments-api@'),
+      ),
+    ).toEqual([]);
+    expect(
+      api.calls.filter((call) =>
+        call.startsWith('createPullRequest acme/payments-api@'),
+      ),
+    ).toEqual([]);
+    expect(
+      api.committed.filter((commit) => commit.ref.repo === 'payments-api'),
+    ).toEqual([]);
+  });
+
+  it('creates no branch when step 3 reconciliation conflicts', async () => {
+    const api = makeApi();
+    const clock = makeFakeClock();
+    api.setFile(
+      { owner: 'acme', repo: 'payments-api' },
+      '.github/make_dispatches.yaml',
+      'deployments: [unterminated\n',
+      'dispatches-sha',
+    );
+
+    const plan: AppPlanResult = {
+      ...makeFullPlan({
+        claims: [
+          noopFile('claims/components/app-payments.yaml'),
+          noopFile('claims/components/payments-api.yaml'),
+        ],
+        dotFirestartr: [noopFile('apps/payments.yaml')],
+        stateApp: [noopFile('kubernetes/eks-main/core/dev.yaml')],
+        stateArgocd: [
+          noopFile('apps/payments/argo-payments.ApplicationSet.yaml'),
+        ],
+        service: [createFile('.github/make_dispatches.yaml', 'deployments: []\n')],
+      }),
+      schemaDirs: SCHEMA_DIRS,
+    };
+
+    const result = await applyApp(api, plan, {
+      now: clock.now,
+      sleep: clock.sleep,
+    });
+
+    expect(result.outcome).toBe('failed');
+    expect(result.steps[2].repos[0].state).toBe('failed');
+    expect(result.reason).toContain(
+      '.github/make_dispatches.yaml changed after the plan was built',
+    );
+    expect(
+      api.calls.filter((call) =>
+        call.startsWith('createBranch acme/payments-api@'),
+      ),
+    ).toEqual([]);
   });
 
   it('fails the step when a created file appears and has no reconciler', async () => {
