@@ -1,13 +1,17 @@
 # Tool-agnostic agent configuration
 
-Agent configuration lives in exactly two places: the root `AGENTS.md` and
-`.agents/skills/`. There are no per-tool folders (`.claude/`, `.opencode/`,
-`.github/copilot-instructions.md`, `opencode.json`) and no agent tool is named
-in the repository. Commands used to be defined three times, once per tool, and
-the copies drifted apart; a single tool-neutral source removes that drift, at
-the cost of per-tool slash commands. Developers wire `.agents/skills/` and the
-shared `prefapp/skills` workflow skills into their tools through their own
-global configuration.
+Agent configuration has exactly two sources: the root `AGENTS.md` and
+`.agents/skills/`. Commands used to be defined three times, once per tool, and
+the copies drifted apart; a single tool-neutral source removes that drift.
+
+A tool that only reads its own path gets a symlink to the single source, never
+a copy: `AGENTS.md` and `CLAUDE.md` are one file through a symlink, and
+`.claude/skills` links to `.agents/skills`. A symlink cannot drift, so every
+skill added under `.agents/skills/` reaches every tool with no extra step.
+Per-tool folders hold nothing but these symlinks; tool-specific commands,
+agents or settings stay out of the repository. Developers wire the shared
+`prefapp/skills` workflow skills into their tools through their own global
+configuration.
 
 `AGENTS.md` and skills only state what an agent cannot infer from the code or
 from `CONSTITUTION.md`. Deterministic work stays in scripts (for example
