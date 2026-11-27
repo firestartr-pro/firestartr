@@ -126,9 +126,16 @@ function parseArgoCdDocuments(
 function deduplicateClusters(
   clusters: DiscoveredCluster[],
 ): DiscoveredCluster[] {
+  // An AppProject destination without a name falls back to its server URL. When
+  // another entry names that same URL, the fallback is noise: drop it. Distinct
+  // named clusters keep their own entry even when they share a URL.
+  const namedUrls = new Set(
+    clusters.filter((c) => c.name !== c.url).map((c) => c.url),
+  );
   const seen = new Set<string>();
   const result: DiscoveredCluster[] = [];
   for (const cluster of clusters) {
+    if (cluster.name === cluster.url && namedUrls.has(cluster.url)) continue;
     const key = `${cluster.name}\0${cluster.url}`;
     if (seen.has(key)) continue;
     seen.add(key);
