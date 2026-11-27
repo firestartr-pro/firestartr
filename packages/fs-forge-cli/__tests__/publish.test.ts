@@ -282,6 +282,45 @@ describe('publishClaimAndWait', () => {
     ]);
   });
 
+  it('passes the remaining apply budget to the dispatch poller', async () => {
+    const harness = createHarness();
+    harness.api.listWorkflowRuns = async () => [
+      {
+        id: 1,
+        htmlUrl: 'https://github.com/my-org/claims/actions/runs/1',
+        status: 'in_progress',
+        conclusion: null,
+        displayTitle: String(harness.api.dispatched[0].inputs.correlationId),
+      },
+    ];
+
+    let clock = 0;
+    const commitFile = harness.api.commitFile.bind(harness.api);
+    harness.api.commitFile = async (ref, input) => {
+      // Publishing the claim consumes 4s of the 10s overall budget.
+      clock = 4_000;
+      await commitFile(ref, input);
+    };
+
+    const outcome = await captureOutput(() =>
+      publishClaimAndWait(
+        request(harness, {
+          timeoutMs: 10_000,
+          pollIntervalMs: 1_000,
+          now: () => clock,
+          sleep: async (ms: number) => {
+            clock += ms;
+          },
+        }),
+        harness.pulse,
+      ),
+    );
+
+    expect(outcome.error?.message).toBe(
+      'Provision wait failed: Workflow timed out after 6s',
+    );
+  });
+
   it('passes --state-repos through to the wet PR search', async () => {
     const harness = createHarness();
 

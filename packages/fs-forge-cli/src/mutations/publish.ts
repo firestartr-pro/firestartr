@@ -106,6 +106,9 @@ export async function publishClaimAndWait(
     now !== undefined ||
     sleep !== undefined;
 
+  const dispatchTimeoutMs =
+    deadline !== undefined ? Math.max(0, deadline - clock()) : undefined;
+
   const publishUrl = await waitForDispatch(repo.api, repo.ref, dispatch, {
     noWait,
     claimType: kind,
@@ -116,7 +119,9 @@ export async function publishClaimAndWait(
     ...(hasPollOverrides
       ? {
           pollOptions: {
-            ...(timeoutMs !== undefined ? { timeoutMs } : {}),
+            ...(dispatchTimeoutMs !== undefined
+              ? { timeoutMs: dispatchTimeoutMs }
+              : {}),
             ...(pollIntervalMs !== undefined ? { pollIntervalMs } : {}),
             ...(now ? { now } : {}),
             ...(sleep ? { sleep } : {}),
