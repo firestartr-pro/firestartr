@@ -1,7 +1,5 @@
 import { describe, expect, it } from '@jest/globals';
-import { readFileSync } from 'fs';
-import { join } from 'path';
-import { claimSchemasDir } from '../src/schema/claimSchemas';
+import { claimSchemasDir, loadClaimSchema } from '../src/schema/claimSchemas';
 import { createClaimValidator } from '../src/utils/ajvValidation';
 import { buildClaimFromFlags } from '../src/utils/buildClaim';
 import { deriveFlags } from '../src/utils/deriveFlags';
@@ -9,9 +7,7 @@ import CreateOrgRuleset from '../src/commands/create/orgruleset';
 
 const SCHEMA_DIR = claimSchemasDir(process.cwd());
 const validator = createClaimValidator({ schemasDir: SCHEMA_DIR });
-const flags = deriveFlags(
-  JSON.parse(readFileSync(join(SCHEMA_DIR, 'OrgRulesetClaim.json'), 'utf8')),
-);
+const flags = deriveFlags(loadClaimSchema(SCHEMA_DIR, 'OrgRulesetClaim'));
 
 const REQUIRED_FLAGS = {
   name: 'default-branch',
