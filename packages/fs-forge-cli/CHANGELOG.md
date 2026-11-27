@@ -1,5 +1,13 @@
 # Changelog
 
+## [3.1.0](https://github.com/firestartr-pro/firestartr/compare/fs-forge-cli-v3.0.0...fs-forge-cli-v3.1.0) (2026-11-27)
+
+
+### Features
+
+* add lacking org-secrets impl ([#193](https://github.com/firestartr-pro/firestartr/issues/193)) ([1271b17](https://github.com/firestartr-pro/firestartr/commit/1271b177e2d19c2a7e47c9de151979038ada1483))
+* **fs-forge-cli:** consume the claims schemas from the published package ([#216](https://github.com/firestartr-pro/firestartr/issues/216)) ([068df4e](https://github.com/firestartr-pro/firestartr/commit/068df4e6cb2d212cae063c266359f5e6b5672415))
+
 ## [3.0.0](https://github.com/firestartr-pro/firestartr/compare/fs-forge-cli-v2.0.1...fs-forge-cli-v3.0.0) (2026-11-02)
 
 
