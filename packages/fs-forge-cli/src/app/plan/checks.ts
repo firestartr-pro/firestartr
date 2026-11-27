@@ -25,6 +25,9 @@ function trackImageType(track: AppTrack): 'snapshots' | 'releases' {
   return track === 'releases' ? 'releases' : 'snapshots';
 }
 
+const BUILD_IMAGES_FORMAT_URL =
+  'https://github.com/firestartr-pro/firestartr/blob/main/.github/BUILD_AND_DISPATCH_DOCKER_IMAGES_README.md#configuration';
+
 function registryHasOciCharts(registry: DiscoveredRegistry): boolean {
   return (
     !Array.isArray(registry.base_paths) &&
@@ -334,13 +337,27 @@ function checkBuildImages(
   schemaDirs: PlanSchemaDirs,
 ): PlanCheck {
   const { existingBuildImages, inputs } = context;
+  const requiredFlavors: Array<{ type: string; flavor: string; key: string }> =
+    [];
+  const seen = new Set<string>();
+  for (const target of inputs.targets) {
+    const type = trackImageType(target.track);
+    const flavor = target.flavor ?? 'default';
+    const key = `${type}.${flavor}`;
+    if (seen.has(key)) continue;
+    seen.add(key);
+    requiredFlavors.push({ type, flavor, key });
+  }
+  const requiredKeys = requiredFlavors.map((required) => required.key);
+
   if (existingBuildImages === undefined) {
     return {
       id: 'build-images',
       status: 'fail',
-      message: `.github/build_images.yaml is missing in ${context.serviceRepoOwner}/${context.serviceRepoName}.`,
+      message: `.github/build_images.yaml is missing in ${context.serviceRepoOwner}/${context.serviceRepoName}; required flavor(s): ${requiredKeys.join(', ')}.`,
       checklist: [
-        `Create .github/build_images.yaml in ${context.serviceRepoOwner}/${context.serviceRepoName} with the required flavors.`,
+        `Create .github/build_images.yaml in ${context.serviceRepoOwner}/${context.serviceRepoName} with flavor(s): ${requiredKeys.join(', ')}.`,
+        `See the file format: ${BUILD_IMAGES_FORMAT_URL}`,
       ],
     };
   }
@@ -385,23 +402,15 @@ function checkBuildImages(
     };
   }
 
-  const missingFlavors: string[] = [];
-  const seen = new Set<string>();
-  for (const target of inputs.targets) {
-    const type = trackImageType(target.track);
-    const flavor = target.flavor ?? 'default';
-    const key = `${type}.${flavor}`;
-    if (seen.has(key)) continue;
-    seen.add(key);
-
-    const section = parsed[type];
-    if (
-      !isRecord(section) ||
-      !Object.prototype.hasOwnProperty.call(section, flavor)
-    ) {
-      missingFlavors.push(key);
-    }
-  }
+  const missingFlavors = requiredFlavors
+    .filter((required) => {
+      const section = parsed[required.type];
+      return (
+        !isRecord(section) ||
+        !Object.prototype.hasOwnProperty.call(section, required.flavor)
+      );
+    })
+    .map((required) => required.key);
 
   if (missingFlavors.length > 0) {
     return {
