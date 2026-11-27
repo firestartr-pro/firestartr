@@ -119,7 +119,7 @@ function claimSchemas(): Array<{
 describe('claim command model', () => {
   it('builds one model per claim schema from its metadata', async () => {
     const schemas = claimSchemas();
-    expect(schemas).toHaveLength(10);
+    expect(schemas).toHaveLength(11);
 
     for (const { kind, schema } of schemas) {
       const model = buildCommandModel(schema, kind);
@@ -153,9 +153,9 @@ describe('claim command model', () => {
     }
 
     const component = models.find((model) => model.kind === 'ComponentClaim')!;
-    expect(
-      component.flagSpecs.map((flag) => flag.path),
-    ).toContain('providesApis.json');
+    expect(component.flagSpecs.map((flag) => flag.path)).toContain(
+      'providesApis.json',
+    );
 
     const secrets = models.find((model) => model.kind === 'SecretsClaim')!;
     expect(secrets.flagSpecs.map((flag) => flag.path)).toContain(
@@ -185,7 +185,7 @@ describe('generateAllCommands', () => {
         outDir,
       });
 
-      expect(written).toHaveLength(12);
+      expect(written).toHaveLength(13);
 
       for (const path of written) {
         const relative = path.slice(outDir.length + 1);

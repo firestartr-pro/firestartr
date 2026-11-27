@@ -33,6 +33,7 @@ describe('claim schemas source', () => {
       'ComponentClaim',
       'DomainClaim',
       'GroupClaim',
+      'OrgRulesetClaim',
       'OrgSettingsClaim',
       'OrgWebhookClaim',
       'SecretsClaim',
@@ -101,9 +102,9 @@ describe('isHiddenFlag', () => {
   });
 
   it('keeps the terraform sync flags the CLI always exposed', () => {
-    expect(isHiddenFlag('TFWorkspaceClaim', 'providers.terraform.sync.json')).toBe(
-      true,
-    );
+    expect(
+      isHiddenFlag('TFWorkspaceClaim', 'providers.terraform.sync.json'),
+    ).toBe(true);
     expect(
       isHiddenFlag('TFWorkspaceClaim', 'providers.terraform.sync.enabled'),
     ).toBe(false);
@@ -119,12 +120,12 @@ describe('required flags covered by a JSON escape hatch', () => {
   }
 
   it('leaves them to the schema validation, so the JSON can supply them', () => {
-    expect(flag('SecretsClaim', 'providers.external_secrets.secretStore.name')).toMatchObject(
-      { required: false, conditionalRequired: true },
-    );
-    expect(flag('SecretsClaim', 'providers.external_secrets.name')).toMatchObject(
-      { required: false, conditionalRequired: true },
-    );
+    expect(
+      flag('SecretsClaim', 'providers.external_secrets.secretStore.name'),
+    ).toMatchObject({ required: false, conditionalRequired: true });
+    expect(
+      flag('SecretsClaim', 'providers.external_secrets.name'),
+    ).toMatchObject({ required: false, conditionalRequired: true });
   });
 
   it('keeps a requirement when the covering JSON flag is hidden', () => {
