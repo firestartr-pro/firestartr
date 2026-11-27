@@ -333,6 +333,65 @@ describe('discoverApp', () => {
     expect(result.serviceFacts.tracks).toEqual({});
   });
 
+  it('lists one entry per cluster, dropping a URL-named fallback when the URL has a name', async () => {
+    const api = new MemoryGitHubApi();
+    seedClaimsMap(api, { 'ComponentClaim-svc-a': 'components/svc-a.yaml' });
+    api.setFile(
+      { owner: ORG, repo: CLAIMS_REPO },
+      'claims/components/svc-a.yaml',
+      'name: svc-a\nkind: ComponentClaim\nowner: team-a\nsystem: sys-a\n',
+    );
+    api.setPrimaryLanguage({ owner: ORG, repo: 'svc-a' }, 'TypeScript');
+
+    const argoRef = { owner: ORG, repo: 'state-argocd' };
+    api.addRepo(argoRef);
+    api.setDefaultBranch(argoRef, 'main');
+    api.setBlobPaths(argoRef, ['projects/core.yaml', 'appsets/clusters.yaml']);
+    api.setFile(
+      argoRef,
+      'projects/core.yaml',
+      [
+        'kind: AppProject',
+        'metadata:',
+        '  name: core',
+        'spec:',
+        '  destinations:',
+        '    - server: https://kubernetes.default.svc',
+        '    - server: https://unnamed.example.com',
+      ].join('\n'),
+    );
+    api.setFile(
+      argoRef,
+      'appsets/clusters.yaml',
+      [
+        'kind: ApplicationSet',
+        'spec:',
+        '  generators:',
+        '    - git:',
+        '        values:',
+        '          pre-cluster: https://kubernetes.default.svc',
+        '          pre-cluster-b: https://kubernetes.default.svc',
+      ].join('\n'),
+    );
+
+    const result = await discoverApp({
+      api,
+      org: ORG,
+      claimsRepoName: CLAIMS_REPO,
+      app: 'new-app',
+      service: 'svc-a',
+    });
+
+    expect(result.argocd.clusters).toEqual([
+      {
+        name: 'https://unnamed.example.com',
+        url: 'https://unnamed.example.com',
+      },
+      { name: 'pre-cluster', url: 'https://kubernetes.default.svc' },
+      { name: 'pre-cluster-b', url: 'https://kubernetes.default.svc' },
+    ]);
+  });
+
   it('throws when --service cannot be inferred or when Service claim is missing', async () => {
     const api = new MemoryGitHubApi();
     seedClaimsMap(api, {});
