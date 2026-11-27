@@ -140,6 +140,29 @@ describe('renderDotFirestartrApp', () => {
     expect(result.content).toBeUndefined();
   });
 
+  it('returns conflict when the existing document omits the app name', () => {
+    const existing = [
+      'state_repo: acme/app-billing',
+      'services:',
+      '  - repo: acme/billing-api',
+      '    service_names: [billing-api]',
+      '',
+    ].join('\n');
+
+    const result = renderDotFirestartrApp({
+      org: 'acme',
+      inputs: baseInputs(),
+      schemasDir: SCHEMAS_DIR,
+      existingContent: existing,
+    });
+
+    expect(result.outcome).toEqual({
+      kind: 'conflict',
+      reason: 'name is "", expected "billing"',
+    });
+    expect(result.content).toBeUndefined();
+  });
+
   it('returns conflict when the no-change path finds a schema-invalid document', () => {
     const existing = [
       'name: billing',
