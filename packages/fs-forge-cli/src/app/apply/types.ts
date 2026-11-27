@@ -1,5 +1,6 @@
 import type { AuditTrailOptions } from '../../mutations/auditIssue.js';
 import type { Pulse } from '../../mutations/publish.js';
+import type { DispatchPresentation } from '../../utils/waitForDispatch.js';
 
 export type ApplyRepoState =
   'merged' | 'provisioned' | 'open' | 'skipped' | 'failed';
@@ -39,6 +40,8 @@ export interface ApplyAppOptions {
   pollIntervalMs?: number;
   audit?: AuditTrailOptions;
   pulse?: Pulse;
+  /** Overrides the provision workflow presentation (e.g. silence in JSON mode). */
+  dispatchPresentation?: Partial<DispatchPresentation>;
   stateRepos?: string[];
   now?: () => number;
   sleep?: (ms: number) => Promise<void>;

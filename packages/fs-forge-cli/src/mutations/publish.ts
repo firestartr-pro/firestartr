@@ -6,6 +6,7 @@ import { waitForDispatch } from '../utils/waitForDispatch.js';
 import type { AuditTrail } from './auditIssue.js';
 import type { ClaimsRepo } from '../claims/claimsRepo.js';
 import type { ClaimKindName } from '../claims/kinds.js';
+import type { DispatchPresentation } from '../utils/waitForDispatch.js';
 
 export interface ClaimPublishRequest {
   repo: ClaimsRepo;
@@ -29,6 +30,8 @@ export interface ClaimPublishRequest {
   now?: () => number;
   /** Optional sleeper for deterministic timeout testing. */
   sleep?: (ms: number) => Promise<void>;
+  /** Overrides how the provision workflow run is presented. */
+  presentation?: Partial<DispatchPresentation>;
 }
 
 export interface Pulse {
@@ -65,6 +68,7 @@ export async function publishClaimAndWait(
     pollIntervalMs,
     now,
     sleep,
+    presentation,
   } = request;
 
   const clock = now ?? Date.now;
@@ -108,6 +112,7 @@ export async function publishClaimAndWait(
     claimName: name,
     label: 'Provisioning',
     extra: audit?.result(),
+    ...(presentation ? { presentation } : {}),
     ...(hasPollOverrides
       ? {
           pollOptions: {

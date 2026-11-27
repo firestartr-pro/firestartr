@@ -205,6 +205,9 @@ export default class AppApply extends Command {
         timeoutMs: flags.timeout * 1000,
         audit: auditTrailOptions(flags),
         pulse,
+        ...(flags.json
+          ? { dispatchPresentation: { stdout: () => {}, stderr: () => {} } }
+          : {}),
       });
     } catch (error) {
       const message = error instanceof Error ? error.message : String(error);

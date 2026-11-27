@@ -4,6 +4,7 @@ import { withAuditTrail } from '../../mutations/auditIssue.js';
 import { publishClaimAndWait } from '../../mutations/publish.js';
 import { DispatchTimeoutError } from '../../utils/waitForDispatch.js';
 import { buildPlanJsonOutput } from '../plan/steps.js';
+import { reconcilePlanFile } from '../plan/render.js';
 
 import type {
   ApplyAppOptions,
@@ -57,6 +58,7 @@ function errorMessage(error: unknown): string {
 function step2MergeFirstHint(params: {
   org: string;
   app: string;
+  dotFirestartrAppPath?: string;
   repos: ApplyRepoResult[];
 }): string | undefined {
   const dotFirestartr = params.repos.find(
@@ -67,7 +69,7 @@ function step2MergeFirstHint(params: {
   );
   if (!dotFirestartr?.pr || dotFirestartr.state !== 'open') return undefined;
   if (!stateApp?.pr || stateApp.state !== 'open') return undefined;
-  return `Merge ${dotFirestartr.repo}#${dotFirestartr.pr.number} (${dotFirestartr.pr.url}) first: the ${params.org}/app-${params.app} validate-changes check reads the app name from .firestartr apps/${params.app}.yaml.`;
+  return `Merge ${dotFirestartr.repo}#${dotFirestartr.pr.number} (${dotFirestartr.pr.url}) first: the ${params.org}/app-${params.app} validate-changes check reads the app name from .firestartr ${params.dotFirestartrAppPath ?? `apps/${params.app}.yaml`}.`;
 }
 
 export async function applyApp(
@@ -88,6 +90,7 @@ export async function applyApp(
   const timeoutMs = options.timeoutMs ?? DEFAULT_APPLY_TIMEOUT_MS;
   const pollIntervalMs = options.pollIntervalMs ?? DEFAULT_POLL_INTERVAL_MS;
   const pulse = options.pulse ?? NOOP_PULSE;
+  const dispatchPresentation = options.dispatchPresentation;
   const now = options.now ?? Date.now;
   const sleep = options.sleep ?? defaultSleep;
   const org = plan.context.org;
@@ -197,6 +200,9 @@ export async function applyApp(
                   pollIntervalMs,
                   now,
                   sleep,
+                  ...(dispatchPresentation
+                    ? { presentation: dispatchPresentation }
+                    : {}),
                 },
                 pulse,
               );
@@ -296,6 +302,7 @@ export async function applyApp(
         ? step2MergeFirstHint({
             org,
             app: plan.context.inputs.app,
+            dotFirestartrAppPath: plan.context.existingDotFirestartrAppPath,
             repos: stepRepos,
           })
         : undefined;
@@ -430,20 +437,42 @@ export async function applyApp(
           ) {
             continue;
           }
+          let content = file.content;
           let sha: string | undefined;
+          const existing = await api.readFile(ref, file.path, entry.baseBranch);
           if (file.outcome.kind === 'merge') {
-            const existing = await api.readFile(
-              ref,
-              file.path,
-              entry.baseBranch,
-            );
             sha = existing?.sha;
+          } else if (existing) {
+            // The file appeared after the plan was built, which step 1
+            // provisioning does. Reconcile against what is on the branch
+            // instead of overwriting it or failing on a create GitHub rejects.
+            const reconciled = plan.schemaDirs
+              ? reconcilePlanFile(
+                  plan.context,
+                  plan.schemaDirs,
+                  file.path,
+                  existing.content,
+                )
+              : undefined;
+            if (!reconciled) {
+              throw new Error(
+                `${file.path} already exists in ${entry.repo} but the plan creates it. Re-run fs-forge app plan and app apply to reconcile.`,
+              );
+            }
+            if (reconciled.outcome.kind === 'conflict') {
+              throw new Error(
+                `${file.path} changed after the plan was built: ${reconciled.outcome.reason}`,
+              );
+            }
+            if (reconciled.outcome.kind === 'noop') continue;
+            content = reconciled.content ?? content;
+            sha = existing.sha;
           }
           await api.commitFile(ref, {
             path: file.path,
             branch: entry.headBranch,
             message: `${entry.prTitle ?? 'chore: apply app'} (${file.path})`,
-            content: file.content,
+            content,
             ...(sha ? { sha } : {}),
           });
         }

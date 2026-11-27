@@ -1,13 +1,30 @@
+import { join } from 'path';
+import YAML from 'yaml';
+
 import { applyApp } from '../src/app/apply/index.js';
 import type {
   AppPlanResult,
   PlanCheck,
+  PlanSchemaDirs,
   ResolvedPlanContext,
 } from '../src/app/plan/index.js';
 import type { RenderedFile } from '../src/app/render/index.js';
 import type { RepoRef } from '../src/github/api.js';
+import { actionsSchemasDir } from '../src/schema/actionsSchemas.js';
+import { claimSchemasDir } from '../src/schema/claimSchemas.js';
+import { dotFirestartrSchemasDir } from '../src/schema/dotFirestartrSchemas.js';
+import { vendorSchemasDir } from '../src/schema/vendorSchemas.js';
 
 import { MemoryGitHubApi } from './fixtures/memoryGitHubApi.js';
+
+const PACKAGE_ROOT = join(__dirname, '..');
+
+const SCHEMA_DIRS: PlanSchemaDirs = {
+  claimSchemasDir: claimSchemasDir(PACKAGE_ROOT),
+  dotFirestartrSchemasDir: dotFirestartrSchemasDir(PACKAGE_ROOT),
+  actionsSchemasDir: actionsSchemasDir(PACKAGE_ROOT),
+  vendorDir: vendorSchemasDir(PACKAGE_ROOT),
+};
 
 class ApplyTestGitHubApi extends MemoryGitHubApi {
   readonly prStates = new Map<string, { state: string; merged: boolean }>();
@@ -87,6 +104,7 @@ function makeContext(
     repoState: {
       dotFirestartr: { exists: true, archived: false },
       stateArgocd: { exists: true, archived: false },
+      stateApp: { exists: true, archived: false },
       service: { exists: true, archived: false },
     },
     defaultBranches: {
@@ -1012,5 +1030,88 @@ describe('applyApp', () => {
     expect(result.steps[1].repos[0].state).toBe('merged');
     expect(api.committed).toHaveLength(0);
     expect(api.createdPulls).toHaveLength(0);
+  });
+
+  it('reconciles a step 3 file that step 1 provisioning created after the plan', async () => {
+    const api = makeApi();
+    const clock = makeFakeClock();
+    api.onGetPullRequest = (ref, pr) => {
+      api.setPrState(ref, pr, 'closed', true);
+    };
+
+    const plan: AppPlanResult = {
+      ...makeFullPlan({
+        service: [createFile('.github/make_dispatches.yaml', 'deployments: []\n')],
+      }),
+      schemaDirs: SCHEMA_DIRS,
+    };
+
+    const result = await applyApp(api, plan, {
+      now: clock.now,
+      sleep: clock.sleep,
+    });
+
+    expect(result.outcome).toBe('done');
+    const committed = api.committed.find(
+      (c) => c.path === '.github/make_dispatches.yaml',
+    );
+    expect(committed?.sha).toBe('dispatches-sha');
+    expect(YAML.parse(committed?.content ?? '')).toMatchObject({
+      deployments: [
+        {
+          application: 'payments',
+          platform: 'eks-main',
+          tenant: 'core',
+          env: 'dev',
+          type: 'snapshots',
+        },
+      ],
+    });
+  });
+
+  it('fails the step when a created file appears and has no reconciler', async () => {
+    const api = makeApi();
+    const clock = makeFakeClock();
+    api.setFile({ owner: 'acme', repo: 'state-argocd' }, 'apps/payments/argo-payments.ApplicationSet.yaml', 'not-the-plan\n', 'appset-sha');
+
+    const plan: AppPlanResult = {
+      ...makeFullPlan({
+        claims: [
+          noopFile('claims/components/app-payments.yaml'),
+          noopFile('claims/components/payments-api.yaml'),
+        ],
+      }),
+      schemaDirs: SCHEMA_DIRS,
+    };
+
+    const result = await applyApp(api, plan, {
+      now: clock.now,
+      sleep: clock.sleep,
+    });
+
+    expect(result.outcome).toBe('failed');
+    expect(result.reason).toContain(
+      'apps/payments/argo-payments.ApplicationSet.yaml already exists in acme/state-argocd but the plan creates it',
+    );
+  });
+
+  it('writes nothing to stdout while step 1 provisions when the dispatch presentation is silent', async () => {
+    const api = makeApi();
+    const clock = makeFakeClock();
+    api.onGetPullRequest = (ref, pr) => {
+      api.setPrState(ref, pr, 'closed', true);
+    };
+    const stdout = process.stdout.write as unknown as jest.Mock;
+    stdout.mockClear();
+
+    const result = await applyApp(api, makeFullPlan(), {
+      now: clock.now,
+      sleep: clock.sleep,
+      pulse: { output: () => {}, diagnostic: () => {} },
+      dispatchPresentation: { stdout: () => {}, stderr: () => {} },
+    });
+
+    expect(result.outcome).toBe('done');
+    expect(stdout).not.toHaveBeenCalled();
   });
 });

@@ -439,6 +439,56 @@ describe('fs-forge app apply command', () => {
     );
   });
 
+  it('silences the provision dispatch presentation in --json mode', async () => {
+    MockCreateGitHubApi.mockReturnValue(seedHappyApi());
+    const stdout = jest
+      .spyOn(process.stdout, 'write')
+      .mockImplementation(() => true);
+    const stderr = jest
+      .spyOn(process.stderr, 'write')
+      .mockImplementation(() => true);
+    const spy = jest.spyOn(applyModule, 'applyApp').mockResolvedValue({
+      outcome: 'done',
+      steps: [],
+    });
+
+    const { error } = await runCommand(AppApply, [
+      '--inputs',
+      inputsPath,
+      '--json',
+    ]);
+
+    expect(error).toBeUndefined();
+    const options = spy.mock.calls[0][2] as {
+      dispatchPresentation: {
+        stdout: (line: string) => void;
+        stderr: (line: string) => void;
+      };
+    };
+    stdout.mockClear();
+    stderr.mockClear();
+    options.dispatchPresentation.stdout('{"status":"ok"}\n');
+    options.dispatchPresentation.stderr('Provisioning...\n');
+    expect(stdout).not.toHaveBeenCalled();
+    expect(stderr).not.toHaveBeenCalled();
+  });
+
+  it('keeps the default dispatch presentation without --json', async () => {
+    MockCreateGitHubApi.mockReturnValue(seedHappyApi());
+    const spy = jest.spyOn(applyModule, 'applyApp').mockResolvedValue({
+      outcome: 'done',
+      steps: [],
+    });
+
+    const { error } = await runCommand(AppApply, [
+      '--inputs',
+      inputsPath,
+    ]);
+
+    expect(error).toBeUndefined();
+    expect(spy.mock.calls[0][2]).not.toHaveProperty('dispatchPresentation');
+  });
+
   it('rejects non-positive --timeout with exit code 2', async () => {
     MockCreateGitHubApi.mockReturnValue(seedHappyApi());
 
