@@ -8,6 +8,9 @@ import type { RenderedFile } from './types.js';
 import type { AppInputs, AppTargetInput } from '../../schema/appInputs.js';
 import type { DiscoveredRegistry } from '../dotFirestartr.js';
 
+/** Kubernetes namespace names are DNS-1123 labels, capped at 63 characters. */
+const K8S_LABEL_MAX_LENGTH = 63;
+
 export interface RenderStateAppOptions {
   inputs: AppInputs;
   registries: DiscoveredRegistry[];
@@ -67,6 +70,16 @@ function renderTargetEnvFile(
 ): RenderedFile {
   const path = `kubernetes/${target.platform}/${target.tenant}/${target.env}.yaml`;
   const expectedNamespace = `${target.tenant}-${inputs.app}-${target.env}`;
+
+  if (expectedNamespace.length > K8S_LABEL_MAX_LENGTH) {
+    return {
+      path,
+      outcome: {
+        kind: 'conflict',
+        reason: `Derived namespace "${expectedNamespace}" is ${expectedNamespace.length} characters, exceeding the ${K8S_LABEL_MAX_LENGTH}-character Kubernetes namespace limit`,
+      },
+    };
+  }
 
   if (existingContent === undefined) {
     const obj = {

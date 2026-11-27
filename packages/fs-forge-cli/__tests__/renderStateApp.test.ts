@@ -163,6 +163,32 @@ describe('renderStateAppTargets', () => {
     }
   });
 
+  it('returns conflict when the derived namespace exceeds 63 characters', () => {
+    const files = renderStateAppTargets({
+      inputs: baseInputs({
+        app: 'a'.repeat(50),
+        targets: [
+          {
+            platform: 'example-dev',
+            tenant: 'core-team',
+            env: 'dev',
+            cluster_url: 'https://eks-dev.example.com',
+            track: 'snapshots',
+          },
+        ],
+      }),
+      registries,
+      schemasDir: SCHEMAS_DIR,
+    });
+
+    expect(files[0].path).toBe('kubernetes/example-dev/core-team/dev.yaml');
+    expect(files[0].outcome.kind).toBe('conflict');
+    expect(files[0].content).toBeUndefined();
+    if (files[0].outcome.kind === 'conflict') {
+      expect(files[0].outcome.reason).toContain('63');
+    }
+  });
+
   it('returns a single conflict entry when two targets produce the same env file path', () => {
     const files = renderStateAppTargets({
       inputs: baseInputs({

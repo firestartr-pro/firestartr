@@ -203,6 +203,28 @@ export async function renderStateAppClaim(
     providersMap.set('github', githubMap);
   }
 
+  const existingName: unknown = githubMap.get('name');
+  if (existingName !== undefined && existingName !== appClaimName) {
+    return {
+      path,
+      outcome: {
+        kind: 'conflict',
+        reason: `Existing ${path} targets repository "${String(existingName)}", expected "${appClaimName}"`,
+      },
+    };
+  }
+
+  const existingOrg: unknown = githubMap.get('org');
+  if (existingOrg !== undefined && existingOrg !== org) {
+    return {
+      path,
+      outcome: {
+        kind: 'conflict',
+        reason: `Existing ${path} targets organization "${String(existingOrg)}", expected "${org}"`,
+      },
+    };
+  }
+
   const rawFeatures: unknown = githubMap.get('features', true);
   if (githubMap.has('features') && !(rawFeatures instanceof YAMLSeq)) {
     return {
@@ -242,6 +264,20 @@ export async function renderStateAppClaim(
   const existingFeature = existingMatches[0];
 
   if (existingFeature) {
+    const existingValidation = await validator.validate(
+      parsed,
+      'ComponentClaim',
+    );
+    if (!existingValidation.valid) {
+      return {
+        path,
+        outcome: {
+          kind: 'conflict',
+          reason: `Existing ${path} failed ComponentClaim validation: ${existingValidation.errors.join('; ')}`,
+        },
+      };
+    }
+
     const existingObj = existingFeature.toJS(doc) as Record<string, unknown>;
     const existingMajor = extractFeatureMajor(
       existingObj,

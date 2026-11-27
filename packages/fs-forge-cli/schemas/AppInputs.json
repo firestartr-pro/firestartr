@@ -14,9 +14,10 @@
     },
     "app": {
       "title": "Application",
-      "description": "Application name.",
+      "description": "Application name. Capped at Helm's 53-character release-name limit.",
       "type": "string",
       "minLength": 1,
+      "maxLength": 53,
       "pattern": "^[a-z0-9]([a-z0-9-]*[a-z0-9])?$"
     },
     "service": {

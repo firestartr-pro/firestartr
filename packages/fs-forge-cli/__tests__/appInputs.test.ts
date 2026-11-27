@@ -70,6 +70,23 @@ chart:
     expect(result.valid).toBe(true);
   });
 
+  it('caps the app name at Helm\'s 53-character release-name limit', () => {
+    const withAppName = (app: string): string =>
+      VALID_YAML.replace('app: billing', `app: ${app}`);
+
+    const atLimit = parseAppInputsYaml(withAppName('a'.repeat(53)), SCHEMAS_DIR);
+    expect(atLimit.valid).toBe(true);
+
+    const overLimit = parseAppInputsYaml(
+      withAppName('a'.repeat(54)),
+      SCHEMAS_DIR,
+    );
+    expect(overLimit.valid).toBe(false);
+    if (!overLimit.valid) {
+      expect(overLimit.errors.some((e) => e.includes('/app'))).toBe(true);
+    }
+  });
+
   it('rejects unknown properties with path information', () => {
     const withUnknown = `
 app: billing
