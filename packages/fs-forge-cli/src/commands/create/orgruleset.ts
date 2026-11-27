@@ -77,6 +77,29 @@ export default class CreateOrgRuleset extends Command {
       multiple: false,
     },
     {
+      path: 'providers.github.conditions.ref_name.json',
+      type: 'string',
+      required: false,
+      description: 'Raw JSON object for providers.github.conditions.ref_name',
+      multiple: false,
+    },
+    {
+      path: 'providers.github.conditions.repository_name.json',
+      type: 'string',
+      required: false,
+      description:
+        'Raw JSON object for providers.github.conditions.repository_name',
+      multiple: false,
+    },
+    {
+      path: 'providers.github.conditions.repository_property.json',
+      type: 'string',
+      required: false,
+      description:
+        'Raw JSON object for providers.github.conditions.repository_property',
+      multiple: false,
+    },
+    {
       path: 'providers.github.rules.json',
       type: 'string',
       required: false,

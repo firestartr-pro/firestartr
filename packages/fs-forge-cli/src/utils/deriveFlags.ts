@@ -180,7 +180,16 @@ function walk(
       for (const flag of walk(value, path, unconditionallyRequired)) {
         addFlag(flags, flag);
       }
+      // A bare `{ type: 'object' }` accepts any object, as `additionalProperties:
+      // true` does, and no flag can reach it otherwise.
+      const openObject =
+        value.type === 'object' &&
+        value.additionalProperties === undefined &&
+        !valueAllOf &&
+        !valueUnion &&
+        Object.keys(valueProperties).length === 0;
       if (
+        openObject ||
         value.additionalProperties === true ||
         isRecord(value.additionalProperties) ||
         isRecord(value.patternProperties)

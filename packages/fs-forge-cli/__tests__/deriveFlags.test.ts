@@ -487,4 +487,17 @@ describe('deriveFlags', () => {
       deriveRequiredContainers(claimSchema('TFWorkspaceClaim')),
     ).not.toContain('providers.terraform.context');
   });
+
+  it('derives a JSON flag for an open object and none for a closed one', () => {
+    const flags = deriveFlags({
+      type: 'object',
+      properties: {
+        open: { type: 'object' },
+        closed: { type: 'object', additionalProperties: false },
+        typed: { type: 'object', properties: { name: { type: 'string' } } },
+      },
+    });
+
+    expect(names(flags)).toEqual(['open.json', 'typed.name']);
+  });
 });

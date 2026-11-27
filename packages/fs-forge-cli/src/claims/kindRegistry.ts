@@ -128,7 +128,12 @@ const KIND_OVERRIDES = {
     deleteWorkflow: GITHUB_DELETE,
     variants: false,
     stateRepo: 'state-github',
-    references: ['system', 'owner', 'providers.github.bypass_actors[].group'],
+    references: [
+      'system',
+      'owner',
+      'providers.github.bypass_actors[].group',
+      'providers.github.conditions.repository_name.**',
+    ],
   },
   OrgSettingsClaim: {
     claimsDirectory: 'orgSettings',

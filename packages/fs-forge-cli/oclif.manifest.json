@@ -792,6 +792,30 @@
           ],
           "type": "option"
         },
+        "providers.github.conditions.ref_name.json": {
+          "description": "Raw JSON object for providers.github.conditions.ref_name",
+          "name": "providers.github.conditions.ref_name.json",
+          "required": false,
+          "hasDynamicHelp": false,
+          "multiple": false,
+          "type": "option"
+        },
+        "providers.github.conditions.repository_name.json": {
+          "description": "Raw JSON object for providers.github.conditions.repository_name",
+          "name": "providers.github.conditions.repository_name.json",
+          "required": false,
+          "hasDynamicHelp": false,
+          "multiple": false,
+          "type": "option"
+        },
+        "providers.github.conditions.repository_property.json": {
+          "description": "Raw JSON object for providers.github.conditions.repository_property",
+          "name": "providers.github.conditions.repository_property.json",
+          "required": false,
+          "hasDynamicHelp": false,
+          "multiple": false,
+          "type": "option"
+        },
         "providers.github.rules.json": {
           "description": "Raw JSON value for providers.github.rules (escape hatch for complex arrays)",
           "name": "providers.github.rules.json",
@@ -3698,6 +3722,30 @@
           ],
           "type": "option"
         },
+        "providers.github.conditions.ref_name.json": {
+          "description": "Raw JSON object for providers.github.conditions.ref_name",
+          "name": "providers.github.conditions.ref_name.json",
+          "required": false,
+          "hasDynamicHelp": false,
+          "multiple": false,
+          "type": "option"
+        },
+        "providers.github.conditions.repository_name.json": {
+          "description": "Raw JSON object for providers.github.conditions.repository_name",
+          "name": "providers.github.conditions.repository_name.json",
+          "required": false,
+          "hasDynamicHelp": false,
+          "multiple": false,
+          "type": "option"
+        },
+        "providers.github.conditions.repository_property.json": {
+          "description": "Raw JSON object for providers.github.conditions.repository_property",
+          "name": "providers.github.conditions.repository_property.json",
+          "required": false,
+          "hasDynamicHelp": false,
+          "multiple": false,
+          "type": "option"
+        },
         "providers.github.rules.json": {
           "description": "Raw JSON value for providers.github.rules (escape hatch for complex arrays)",
           "name": "providers.github.rules.json",
@@ -3914,6 +3962,27 @@
             "evaluate",
             "disabled"
           ],
+          "multiple": false
+        },
+        {
+          "path": "providers.github.conditions.ref_name.json",
+          "type": "string",
+          "required": false,
+          "description": "Raw JSON object for providers.github.conditions.ref_name",
+          "multiple": false
+        },
+        {
+          "path": "providers.github.conditions.repository_name.json",
+          "type": "string",
+          "required": false,
+          "description": "Raw JSON object for providers.github.conditions.repository_name",
+          "multiple": false
+        },
+        {
+          "path": "providers.github.conditions.repository_property.json",
+          "type": "string",
+          "required": false,
+          "description": "Raw JSON object for providers.github.conditions.repository_property",
           "multiple": false
         },
         {
