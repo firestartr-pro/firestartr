@@ -130,7 +130,14 @@ describe('kind registry', () => {
       SystemClaim: { directory: 'systems', requiresExplicitPath: false },
       DomainClaim: { directory: 'domains', requiresExplicitPath: false },
       OrgWebhookClaim: { directory: 'orgWebhook', requiresExplicitPath: false },
-      OrgSettingsClaim: { directory: 'orgSettings', requiresExplicitPath: false },
+      OrgRulesetClaim: {
+        directory: 'orgrulesets',
+        requiresExplicitPath: false,
+      },
+      OrgSettingsClaim: {
+        directory: 'orgSettings',
+        requiresExplicitPath: false,
+      },
       ArgoDeployClaim: { directory: 'argocd', requiresExplicitPath: false },
       TFWorkspaceClaim: { requiresExplicitPath: true },
       SecretsClaim: { requiresExplicitPath: true },
@@ -285,6 +292,12 @@ describe('kind capabilities against the claim schemas', () => {
         stateRepo: null,
       },
       GroupClaim: {
+        hydration: 'hydrate-github-claim.yaml',
+        inputs: ['kind', 'name'],
+        deletion: 'delete-github-claim.yaml',
+        stateRepo: 'state-github',
+      },
+      OrgRulesetClaim: {
         hydration: 'hydrate-github-claim.yaml',
         inputs: ['kind', 'name'],
         deletion: 'delete-github-claim.yaml',

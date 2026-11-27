@@ -54,6 +54,8 @@
             "DomainClaim",
             "group",
             "GroupClaim",
+            "orgruleset",
+            "OrgRulesetClaim",
             "orgsettings",
             "OrgSettingsClaim",
             "orgwebhook",
@@ -762,6 +764,72 @@
           "required": false,
           "hasDynamicHelp": false,
           "multiple": true,
+          "type": "option"
+        },
+        "providers.github.target": {
+          "description": "providers.github.target (required when its parent is supplied)",
+          "name": "providers.github.target",
+          "required": false,
+          "hasDynamicHelp": false,
+          "multiple": false,
+          "options": [
+            "branch",
+            "tag",
+            "push"
+          ],
+          "type": "option"
+        },
+        "providers.github.enforcement": {
+          "description": "providers.github.enforcement (required when its parent is supplied)",
+          "name": "providers.github.enforcement",
+          "required": false,
+          "hasDynamicHelp": false,
+          "multiple": false,
+          "options": [
+            "active",
+            "evaluate",
+            "disabled"
+          ],
+          "type": "option"
+        },
+        "providers.github.conditions.ref_name.json": {
+          "description": "Raw JSON object for providers.github.conditions.ref_name",
+          "name": "providers.github.conditions.ref_name.json",
+          "required": false,
+          "hasDynamicHelp": false,
+          "multiple": false,
+          "type": "option"
+        },
+        "providers.github.conditions.repository_name.json": {
+          "description": "Raw JSON object for providers.github.conditions.repository_name",
+          "name": "providers.github.conditions.repository_name.json",
+          "required": false,
+          "hasDynamicHelp": false,
+          "multiple": false,
+          "type": "option"
+        },
+        "providers.github.conditions.repository_property.json": {
+          "description": "Raw JSON object for providers.github.conditions.repository_property",
+          "name": "providers.github.conditions.repository_property.json",
+          "required": false,
+          "hasDynamicHelp": false,
+          "multiple": false,
+          "type": "option"
+        },
+        "providers.github.rules.json": {
+          "description": "Raw JSON value for providers.github.rules (escape hatch for complex arrays)",
+          "name": "providers.github.rules.json",
+          "required": false,
+          "hasDynamicHelp": false,
+          "multiple": false,
+          "type": "option"
+        },
+        "providers.github.bypass_actors.json": {
+          "description": "Raw JSON value for providers.github.bypass_actors (escape hatch for complex arrays)",
+          "name": "providers.github.bypass_actors.json",
+          "required": false,
+          "hasDynamicHelp": false,
+          "multiple": false,
           "type": "option"
         },
         "providers.github.billing_email": {
@@ -3569,6 +3637,414 @@
         "group.js"
       ]
     },
+    "create:orgruleset": {
+      "aliases": [],
+      "args": {},
+      "description": "Create a new OrgRulesetClaim.",
+      "examples": [
+        "<%= config.bin %> <%= command.id %> --name example --owner group:platform"
+      ],
+      "flags": {
+        "name": {
+          "name": "name",
+          "required": true,
+          "hasDynamicHelp": false,
+          "multiple": false,
+          "type": "option"
+        },
+        "description": {
+          "name": "description",
+          "required": false,
+          "hasDynamicHelp": false,
+          "multiple": false,
+          "type": "option"
+        },
+        "type": {
+          "name": "type",
+          "required": false,
+          "hasDynamicHelp": false,
+          "multiple": false,
+          "type": "option"
+        },
+        "lifecycle": {
+          "name": "lifecycle",
+          "required": false,
+          "hasDynamicHelp": false,
+          "multiple": false,
+          "type": "option"
+        },
+        "version": {
+          "name": "version",
+          "required": false,
+          "hasDynamicHelp": false,
+          "multiple": false,
+          "type": "option"
+        },
+        "providers.github.name": {
+          "description": "providers.github.name (required when its parent is supplied)",
+          "name": "providers.github.name",
+          "required": false,
+          "hasDynamicHelp": false,
+          "multiple": false,
+          "type": "option"
+        },
+        "providers.github.org": {
+          "description": "providers.github.org (required when its parent is supplied)",
+          "name": "providers.github.org",
+          "required": false,
+          "hasDynamicHelp": false,
+          "multiple": false,
+          "type": "option"
+        },
+        "providers.github.target": {
+          "description": "providers.github.target (required when its parent is supplied)",
+          "name": "providers.github.target",
+          "required": false,
+          "hasDynamicHelp": false,
+          "multiple": false,
+          "options": [
+            "branch",
+            "tag",
+            "push"
+          ],
+          "type": "option"
+        },
+        "providers.github.enforcement": {
+          "description": "providers.github.enforcement (required when its parent is supplied)",
+          "name": "providers.github.enforcement",
+          "required": false,
+          "hasDynamicHelp": false,
+          "multiple": false,
+          "options": [
+            "active",
+            "evaluate",
+            "disabled"
+          ],
+          "type": "option"
+        },
+        "providers.github.conditions.ref_name.json": {
+          "description": "Raw JSON object for providers.github.conditions.ref_name",
+          "name": "providers.github.conditions.ref_name.json",
+          "required": false,
+          "hasDynamicHelp": false,
+          "multiple": false,
+          "type": "option"
+        },
+        "providers.github.conditions.repository_name.json": {
+          "description": "Raw JSON object for providers.github.conditions.repository_name",
+          "name": "providers.github.conditions.repository_name.json",
+          "required": false,
+          "hasDynamicHelp": false,
+          "multiple": false,
+          "type": "option"
+        },
+        "providers.github.conditions.repository_property.json": {
+          "description": "Raw JSON object for providers.github.conditions.repository_property",
+          "name": "providers.github.conditions.repository_property.json",
+          "required": false,
+          "hasDynamicHelp": false,
+          "multiple": false,
+          "type": "option"
+        },
+        "providers.github.rules.json": {
+          "description": "Raw JSON value for providers.github.rules (escape hatch for complex arrays)",
+          "name": "providers.github.rules.json",
+          "required": false,
+          "hasDynamicHelp": false,
+          "multiple": false,
+          "type": "option"
+        },
+        "providers.github.bypass_actors.json": {
+          "description": "Raw JSON value for providers.github.bypass_actors (escape hatch for complex arrays)",
+          "name": "providers.github.bypass_actors.json",
+          "required": false,
+          "hasDynamicHelp": false,
+          "multiple": false,
+          "type": "option"
+        },
+        "profile.displayName": {
+          "name": "profile.displayName",
+          "required": false,
+          "hasDynamicHelp": false,
+          "multiple": false,
+          "type": "option"
+        },
+        "profile.email": {
+          "name": "profile.email",
+          "required": false,
+          "hasDynamicHelp": false,
+          "multiple": false,
+          "type": "option"
+        },
+        "profile.picture": {
+          "name": "profile.picture",
+          "required": false,
+          "hasDynamicHelp": false,
+          "multiple": false,
+          "type": "option"
+        },
+        "annotations.json": {
+          "description": "Raw JSON object for annotations",
+          "name": "annotations.json",
+          "required": false,
+          "hasDynamicHelp": false,
+          "multiple": false,
+          "type": "option"
+        },
+        "system": {
+          "name": "system",
+          "required": false,
+          "hasDynamicHelp": false,
+          "multiple": false,
+          "type": "option"
+        },
+        "owner": {
+          "name": "owner",
+          "required": true,
+          "hasDynamicHelp": false,
+          "multiple": false,
+          "type": "option"
+        },
+        "org": {
+          "description": "GitHub organization containing the claims repo (default: FSCRT_ORG, then the config entry matching the current directory)",
+          "env": "FSCRT_ORG",
+          "name": "org",
+          "noCacheDefault": true,
+          "hasDynamicHelp": false,
+          "multiple": false,
+          "type": "option"
+        },
+        "commit": {
+          "description": "Commit the claim and run the unattended provision workflow: open a PR, wait for verification, merge it, dispatch hydration, wait for it to finish, and merge the resulting second PR.",
+          "name": "commit",
+          "allowNo": false,
+          "type": "boolean"
+        },
+        "wait-for-checks": {
+          "description": "After provisioning, watch wet PR check runs until completion (requires --commit; --no-wait-for-checks to skip)",
+          "name": "wait-for-checks",
+          "allowNo": true,
+          "type": "boolean"
+        },
+        "state-repos": {
+          "description": "Comma-separated state repos for --wait-for-checks (default: <org>/state-github,<org>/state-infra)",
+          "name": "state-repos",
+          "hasDynamicHelp": false,
+          "multiple": false,
+          "type": "option"
+        },
+        "issue": {
+          "dependsOn": [
+            "commit"
+          ],
+          "description": "Link the commit to an existing claims-repo issue (adds \"Closes #N\" to the claim PR)",
+          "exclusive": [
+            "create-issue"
+          ],
+          "name": "issue",
+          "hasDynamicHelp": false,
+          "multiple": false,
+          "type": "option"
+        },
+        "create-issue": {
+          "dependsOn": [
+            "commit"
+          ],
+          "description": "Open an issue in the claims repo before committing, then link it to the claim PR",
+          "exclusive": [
+            "issue"
+          ],
+          "name": "create-issue",
+          "allowNo": false,
+          "type": "boolean"
+        },
+        "issue-title": {
+          "dependsOn": [
+            "create-issue"
+          ],
+          "description": "Title for the issue opened by --create-issue",
+          "name": "issue-title",
+          "hasDynamicHelp": false,
+          "multiple": false,
+          "type": "option"
+        },
+        "issue-body": {
+          "dependsOn": [
+            "create-issue"
+          ],
+          "description": "Body for the issue opened by --create-issue",
+          "name": "issue-body",
+          "hasDynamicHelp": false,
+          "multiple": false,
+          "type": "option"
+        },
+        "path": {
+          "description": "Destination path for TFWorkspaceClaim or SecretsClaim",
+          "name": "path",
+          "hasDynamicHelp": false,
+          "multiple": false,
+          "type": "option"
+        }
+      },
+      "hasDynamicHelp": false,
+      "hiddenAliases": [],
+      "id": "create:orgruleset",
+      "pluginAlias": "@firestartr/fs-forge-cli",
+      "pluginName": "@firestartr/fs-forge-cli",
+      "pluginType": "core",
+      "strict": true,
+      "summary": "Configure a GitHub organization ruleset that covers many repositories.",
+      "enableJsonFlag": false,
+      "FLAG_SPECS": [
+        {
+          "path": "name",
+          "type": "string",
+          "required": true,
+          "multiple": false
+        },
+        {
+          "path": "description",
+          "type": "string",
+          "required": false,
+          "multiple": false
+        },
+        {
+          "path": "type",
+          "type": "string",
+          "required": false,
+          "multiple": false
+        },
+        {
+          "path": "lifecycle",
+          "type": "string",
+          "required": false,
+          "multiple": false
+        },
+        {
+          "path": "version",
+          "type": "string",
+          "required": false,
+          "multiple": false
+        },
+        {
+          "path": "providers.github.name",
+          "type": "string",
+          "required": false,
+          "conditionalRequired": true,
+          "multiple": false
+        },
+        {
+          "path": "providers.github.org",
+          "type": "string",
+          "required": false,
+          "conditionalRequired": true,
+          "multiple": false
+        },
+        {
+          "path": "providers.github.target",
+          "type": "string",
+          "required": false,
+          "conditionalRequired": true,
+          "enumValues": [
+            "branch",
+            "tag",
+            "push"
+          ],
+          "multiple": false
+        },
+        {
+          "path": "providers.github.enforcement",
+          "type": "string",
+          "required": false,
+          "conditionalRequired": true,
+          "enumValues": [
+            "active",
+            "evaluate",
+            "disabled"
+          ],
+          "multiple": false
+        },
+        {
+          "path": "providers.github.conditions.ref_name.json",
+          "type": "string",
+          "required": false,
+          "description": "Raw JSON object for providers.github.conditions.ref_name",
+          "multiple": false
+        },
+        {
+          "path": "providers.github.conditions.repository_name.json",
+          "type": "string",
+          "required": false,
+          "description": "Raw JSON object for providers.github.conditions.repository_name",
+          "multiple": false
+        },
+        {
+          "path": "providers.github.conditions.repository_property.json",
+          "type": "string",
+          "required": false,
+          "description": "Raw JSON object for providers.github.conditions.repository_property",
+          "multiple": false
+        },
+        {
+          "path": "providers.github.rules.json",
+          "type": "string",
+          "required": false,
+          "description": "Raw JSON value for providers.github.rules (escape hatch for complex arrays)",
+          "multiple": false
+        },
+        {
+          "path": "providers.github.bypass_actors.json",
+          "type": "string",
+          "required": false,
+          "description": "Raw JSON value for providers.github.bypass_actors (escape hatch for complex arrays)",
+          "multiple": false
+        },
+        {
+          "path": "profile.displayName",
+          "type": "string",
+          "required": false,
+          "multiple": false
+        },
+        {
+          "path": "profile.email",
+          "type": "string",
+          "required": false,
+          "multiple": false
+        },
+        {
+          "path": "profile.picture",
+          "type": "string",
+          "required": false,
+          "multiple": false
+        },
+        {
+          "path": "annotations.json",
+          "type": "string",
+          "required": false,
+          "description": "Raw JSON object for annotations",
+          "multiple": false
+        },
+        {
+          "path": "system",
+          "type": "string",
+          "required": false,
+          "multiple": false
+        },
+        {
+          "path": "owner",
+          "type": "string",
+          "required": true,
+          "multiple": false
+        }
+      ],
+      "isESM": true,
+      "relativePath": [
+        "dist",
+        "commands",
+        "create",
+        "orgruleset.js"
+      ]
+    },
     "create:orgsettings": {
       "aliases": [],
       "args": {},
@@ -6192,6 +6668,8 @@
             "DomainClaim",
             "group",
             "GroupClaim",
+            "orgruleset",
+            "OrgRulesetClaim",
             "orgsettings",
             "OrgSettingsClaim",
             "orgwebhook",
@@ -6276,6 +6754,8 @@
             "DomainClaim",
             "group",
             "GroupClaim",
+            "orgruleset",
+            "OrgRulesetClaim",
             "orgsettings",
             "OrgSettingsClaim",
             "orgwebhook",
@@ -6353,66 +6833,6 @@
         "commands",
         "diagram",
         "print.js"
-      ]
-    },
-    "kinds:show": {
-      "aliases": [],
-      "args": {
-        "kind": {
-          "description": "Claim kind (short ID; full *Claim names remain supported)",
-          "name": "kind",
-          "options": [
-            "argodeploy",
-            "ArgoDeployClaim",
-            "component",
-            "ComponentClaim",
-            "domain",
-            "DomainClaim",
-            "group",
-            "GroupClaim",
-            "orgsettings",
-            "OrgSettingsClaim",
-            "orgwebhook",
-            "OrgWebhookClaim",
-            "secrets",
-            "SecretsClaim",
-            "system",
-            "SystemClaim",
-            "tfworkspace",
-            "TFWorkspaceClaim",
-            "user",
-            "UserClaim"
-          ],
-          "required": true
-        }
-      },
-      "description": "Show what one claim kind supports",
-      "examples": [
-        "<%= config.bin %> <%= command.id %> component",
-        "<%= config.bin %> <%= command.id %> ComponentClaim --json"
-      ],
-      "flags": {
-        "json": {
-          "description": "Output as JSON",
-          "name": "json",
-          "allowNo": false,
-          "type": "boolean"
-        }
-      },
-      "hasDynamicHelp": false,
-      "hiddenAliases": [],
-      "id": "kinds:show",
-      "pluginAlias": "@firestartr/fs-forge-cli",
-      "pluginName": "@firestartr/fs-forge-cli",
-      "pluginType": "core",
-      "strict": true,
-      "enableJsonFlag": false,
-      "isESM": true,
-      "relativePath": [
-        "dist",
-        "commands",
-        "kinds",
-        "show.js"
       ]
     },
     "features:add": {
@@ -7081,6 +7501,68 @@
         "commands",
         "features",
         "remove.js"
+      ]
+    },
+    "kinds:show": {
+      "aliases": [],
+      "args": {
+        "kind": {
+          "description": "Claim kind (short ID; full *Claim names remain supported)",
+          "name": "kind",
+          "options": [
+            "argodeploy",
+            "ArgoDeployClaim",
+            "component",
+            "ComponentClaim",
+            "domain",
+            "DomainClaim",
+            "group",
+            "GroupClaim",
+            "orgruleset",
+            "OrgRulesetClaim",
+            "orgsettings",
+            "OrgSettingsClaim",
+            "orgwebhook",
+            "OrgWebhookClaim",
+            "secrets",
+            "SecretsClaim",
+            "system",
+            "SystemClaim",
+            "tfworkspace",
+            "TFWorkspaceClaim",
+            "user",
+            "UserClaim"
+          ],
+          "required": true
+        }
+      },
+      "description": "Show what one claim kind supports",
+      "examples": [
+        "<%= config.bin %> <%= command.id %> component",
+        "<%= config.bin %> <%= command.id %> ComponentClaim --json"
+      ],
+      "flags": {
+        "json": {
+          "description": "Output as JSON",
+          "name": "json",
+          "allowNo": false,
+          "type": "boolean"
+        }
+      },
+      "hasDynamicHelp": false,
+      "hiddenAliases": [],
+      "id": "kinds:show",
+      "pluginAlias": "@firestartr/fs-forge-cli",
+      "pluginName": "@firestartr/fs-forge-cli",
+      "pluginType": "core",
+      "strict": true,
+      "enableJsonFlag": false,
+      "isESM": true,
+      "relativePath": [
+        "dist",
+        "commands",
+        "kinds",
+        "show.js"
       ]
     },
     "schema:list": {

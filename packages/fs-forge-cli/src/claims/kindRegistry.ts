@@ -119,6 +119,22 @@ const KIND_OVERRIDES = {
     stateRepo: 'state-github',
     references: ['parent', 'children[]', 'members[]'],
   },
+  OrgRulesetClaim: {
+    claimsDirectory: 'orgrulesets',
+    catalogOnly: false,
+    preflight: null,
+    orgField: 'providers.github.org',
+    hydration: GITHUB_HYDRATION,
+    deleteWorkflow: GITHUB_DELETE,
+    variants: false,
+    stateRepo: 'state-github',
+    references: [
+      'system',
+      'owner',
+      'providers.github.bypass_actors[].group',
+      'providers.github.conditions.repository_name.**',
+    ],
+  },
   OrgSettingsClaim: {
     claimsDirectory: 'orgSettings',
     catalogOnly: false,

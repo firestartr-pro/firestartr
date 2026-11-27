@@ -2,6 +2,7 @@ import CreateArgodeploy from '../commands/create/argodeploy.js';
 import CreateComponent from '../commands/create/component.js';
 import CreateDomain from '../commands/create/domain.js';
 import CreateGroup from '../commands/create/group.js';
+import CreateOrgruleset from '../commands/create/orgruleset.js';
 import CreateOrgsettings from '../commands/create/orgsettings.js';
 import CreateOrgwebhook from '../commands/create/orgwebhook.js';
 import CreateSecrets from '../commands/create/secrets.js';
@@ -17,6 +18,7 @@ const CREATE_COMMANDS = {
   ComponentClaim: CreateComponent,
   DomainClaim: CreateDomain,
   GroupClaim: CreateGroup,
+  OrgRulesetClaim: CreateOrgruleset,
   OrgSettingsClaim: CreateOrgsettings,
   OrgWebhookClaim: CreateOrgwebhook,
   SecretsClaim: CreateSecrets,

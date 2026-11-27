@@ -74,8 +74,8 @@ extra keywords, and the flags hidden from `create`.
 
 **Kind**:
 The type of a claim — `ArgoDeployClaim`, `ComponentClaim`, `DomainClaim`,
-`GroupClaim`, `OrgSettingsClaim`, `OrgWebhookClaim`, `SecretsClaim`,
-`SystemClaim`, `TFWorkspaceClaim`, `UserClaim`.
+`GroupClaim`, `OrgRulesetClaim`, `OrgSettingsClaim`, `OrgWebhookClaim`,
+`SecretsClaim`, `SystemClaim`, `TFWorkspaceClaim`, `UserClaim`.
 
 **Kind capability**:
 What one kind supports beyond its schema: its claims directory (or that `--path`
@@ -170,7 +170,7 @@ branch, runs verify, merges, dispatches hydration, and merges the wet PR. Takes
 **Deterministic path**:
 The conventional mapping from claim kind to directory under `claims/`.
 GitHub elements (`ComponentClaim`, `GroupClaim`, `UserClaim`, `SystemClaim`,
-`DomainClaim`, `OrgWebhookClaim`, `ArgoDeployClaim`) follow
+`DomainClaim`, `OrgWebhookClaim`, `OrgRulesetClaim`, `ArgoDeployClaim`) follow
 `<kind-dir>/<name>.yaml`. `TFWorkspaceClaim` and `SecretsClaim` use a
 user-provided `--path`.
 

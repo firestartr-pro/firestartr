@@ -10,6 +10,7 @@ const CLAIM_KINDS = [
   'ComponentClaim',
   'DomainClaim',
   'GroupClaim',
+  'OrgRulesetClaim',
   'OrgSettingsClaim',
   'OrgWebhookClaim',
   'SecretsClaim',
@@ -62,9 +63,9 @@ it('uses each claim schema summary in the kinds output', async () => {
 it('carries the full per-kind capability shape for every kind', async () => {
   for (const entry of await kindsJson()) {
     expect(Object.keys(entry).sort()).toEqual([...CAPABILITY_KEYS].sort());
-    expect(entry.hydration === null || typeof entry.hydration === 'object').toBe(
-      true,
-    );
+    expect(
+      entry.hydration === null || typeof entry.hydration === 'object',
+    ).toBe(true);
     if (entry.hydration) {
       expect(Object.keys(entry.hydration).sort()).toEqual([
         'inputs',

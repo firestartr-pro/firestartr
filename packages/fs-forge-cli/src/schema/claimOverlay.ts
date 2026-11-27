@@ -29,6 +29,11 @@ export const CLAIM_PRESENTATION: Record<string, ClaimPresentation> = {
     icon: { emoji: '👥', ascii: '[GRP]' },
     summary: 'Manage a GitHub team and its membership.',
   },
+  OrgRulesetClaim: {
+    icon: { emoji: '🛡️', ascii: '[RUL]' },
+    summary:
+      'Configure a GitHub organization ruleset that covers many repositories.',
+  },
   OrgSettingsClaim: {
     icon: { emoji: '🏢', ascii: '[ORG]' },
     summary: 'Configure GitHub organization settings, variables, and secrets.',
@@ -177,6 +182,7 @@ export const SCHEMA_PATCHES: Record<string, SchemaPatches> = {
 export const HIDDEN_FLAGS: Record<string, readonly string[]> = {
   ArgoDeployClaim: ['providers.argocd.json'],
   GroupClaim: ['providers.github.tfStateKey', 'providers.github.sync'],
+  OrgRulesetClaim: ['providers.github.tfStateKey'],
   OrgWebhookClaim: ['providers.github.tfStateKey'],
   TFWorkspaceClaim: [
     'providers.terraform.tfStateKey',

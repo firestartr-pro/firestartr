@@ -1,0 +1,216 @@
+import { Command, Flags } from '@oclif/core';
+
+import { assertCreatePath } from '../../claims/deterministicPath.js';
+import { parseStateRepos } from '../../context/resolve.js';
+import { runClaimCreation } from '../../mutations/creation.js';
+import { claimSchemasDir } from '../../schema/claimSchemas.js';
+import {
+  AUDIT_TRAIL_FLAGS,
+  MUTATION_CONTROL_FLAGS,
+  auditTrailOptions,
+} from '../../mutations/support.js';
+import { createClaimValidator } from '../../utils/ajvValidation.js';
+import { buildClaimFromFlags } from '../../utils/buildClaim.js';
+import { runtimeFlags } from '../../utils/runtimeFlags.js';
+import type { FlagSpec } from '../../utils/deriveFlags.js';
+
+export default class CreateOrgRuleset extends Command {
+  static FLAG_SPECS = [
+    {
+      path: 'name',
+      type: 'string',
+      required: true,
+      multiple: false,
+    },
+    {
+      path: 'description',
+      type: 'string',
+      required: false,
+      multiple: false,
+    },
+    {
+      path: 'type',
+      type: 'string',
+      required: false,
+      multiple: false,
+    },
+    {
+      path: 'lifecycle',
+      type: 'string',
+      required: false,
+      multiple: false,
+    },
+    {
+      path: 'version',
+      type: 'string',
+      required: false,
+      multiple: false,
+    },
+    {
+      path: 'providers.github.name',
+      type: 'string',
+      required: false,
+      conditionalRequired: true,
+      multiple: false,
+    },
+    {
+      path: 'providers.github.org',
+      type: 'string',
+      required: false,
+      conditionalRequired: true,
+      multiple: false,
+    },
+    {
+      path: 'providers.github.target',
+      type: 'string',
+      required: false,
+      conditionalRequired: true,
+      enumValues: ['branch', 'tag', 'push'],
+      multiple: false,
+    },
+    {
+      path: 'providers.github.enforcement',
+      type: 'string',
+      required: false,
+      conditionalRequired: true,
+      enumValues: ['active', 'evaluate', 'disabled'],
+      multiple: false,
+    },
+    {
+      path: 'providers.github.conditions.ref_name.json',
+      type: 'string',
+      required: false,
+      description: 'Raw JSON object for providers.github.conditions.ref_name',
+      multiple: false,
+    },
+    {
+      path: 'providers.github.conditions.repository_name.json',
+      type: 'string',
+      required: false,
+      description:
+        'Raw JSON object for providers.github.conditions.repository_name',
+      multiple: false,
+    },
+    {
+      path: 'providers.github.conditions.repository_property.json',
+      type: 'string',
+      required: false,
+      description:
+        'Raw JSON object for providers.github.conditions.repository_property',
+      multiple: false,
+    },
+    {
+      path: 'providers.github.rules.json',
+      type: 'string',
+      required: false,
+      description:
+        'Raw JSON value for providers.github.rules (escape hatch for complex arrays)',
+      multiple: false,
+    },
+    {
+      path: 'providers.github.bypass_actors.json',
+      type: 'string',
+      required: false,
+      description:
+        'Raw JSON value for providers.github.bypass_actors (escape hatch for complex arrays)',
+      multiple: false,
+    },
+    {
+      path: 'profile.displayName',
+      type: 'string',
+      required: false,
+      multiple: false,
+    },
+    {
+      path: 'profile.email',
+      type: 'string',
+      required: false,
+      multiple: false,
+    },
+    {
+      path: 'profile.picture',
+      type: 'string',
+      required: false,
+      multiple: false,
+    },
+    {
+      path: 'annotations.json',
+      type: 'string',
+      required: false,
+      description: 'Raw JSON object for annotations',
+      multiple: false,
+    },
+    {
+      path: 'system',
+      type: 'string',
+      required: false,
+      multiple: false,
+    },
+    {
+      path: 'owner',
+      type: 'string',
+      required: true,
+      multiple: false,
+    },
+  ] as unknown as FlagSpec[];
+
+  static summary =
+    'Configure a GitHub organization ruleset that covers many repositories.';
+
+  static description = 'Create a new OrgRulesetClaim.';
+
+  static flags = {
+    ...runtimeFlags(CreateOrgRuleset.FLAG_SPECS),
+
+    org: MUTATION_CONTROL_FLAGS.org,
+    commit: MUTATION_CONTROL_FLAGS.commit,
+    'wait-for-checks': MUTATION_CONTROL_FLAGS['wait-for-checks'],
+    'state-repos': MUTATION_CONTROL_FLAGS['state-repos'],
+    ...AUDIT_TRAIL_FLAGS,
+    path: Flags.string({
+      description: 'Destination path for TFWorkspaceClaim or SecretsClaim',
+    }),
+  };
+
+  static examples = [
+    '<%= config.bin %> <%= command.id %> --name example --owner group:platform',
+  ];
+
+  async run(): Promise<void> {
+    const { flags } = await this.parse(CreateOrgRuleset);
+
+    assertCreatePath('OrgRulesetClaim', flags.commit, flags.path);
+
+    const claim = {
+      kind: 'OrgRulesetClaim',
+      ...buildClaimFromFlags(
+        flags as Record<string, unknown>,
+        CreateOrgRuleset.FLAG_SPECS,
+        ['providers'],
+      ),
+    };
+    const validator = createClaimValidator({
+      schemasDir: claimSchemasDir(this.config.root),
+    });
+    const result = await validator.validate(claim, 'OrgRulesetClaim');
+    if (!result.valid) {
+      this.error(result.errors.join('\n'));
+    }
+    await runClaimCreation({
+      org: flags.org,
+      kind: 'OrgRulesetClaim',
+      name: flags.name,
+      claim,
+      commit: flags.commit,
+      waitForChecks: flags['wait-for-checks'],
+      stateRepos:
+        flags.commit && flags.org
+          ? parseStateRepos(flags['state-repos'], flags.org)
+          : undefined,
+      ...auditTrailOptions(flags),
+      path: flags.path,
+      writeOutput: (output) => this.log(output),
+      writeDiagnostic: (output) => process.stderr.write(output),
+    });
+  }
+}

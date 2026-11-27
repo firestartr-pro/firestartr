@@ -20,6 +20,12 @@ export const CLAIM_KINDS = {
     icon: { emoji: '👥', ascii: '[GRP]' },
     summary: 'Manage a GitHub team and its membership.',
   },
+  OrgRulesetClaim: {
+    id: 'orgruleset',
+    icon: { emoji: '🛡️', ascii: '[RUL]' },
+    summary:
+      'Configure a GitHub organization ruleset that covers many repositories.',
+  },
   OrgSettingsClaim: {
     id: 'orgsettings',
     icon: { emoji: '🏢', ascii: '[ORG]' },
