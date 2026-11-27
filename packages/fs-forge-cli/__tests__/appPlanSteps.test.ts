@@ -55,7 +55,7 @@ function makeContext(
     },
     serviceClaimPath: 'components/payments-api.yaml',
     serviceClaimContent: '',
-    serviceClaimDefaults: { githubOrg: 'acme' },
+    serviceClaimDefaults: {},
     featureMajors: {
       build_and_dispatch_docker_images: 7,
       release_please: 2,

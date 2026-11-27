@@ -266,6 +266,40 @@ describe('app plan (resolve, render, checks)', () => {
     expect(byId.get('vars-and-secrets')?.status).toBe('info');
   });
 
+  it('targets the App organization for the state-repo claim', async () => {
+    const api = new MemoryGitHubApi();
+    seedBaseRepos(api, {
+      orgPlan: 'paid',
+      serviceClaimYaml: YAML.stringify({
+        kind: 'ComponentClaim',
+        version: '1.0',
+        name: 'payments-api',
+        owner: 'group:team-payments',
+        system: 'system:billing',
+        type: 'service',
+        lifecycle: 'production',
+        providers: {
+          github: { name: 'payments-api', org: 'service-owner-org' },
+        },
+      }),
+    });
+
+    const result = await planApp({
+      api,
+      featureSource: createFakeFeatureSource(),
+      inputs: BASE_INPUTS,
+      schemaDirs: SCHEMA_DIRS,
+    });
+
+    // Step 1 provisions app-payments through this claim, and every later step
+    // opens PRs against `<org>/app-<app>`, so the claim must target the App org
+    // rather than the organization the Service repository lives in.
+    const parsed = YAML.parse(result.files.claims[0].content ?? '') as {
+      providers: { github: { org: string } };
+    };
+    expect(parsed.providers.github.org).toBe(ORG);
+  });
+
   it('produces all noop on a full rerun', async () => {
     const api = new MemoryGitHubApi();
     seedBaseRepos(api, { orgPlan: 'paid' });

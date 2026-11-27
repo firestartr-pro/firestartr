@@ -36,13 +36,13 @@ const BASE_INPUTS: AppInputs = {
 const SERVICE_CLAIM_DEFAULTS = {
   owner: 'group:default/platform',
   system: 'system:default/payments',
-  githubOrg: 'acme',
 };
 
 describe('renderStateAppClaim', () => {
   it('creates a valid ComponentClaim matching the spec shape', async () => {
     const result = await renderStateAppClaim({
       inputs: BASE_INPUTS,
+      org: 'acme',
       serviceClaim: SERVICE_CLAIM_DEFAULTS,
       stateRepoAppsMajor: 3,
       claimSchemasDir: SCHEMAS_DIR,
@@ -110,6 +110,7 @@ describe('renderStateAppClaim', () => {
         owner: 'group:default/billing-team',
         system: 'system:default/billing-sys',
       },
+      org: 'acme',
       serviceClaim: SERVICE_CLAIM_DEFAULTS,
       stateRepoAppsMajor: 3,
       claimSchemasDir: SCHEMAS_DIR,
@@ -124,6 +125,7 @@ describe('renderStateAppClaim', () => {
   it('is idempotent (noop) on its own created output', async () => {
     const created = await renderStateAppClaim({
       inputs: BASE_INPUTS,
+      org: 'acme',
       serviceClaim: SERVICE_CLAIM_DEFAULTS,
       stateRepoAppsMajor: 3,
       claimSchemasDir: SCHEMAS_DIR,
@@ -131,6 +133,7 @@ describe('renderStateAppClaim', () => {
 
     const second = await renderStateAppClaim({
       inputs: BASE_INPUTS,
+      org: 'acme',
       serviceClaim: SERVICE_CLAIM_DEFAULTS,
       stateRepoAppsMajor: 3,
       claimSchemasDir: SCHEMAS_DIR,
@@ -171,6 +174,7 @@ describe('renderStateAppClaim', () => {
 
     const result = await renderStateAppClaim({
       inputs: BASE_INPUTS,
+      org: 'acme',
       serviceClaim: SERVICE_CLAIM_DEFAULTS,
       stateRepoAppsMajor: 3,
       claimSchemasDir: SCHEMAS_DIR,
@@ -220,6 +224,7 @@ describe('renderStateAppClaim', () => {
 
     const result = await renderStateAppClaim({
       inputs: BASE_INPUTS,
+      org: 'acme',
       serviceClaim: SERVICE_CLAIM_DEFAULTS,
       stateRepoAppsMajor: 3,
       claimSchemasDir: SCHEMAS_DIR,
@@ -247,6 +252,7 @@ describe('renderStateAppClaim', () => {
 
     const result = await renderStateAppClaim({
       inputs: BASE_INPUTS,
+      org: 'acme',
       serviceClaim: SERVICE_CLAIM_DEFAULTS,
       stateRepoAppsMajor: 3,
       claimSchemasDir: SCHEMAS_DIR,
@@ -278,6 +284,7 @@ describe('renderStateAppClaim', () => {
 
     const result = await renderStateAppClaim({
       inputs: BASE_INPUTS,
+      org: 'acme',
       serviceClaim: SERVICE_CLAIM_DEFAULTS,
       stateRepoAppsMajor: 3,
       claimSchemasDir: SCHEMAS_DIR,
@@ -311,6 +318,7 @@ describe('renderStateAppClaim', () => {
 
     const result = await renderStateAppClaim({
       inputs: BASE_INPUTS,
+      org: 'acme',
       serviceClaim: SERVICE_CLAIM_DEFAULTS,
       stateRepoAppsMajor: 3,
       claimSchemasDir: SCHEMAS_DIR,

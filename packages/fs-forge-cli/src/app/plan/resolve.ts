@@ -85,7 +85,6 @@ function extractDefaultFilters(
 
 function parseServiceClaimDefaults(
   content: string,
-  fallbackOrg: string,
   repoSlug: string,
   claimPath: string,
 ): ServiceClaimDefaults {
@@ -99,20 +98,12 @@ function parseServiceClaimDefaults(
     );
   }
   if (!isRecord(parsed)) {
-    return { githubOrg: fallbackOrg };
+    return {};
   }
-  const providers = isRecord(parsed.providers) ? parsed.providers : undefined;
-  const github =
-    providers && isRecord(providers.github) ? providers.github : undefined;
-  const githubOrg =
-    github && typeof github.org === 'string' && github.org.length > 0
-      ? github.org
-      : fallbackOrg;
 
   return {
     ...(typeof parsed.owner === 'string' ? { owner: parsed.owner } : {}),
     ...(typeof parsed.system === 'string' ? { system: parsed.system } : {}),
-    githubOrg,
   };
 }
 
@@ -381,7 +372,6 @@ export async function resolvePlanContext(
   const serviceClaim = await resolveClaim(cRepo, claimsMap, serviceClaimRef);
   const serviceClaimDefaults = parseServiceClaimDefaults(
     serviceClaim.content,
-    org,
     `${org}/${claimsRepoName}`,
     serviceClaim.filePath,
   );

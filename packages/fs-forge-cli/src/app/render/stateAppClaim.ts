@@ -20,11 +20,12 @@ const STATE_REPO_APPS_FEATURE = 'state_repo_apps';
 export interface ServiceClaimDefaults {
   owner?: string;
   system?: string;
-  githubOrg: string;
 }
 
 export interface RenderStateAppClaimOptions {
   inputs: AppInputs;
+  /** Organization every later App step targets; the state repo lives here. */
+  org: string;
   serviceClaim: ServiceClaimDefaults;
   stateRepoAppsMajor: number;
   claimSchemasDir: string;
@@ -57,6 +58,7 @@ export async function renderStateAppClaim(
 ): Promise<RenderedFile> {
   const {
     inputs,
+    org,
     serviceClaim,
     stateRepoAppsMajor,
     claimSchemasDir,
@@ -95,7 +97,7 @@ export async function renderStateAppClaim(
       providers: {
         github: {
           name: appClaimName,
-          org: serviceClaim.githubOrg,
+          org,
           description: `State repository for ${inputs.app} application`,
           visibility: 'private',
           allowAutoMerge: true,

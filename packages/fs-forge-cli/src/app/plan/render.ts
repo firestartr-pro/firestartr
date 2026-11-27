@@ -90,6 +90,7 @@ export async function renderPlanFiles(
         }
       : await renderStateAppClaim({
           inputs,
+          org: context.org,
           serviceClaim: context.serviceClaimDefaults,
           stateRepoAppsMajor: context.featureMajors.state_repo_apps,
           claimSchemasDir: schemaDirs.claimSchemasDir,
