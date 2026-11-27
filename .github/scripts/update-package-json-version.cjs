@@ -14,11 +14,11 @@ module.exports = ({ core }) => {
     process.exit(1);
   }
 
-  const { execSync } = require('child_process');
   const fs = require('fs');
 
-  // Install semver
-  execSync('npm install semver', { stdio: 'inherit' });
+  // semver is a root dependency, installed by the `npm ci` that runs before
+  // this script. Never `npm install` it here: that bumps it in the root
+  // package.json and package-lock.json and pollutes the bump PR.
   const semver = require('semver');
 
   // Validate version with semver

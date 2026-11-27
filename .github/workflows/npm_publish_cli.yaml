@@ -56,6 +56,11 @@ jobs:
             const script = require('./.github/scripts/update-package-json-version.cjs');
             return script({core});
 
+      # The script only edits packages/cli/package.json. Sync the lockfile entry
+      # of the workspace too, or the lockfile-in-sync check fails on the bump PR.
+      - name: Sync package-lock.json
+        run: npm install --package-lock-only --ignore-scripts
+
       - name: Install CLI dependencies
         working-directory: packages/cli
         run: npm ci
@@ -86,4 +91,94 @@ jobs:
           title: "ci: 🦖 bump cli to version: ${{ inputs.version || github.event.release.tag_name }}"
           labels: |
             bump/cli
+          draft: false
+
+  # Bumps the claims schemas that fs-forge-cli consumes to the same version the
+  # release publishes (npm-publish-claims-schemas.yaml uses the same tag).
+  # It is a separate job and PR so that a schema change that needs manual work
+  # (claimOverlay.ts) does not block the cli bump PR.
+  bump-fs-forge-cli-claims-schemas:
+    if: >-
+      ${{
+        !contains(inputs.version || github.event.release.tag_name, '-') &&
+        (
+          (github.event_name == 'release' && startsWith(github.event.release.tag_name, 'v')) ||
+          (github.event_name == 'workflow_dispatch' && inputs.create-pr)
+        )
+      }}
+    runs-on: ubuntu-24.04
+    env:
+      PACKAGE: "@firestartr/firestartr-claims_schemas"
+      RAW_VERSION: ${{ inputs.version || github.event.release.tag_name }}
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v7
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v7
+        with:
+          node-version: "24"
+          registry-url: "https://registry.npmjs.org"
+          cache: "npm"
+          cache-dependency-path: "package-lock.json"
+
+      - name: Install npm
+        run: npm install -g "$(node -p "require('./package.json').packageManager")"
+
+      - name: Resolve version
+        id: version
+        run: echo "value=${RAW_VERSION#v}" >> "$GITHUB_OUTPUT"
+
+      # npm-publish-claims-schemas.yaml runs on the same release and takes about
+      # a minute and a half, so the package may not be in the registry yet.
+      - name: Wait for the schemas package
+        env:
+          VERSION: ${{ steps.version.outputs.value }}
+        run: |
+          for attempt in $(seq 1 30); do
+            if npm view "${PACKAGE}@${VERSION}" version > /dev/null 2>&1; then
+              echo "${PACKAGE}@${VERSION} is published"
+              exit 0
+            fi
+            echo "Attempt ${attempt}/30: ${PACKAGE}@${VERSION} not published yet"
+            sleep 20
+          done
+          echo "::error::${PACKAGE}@${VERSION} was not published within 10 minutes"
+          exit 1
+
+      - name: Install
+        run: npm ci
+
+      - name: Bump the dependency
+        working-directory: packages/fs-forge-cli
+        env:
+          VERSION: ${{ steps.version.outputs.value }}
+        run: npm pkg set "dependencies.${PACKAGE}=${VERSION}" --workspaces=false
+
+      # Installs the new version and syncs the lockfile. Scripts stay off: the
+      # codegen below only needs the package files.
+      - name: Install the new version
+        run: npm install --ignore-scripts --no-audit --no-fund
+
+      # A schema change can add or remove create flags: commit the regenerated
+      # commands. The build throws when claimOverlay.ts points to a path that no
+      # longer exists, and then a person has to fix the overlay.
+      # oclif.manifest.json is not regenerated here: oclif writes its commands in
+      # filesystem order, so it would add a reorder diff to every bump. The
+      # publish workflow of fs-forge-cli generates it before publishing.
+      - name: Regenerate fs-forge-cli commands
+        working-directory: packages/fs-forge-cli
+        run: npm run build
+
+      - name: Create Pull Request
+        uses: peter-evans/create-pull-request@c0f553fe549906ede9cf27b5156039d195d2ece0 # v8.1.0
+        with:
+          token: ${{ secrets.GITHUB_TOKEN }}
+          commit-message: "fix(deps): bump claims schemas in fs-forge-cli to ${{ steps.version.outputs.value }}"
+          branch: "feat/bump-fs-forge-cli-claims-schemas-to-${{ steps.version.outputs.value }}"
+          base: ${{ github.event.repository.default_branch }}
+          delete-branch: true
+          title: "fix(deps): 🦖 bump claims schemas in fs-forge-cli to ${{ steps.version.outputs.value }}"
+          labels: |
+            bump/claims-schemas
           draft: false
