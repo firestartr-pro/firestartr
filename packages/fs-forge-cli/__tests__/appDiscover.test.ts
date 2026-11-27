@@ -1,6 +1,7 @@
 import { readFileSync } from 'fs';
 import { join } from 'path';
 
+import { AppError } from '../src/app/errors.js';
 import { discoverApp, formatDiscoverSummary } from '../src/app/discover.js';
 import { MemoryGitHubApi } from './fixtures/memoryGitHubApi.js';
 
@@ -405,15 +406,23 @@ describe('discoverApp', () => {
       }),
     ).rejects.toThrow(/Cannot infer --service/);
 
-    await expect(
-      discoverApp({
-        api,
-        org: ORG,
-        claimsRepoName: CLAIMS_REPO,
-        app: 'missing-app',
-        service: 'ghost-svc',
-      }),
-    ).rejects.toThrow(/Service claim not found: ComponentClaim-ghost-svc/);
+    const missingServiceClaim = await discoverApp({
+      api,
+      org: ORG,
+      claimsRepoName: CLAIMS_REPO,
+      app: 'missing-app',
+      service: 'ghost-svc',
+    }).catch((error: unknown) => error);
+
+    expect(missingServiceClaim).toBeInstanceOf(AppError);
+    const failure = missingServiceClaim as AppError;
+    expect(failure.code).toBe('NO_SERVICE_CLAIM');
+    expect(failure.message).toContain(
+      'Service claim not found: ComponentClaim-ghost-svc',
+    );
+    expect(failure.message).toContain(
+      'fs-forge create component --name ghost-svc',
+    );
   });
 
   it('detects owner/system disagreement across other repo entries of the App', async () => {
