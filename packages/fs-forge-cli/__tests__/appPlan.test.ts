@@ -703,6 +703,44 @@ describe('app plan (resolve, render, checks)', () => {
     );
   });
 
+  it('names the required flavors and the file format when build_images.yaml is missing', async () => {
+    const api = new MemoryGitHubApi();
+    seedBaseRepos(api, { orgPlan: 'paid' });
+    api.deleteFile(SERVICE_REPO, '.github/build_images.yaml');
+
+    const inputs: AppInputs = {
+      ...BASE_INPUTS,
+      targets: [
+        { ...BASE_INPUTS.targets[0] },
+        {
+          ...BASE_INPUTS.targets[0],
+          env: 'pro',
+          track: 'releases',
+          flavor: 'worker',
+        },
+      ],
+    };
+
+    const result = await planApp({
+      api,
+      featureSource: createFakeFeatureSource(),
+      inputs,
+      schemaDirs: SCHEMA_DIRS,
+    });
+
+    const check = result.checks.find((c) => c.id === 'build-images');
+    expect(check?.status).toBe('fail');
+    expect(check?.message).toContain('snapshots.default');
+    expect(check?.message).toContain('releases.worker');
+
+    const checklist = (check?.checklist ?? []).join('\n');
+    expect(checklist).toContain('snapshots.default');
+    expect(checklist).toContain('releases.worker');
+    expect(checklist).toContain(
+      'https://github.com/firestartr-pro/firestartr/blob/main/.github/BUILD_AND_DISPATCH_DOCKER_IMAGES_README.md#configuration',
+    );
+  });
+
   it('free plan with existing app-<app> claim: does not edit it and fails on vars/secrets missing from the app claim', async () => {
     const api = new MemoryGitHubApi();
     const serviceWithVars = YAML.stringify({

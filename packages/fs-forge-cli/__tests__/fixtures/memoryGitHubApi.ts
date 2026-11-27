@@ -102,6 +102,10 @@ export class MemoryGitHubApi implements GitHubApi {
     this.files.set(`${this.key(ref)}#${path}`, { content, sha });
   }
 
+  deleteFile(ref: RepoRef, path: string): void {
+    this.files.delete(`${this.key(ref)}#${path}`);
+  }
+
   setBlobPaths(ref: RepoRef, paths: string[]): void {
     this.blobPaths.set(this.key(ref), paths);
   }
