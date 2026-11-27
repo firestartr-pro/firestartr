@@ -116,6 +116,94 @@ describe('renderDotFirestartrApp', () => {
     expect(result.content).toBe(existing);
   });
 
+  it('returns conflict when the existing document names a different app', () => {
+    const existing = [
+      'name: other-app',
+      'state_repo: acme/app-billing',
+      'services:',
+      '  - repo: acme/billing-api',
+      '    service_names: [billing-api]',
+      '',
+    ].join('\n');
+
+    const result = renderDotFirestartrApp({
+      org: 'acme',
+      inputs: baseInputs(),
+      schemasDir: SCHEMAS_DIR,
+      existingContent: existing,
+    });
+
+    expect(result.outcome).toEqual({
+      kind: 'conflict',
+      reason: 'name is "other-app", expected "billing"',
+    });
+    expect(result.content).toBeUndefined();
+  });
+
+  it('returns conflict when the no-change path finds a schema-invalid document', () => {
+    const existing = [
+      'name: billing',
+      'state_repo: acme/app-billing',
+      'owner: someone',
+      'services:',
+      '  - repo: acme/billing-api',
+      '    service_names: [billing-api]',
+      '',
+    ].join('\n');
+
+    const result = renderDotFirestartrApp({
+      org: 'acme',
+      inputs: baseInputs(),
+      schemasDir: SCHEMAS_DIR,
+      existingContent: existing,
+    });
+
+    expect(result.outcome.kind).toBe('conflict');
+    expect(result.content).toBeUndefined();
+    if (result.outcome.kind === 'conflict') {
+      expect(result.outcome.reason).toContain('owner');
+    }
+  });
+
+  it('keeps the existing apps/<app>.yml path when the app is defined there', () => {
+    const existing = [
+      'name: billing',
+      'state_repo: acme/app-billing',
+      'services:',
+      '  - repo: acme/billing-api',
+      '    service_names: [billing-api]',
+      '',
+    ].join('\n');
+
+    const result = renderDotFirestartrApp({
+      org: 'acme',
+      inputs: baseInputs(),
+      schemasDir: SCHEMAS_DIR,
+      existingPath: 'apps/billing.yml',
+      existingContent: existing,
+    });
+
+    expect(result.path).toBe('apps/billing.yml');
+    expect(result.outcome).toEqual({ kind: 'noop' });
+  });
+
+  it('returns conflict when both apps/<app>.yaml and apps/<app>.yml exist', () => {
+    const result = renderDotFirestartrApp({
+      org: 'acme',
+      inputs: baseInputs(),
+      schemasDir: SCHEMAS_DIR,
+      existingContent: 'name: billing\nstate_repo: acme/app-billing\nservices: []\n',
+      duplicatePaths: ['apps/billing.yaml', 'apps/billing.yml'],
+    });
+
+    expect(result.outcome.kind).toBe('conflict');
+    expect(result.content).toBeUndefined();
+    if (result.outcome.kind === 'conflict') {
+      expect(result.outcome.reason).toContain('apps/billing.yaml');
+      expect(result.outcome.reason).toContain('apps/billing.yml');
+    }
+  });
+
   it('merges a missing service_name into an existing service and preserves comments', () => {
     const existing = [
       '# Managed app config',

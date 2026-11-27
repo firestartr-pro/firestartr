@@ -10,7 +10,7 @@ import { preserveEol, resolveServiceNames } from './shared.js';
 import type { RenderedFile } from './types.js';
 import type { AppInputs, AppTrack } from '../../schema/appInputs.js';
 
-const MAKE_DISPATCHES_PATH = '.github/make_dispatches.yaml';
+export const MAKE_DISPATCHES_PATH = '.github/make_dispatches.yaml';
 
 export interface RenderMakeDispatchesOptions {
   org: string;

@@ -118,6 +118,29 @@ describe('renderStateAppTargets', () => {
     expect(files[1].content).toBe(existingValues);
   });
 
+  it('returns conflict when the existing env file is schema-invalid although chart and version match', () => {
+    const envPath = 'kubernetes/example-dev/example-team/dev.yaml';
+    const existingEnv = [
+      'version: 1.2.3',
+      'chart: example-aws/example/charts/web',
+      'hooks: not-an-array',
+      '',
+    ].join('\n');
+
+    const files = renderStateAppTargets({
+      inputs: baseInputs(),
+      registries,
+      schemasDir: SCHEMAS_DIR,
+      existingFiles: { [envPath]: existingEnv },
+    });
+
+    expect(files[0].outcome.kind).toBe('conflict');
+    expect(files[0].content).toBeUndefined();
+    if (files[0].outcome.kind === 'conflict') {
+      expect(files[0].outcome.reason).toContain('hooks');
+    }
+  });
+
   it('reports conflict on chart, version, releaseName, or non-default namespace mismatch', () => {
     const envPath = 'kubernetes/example-dev/example-team/dev.yaml';
 

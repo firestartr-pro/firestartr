@@ -14,6 +14,10 @@ export interface RenderDotFirestartrOptions {
   inputs: AppInputs;
   schemasDir: string;
   existingContent?: string;
+  /** Path the existing content was read from; defaults to `apps/<app>.yaml`. */
+  existingPath?: string;
+  /** Both supported app file extensions exist; rendering is a conflict. */
+  duplicatePaths?: string[];
 }
 
 function validateAppsDocErrors(
@@ -39,8 +43,9 @@ function validateAppsDoc(data: unknown, schemasDir: string): void {
 export function renderDotFirestartrApp(
   options: RenderDotFirestartrOptions,
 ): RenderedFile {
-  const { org, inputs, schemasDir, existingContent } = options;
-  const path = `apps/${inputs.app}.yaml`;
+  const { org, inputs, schemasDir, existingContent, duplicatePaths } = options;
+  const path =
+    options.existingPath ?? duplicatePaths?.[0] ?? `apps/${inputs.app}.yaml`;
   const expectedStateRepo = `${org}/app-${inputs.app}`;
   const { owner: serviceOwner, name: serviceRepoName } = parseRepoSlug(
     inputs.service.repo,
@@ -48,6 +53,16 @@ export function renderDotFirestartrApp(
   );
   const serviceRepoSlug = `${serviceOwner}/${serviceRepoName}`;
   const desiredServiceNames = resolveServiceNames(inputs.service, org);
+
+  if (duplicatePaths && duplicatePaths.length > 1) {
+    return {
+      path,
+      outcome: {
+        kind: 'conflict',
+        reason: `Both ${duplicatePaths.join(' and ')} define app "${inputs.app}"; keep a single definition.`,
+      },
+    };
+  }
 
   if (existingContent === undefined) {
     const obj = {
@@ -96,6 +111,16 @@ export function renderDotFirestartrApp(
       outcome: {
         kind: 'conflict',
         reason: `state_repo is "${String(parsed.state_repo ?? '')}", expected "${expectedStateRepo}"`,
+      },
+    };
+  }
+
+  if (parsed.name !== inputs.app) {
+    return {
+      path,
+      outcome: {
+        kind: 'conflict',
+        reason: `name is "${String(parsed.name ?? '')}", expected "${inputs.app}"`,
       },
     };
   }
@@ -168,6 +193,16 @@ export function renderDotFirestartrApp(
   }
 
   if (added.length === 0) {
+    const existingErrors = validateAppsDocErrors(parsed, schemasDir);
+    if (existingErrors) {
+      return {
+        path,
+        outcome: {
+          kind: 'conflict',
+          reason: `Existing ${path} failed schema validation: ${existingErrors.join('; ')}`,
+        },
+      };
+    }
     return {
       path,
       content: existingContent,

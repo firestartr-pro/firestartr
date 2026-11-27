@@ -38,11 +38,22 @@ function resolveChartReference(
   return `${registry.name}/${chartsBasePath}/${inputs.chart.name}`;
 }
 
-function validateStateAppEnv(data: unknown, schemasDir: string): void {
+function validateStateAppEnvErrors(
+  data: unknown,
+  schemasDir: string,
+): string[] | undefined {
   const validate = loadDotFirestartrValidator('state_apps_env', schemasDir);
   if (!validate(data)) {
+    return formatAjvErrors(validate.errors);
+  }
+  return undefined;
+}
+
+function validateStateAppEnv(data: unknown, schemasDir: string): void {
+  const errors = validateStateAppEnvErrors(data, schemasDir);
+  if (errors) {
     throw new Error(
-      `Rendered state_apps_env failed schema validation: ${formatAjvErrors(validate.errors).join('; ')}`,
+      `Rendered state_apps_env failed schema validation: ${errors.join('; ')}`,
     );
   }
 }
@@ -133,6 +144,17 @@ function renderTargetEnvFile(
       outcome: {
         kind: 'conflict',
         reason: `namespace is "${String(parsed.namespace)}", expected "${expectedNamespace}"`,
+      },
+    };
+  }
+
+  const existingErrors = validateStateAppEnvErrors(parsed, schemasDir);
+  if (existingErrors) {
+    return {
+      path,
+      outcome: {
+        kind: 'conflict',
+        reason: `Existing ${path} failed schema validation: ${existingErrors.join('; ')}`,
       },
     };
   }
